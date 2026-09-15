@@ -43,7 +43,7 @@ This version refreshes **one explicitly configured current Parliament**. It refu
 1. Open **one database transaction for the whole refresh**.
 2. Fetch current Commons membership pages, keeping their member IDs in memory.
 3. Read the historical Commons cohort one page at a time using `MembershipInDateRange`. Fetch that page's service histories, validate the data, and immediately write its member profiles and service periods. No current/latest-House/eligibility filter is applied to the historical cohort.
-4. Reconcile corrected service periods and, after the last page, check completeness and that no previously imported historical member has disappeared. Commit once. Former members are kept.
+4. Reconcile corrected service periods and, after the last page, check that all current members appear in the historical results. Commit once. Previously stored members absent from the response are kept unchanged.
 5. If any request, validation or database write fails, the transaction rolls back **all batches** and the command reports the failure. Other database sessions see the previous completed data until commit.
 
 The transaction stays open during API requests and retries. PostgreSQL manages the transaction's normal write locks and releases them when it ends. The importer keeps ID sets and the current page in memory; it does not assemble a complete copy of the import before writing it.

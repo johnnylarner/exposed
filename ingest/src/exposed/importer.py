@@ -64,16 +64,6 @@ def _import_batches(
         0,
     )
 
-    previous_ids = {
-        row["parliament_member_id"]
-        for row in conn.execute(
-            """SELECT DISTINCT m.parliament_member_id FROM exposed.members m
-               JOIN exposed.member_terms mt ON mt.member_id = m.id WHERE mt.term_id = %s""",
-            (term_id,),
-        )
-    }
-    imported_ids: set[int] = set()
-
     logger.info("Fetching current Commons member IDs")
     current_ids: set[int] = set()
     for profiles in api.search_pages({"House": 1, "IsCurrentMember": "true"}):
@@ -93,18 +83,20 @@ def _import_batches(
         histories = api.histories(set(profiles))
         for member_id, profile in profiles.items():
             current = member_id in current_ids
-            periods = service_periods(member_id, histories[member_id], term_start, as_of, current)
+            periods = service_periods(histories[member_id], term_start, as_of, current)
             seen_ids.add(member_id)
             if not periods:
                 summary["excluded_candidates"] += 1
                 continue
             member = parse_member(profile, current)
-            summary[write_member(conn, term_id, member, periods)] += 1
-            imported_ids.add(member_id)
+            write_result = write_member(conn, term_id, member, periods)
+
+            summary[write_result] += 1
             summary["members"] += 1
             summary["current_commons"] += current
             summary["former_commons"] += not current
             summary["service_periods"] += len(periods)
+
         logger.info("Processed %s historical candidates (uncommitted)", len(seen_ids))
 
     if not current_ids <= seen_ids:
@@ -113,10 +105,6 @@ def _import_batches(
         )
     if not summary["members"]:
         raise ImportValidationError("No Commons service was found for the configured term")
-    if missing := previous_ids - imported_ids:
-        raise ImportValidationError(
-            f"Historical coverage unexpectedly lost {len(missing)} previously imported members"
-        )
     return summary
 
 

@@ -37,14 +37,40 @@ def optional_text(value: object, context: str) -> str | None:
 
 
 @dataclass(frozen=True)
-class Member:
+class MemberProfile:
+    """Latest Parliament profile, independent of current Commons membership."""
+
     parliament_member_id: int
     name: str
     party_id: int | None
     party_name: str | None
     latest_house: int
     latest_membership_from: str | None
+
+
+@dataclass(frozen=True)
+class Member(MemberProfile):
     is_current_commons: bool
+
+
+@dataclass(frozen=True)
+class HouseMembership:
+    house: int
+    start_date: date
+    end_date: date | None
+
+
+@dataclass(frozen=True)
+class MemberHistory:
+    """Dated House memberships for one Parliament member."""
+
+    parliament_member_id: int
+    house_memberships: tuple[HouseMembership, ...]
+
+
+# Both lookups are keyed by Parliament member ID.
+type MemberSearchPage = dict[int, MemberProfile]
+type MemberHistories = dict[int, MemberHistory]
 
 
 @dataclass(frozen=True)
@@ -57,7 +83,7 @@ class ServicePeriod:
     house: int = 1
 
 
-def parse_member(value: dict[str, Any], current: bool) -> Member:
+def parse_profile(value: dict[str, Any]) -> MemberProfile:
     member_id = integer(value.get("id"), "member ID")
     name = value.get("nameDisplayAs")
     if not isinstance(name, str) or not name.strip():
@@ -65,42 +91,67 @@ def parse_member(value: dict[str, Any], current: bool) -> Member:
     party = object_value(value.get("latestParty") or {}, f"Member {member_id} party")
     membership = object_value(value.get("latestHouseMembership"), "latest membership")
     house = integer(membership.get("house"), "latest House")
-    if house not in (1, 2) or (current and house != 1):
+    if house not in (1, 2):
         raise ImportValidationError(f"Member {member_id}: inconsistent latest House")
     party_id = party.get("id")
-    return Member(
+    return MemberProfile(
         parliament_member_id=member_id,
         name=name,
         party_id=None if party_id is None else integer(party_id, "party ID"),
         party_name=optional_text(party.get("name"), "party name"),
         latest_house=house,
         latest_membership_from=optional_text(membership.get("membershipFrom"), "membership from"),
+    )
+
+
+def parse_member(profile: MemberProfile, current: bool) -> Member:
+    if current and profile.latest_house != 1:
+        raise ImportValidationError(
+            f"Member {profile.parliament_member_id}: inconsistent latest House"
+        )
+    return Member(
+        parliament_member_id=profile.parliament_member_id,
+        name=profile.name,
+        party_id=profile.party_id,
+        party_name=profile.party_name,
+        latest_house=profile.latest_house,
+        latest_membership_from=profile.latest_membership_from,
         is_current_commons=current,
     )
 
 
-def service_periods(
-    member_id: int,
-    history: dict[str, Any],
-    term_start: date,
-    as_of: date,
-    current: bool,
-) -> list[ServicePeriod]:
-    """Validate one member's history and keep each Commons service period in this term."""
-    entries = history.get("houseMembershipHistory")
+def parse_history(value: dict[str, Any]) -> MemberHistory:
+    member_id = integer(value.get("id"), "history member ID")
+    entries = value.get("houseMembershipHistory")
     if not isinstance(entries, list) or not entries:
         raise ImportValidationError(f"Member {member_id}: missing membership history")
-    selected: dict[date, ServicePeriod] = {}
+    memberships = []
     for entry in entries:
         entry = object_value(entry, "membership history entry")
         house = integer(entry.get("house"), "history House")
         if house not in (1, 2):
             raise ImportValidationError(f"Member {member_id}: unknown history House")
-        if house != 1:
-            continue
         start = source_date(entry.get("membershipStartDate"), "service start")
         end_value = entry.get("membershipEndDate")
         end = None if end_value is None else source_date(end_value, "service end")
+        memberships.append(HouseMembership(house, start, end))
+    return MemberHistory(member_id, tuple(memberships))
+
+
+def service_periods(
+    history: MemberHistory,
+    term_start: date,
+    as_of: date,
+    current: bool,
+) -> list[ServicePeriod]:
+    """Keep and validate each Commons service period in this term."""
+    member_id = history.parliament_member_id
+    selected: dict[date, ServicePeriod] = {}
+    for membership in history.house_memberships:
+        if membership.house != 1:
+            continue
+        start = membership.start_date
+        end = membership.end_date
         # An end date is the date service ceased. No invented dissolution dates.
         if start > as_of or (end is not None and end <= term_start):
             continue

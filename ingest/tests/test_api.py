@@ -1,3 +1,5 @@
+from datetime import date
+
 import httpx
 import pytest
 
@@ -21,7 +23,10 @@ def test_search_pages_include_departed_mp_now_in_lords():
     assert len(pages) == 1
     members = pages[0]
     assert set(members) == {1, 2, 3}
-    assert members[2]["latestHouseMembership"]["house"] == 2
+    assert members[2].latest_house == 2
+    assert members[2].parliament_member_id == 2
+    assert members[2].name == "Example Member 2"
+    assert members[2].party_name == "Example party"
 
 
 def test_pages_are_yielded_before_later_pages_are_requested():
@@ -70,6 +75,12 @@ def test_history_request_includes_every_id_in_batch():
     with api.client:
         histories = api.histories(set(fixture.profiles))
     assert set(histories) == set(fixture.profiles)
+    assert histories[1].parliament_member_id == 1
+    previous, current = histories[1].house_memberships
+    assert previous.end_date == date(2024, 5, 30)
+    assert current.house == 1
+    assert current.start_date == date(2024, 7, 4)
+    assert current.end_date is None
     assert set(fixture.requests[0].url.params.get_list("ids")) == {str(i) for i in fixture.profiles}
 
 

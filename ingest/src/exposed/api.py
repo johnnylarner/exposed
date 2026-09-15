@@ -11,8 +11,12 @@ import httpx
 
 from exposed.models import (
     ImportValidationError,
+    MemberHistories,
+    MemberSearchPage,
     integer,
     object_value,
+    parse_history,
+    parse_profile,
 )
 
 BASE_URL = "https://members-api.parliament.uk"
@@ -77,7 +81,7 @@ class MembersAPI:
     def search_pages(
         self,
         filters: dict[str, str | int],
-    ) -> Iterator[dict[int, dict[str, Any]]]:
+    ) -> Iterator[MemberSearchPage]:
         """Yield validated pages without collecting the whole result in memory."""
         seen: set[int] = set()
         expected = None
@@ -102,14 +106,14 @@ class MembersAPI:
                 raise ImportValidationError(
                     "Search ended before all advertised members were returned"
                 )
-            members: dict[int, dict[str, Any]] = {}
+            members: MemberSearchPage = {}
             for item in items:
                 value = object_value(object_value(item, "search item").get("value"), "member")
                 member_id = integer(value.get("id"), "member ID")
                 if member_id in seen:
                     raise ImportValidationError(f"Duplicate member {member_id} across search pages")
                 seen.add(member_id)
-                members[member_id] = value
+                members[member_id] = parse_profile(value)
             offset += len(items)
             if offset > total:
                 raise ImportValidationError("Search returned more members than advertised")
@@ -120,7 +124,7 @@ class MembersAPI:
     def histories(
         self,
         member_ids: set[int],
-    ) -> dict[int, dict[str, Any]]:
+    ) -> MemberHistories:
         """Fetch exactly the histories needed for one member-search page."""
         if not 1 <= len(member_ids) <= PAGE_SIZE:
             raise ValueError(f"History requests need between 1 and {PAGE_SIZE} member IDs")
@@ -130,13 +134,13 @@ class MembersAPI:
         response = self._get("/api/Members/History", params)
         if not isinstance(response, list):
             raise ImportValidationError("Invalid history response")
-        histories: dict[int, dict[str, Any]] = {}
+        histories: MemberHistories = {}
         for item in response:
             value = object_value(object_value(item, "history item").get("value"), "history")
             member_id = integer(value.get("id"), "history member ID")
             if member_id in histories:
                 raise ImportValidationError(f"Duplicate history for member {member_id}")
-            histories[member_id] = value
+            histories[member_id] = parse_history(value)
         if histories.keys() != member_ids:
             raise ImportValidationError(
                 "History response does not contain all requested member IDs"

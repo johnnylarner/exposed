@@ -124,8 +124,9 @@ def test_disappearing_historical_member_does_not_delete_or_deactivate_records(da
     fixture.profiles.pop(2)
     fixture.histories.pop(2)
     fixture.current.remove(2)
-    with pytest.raises(ImportFailed, match="unexpectedly lost"):
-        run(database_url, fixture)
+    result = run(database_url, fixture)
+    assert result["status"] == "succeeded"
+    assert result["members"] == 2
     assert dataset(database_url) == before
 
 
