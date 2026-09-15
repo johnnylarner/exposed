@@ -1,5 +1,6 @@
 """Database operations; the importer owns the transaction spanning all batches."""
 
+from collections.abc import Sequence
 from datetime import date
 from typing import Literal
 from uuid import UUID, uuid7
@@ -35,7 +36,7 @@ def write_member(
     conn: DatabaseConnection,
     term_id: UUID,
     member: Member,
-    periods: list[ServicePeriod],
+    periods: Sequence[ServicePeriod],
 ) -> Literal["inserted", "updated", "unchanged"]:
     previous = conn.execute(
         """SELECT parliament_member_id, name, party_id, party_name, latest_house,

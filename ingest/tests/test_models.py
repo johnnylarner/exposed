@@ -4,8 +4,17 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 
-from exposed.models import HistoryBatch, Member, SearchPage, ServicePeriod, validation_error_message
-from tests.fakes import ParliamentFixture, service
+from exposed.models import (
+    CommonsService,
+    HistoryBatch,
+    Member,
+    MemberHistory,
+    MemberResponse,
+    SearchPage,
+    ServicePeriod,
+    validation_error_message,
+)
+from tests.fakes import AS_OF, TERM_START, ParliamentFixture, service
 
 
 def search_payload(profile: dict[str, object]) -> str:
@@ -177,3 +186,123 @@ def test_database_models_validate_fields_and_serialize_dates():
     assert period.model_dump(mode="json")["served_from"] == "2024-07-04"
     with pytest.raises(ValidationError, match="parliament_member_id"):
         ServicePeriod.model_validate({**period.model_dump(), "parliament_member_id": True})
+
+
+def test_latest_profile_can_be_lords_while_commons_service_is_retained():
+    fixture = ParliamentFixture(1)
+    fixture.leave(1, lords=True)
+    member = Member.from_profile(
+        MemberResponse.model_validate(fixture.profiles[1]).to_profile(), is_current_commons=False
+    )
+    periods = CommonsService.from_history(
+        MemberHistory.model_validate_json(json.dumps(fixture.histories[1])),
+        term_start=TERM_START,
+        as_of=AS_OF,
+        is_current_commons=False,
+    ).periods
+    assert member.latest_house == 2
+    assert not member.is_current_commons
+    assert len(periods) == 1
+    assert periods[0].served_until == date(2025, 3, 17)
+
+
+def test_long_continuous_source_period_is_clipped_without_losing_original_date():
+    history = {"houseMembershipHistory": [service("1987-06-11")]}
+    period = CommonsService.from_history(
+        MemberHistory.model_validate_json(json.dumps({"id": 1, **history})),
+        term_start=TERM_START,
+        as_of=AS_OF,
+        is_current_commons=True,
+    ).periods[0]
+    assert period.served_from == TERM_START
+    assert period.source_start_date == date(1987, 6, 11)
+
+
+def test_by_election_service_starts_on_its_source_date():
+    history = {"houseMembershipHistory": [service("2025-05-01")]}
+    period = CommonsService.from_history(
+        MemberHistory.model_validate_json(json.dumps({"id": 1, **history})),
+        term_start=TERM_START,
+        as_of=AS_OF,
+        is_current_commons=True,
+    ).periods[0]
+    assert period.served_from == date(2025, 5, 1)
+
+
+def test_reentry_retains_a_real_service_gap():
+    history = {"houseMembershipHistory": [service(end="2025-01-01"), service("2025-06-01")]}
+    periods = CommonsService.from_history(
+        MemberHistory.model_validate_json(json.dumps({"id": 1, **history})),
+        term_start=TERM_START,
+        as_of=AS_OF,
+        is_current_commons=True,
+    ).periods
+    assert len(periods) == 2
+    assert periods[0].served_until == date(2025, 1, 1)
+    assert periods[1].served_from == date(2025, 6, 1)
+
+
+def test_disagreement_between_history_and_current_cohort_is_rejected():
+    history = {"houseMembershipHistory": [service(end="2025-01-01")]}
+    with pytest.raises(ValidationError, match="disagrees"):
+        CommonsService.from_history(
+            MemberHistory.model_validate_json(json.dumps({"id": 1, **history})),
+            term_start=TERM_START,
+            as_of=AS_OF,
+            is_current_commons=True,
+        )
+
+
+@pytest.mark.parametrize("end", ["2024-05-30", "2024-07-04"])
+def test_service_that_ceased_before_or_on_term_start_is_excluded(end):
+    history = {"houseMembershipHistory": [service("2019-12-12", end)]}
+    assert (
+        CommonsService.from_history(
+            MemberHistory.model_validate_json(json.dumps({"id": 1, **history})),
+            term_start=TERM_START,
+            as_of=AS_OF,
+            is_current_commons=False,
+        ).periods
+        == ()
+    )
+
+
+@pytest.mark.parametrize(
+    ("memberships", "message"),
+    [
+        ([service("2025-06-01", "2025-05-01")], "ends before"),
+        ([service(), service(end="2025-05-01")], "conflicting"),
+        ([service(), service("2025-05-01")], "overlapping"),
+        ([service("2024-07-04", "2025-06-01"), service("2025-05-01")], "overlapping"),
+    ],
+)
+def test_service_period_relationships_are_checked_by_models(memberships, message):
+    history = MemberHistory.model_validate_json(
+        json.dumps({"id": 1, "houseMembershipHistory": memberships})
+    )
+    with pytest.raises(ValidationError, match=message):
+        CommonsService.from_history(
+            history, term_start=TERM_START, as_of=AS_OF, is_current_commons=True
+        )
+
+
+def test_identical_source_periods_are_deduplicated():
+    history = MemberHistory.model_validate_json(
+        json.dumps({"id": 1, "houseMembershipHistory": [service(), service()]})
+    )
+    assert (
+        len(
+            CommonsService.from_history(
+                history, term_start=TERM_START, as_of=AS_OF, is_current_commons=True
+            ).periods
+        )
+        == 1
+    )
+
+
+def test_current_member_requires_commons_profile():
+    fixture = ParliamentFixture(1)
+    fixture.leave(1, lords=True)
+    profile = MemberResponse.model_validate(fixture.profiles[1]).to_profile()
+    with pytest.raises(ValidationError, match="inconsistent latest House"):
+        Member.from_profile(profile, is_current_commons=True)

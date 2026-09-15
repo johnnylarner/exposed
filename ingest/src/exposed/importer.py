@@ -12,12 +12,11 @@ from pydantic import ValidationError
 from exposed.api import APIError, MembersAPI
 from exposed.db import DatabaseConnection, ensure_term, write_member
 from exposed.models import (
+    CommonsService,
     ImportValidationError,
     Member,
     MemberHistory,
-    MemberProfile,
     SearchPage,
-    ServicePeriod,
     validation_error_message,
 )
 
@@ -56,30 +55,15 @@ def safe_error(exc: BaseException) -> str:
 
 
 def search_pages(api: MembersAPI, filters: dict[str, str | int]) -> Iterator[SearchPage]:
-    """Check each page before yielding it, retaining only IDs between requests."""
-    seen_ids: set[int] = set()
-    expected_total = None
+    """Advance by the number returned until the API's reported total is reached."""
     offset = 0
     while True:
         page = api.search_page(filters, skip=offset, take=BATCH_SIZE)
-        if expected_total is None:
-            expected_total = page.total_results
-        if page.total_results != expected_total or page.skip != offset:
-            raise ImportValidationError("Search pagination changed during the import; rerun")
-        if len(page.members) > BATCH_SIZE:
-            raise ImportValidationError("Search page exceeds the requested batch size")
-        if not page.members and offset < expected_total:
+        if not page.members and offset < page.total_results:
             raise ImportValidationError("Search ended before all advertised members were returned")
-        for member in page.members:
-            member_id = member.parliament_member_id
-            if member_id in seen_ids:
-                raise ImportValidationError(f"Duplicate member {member_id} across search pages")
-            seen_ids.add(member_id)
-        offset += len(page.members)
-        if offset > expected_total:
-            raise ImportValidationError("Search returned more members than advertised")
         yield page
-        if offset == expected_total:
+        offset += len(page.members)
+        if offset >= page.total_results:
             return
 
 
@@ -97,65 +81,6 @@ def load_histories(api: MembersAPI, member_ids: set[int]) -> dict[int, MemberHis
     if histories.keys() != member_ids:
         raise ImportValidationError("History response does not contain all requested member IDs")
     return histories
-
-
-def build_member(profile: MemberProfile, current: bool) -> Member:
-    if current and profile.latest_house != 1:
-        raise ImportValidationError(
-            f"Member {profile.parliament_member_id}: inconsistent latest House"
-        )
-    return Member(
-        parliament_member_id=profile.parliament_member_id,
-        name=profile.name,
-        party_id=profile.party_id,
-        party_name=profile.party_name,
-        latest_house=profile.latest_house,
-        latest_membership_from=profile.latest_membership_from,
-        is_current_commons=current,
-    )
-
-
-def service_periods(
-    history: MemberHistory,
-    term_start: date,
-    as_of: date,
-    current: bool,
-) -> list[ServicePeriod]:
-    """Keep and validate each Commons service period in this term."""
-    member_id = history.parliament_member_id
-    selected: dict[date, ServicePeriod] = {}
-    for membership in history.house_memberships:
-        if membership.house != 1:
-            continue
-        start = membership.start_date
-        end = membership.end_date
-        # An end date is the date service ceased. No invented dissolution dates.
-        if start > as_of or (end is not None and end <= term_start):
-            continue
-        if end is not None and end < start:
-            raise ImportValidationError(f"Member {member_id}: service ends before it starts")
-        period = ServicePeriod(
-            parliament_member_id=member_id,
-            source_start_date=start,
-            source_end_date=end,
-            served_from=max(start, term_start),
-            served_until=end,
-        )
-        if start in selected and selected[start] != period:
-            raise ImportValidationError(f"Member {member_id}: conflicting service periods")
-        selected[start] = period
-    periods = sorted(selected.values(), key=lambda p: p.source_start_date)
-    if not periods:
-        if current:
-            raise ImportValidationError(f"Current member {member_id} has no service in this term")
-        return []
-    for previous, following in zip(periods, periods[1:], strict=False):
-        if previous.served_until is None or following.served_from < previous.served_until:
-            raise ImportValidationError(f"Member {member_id}: overlapping service periods")
-    active = any(p.served_until is None or p.served_until > as_of for p in periods)
-    if active != current:
-        raise ImportValidationError(f"Member {member_id}: history disagrees with current search")
-    return periods
 
 
 def _import_batches(
@@ -201,19 +126,24 @@ def _import_batches(
         for profile in page.members:
             member_id = profile.parliament_member_id
             current = member_id in current_ids
-            periods = service_periods(histories[member_id], term_start, as_of, current)
+            service = CommonsService.from_history(
+                histories[member_id],
+                term_start=term_start,
+                as_of=as_of,
+                is_current_commons=current,
+            )
             seen_ids.add(member_id)
-            if not periods:
+            if not service.periods:
                 summary["excluded_candidates"] += 1
                 continue
-            member = build_member(profile, current)
-            write_result = write_member(conn, term_id, member, periods)
+            member = Member.from_profile(profile, is_current_commons=current)
+            write_result = write_member(conn, term_id, member, service.periods)
 
             summary[write_result] += 1
             summary["members"] += 1
             summary["current_commons"] += current
             summary["former_commons"] += not current
-            summary["service_periods"] += len(periods)
+            summary["service_periods"] += len(service.periods)
 
         logger.info("Processed %s historical candidates (uncommitted)", len(seen_ids))
 
