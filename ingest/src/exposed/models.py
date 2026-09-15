@@ -1,175 +1,153 @@
-"""Validate source data and derive dated Commons service for the configured term."""
+"""Parse Parliament JSON into typed models and validate individual fields."""
 
-from dataclasses import dataclass
 from datetime import date, datetime
-from typing import Any
+from typing import Annotated, Self
+
+from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, RootModel, ValidationError
 
 
 class ImportValidationError(ValueError):
     """The source is incomplete, inconsistent, or unsuitable for this import."""
 
 
-def object_value(value: object, context: str) -> dict[str, Any]:
-    if not isinstance(value, dict):
-        raise ImportValidationError(f"{context}: expected an object")
+def validation_error_message(error: ValidationError) -> str:
+    """Report model and field paths without including raw input values."""
+    details = []
+    for issue in error.errors(include_url=False, include_context=False, include_input=False):
+        path = ".".join(str(part) for part in issue["loc"]) or "response"
+        details.append(f"{path}: {issue['msg']}")
+    return f"Invalid {error.title}: {'; '.join(details)}"
+
+
+def calendar_date(value: object) -> object:
+    """Retain the source's calendar date, discarding time without timezone conversion."""
+    if isinstance(value, str):
+        try:
+            return datetime.fromisoformat(value).date()
+        except ValueError as exc:
+            raise ValueError("expected an ISO date or datetime") from exc
+    if isinstance(value, datetime):
+        return value.date()
     return value
 
 
-def integer(value: object, context: str, minimum: int = 1) -> int:
-    if type(value) is not int or value < minimum:
-        raise ImportValidationError(f"{context}: expected an integer >= {minimum}")
-    return value
+type PositiveID = Annotated[int, Field(gt=0)]
+type HouseNumber = Annotated[int, Field(ge=1, le=2)]
+type DisplayName = Annotated[str, Field(pattern=r"\S")]
+type SourceDate = Annotated[date, BeforeValidator(calendar_date)]
 
 
-def source_date(value: object, context: str) -> date:
-    try:
-        if not isinstance(value, str):
-            raise ValueError
-        return datetime.fromisoformat(value).date()
-    except ValueError as exc:
-        raise ImportValidationError(f"{context}: missing or invalid date") from exc
+class Model(BaseModel):
+    model_config = ConfigDict(strict=True, extra="ignore", frozen=True, validate_by_name=True)
 
 
-def optional_text(value: object, context: str) -> str | None:
-    if value is not None and not isinstance(value, str):
-        raise ImportValidationError(f"{context}: expected text or null")
-    return value
+class MemberProfile(Model):
+    """Latest profile, independent of current Commons membership."""
+
+    parliament_member_id: PositiveID
+    name: DisplayName
+    party_id: PositiveID | None = None
+    party_name: str | None = None
+    latest_house: HouseNumber
+    latest_membership_from: str | None = None
 
 
-@dataclass(frozen=True)
-class MemberProfile:
-    """Latest Parliament profile, independent of current Commons membership."""
-
-    parliament_member_id: int
-    name: str
-    party_id: int | None
-    party_name: str | None
-    latest_house: int
-    latest_membership_from: str | None
-
-
-@dataclass(frozen=True)
 class Member(MemberProfile):
+    """Member fields persisted by the importer."""
+
     is_current_commons: bool
 
 
-@dataclass(frozen=True)
-class HouseMembership:
-    house: int
-    start_date: date
-    end_date: date | None
+class HouseMembership(Model):
+    house: HouseNumber
+    start_date: SourceDate = Field(validation_alias="membershipStartDate")
+    end_date: SourceDate | None = Field(default=None, validation_alias="membershipEndDate")
 
 
-@dataclass(frozen=True)
-class MemberHistory:
-    """Dated House memberships for one Parliament member."""
-
-    parliament_member_id: int
-    house_memberships: tuple[HouseMembership, ...]
-
-
-# Both lookups are keyed by Parliament member ID.
-type MemberSearchPage = dict[int, MemberProfile]
-type MemberHistories = dict[int, MemberHistory]
+class MemberHistory(Model):
+    parliament_member_id: PositiveID = Field(validation_alias="id")
+    house_memberships: tuple[HouseMembership, ...] = Field(
+        validation_alias="houseMembershipHistory", min_length=1
+    )
 
 
-@dataclass(frozen=True)
-class ServicePeriod:
-    parliament_member_id: int
+class ServicePeriod(Model):
+    parliament_member_id: PositiveID
     source_start_date: date
-    source_end_date: date | None
+    source_end_date: date | None = None
     served_from: date
-    served_until: date | None
-    house: int = 1
+    served_until: date | None = None
+    house: Annotated[int, Field(ge=1, le=1)] = 1
 
 
-def parse_profile(value: dict[str, Any]) -> MemberProfile:
-    member_id = integer(value.get("id"), "member ID")
-    name = value.get("nameDisplayAs")
-    if not isinstance(name, str) or not name.strip():
-        raise ImportValidationError(f"Member {member_id}: missing display name")
-    party = object_value(value.get("latestParty") or {}, f"Member {member_id} party")
-    membership = object_value(value.get("latestHouseMembership"), "latest membership")
-    house = integer(membership.get("house"), "latest House")
-    if house not in (1, 2):
-        raise ImportValidationError(f"Member {member_id}: inconsistent latest House")
-    party_id = party.get("id")
-    return MemberProfile(
-        parliament_member_id=member_id,
-        name=name,
-        party_id=None if party_id is None else integer(party_id, "party ID"),
-        party_name=optional_text(party.get("name"), "party name"),
-        latest_house=house,
-        latest_membership_from=optional_text(membership.get("membershipFrom"), "membership from"),
-    )
+class PartyResponse(Model):
+    id: PositiveID | None = None
+    name: str | None = None
 
 
-def parse_member(profile: MemberProfile, current: bool) -> Member:
-    if current and profile.latest_house != 1:
-        raise ImportValidationError(
-            f"Member {profile.parliament_member_id}: inconsistent latest House"
+class LatestMembershipResponse(Model):
+    house: HouseNumber
+    membership_from: str | None = Field(default=None, validation_alias="membershipFrom")
+
+
+class MemberResponse(Model):
+    """Only the profile fields we consume from Parliament's nested response."""
+
+    id: PositiveID
+    name: DisplayName = Field(validation_alias="nameDisplayAs")
+    party: PartyResponse | None = Field(default=None, validation_alias="latestParty")
+    latest_membership: LatestMembershipResponse = Field(validation_alias="latestHouseMembership")
+
+    def to_profile(self) -> MemberProfile:
+        return MemberProfile(
+            parliament_member_id=self.id,
+            name=self.name,
+            party_id=self.party.id if self.party else None,
+            party_name=self.party.name if self.party else None,
+            latest_house=self.latest_membership.house,
+            latest_membership_from=self.latest_membership.membership_from,
         )
-    return Member(
-        parliament_member_id=profile.parliament_member_id,
-        name=profile.name,
-        party_id=profile.party_id,
-        party_name=profile.party_name,
-        latest_house=profile.latest_house,
-        latest_membership_from=profile.latest_membership_from,
-        is_current_commons=current,
-    )
 
 
-def parse_history(value: dict[str, Any]) -> MemberHistory:
-    member_id = integer(value.get("id"), "history member ID")
-    entries = value.get("houseMembershipHistory")
-    if not isinstance(entries, list) or not entries:
-        raise ImportValidationError(f"Member {member_id}: missing membership history")
-    memberships = []
-    for entry in entries:
-        entry = object_value(entry, "membership history entry")
-        house = integer(entry.get("house"), "history House")
-        if house not in (1, 2):
-            raise ImportValidationError(f"Member {member_id}: unknown history House")
-        start = source_date(entry.get("membershipStartDate"), "service start")
-        end_value = entry.get("membershipEndDate")
-        end = None if end_value is None else source_date(end_value, "service end")
-        memberships.append(HouseMembership(house, start, end))
-    return MemberHistory(member_id, tuple(memberships))
+class ResponseItem[T](Model):
+    """Parliament wraps each resource in a value field alongside unused metadata."""
+
+    value: T
 
 
-def service_periods(
-    history: MemberHistory,
-    term_start: date,
-    as_of: date,
-    current: bool,
-) -> list[ServicePeriod]:
-    """Keep and validate each Commons service period in this term."""
-    member_id = history.parliament_member_id
-    selected: dict[date, ServicePeriod] = {}
-    for membership in history.house_memberships:
-        if membership.house != 1:
-            continue
-        start = membership.start_date
-        end = membership.end_date
-        # An end date is the date service ceased. No invented dissolution dates.
-        if start > as_of or (end is not None and end <= term_start):
-            continue
-        if end is not None and end < start:
-            raise ImportValidationError(f"Member {member_id}: service ends before it starts")
-        period = ServicePeriod(member_id, start, end, max(start, term_start), end)
-        if start in selected and selected[start] != period:
-            raise ImportValidationError(f"Member {member_id}: conflicting service periods")
-        selected[start] = period
-    periods = sorted(selected.values(), key=lambda p: p.source_start_date)
-    if not periods:
-        if current:
-            raise ImportValidationError(f"Current member {member_id} has no service in this term")
-        return []
-    for previous, following in zip(periods, periods[1:], strict=False):
-        if previous.served_until is None or following.served_from < previous.served_until:
-            raise ImportValidationError(f"Member {member_id}: overlapping service periods")
-    active = any(p.served_until is None or p.served_until > as_of for p in periods)
-    if active != current:
-        raise ImportValidationError(f"Member {member_id}: history disagrees with current search")
-    return periods
+class SearchResponse(Model):
+    items: tuple[ResponseItem[MemberResponse], ...]
+    total_results: Annotated[int, Field(ge=0)] = Field(validation_alias="totalResults")
+    skip: Annotated[int, Field(ge=0)]
+
+
+class HistoryResponse(RootModel[tuple[ResponseItem[MemberHistory], ...]]):
+    model_config = ConfigDict(strict=True, frozen=True)
+
+
+class SearchPage(Model):
+    """One page of profiles; collection checks belong to the importer."""
+
+    members: tuple[MemberProfile, ...]
+    total_results: Annotated[int, Field(ge=0)]
+    skip: Annotated[int, Field(ge=0)]
+
+    @classmethod
+    def from_json(cls, payload: str | bytes) -> Self:
+        response = SearchResponse.model_validate_json(payload)
+        return cls(
+            members=tuple(item.value.to_profile() for item in response.items),
+            total_results=response.total_results,
+            skip=response.skip,
+        )
+
+
+class HistoryBatch(Model):
+    """Histories in response order, retaining duplicates for the importer to check."""
+
+    histories: tuple[MemberHistory, ...]
+
+    @classmethod
+    def from_json(cls, payload: str | bytes) -> Self:
+        response = HistoryResponse.model_validate_json(payload)
+        return cls(histories=tuple(item.value for item in response.root))

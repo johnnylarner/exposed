@@ -211,3 +211,15 @@ def test_remove_membership_from_id_preserves_member_data(database_url):
             ).fetchone()
             is None
         )
+
+
+def test_invalid_later_history_rolls_back_prior_batch_and_reports_field(database_url):
+    fixture = ParliamentFixture(101)
+    run(database_url, fixture)
+    before = dataset(database_url)
+    fixture.profiles[1]["nameDisplayAs"] = "Must roll back"
+    fixture.histories[101]["houseMembershipHistory"][0]["membershipStartDate"] = "invalid-date"
+    with pytest.raises(ImportFailed, match="houseMembershipHistory.0.membershipStartDate") as error:
+        run(database_url, fixture)
+    assert "invalid-date" not in str(error.value)
+    assert dataset(database_url) == before

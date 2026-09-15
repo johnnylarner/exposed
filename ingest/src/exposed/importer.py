@@ -1,16 +1,27 @@
 """Import every batch in the same database transaction."""
 
 import logging
+from collections.abc import Iterator
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 import psycopg
 from psycopg.rows import DictRow, dict_row
+from pydantic import ValidationError
 
 from exposed.api import APIError, MembersAPI
 from exposed.db import DatabaseConnection, ensure_term, write_member
-from exposed.models import ImportValidationError, parse_member, service_periods
+from exposed.models import (
+    ImportValidationError,
+    Member,
+    MemberHistory,
+    MemberProfile,
+    SearchPage,
+    ServicePeriod,
+    validation_error_message,
+)
 
+BATCH_SIZE = 100
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +44,8 @@ def connect(database_url: str) -> DatabaseConnection:
 def safe_error(exc: BaseException) -> str:
     if isinstance(exc, (ImportValidationError, APIError)):
         return str(exc)
+    if isinstance(exc, ValidationError):
+        return validation_error_message(exc)
     if isinstance(exc, KeyboardInterrupt):
         return "Import interrupted"
     if isinstance(exc, psycopg.Error):
@@ -40,6 +53,109 @@ def safe_error(exc: BaseException) -> str:
         code = exc.sqlstate or "unknown"
         return f"Database operation failed ({type(exc).__name__}, SQLSTATE {code})"
     return f"Unexpected importer failure ({type(exc).__name__})"
+
+
+def search_pages(api: MembersAPI, filters: dict[str, str | int]) -> Iterator[SearchPage]:
+    """Check each page before yielding it, retaining only IDs between requests."""
+    seen_ids: set[int] = set()
+    expected_total = None
+    offset = 0
+    while True:
+        page = api.search_page(filters, skip=offset, take=BATCH_SIZE)
+        if expected_total is None:
+            expected_total = page.total_results
+        if page.total_results != expected_total or page.skip != offset:
+            raise ImportValidationError("Search pagination changed during the import; rerun")
+        if len(page.members) > BATCH_SIZE:
+            raise ImportValidationError("Search page exceeds the requested batch size")
+        if not page.members and offset < expected_total:
+            raise ImportValidationError("Search ended before all advertised members were returned")
+        for member in page.members:
+            member_id = member.parliament_member_id
+            if member_id in seen_ids:
+                raise ImportValidationError(f"Duplicate member {member_id} across search pages")
+            seen_ids.add(member_id)
+        offset += len(page.members)
+        if offset > expected_total:
+            raise ImportValidationError("Search returned more members than advertised")
+        yield page
+        if offset == expected_total:
+            return
+
+
+def load_histories(api: MembersAPI, member_ids: set[int]) -> dict[int, MemberHistory]:
+    """Match a history batch to its requested members before indexing it by ID."""
+    if not 1 <= len(member_ids) <= BATCH_SIZE:
+        raise ImportValidationError(f"History requests need between 1 and {BATCH_SIZE} member IDs")
+    batch = api.histories(member_ids)
+    histories: dict[int, MemberHistory] = {}
+    for history in batch.histories:
+        member_id = history.parliament_member_id
+        if member_id in histories:
+            raise ImportValidationError(f"Duplicate history for member {member_id}")
+        histories[member_id] = history
+    if histories.keys() != member_ids:
+        raise ImportValidationError("History response does not contain all requested member IDs")
+    return histories
+
+
+def build_member(profile: MemberProfile, current: bool) -> Member:
+    if current and profile.latest_house != 1:
+        raise ImportValidationError(
+            f"Member {profile.parliament_member_id}: inconsistent latest House"
+        )
+    return Member(
+        parliament_member_id=profile.parliament_member_id,
+        name=profile.name,
+        party_id=profile.party_id,
+        party_name=profile.party_name,
+        latest_house=profile.latest_house,
+        latest_membership_from=profile.latest_membership_from,
+        is_current_commons=current,
+    )
+
+
+def service_periods(
+    history: MemberHistory,
+    term_start: date,
+    as_of: date,
+    current: bool,
+) -> list[ServicePeriod]:
+    """Keep and validate each Commons service period in this term."""
+    member_id = history.parliament_member_id
+    selected: dict[date, ServicePeriod] = {}
+    for membership in history.house_memberships:
+        if membership.house != 1:
+            continue
+        start = membership.start_date
+        end = membership.end_date
+        # An end date is the date service ceased. No invented dissolution dates.
+        if start > as_of or (end is not None and end <= term_start):
+            continue
+        if end is not None and end < start:
+            raise ImportValidationError(f"Member {member_id}: service ends before it starts")
+        period = ServicePeriod(
+            parliament_member_id=member_id,
+            source_start_date=start,
+            source_end_date=end,
+            served_from=max(start, term_start),
+            served_until=end,
+        )
+        if start in selected and selected[start] != period:
+            raise ImportValidationError(f"Member {member_id}: conflicting service periods")
+        selected[start] = period
+    periods = sorted(selected.values(), key=lambda p: p.source_start_date)
+    if not periods:
+        if current:
+            raise ImportValidationError(f"Current member {member_id} has no service in this term")
+        return []
+    for previous, following in zip(periods, periods[1:], strict=False):
+        if previous.served_until is None or following.served_from < previous.served_until:
+            raise ImportValidationError(f"Member {member_id}: overlapping service periods")
+    active = any(p.served_until is None or p.served_until > as_of for p in periods)
+    if active != current:
+        raise ImportValidationError(f"Member {member_id}: history disagrees with current search")
+    return periods
 
 
 def _import_batches(
@@ -66,29 +182,31 @@ def _import_batches(
 
     logger.info("Fetching current Commons member IDs")
     current_ids: set[int] = set()
-    for profiles in api.search_pages({"House": 1, "IsCurrentMember": "true"}):
-        current_ids.update(profiles)
+    for page in search_pages(api, {"House": 1, "IsCurrentMember": "true"}):
+        current_ids.update(member.parliament_member_id for member in page.members)
 
     logger.info("Importing Commons service since %s in batches", term_start)
     seen_ids: set[int] = set()
-    for profiles in api.search_pages(
+    for page in search_pages(
+        api,
         {
             "MembershipInDateRange.WasMemberOnOrAfter": term_start.isoformat(),
             "MembershipInDateRange.WasMemberOnOrBefore": as_of.isoformat(),
             "MembershipInDateRange.WasMemberOfHouse": 1,
-        }
+        },
     ):
-        if not profiles:
+        if not page.members:
             continue
-        histories = api.histories(set(profiles))
-        for member_id, profile in profiles.items():
+        histories = load_histories(api, {member.parliament_member_id for member in page.members})
+        for profile in page.members:
+            member_id = profile.parliament_member_id
             current = member_id in current_ids
             periods = service_periods(histories[member_id], term_start, as_of, current)
             seen_ids.add(member_id)
             if not periods:
                 summary["excluded_candidates"] += 1
                 continue
-            member = parse_member(profile, current)
+            member = build_member(profile, current)
             write_result = write_member(conn, term_id, member, periods)
 
             summary[write_result] += 1

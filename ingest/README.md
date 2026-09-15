@@ -52,6 +52,24 @@ Requests are sequential with a short delay, timeouts and up to four attempts for
 
 API responses and import execution history are not stored. Summaries and failures are command output only.
 
+## Validation and typed responses
+
+`SearchPage.from_json()` and `HistoryBatch.from_json()` in `models.py` validate Parliament's JSON
+and translate response wrappers and source field names into typed objects. Callers use
+`page.members`, `page.total_results`, `page.skip` and `batch.histories`; they do not unpack raw JSON.
+The response collections retain duplicates so the importer can detect them before indexing by ID.
+
+Models ignore unused fields, reject wrong types for fields we use, and allow missing or null
+optional fields. IDs are positive integers; booleans and numeric strings are rejected. Dates are
+Python `date` values, serialized as `YYYY-MM-DD`. Source timestamps retain their calendar date:
+time is discarded without timezone conversion. An absent end date remains null.
+
+The importer requests pages of 100 and owns checks involving multiple records or requests:
+pagination consistency, duplicate IDs, missing histories, overlapping service periods and
+agreement with current Commons membership. Field validation errors include the model and field
+path without raw input values, and fail the entire transaction. Database writes use explicit
+model attributes rather than depending on model field order.
+
 ## Tests
 
 From the repository root:
@@ -75,11 +93,11 @@ Astral also provides `ty`, a separate type checker and language server with Neov
 
 ## Implementation map
 
-- `src/exposed/api.py`: HTTP requests, page iteration, retries.
-- `src/exposed/models.py`: source validation and term-specific service dates.
+- `src/exposed/api.py`: HTTP requests and retries, returning one typed search page or history batch.
+- `src/exposed/models.py`: Pydantic response and database models, JSON parsing, field validation and date conversion.
 - `src/exposed/db.py`: SQL operations on domain data.
 - `../db/migrations/`: dbmate schema migrations.
-- `src/exposed/importer.py`: batch processing, the transaction boundary.
+- `src/exposed/importer.py`: pagination, batch validation, membership/service calculations and the transaction boundary.
 - `src/exposed/cli.py`: configuration and command output.
 - [API research](../docs/research/uk-parliament-apis.md): source contracts, historical coverage and future interests ingestion.
 

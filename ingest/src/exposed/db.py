@@ -1,6 +1,5 @@
 """Database operations; the importer owns the transaction spanning all batches."""
 
-from dataclasses import astuple
 from datetime import date
 from typing import Literal
 from uuid import UUID, uuid7
@@ -44,7 +43,15 @@ def write_member(
            FROM exposed.members WHERE parliament_member_id = %s""",
         (member.parliament_member_id,),
     ).fetchone()
-    values = astuple(member)
+    values = (
+        member.parliament_member_id,
+        member.name,
+        member.party_id,
+        member.party_name,
+        member.latest_house,
+        member.latest_membership_from,
+        member.is_current_commons,
+    )
     change = (
         "inserted"
         if previous is None
