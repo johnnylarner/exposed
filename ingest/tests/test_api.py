@@ -25,35 +25,35 @@ def test_search_pages_include_departed_mp_now_in_lords():
 
 
 def test_pages_are_yielded_before_later_pages_are_requested():
-    fixture = ParliamentFixture(41)
+    fixture = ParliamentFixture(201)
     api = fixture.api()
     with api.client:
         pages = api.search_pages(HISTORICAL_FILTERS)
         first = next(pages)
-        assert set(first) == set(range(1, 21))
+        assert set(first) == set(range(1, 101))
         assert len(fixture.requests) == 1
         rest = list(pages)
-    assert [len(page) for page in rest] == [20, 1]
-    assert [r.url.params["skip"] for r in fixture.requests] == ["0", "20", "40"]
+    assert [len(page) for page in rest] == [100, 1]
+    assert [r.url.params["skip"] for r in fixture.requests] == ["0", "100", "200"]
 
 
 @pytest.mark.parametrize("problem", ["duplicate", "changed_total", "empty_page", "extra_item"])
 def test_incomplete_or_unstable_pagination_is_rejected(problem):
-    fixture = ParliamentFixture(21)
+    fixture = ParliamentFixture(101)
 
     def override(request: httpx.Request) -> httpx.Response | None:
-        if request.url.params.get("skip") != "20":
+        if request.url.params.get("skip") != "100":
             return None
-        member_id = 1 if problem == "duplicate" else 21
+        member_id = 1 if problem == "duplicate" else 101
         items = [] if problem == "empty_page" else [{"value": fixture.profiles[member_id]}]
         if problem == "extra_item":
-            items.append({"value": {**fixture.profiles[21], "id": 22}})
+            items.append({"value": {**fixture.profiles[101], "id": 102}})
         return httpx.Response(
             200,
             json={
-                "totalResults": 22 if problem == "changed_total" else 21,
-                "skip": 20,
-                "take": 20,
+                "totalResults": 102 if problem == "changed_total" else 101,
+                "skip": 100,
+                "take": 100,
                 "items": items,
             },
         )
@@ -65,7 +65,7 @@ def test_incomplete_or_unstable_pagination_is_rejected(problem):
 
 
 def test_history_request_includes_every_id_in_batch():
-    fixture = ParliamentFixture(20)
+    fixture = ParliamentFixture(100)
     api = fixture.api()
     with api.client:
         histories = api.histories(set(fixture.profiles))

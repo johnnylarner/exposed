@@ -44,7 +44,6 @@ class Member:
     party_name: str | None
     latest_house: int
     latest_membership_from: str | None
-    latest_membership_from_id: int | None
     is_current_commons: bool
 
 
@@ -69,7 +68,6 @@ def parse_member(value: dict[str, Any], current: bool) -> Member:
     if house not in (1, 2) or (current and house != 1):
         raise ImportValidationError(f"Member {member_id}: inconsistent latest House")
     party_id = party.get("id")
-    from_id = membership.get("membershipFromId")
     return Member(
         parliament_member_id=member_id,
         name=name,
@@ -77,9 +75,6 @@ def parse_member(value: dict[str, Any], current: bool) -> Member:
         party_name=optional_text(party.get("name"), "party name"),
         latest_house=house,
         latest_membership_from=optional_text(membership.get("membershipFrom"), "membership from"),
-        latest_membership_from_id=None
-        if from_id is None
-        else integer(from_id, "membership from ID"),
         is_current_commons=current,
     )
 

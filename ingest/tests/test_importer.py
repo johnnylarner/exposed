@@ -68,7 +68,7 @@ def test_profile_changes_departures_and_new_members_are_reconciled(database_url)
 
 
 def test_later_api_page_failure_rolls_back_batches_already_written(database_url, monkeypatch):
-    fixture = ParliamentFixture(21)
+    fixture = ParliamentFixture(101)
     run(database_url, fixture)
     before = dataset(database_url)
     fixture.profiles[1]["nameDisplayAs"] = "Changed before a failed refresh"
@@ -83,7 +83,7 @@ def test_later_api_page_failure_rolls_back_batches_already_written(database_url,
     observed: list[bool] = []
 
     def fail_second_page(request: httpx.Request) -> httpx.Response | None:
-        if request.url.params.get("IsCurrentMember") or request.url.params.get("skip") != "20":
+        if request.url.params.get("IsCurrentMember") or request.url.params.get("skip") != "100":
             return None
         # The first batch really has been written, but other sessions still see the old data.
         query = "SELECT name FROM exposed.members WHERE parliament_member_id = 1"
@@ -101,16 +101,16 @@ def test_later_api_page_failure_rolls_back_batches_already_written(database_url,
 
 
 def test_database_failure_after_member_writes_rolls_back_everything(database_url):
-    fixture = ParliamentFixture(21)
+    fixture = ParliamentFixture(101)
     run(database_url, fixture)
     before = dataset(database_url)
     fixture.profiles[1]["nameDisplayAs"] = "Must roll back"
     fixture.leave(2)
     with connect(database_url) as conn:
-        # Fail member 21 after the first 20 member and service writes.
+        # Fail member 101 after the first 100 member and service writes.
         conn.execute(
             """ALTER TABLE exposed.members ADD CONSTRAINT fail_second_page
-               CHECK (parliament_member_id <> 21) NOT VALID"""
+               CHECK (parliament_member_id <> 101) NOT VALID"""
         )
     with pytest.raises(ImportFailed, match="23514"):
         run(database_url, fixture)
@@ -147,7 +147,7 @@ def test_current_member_missing_from_historical_search_rolls_back(database_url):
                     "items": [{"value": fixture.profiles[1]}],
                     "totalResults": 1,
                     "skip": 0,
-                    "take": 20,
+                    "take": 100,
                 },
             )
         return None
@@ -191,3 +191,22 @@ def test_corrected_service_dates_replace_old_intervals(database_url):
     data = dataset(database_url)
     assert len(data["member_terms"]) == 1
     assert data["member_terms"][0]["served_from"] == date(2025, 5, 1)
+
+
+def test_remove_membership_from_id_preserves_member_data(database_url):
+    run(database_url, ParliamentFixture())
+    before = dataset(database_url)
+    dbmate(database_url, "rollback")
+    with connect(database_url) as conn:
+        conn.execute("UPDATE exposed.members SET latest_membership_from_id = 101")
+    dbmate(database_url)
+    assert dataset(database_url) == before
+    with connect(database_url) as conn:
+        assert (
+            conn.execute(
+                """SELECT column_name FROM information_schema.columns
+               WHERE table_schema = 'exposed' AND table_name = 'members'
+                 AND column_name = 'latest_membership_from_id'"""
+            ).fetchone()
+            is None
+        )

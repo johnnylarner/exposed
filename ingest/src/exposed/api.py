@@ -16,7 +16,7 @@ from exposed.models import (
 )
 
 BASE_URL = "https://members-api.parliament.uk"
-PAGE_SIZE = 20
+PAGE_SIZE = 100
 logger = logging.getLogger(__name__)
 
 

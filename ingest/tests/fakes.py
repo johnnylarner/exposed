@@ -19,7 +19,6 @@ def service(start: str = "2024-07-04", end: str | None = None, house: int = 1) -
         "membershipStartDate": f"{start}T00:00:00",
         "membershipEndDate": None if end is None else f"{end}T00:00:00",
         "membershipFrom": "Example constituency",
-        "membershipFromId": 101,
     }
 
 

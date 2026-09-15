@@ -40,7 +40,7 @@ def write_member(
 ) -> Literal["inserted", "updated", "unchanged"]:
     previous = conn.execute(
         """SELECT parliament_member_id, name, party_id, party_name, latest_house,
-                  latest_membership_from, latest_membership_from_id, is_current_commons
+                  latest_membership_from, is_current_commons
            FROM exposed.members WHERE parliament_member_id = %s""",
         (member.parliament_member_id,),
     ).fetchone()
@@ -54,13 +54,12 @@ def write_member(
         conn.execute(
             """INSERT INTO exposed.members (
                id, parliament_member_id, name, party_id, party_name, latest_house,
-               latest_membership_from, latest_membership_from_id, is_current_commons
-           ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+               latest_membership_from, is_current_commons
+           ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
            ON CONFLICT (parliament_member_id) DO UPDATE SET
                name = EXCLUDED.name, party_id = EXCLUDED.party_id,
                party_name = EXCLUDED.party_name, latest_house = EXCLUDED.latest_house,
                latest_membership_from = EXCLUDED.latest_membership_from,
-               latest_membership_from_id = EXCLUDED.latest_membership_from_id,
                is_current_commons = EXCLUDED.is_current_commons
            RETURNING id""",
             (uuid7(), *values),
