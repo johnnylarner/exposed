@@ -45,4 +45,10 @@ The local Postgres instance is available on `127.0.0.1:55432`. Setup and hosted-
 
 Applied `002_remove_audit_add_term_end.sql` to the local database on 15 September 2026. Compared every non-audit field before and after within the migration transaction: all **655 members**, **656 service records** and **1 Parliament term** were preserved. Confirmed that `term_end` is a nullable date and both audit tables are absent. Verification queries returned zero invalid service dates and zero duplicate member IDs.
 
-The updated implementation passed all **33 tests**, including PostgreSQL integration tests, plus Ruff lint/format checks and Pyright. No new live API import was performed for this change.
+The updated implementation passed all **33 tests**, including PostgreSQL integration tests, plus Ruff lint/format checks and Pyright.
+
+## Live refresh after transaction simplification
+
+On 15 September 2026, ran the simplified importer against the live Members API and the existing local database, with migration `002` already applied. It wrote the batches inside one transaction and committed successfully: **655 members**, comprising **649 current** and **6 former** Commons members, with **656 service periods**. All 655 profiles were unchanged; no profiles were inserted or updated.
+
+Compared IDs before and after the refresh: member IDs and their Parliament member ID mappings, service IDs and the Parliament term ID were unchanged. The verification queries returned **zero invalid service dates** and **zero duplicate member IDs**. The final source and test files also passed all **33 tests**, Ruff lint/format checks and Pyright with **0 errors and 0 warnings**.
