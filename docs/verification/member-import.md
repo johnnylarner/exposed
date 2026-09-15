@@ -4,11 +4,11 @@ Verified on **15 September 2026**, using Python 3.14.6 and the isolated Compose 
 
 ## Automated checks
 
-- Full suite after audit removal and adding `term_end`: **33 passed**, with `EXPOSED_TEST_ADMIN_DSN` set; the PostgreSQL integration tests ran.
+- Full suite after switching to dbmate: **34 passed**, with `EXPOSED_TEST_ADMIN_DSN` set; the PostgreSQL integration tests ran.
 - Pyright 1.1.414: **0 errors, 0 warnings** across `src` and `tests` in standard mode.
 - Ruff lint and formatting checks passed.
 - `pip check` reported no broken dependencies.
-- Built the installable wheel and verified that it includes the SQL migration.
+- SQL migrations now live in `db/migrations/` and are applied by dbmate rather than packaged with the importer.
 
 The suite covers page iteration, missing/duplicate results, request retries, required histories, service gaps, original dates, late entrants, former MPs whose latest House is Lords, changing profiles, repeat imports, nullable term ends and removal of audit tables. The importer assumes one update at a time.
 
@@ -52,3 +52,16 @@ The updated implementation passed all **33 tests**, including PostgreSQL integra
 On 15 September 2026, ran the simplified importer against the live Members API and the existing local database, with migration `002` already applied. It wrote the batches inside one transaction and committed successfully: **655 members**, comprising **649 current** and **6 former** Commons members, with **656 service periods**. All 655 profiles were unchanged; no profiles were inserted or updated.
 
 Compared IDs before and after the refresh: member IDs and their Parliament member ID mappings, service IDs and the Parliament term ID were unchanged. The verification queries returned **zero invalid service dates** and **zero duplicate member IDs**. The final source and test files also passed all **33 tests**, Ruff lint/format checks and Pyright with **0 errors and 0 warnings**.
+
+## dbmate development baseline
+
+Replaced the Python migration runner and the two old migrations with `db/migrations/20260915000000_initial.sql`. No legacy upgrade mechanism is retained.
+
+Verified with dbmate **2.35.1**:
+
+- `make check`: **34 passed**, Ruff checks passed, Pyright reported no errors or warnings.
+- Fresh test databases are initialized by the real dbmate CLI.
+- Repeating migrations applies nothing; reversing and reapplying the baseline succeeds in an empty disposable database.
+- `make migrate` and `make migration-status` succeed locally, reporting one applied migration and zero pending.
+- `make migration-new` generated the expected up/down template; the temporary file was removed.
+- Switched the local development database's tracking table to dbmate and compared all member, service and term records before and after; domain data was unchanged.

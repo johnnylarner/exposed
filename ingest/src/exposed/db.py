@@ -1,9 +1,7 @@
 """Database operations; the importer owns the transaction spanning all batches."""
 
-import hashlib
 from dataclasses import astuple
 from datetime import date
-from importlib.resources import files
 from typing import Literal
 from uuid import UUID, uuid7
 
@@ -13,44 +11,6 @@ from psycopg.rows import DictRow
 from exposed.models import ImportValidationError, Member, ServicePeriod
 
 type DatabaseConnection = Connection[DictRow]
-
-
-def migrate(conn: DatabaseConnection) -> list[str]:
-    applied: list[str] = []
-    with conn.transaction():
-        conn.execute("CREATE SCHEMA IF NOT EXISTS exposed")
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS exposed.schema_migrations (
-                version text PRIMARY KEY,
-                sha256 text NOT NULL,
-                applied_at timestamptz NOT NULL DEFAULT clock_timestamp()
-            )
-        """)
-        recorded = {
-            row["version"]: row["sha256"]
-            for row in conn.execute("SELECT version, sha256 FROM exposed.schema_migrations")
-        }
-        migrations = sorted(files("exposed").joinpath("migrations").iterdir(), key=lambda f: f.name)
-        available = {f.name for f in migrations if f.name.endswith(".sql")}
-        if recorded.keys() - available:
-            raise ImportValidationError("Database schema is newer than this importer")
-        for migration in migrations:
-            if migration.name not in available:
-                continue
-            sql = migration.read_text(encoding="utf-8")
-            checksum = hashlib.sha256(sql.encode()).hexdigest()
-            if migration.name in recorded:
-                if recorded[migration.name] != checksum:
-                    raise ImportValidationError(f"Applied migration changed: {migration.name}")
-                continue
-            # Packaged migration SQL is trusted code, sent as UTF-8 bytes.
-            conn.execute(sql.encode("utf-8"))
-            conn.execute(
-                "INSERT INTO exposed.schema_migrations (version, sha256) VALUES (%s, %s)",
-                (migration.name, checksum),
-            )
-            applied.append(migration.name)
-    return applied
 
 
 def ensure_term(conn: DatabaseConnection, term_start: date) -> UUID:

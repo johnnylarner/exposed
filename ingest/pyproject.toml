@@ -22,9 +22,6 @@ exposed = "exposed.cli:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 
-[tool.setuptools.package-data]
-exposed = ["migrations/*.sql"]
-
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["integration: uses a dedicated PostgreSQL test database"]
@@ -39,6 +36,6 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pyright]
 venvPath = "."
 venv = ".venv"
-include = ["src", "tests"]
+include = ["src", "tests", "scripts"]
 pythonVersion = "3.14"
 typeCheckingMode = "standard"

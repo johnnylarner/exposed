@@ -6,8 +6,9 @@ import pytest
 from psycopg import sql
 
 import exposed.importer as importer
-from exposed.db import DatabaseConnection, migrate
+from exposed.db import DatabaseConnection
 from exposed.importer import ImportFailed, connect, run_import
+from tests.conftest import dbmate
 from tests.fakes import AS_OF, TERM_START, ParliamentFixture, service
 
 pytestmark = pytest.mark.integration
@@ -27,40 +28,6 @@ def dataset(url: str):
             ).fetchall()
             for table in ["members", "parliament_terms", "member_terms"]
         }
-
-
-def test_migrations_are_repeatable_and_term_has_nullable_end(database_url):
-    with connect(database_url) as conn:
-        assert migrate(conn) == []
-        columns = conn.execute("""
-            SELECT column_name FROM information_schema.columns
-            WHERE table_schema = 'exposed' AND table_name = 'parliament_terms'
-            ORDER BY ordinal_position
-        """).fetchall()
-    assert columns == [
-        {"column_name": "id"},
-        {"column_name": "term_start"},
-        {"column_name": "term_end"},
-    ]
-    run(database_url, ParliamentFixture())
-    assert dataset(database_url)["parliament_terms"][0]["term_end"] is None
-    with connect(database_url) as conn:
-        tables = {
-            r["table_name"]
-            for r in conn.execute(
-                "SELECT table_name FROM information_schema.tables WHERE table_schema = 'exposed'"
-            )
-        }
-        assert tables == {"schema_migrations", "members", "member_terms", "parliament_terms"}
-        audit_columns = conn.execute(
-            """SELECT column_name FROM information_schema.columns
-               WHERE table_schema = 'exposed' AND column_name LIKE '%run_id'"""
-        ).fetchall()
-        assert audit_columns == []
-        with pytest.raises(psycopg.errors.CheckViolation):
-            conn.execute("UPDATE exposed.parliament_terms SET term_end = '2020-01-01'")
-        conn.execute("UPDATE exposed.parliament_terms SET term_end = '2026-09-15'")
-    assert dataset(database_url)["parliament_terms"][0]["term_end"] == AS_OF
 
 
 def test_repeat_import_keeps_ids_and_data(database_url):

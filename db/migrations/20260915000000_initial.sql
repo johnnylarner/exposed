@@ -1,18 +1,11 @@
+-- migrate:up
+CREATE SCHEMA IF NOT EXISTS exposed;
+
 CREATE TABLE exposed.parliament_terms (
     id uuid PRIMARY KEY,
-    term_start date NOT NULL UNIQUE
-);
-
-CREATE TABLE exposed.import_runs (
-    id uuid PRIMARY KEY,
-    term_start date NOT NULL,
-    as_of date NOT NULL,
-    started_at timestamptz NOT NULL DEFAULT clock_timestamp(),
-    completed_at timestamptz,
-    status text NOT NULL CHECK (status IN ('running', 'succeeded', 'failed')),
-    summary jsonb,
-    error text,
-    CHECK ((status = 'running') = (completed_at IS NULL))
+    term_start date NOT NULL UNIQUE,
+    term_end date,
+    CONSTRAINT parliament_terms_valid_dates CHECK (term_end IS NULL OR term_end >= term_start)
 );
 
 CREATE TABLE exposed.members (
@@ -25,8 +18,6 @@ CREATE TABLE exposed.members (
     latest_membership_from text,
     latest_membership_from_id integer,
     is_current_commons boolean NOT NULL,
-    first_seen_run_id uuid NOT NULL REFERENCES exposed.import_runs(id),
-    last_seen_run_id uuid NOT NULL REFERENCES exposed.import_runs(id),
     CHECK (NOT is_current_commons OR latest_house = 1)
 );
 
@@ -39,7 +30,6 @@ CREATE TABLE exposed.member_terms (
     source_end_date date,
     served_from date NOT NULL,
     served_until date,
-    last_seen_run_id uuid NOT NULL REFERENCES exposed.import_runs(id),
     UNIQUE (member_id, term_id, house, source_start_date),
     CHECK (served_from >= source_start_date),
     CHECK (served_until IS NULL OR served_until >= served_from),
@@ -64,12 +54,8 @@ CREATE TRIGGER member_terms_check_start
 BEFORE INSERT OR UPDATE ON exposed.member_terms
 FOR EACH ROW EXECUTE FUNCTION exposed.check_term_service_start();
 
-CREATE TABLE exposed.api_responses (
-    id uuid PRIMARY KEY,
-    run_id uuid NOT NULL REFERENCES exposed.import_runs(id),
-    sequence integer NOT NULL CHECK (sequence > 0),
-    url text NOT NULL,
-    retrieved_at timestamptz NOT NULL,
-    payload jsonb NOT NULL,
-    UNIQUE (run_id, sequence)
-);
+-- migrate:down
+DROP TABLE exposed.member_terms;
+DROP FUNCTION exposed.check_term_service_start();
+DROP TABLE exposed.members;
+DROP TABLE exposed.parliament_terms;
