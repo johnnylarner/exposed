@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "exposed"
+version = "0.1.0"
+description = "Import UK Parliament Commons members into PostgreSQL"
+requires-python = ">=3.14"
+dependencies = [
+  "httpx>=0.28,<0.29",
+  "psycopg[binary]>=3.3,<3.4",
+  "python-dotenv>=1.1,<2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=9,<10", "ruff>=0.14,<1", "pyright>=1.1,<2"]
+
+[project.scripts]
+exposed = "exposed.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+exposed = ["migrations/*.sql"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration: uses a dedicated PostgreSQL test database"]
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
+include = ["src", "tests"]
+pythonVersion = "3.14"
+typeCheckingMode = "standard"
