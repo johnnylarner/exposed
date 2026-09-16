@@ -4,7 +4,10 @@ import httpx
 import pytest
 
 from exposed.api import APIError
-from tests.fakes import ParliamentFixture
+from exposed.core.errors import ImportValidationError
+from exposed.core.refresh import refresh_members
+from tests.fakes import AS_OF, TERM_START, ParliamentFixture
+from tests.memory import MemoryStore
 
 HISTORICAL_FILTERS: dict[str, str | int] = {
     "MembershipInDateRange.WasMemberOnOrAfter": "2024-07-04",
@@ -72,3 +75,34 @@ def test_http_400_is_not_retried():
     with api.client, pytest.raises(APIError, match="400"):
         api.search_page(HISTORICAL_FILTERS, skip=0, take=100)
     assert len(fixture.requests) == 1
+
+
+def test_member_source_refreshes_current_and_former_members_across_pages():
+    fixture = ParliamentFixture(101)
+    fixture.leave(101, lords=True)
+    api = fixture.api()
+
+    with api.client:
+        result = refresh_members(TERM_START, AS_OF, api, MemoryStore())
+
+    assert (result["members"], result["current_commons"], result["former_commons"]) == (101, 100, 1)
+    historical_requests = [
+        r for r in fixture.requests if "MembershipInDateRange.WasMemberOnOrAfter" in r.url.params
+    ]
+    assert [r.url.params["skip"] for r in historical_requests] == ["0", "100"]
+    assert all(
+        r.url.params["MembershipInDateRange.WasMemberOnOrAfter"] == "2024-07-04"
+        and r.url.params["MembershipInDateRange.WasMemberOnOrBefore"] == "2026-09-15"
+        for r in historical_requests
+    )
+
+
+@pytest.mark.parametrize("count", [0, 101])
+def test_member_source_rejects_invalid_history_batch_sizes_before_http(count):
+    fixture = ParliamentFixture(count)
+    api = fixture.api()
+
+    with api.client, pytest.raises(ImportValidationError, match="between 1 and 100"):
+        api.member_histories(set(fixture.profiles))
+
+    assert fixture.requests == []

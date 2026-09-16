@@ -4,19 +4,19 @@ import argparse
 import json
 import logging
 import os
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
 
-import httpx
-import psycopg
 from dotenv import load_dotenv
 
-from exposed.api import BASE_URL, MembersAPI
-from exposed.importer import ImportFailed, run_import, safe_error
-from exposed.models import ImportValidationError
+from exposed.core.errors import ImportFailed, ImportValidationError, StorageError, safe_error
 
 
-def main(argv: list[str] | None = None) -> int:
+def run_cli(
+    argv: list[str] | None,
+    run: Callable[[str, date], dict[str, object]],
+) -> int:
     # Only the working directory's explicit .env; never search unrelated parent directories.
     # Existing environment variables (including GitHub Actions secrets) take precedence.
     load_dotenv(Path.cwd() / ".env", override=False)
@@ -43,16 +43,11 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     logging.getLogger("httpx").setLevel(logging.WARNING)
     try:
-        with httpx.Client(
-            base_url=BASE_URL,
-            timeout=httpx.Timeout(30, connect=10),
-            headers={"Accept": "application/json", "User-Agent": "exposed-member-importer/0.1"},
-        ) as client:
-            result = run_import(database_url, term_start, MembersAPI(client))
+        result = run(database_url, term_start)
     except ImportFailed as exc:
         print(json.dumps({"status": "failed", "error": str(exc)}))
         return 130 if exc.interrupted else 1
-    except (psycopg.Error, ImportValidationError) as exc:
+    except (StorageError, ImportValidationError) as exc:
         print(json.dumps({"status": "failed", "error": safe_error(exc)}))
         logging.error(
             "Check DATABASE_URL and run 'make migrate' from the repository root before importing"
@@ -63,3 +58,10 @@ def main(argv: list[str] | None = None) -> int:
         return 130
     print(json.dumps(result, sort_keys=True))
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Retain the installed console entry point; concrete wiring lives at startup."""
+    from exposed.composition import import_members
+
+    return run_cli(argv, import_members)

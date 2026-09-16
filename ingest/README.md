@@ -54,8 +54,9 @@ API responses and import execution history are not stored. Summaries and failure
 
 ## Validation and typed responses
 
-`SearchPage.from_json()` and `HistoryBatch.from_json()` in `models.py` validate Parliament's JSON
-and translate response wrappers and source field names into typed objects. Callers use
+`SearchPage.from_json()` and `HistoryBatch.from_json()` in the Parliament adapter validate
+Parliament's JSON and translate response wrappers and source field names into typed objects.
+The existing `exposed.models` imports remain available. Callers use
 `page.members`, `page.total_results`, `page.skip` and `batch.histories`; they do not unpack raw JSON.
 The response collections preserve source order. History batches retain duplicates so the importer
 can detect them before indexing by ID.
@@ -67,7 +68,8 @@ time is discarded without timezone conversion. An absent end date remains null.
 
 The importer requests pages of 100, advances by the number returned and stops at the API's
 reported total. An empty page before that total fails the import so pagination cannot stall.
-It matches history batches to the requested member IDs and coordinates the transaction.
+The core matches history batches to the requested member IDs; the PostgreSQL adapter owns
+the atomic refresh transaction.
 
 `Member.from_profile()` constructs a member and validates current Commons membership.
 `CommonsService.from_history()` explicitly filters Commons memberships to the configured term,
@@ -101,12 +103,17 @@ Astral also provides `ty`, a separate type checker and language server with Neov
 
 ## Implementation map
 
-- `src/exposed/api.py`: HTTP requests and retries, returning one typed search page or history batch.
-- `src/exposed/models.py`: Pydantic models, JSON parsing, member construction and Commons service rules.
-- `src/exposed/db.py`: SQL operations on domain data.
-- `../db/migrations/`: dbmate schema migrations.
-- `src/exposed/importer.py`: pagination, history-batch matching and the transaction boundary.
-- `src/exposed/cli.py`: configuration and command output.
+- `src/exposed/core/models.py`: validated member values and Commons service rules.
+- `src/exposed/core/refresh.py`: refresh orchestration through injected source and storage ports.
+- `src/exposed/core/ports.py`: member-source and atomic-refresh storage contracts.
+- `src/exposed/core/errors.py`: core failures and safe diagnostics.
+- `src/exposed/adapters/parliament.py` and `parliament_models.py`: HTTP, retries, pagination and source JSON translation.
+- `src/exposed/adapters/postgres.py`: SQL and the transaction spanning the entire refresh.
+- `src/exposed/composition.py`: client construction, resource lifetimes and the UK observation date.
+- `src/exposed/cli.py`: configuration, argument parsing, JSON and exit codes.
+- `src/exposed/api.py`, `models.py`, `db.py` and `importer.py`: compatibility imports for existing callers.
+- `../db/migrations/`: unchanged dbmate schema migrations.
+- [Architecture and port contracts](../docs/architecture.md): dependency direction, consistency guarantees and test seams.
 - [API research](../docs/research/uk-parliament-apis.md): source contracts, historical coverage and future interests ingestion.
 
 Contains Parliamentary information licensed under the [Open Parliament Licence v3.0](https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/).
