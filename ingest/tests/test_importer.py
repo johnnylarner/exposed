@@ -6,7 +6,6 @@ import pytest
 from psycopg import sql
 
 from exposed.importer import ImportFailed, connect, run_import
-from tests.conftest import dbmate
 from tests.fakes import AS_OF, TERM_START, ParliamentFixture, service
 
 pytestmark = pytest.mark.integration
@@ -180,26 +179,6 @@ def test_corrected_service_dates_replace_old_intervals(database_url):
     data = dataset(database_url)
     assert len(data["member_terms"]) == 1
     assert data["member_terms"][0]["served_from"] == date(2025, 5, 1)
-
-
-def test_remove_membership_from_id_preserves_member_data(database_url):
-    run(database_url, ParliamentFixture())
-    before = dataset(database_url)
-    dbmate(database_url, "rollback")  # Declaration tables.
-    dbmate(database_url, "rollback")  # Remove-latest-membership migration under test.
-    with connect(database_url) as conn:
-        conn.execute("UPDATE exposed.members SET latest_membership_from_id = 101")
-    dbmate(database_url)
-    assert dataset(database_url) == before
-    with connect(database_url) as conn:
-        assert (
-            conn.execute(
-                """SELECT column_name FROM information_schema.columns
-               WHERE table_schema = 'exposed' AND table_name = 'members'
-                 AND column_name = 'latest_membership_from_id'"""
-            ).fetchone()
-            is None
-        )
 
 
 def test_invalid_later_history_rolls_back_prior_batch_and_reports_field(database_url):

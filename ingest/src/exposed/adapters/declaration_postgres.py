@@ -36,11 +36,12 @@ def write_declaration(
     conn.execute(
         """INSERT INTO exposed.declarations (
                id, source_declaration_id, member_id, category_id, category_name,
-               fetched_at
-           ) VALUES (%s, %s, %s, %s, %s, %s)
+               registration_date, fetched_at
+           ) VALUES (%s, %s, %s, %s, %s, %s, %s)
            ON CONFLICT (source_declaration_id) DO UPDATE SET
                member_id = EXCLUDED.member_id, category_id = EXCLUDED.category_id,
                category_name = EXCLUDED.category_name,
+               registration_date = EXCLUDED.registration_date,
                fetched_at = EXCLUDED.fetched_at""",
         (
             uuid7(),
@@ -48,6 +49,7 @@ def write_declaration(
             member_id,
             declaration.category_id,
             declaration.category_name,
+            declaration.registration_date,
             fetched_at,
         ),
     )
@@ -82,11 +84,8 @@ def write_declaration(
 
 
 class _PostgresDeclarationWriter:
-    def __init__(self, conn: DatabaseConnection, term_start: date):
-        self.conn, self.term_start = conn, term_start
-
-    def cohort(self) -> dict[int, UUID]:
-        return cohort(self.conn, self.term_start)
+    def __init__(self, conn: DatabaseConnection):
+        self.conn = conn
 
     def write_declaration(
         self, member_id: UUID, declaration: Declaration, fetched_at: datetime
@@ -95,15 +94,21 @@ class _PostgresDeclarationWriter:
 
 
 class PostgresDeclarationStore:
-    """Own one transaction for cohort reads and every accepted declaration write."""
+    """Own one transaction for each member's accepted declaration writes."""
 
     def __init__(self, conn: DatabaseConnection):
         self.conn = conn
 
+    def cohort(self, term_start: date) -> dict[int, UUID]:
+        try:
+            return cohort(self.conn, term_start)
+        except psycopg.Error as exc:
+            raise storage_error(exc) from exc
+
     @contextmanager
-    def refresh(self, term_start: date) -> Iterator[DeclarationWriter]:
+    def refresh_member(self) -> Iterator[DeclarationWriter]:
         try:
             with self.conn.transaction():
-                yield _PostgresDeclarationWriter(self.conn, term_start)
+                yield _PostgresDeclarationWriter(self.conn)
         except psycopg.Error as exc:
             raise storage_error(exc) from exc

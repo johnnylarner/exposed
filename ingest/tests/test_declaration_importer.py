@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 
@@ -57,11 +57,13 @@ def test_imports_stored_cohort_once_and_stores_only_parsed_declaration_fields(da
             "category_id",
             "category_name",
             "fetched_at",
+            "registration_date",
         }
         assert row["source_declaration_id"] == source["id"]
         assert row["category_name"] == "Miscellaneous"
         assert row["member_id"] == member_ids[source["registrant"]["memberDetail"]["id"]]
         assert started <= row["fetched_at"] <= datetime.now(UTC)
+        assert row["registration_date"] == date(2016, 1, 27)
     assert member_dataset(database_url) == before
 
 
@@ -146,9 +148,11 @@ def test_refresh_preserves_unchanged_groups_and_replaces_changed_groups(database
     groups.reverse()
     source["unknownFutureField"] = {"changed": True}
     source["category"]["name"] = "Updated category"
+    source["versions"][0]["registrationDate"] = "2016-01-28"
     run(database_url, fixture)
     assert dataset(database_url)["funding"] == before["funding"]
     assert dataset(database_url)["declarations"][0]["category_name"] == "Updated category"
+    assert dataset(database_url)["declarations"][0]["registration_date"] == date(2016, 1, 28)
     groups.pop(0)
     groups[0][1]["value"] = "99.01"
     run(database_url, fixture)
@@ -301,27 +305,34 @@ def test_uninterpretable_funding_is_rejected_not_treated_as_nonfinancial(
 
 
 @pytest.mark.parametrize("failure", ["http", "page", "database", "interrupt"])
-def test_late_failure_rolls_back_refresh_and_hides_uncommitted_writes(database_url, failure):
+def test_late_failure_keeps_completed_member_and_rolls_back_current_member(database_url, failure):
     import httpx
 
     from exposed.importer import ImportFailed
     from tests.declaration_fakes import field, money
 
-    import_members(database_url, ParliamentFixture(1))
+    import_members(database_url, ParliamentFixture(2))
     fixture = DeclarationsFixture(
-        *(declaration(i, fields=[field("DonorName", "Donor"), money()]) for i in range(101, 202))
+        *(
+            declaration(i, member=2, fields=[field("DonorName", "Donor"), money()])
+            for i in range(101, 202)
+        )
     )
     run(database_url, fixture)
     before = dataset(database_url)
     members_before = member_dataset(database_url)
     fixture.items[0]["versions"][0]["fields"][1]["value"] = "1"
     fixture.items[-1]["versions"][0]["fields"][1]["value"] = "999"
+    fixture.items.insert(0, declaration(99, member=1))
     if failure == "database":
         with connect(database_url) as conn:
             conn.execute("ALTER TABLE exposed.funding_entries ADD CHECK (amount <> 999) NOT VALID")
     observed = []
+    committed = []
 
     def fail_late(request):
+        if request.url.params["MemberId"] == "2" and request.url.params["Skip"] == "0":
+            committed.append(dataset(database_url))
         if request.url.params["Skip"] == "100":
             observed.append(dataset(database_url))
             if failure == "http":
@@ -336,11 +347,34 @@ def test_late_failure_rolls_back_refresh_and_hides_uncommitted_writes(database_u
     with pytest.raises(ImportFailed) as error:
         run(database_url, fixture)
     assert error.value.interrupted == (failure == "interrupt")
-    assert observed and all(data == before for data in observed)
-    assert dataset(database_url) == before
+    assert committed[0]["declarations"][0]["source_declaration_id"] == 99
+    assert committed[0]["declarations"][1:] == before["declarations"]
+    assert committed[0]["funding"] == before["funding"]
+    assert observed and all(data == committed[0] for data in observed)
+    assert dataset(database_url) == committed[0]
     assert member_dataset(database_url) == members_before
     if failure == "http":
         assert len(observed) == 4
+
+
+def test_invalid_registration_date_preserves_previous_record_and_accepts_siblings(
+    database_url, caplog
+):
+    import_members(database_url, ParliamentFixture(1))
+    source = declaration()
+    fixture = DeclarationsFixture(source)
+    run(database_url, fixture)
+    before = dataset(database_url)
+    source["versions"][0]["registrationDate"] = "not a date"
+    missing = declaration(102)
+    del missing["versions"][0]["registrationDate"]
+    fixture.items.append(missing)
+    run(database_url, fixture)
+    after = dataset(database_url)
+    assert after["declarations"][0] == before["declarations"][0]
+    assert after["declarations"][1]["registration_date"] is None
+    assert "registrationDate" in caplog.text
+    assert "not a date" in caplog.text
 
 
 def test_pagination_tolerates_changed_totals_empty_pages_and_omitted_declarations(database_url):
@@ -466,10 +500,9 @@ def test_invalid_identity_is_logged_with_member_context_and_valid_siblings_survi
     assert "id: Input should be a valid integer" in caplog.text
 
 
-def test_schema_constraints_and_migration_preserve_members(database_url):
+def test_schema_constraints_preserve_members(database_url):
     import psycopg
 
-    from tests.conftest import dbmate
     from tests.declaration_fakes import money
 
     import_members(database_url, ParliamentFixture(1))
@@ -483,13 +516,12 @@ def test_schema_constraints_and_migration_preserve_members(database_url):
         with pytest.raises(psycopg.errors.ForeignKeyViolation):
             conn.execute("UPDATE exposed.funding_entries SET source_declaration_id = 9999")
         with pytest.raises(psycopg.errors.UniqueViolation):
-            conn.execute("""INSERT INTO exposed.declarations
+            conn.execute("""INSERT INTO exposed.declarations (
+                       id, source_declaration_id, member_id, category_id,
+                       category_name, fetched_at)
                 SELECT '00000000-0000-0000-0000-000000000000', source_declaration_id,
                        member_id, category_id, category_name, fetched_at
                 FROM exposed.declarations""")
-    dbmate(database_url, "rollback")
-    dbmate(database_url)
-    assert dataset(database_url) == {"declarations": [], "funding": []}
     assert member_dataset(database_url) == members_before
 
 

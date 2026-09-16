@@ -16,14 +16,14 @@ from tests.test_importer import run as import_members
 @pytest.fixture(params=["memory", pytest.param("postgres", marks=pytest.mark.integration)])
 def declaration_store(request):
     if request.param == "memory":
-        store = MemoryDeclarationStore(TERM_START, {1: UUID(int=1)})
+        store = MemoryDeclarationStore(TERM_START, {1: UUID(int=1), 2: UUID(int=2)})
         yield (
             store,
             lambda: {id: d.funding[0].amount for id, (d, _) in store.records.items()},
         )
     else:
         url = request.getfixturevalue("database_url")
-        import_members(url, ParliamentFixture(1))
+        import_members(url, ParliamentFixture(2))
 
         def amounts():
             with connect(url) as reader:
@@ -38,7 +38,7 @@ def declaration_store(request):
             yield PostgresDeclarationStore(conn), amounts
 
 
-def test_declaration_store_publishes_all_writes_together_and_rolls_back_before_retry(
+def test_declaration_store_publishes_member_writes_together_and_rolls_back_before_retry(
     declaration_store,
 ):
     store, amounts = declaration_store
@@ -75,8 +75,9 @@ def test_declaration_store_publishes_all_writes_together_and_rolls_back_before_r
     class FailingSource(MemoryDeclarationSource):
         def declarations(self, member_id):
             yield from super().declarations(member_id)
-            assert amounts() == {101: Decimal("100")}
-            raise SourceError("later source failure")
+            if member_id == 1:
+                assert amounts() == {101: Decimal("100")}
+                raise SourceError("later source failure")
 
     failing = FailingSource()
     failing.add(new_draft)
@@ -87,3 +88,39 @@ def test_declaration_store_publishes_all_writes_together_and_rolls_back_before_r
     retry.add(new_draft)
     refresh_declarations(TERM_START, retry, store)
     assert amounts() == {101: Decimal("200")}
+
+
+@pytest.mark.parametrize("failure", [SourceError("later member failed"), KeyboardInterrupt()])
+def test_completed_member_is_visible_and_survives_later_member_failure(declaration_store, failure):
+    store, amounts = declaration_store
+
+    class FailingSource(MemoryDeclarationSource):
+        def declarations(self, member_id):
+            if member_id == 2:
+                assert amounts() == {101: Decimal("100")}
+            yield from super().declarations(member_id)
+            if member_id == 2:
+                assert amounts() == {101: Decimal("100")}
+                raise failure
+
+    source = FailingSource()
+    for member in (1, 2):
+        source.add(
+            DeclarationDraft(
+                id=100 + member,
+                member_source_id=member,
+                category_id=3,
+                category_name="Donations",
+                payer="Donor",
+                funding=(
+                    FundingEntry(
+                        funder="Donor", amount=Decimal("100"), currency="GBP", payment_type=None
+                    ),
+                ),
+            )
+        )
+    with pytest.raises(ImportFailed) as error:
+        refresh_declarations(TERM_START, source, store)
+    assert error.value.__cause__ is failure
+    assert error.value.interrupted == isinstance(failure, KeyboardInterrupt)
+    assert amounts() == {101: Decimal("100")}

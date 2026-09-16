@@ -32,17 +32,14 @@ class DeclarationSource(Protocol):
 
 
 class DeclarationWriter(Protocol):
-    """Read the stored cohort and stage accepted declarations in the active refresh.
+    """Stage accepted declarations in the active member transaction.
 
-    Include distinct current/former members with Commons service in the configured
-    term; do not create or change member/service/term records. Upsert by source ID,
+    Do not create or change member/service/term records. Upsert by source ID,
     keeping declaration UUIDs and unchanged funding UUIDs. Compare funding values
     with multiplicity, ignoring order; replace changed groups in full. Store parsed
-    declaration fields, funding and retrieval time together; leave unmentioned
+    declaration fields, registration date, funding and retrieval time together; leave unmentioned
     declarations intact. Source responses are not persisted.
     """
-
-    def cohort(self) -> Mapping[int, UUID]: ...
 
     def write_declaration(
         self, member_id: UUID, declaration: Declaration, fetched_at: datetime
@@ -50,12 +47,17 @@ class DeclarationWriter(Protocol):
 
 
 class DeclarationStore(Protocol):
-    """One atomic scope for cohort reads and all accepted declaration writes.
+    """Read the cohort once and publish accepted declarations atomically per member.
 
     Publish on successful exit; roll back on any exception, including interruptions
-    and late source failures. Translate driver failures into StorageError with the
-    original cause. Other readers see only committed data. Execution is externally
+    and late source failures for that member. Completed members stay committed.
+    Translate driver failures into StorageError with the original cause.
+    Other readers see only committed data. Execution is externally
     controlled; this contract adds no locks or concurrent-run coordination.
     """
 
-    def refresh(self, term_start: date) -> AbstractContextManager[DeclarationWriter]: ...
+    def cohort(self, term_start: date) -> Mapping[int, UUID]:
+        """Return distinct current/former members with Commons service in this term."""
+        ...
+
+    def refresh_member(self) -> AbstractContextManager[DeclarationWriter]: ...

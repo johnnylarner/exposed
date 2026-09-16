@@ -26,14 +26,14 @@ def refresh_declarations(
     store: DeclarationStore,
 ) -> dict[str, object]:
     try:
-        with store.refresh(term_start) as writer:
-            members = writer.cohort()
-            if not members:
-                raise ImportValidationError("No stored Commons cohort for the configured term")
-            accepted = 0
-            sources = DeclarationSources(source)
-            processed: set[int] = set()
-            for source_member_id, member_id in members.items():
+        members = store.cohort(term_start)
+        if not members:
+            raise ImportValidationError("No stored Commons cohort for the configured term")
+        accepted = 0
+        sources = DeclarationSources(source)
+        processed: set[int] = set()
+        for source_member_id, member_id in members.items():
+            with store.refresh_member() as writer:
                 for batch in source.declarations(source_member_id):
                     for record in batch:
                         sources.remember(record)
@@ -56,7 +56,7 @@ def refresh_declarations(
                             continue
                         writer.write_declaration(member_id, declaration, record.fetched_at)
                         accepted += 1
-                logger.info("Processed declarations for member %s (uncommitted)", source_member_id)
+            logger.info("Committed declarations for member %s", source_member_id)
         return {
             "status": "succeeded",
             "term_start": term_start.isoformat(),

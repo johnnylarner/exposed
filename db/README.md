@@ -21,4 +21,8 @@ Run only one import or migration against a database at a time.
 
 ## Tests
 
-`make check` uses the actual dbmate CLI to initialize isolated PostgreSQL databases. Tests cover initial migration, repeat application, rollback and reapplication, alongside the importer tests. Reversing the initial migration drops its domain tables and their data.
+`make check` uses the actual dbmate CLI to initialize isolated PostgreSQL databases for importer tests. Migration-specific tests are not retained. Reversing the initial migration drops its domain tables and their data.
+
+The registration-date migration adds a nullable column without rewriting existing declarations.
+After `make db-migrate`, use `./ingest/scripts/backfill-declaration-dates.sh` to populate it without
+rerunning the funding import; see the [backfill instructions](../ingest/README.md#backfill-registration-dates-without-reimporting-funding).

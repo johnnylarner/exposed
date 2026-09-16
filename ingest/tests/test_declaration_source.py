@@ -1,8 +1,26 @@
+from copy import deepcopy
+from datetime import date
+
 import httpx
 import pytest
 
 from exposed.core.errors import DeclarationParseError, ImportValidationError, SourceError
 from tests.declaration_fakes import DeclarationsFixture, declaration, money
+
+
+@pytest.mark.parametrize("registration_date", [None, "2016-01-27"])
+def test_registration_date_comes_from_selected_version(registration_date):
+    item = declaration()
+    item["versions"][0]["registrationDate"] = registration_date
+    older = deepcopy(item["versions"][0])
+    older["register"]["publishedDate"] = "2020-01-01"
+    older["registrationDate"] = "invalid historical date"
+    item["versions"].insert(0, older)
+    api = DeclarationsFixture(item).api()
+    with api.client:
+        (batch,) = api.declarations(1)
+        accepted = api.interpret(batch[0]).accept()
+    assert accepted.registration_date == (date(2016, 1, 27) if registration_date else None)
 
 
 def test_source_port_preserves_evidence_and_isolates_bad_item_decoding():

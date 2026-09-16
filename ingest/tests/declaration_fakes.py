@@ -28,6 +28,7 @@ def declaration(id: int = 101, member: int = 1, fields=None) -> dict[str, Any]:
             {
                 "register": {"id": 729, "publishedDate": "2024-08-04", "type": "Commons"},
                 "publishedDate": "2016-02-01",
+                "registrationDate": "2016-01-27",
                 "fields": fields
                 if fields is not None
                 else [field("Description", "Unpaid trustee")],
@@ -58,10 +59,12 @@ class DeclarationsFixture:
         items = [
             i
             for i in self.items
-            if i["registrant"]["memberDetail"]["id"] == int(params["MemberId"])
+            if "MemberId" not in params
+            or i["registrant"]["memberDetail"]["id"] == int(params["MemberId"])
         ]
         if "InterestIds" in params:
-            items = [i for i in items if i["id"] == int(params["InterestIds"])]
+            ids = {int(value) for value in params.get_list("InterestIds")}
+            items = [i for i in items if i["id"] in ids]
         skip, take = int(params["Skip"]), int(params["Take"])
         return httpx.Response(
             200,

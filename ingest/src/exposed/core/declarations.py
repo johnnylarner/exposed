@@ -77,6 +77,7 @@ class DeclarationIdentity(Model):
     member_source_id: PositiveID
     category_id: PositiveID
     category_name: DisplayName
+    registration_date: date | None = None
 
 
 class Declaration(DeclarationIdentity):
@@ -131,6 +132,7 @@ class DeclarationDraft(DeclarationIdentity):
             member_source_id=self.member_source_id,
             category_id=self.category_id,
             category_name=self.category_name,
+            registration_date=self.registration_date,
             funding=funding,
             payer=payer,
         )

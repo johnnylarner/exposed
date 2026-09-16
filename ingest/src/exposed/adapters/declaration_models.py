@@ -1,6 +1,7 @@
 """Source declarations and their complete funding projection."""
 
 import re
+from datetime import date
 from decimal import Decimal
 from typing import Annotated, Literal, Self
 
@@ -54,6 +55,10 @@ class Register(Model):
 
 class VersionHeader(Model):
     source_register: Register = Field(validation_alias="register")
+
+
+class RegistrationDate(Model):
+    registration_date: SourceDate | None = Field(default=None, validation_alias="registrationDate")
 
 
 class SourceField(Model):
@@ -189,8 +194,8 @@ class SourceDeclaration(Model):
     parent_id: PositiveID | None = Field(default=None, validation_alias="parentInterestId")
     versions: list[dict[str, JsonValue]] = Field(min_length=1)
 
-    def latest_fields(self) -> tuple[FieldGroup, str]:
-        first = latest_version(
+    def latest_version_index(self) -> int:
+        return latest_version(
             tuple(
                 PublishedVersion(
                     published_on=VersionHeader.model_validate(v).source_register.published_date,
@@ -199,6 +204,15 @@ class SourceDeclaration(Model):
                 for v in self.versions
             )
         )
+
+    def registration_date(self) -> date | None:
+        """Read date metadata without interpreting funding or resolving parents."""
+        return RegistrationDate.model_validate(
+            self.versions[self.latest_version_index()]
+        ).registration_date
+
+    def latest_fields(self) -> tuple[FieldGroup, str]:
+        first = self.latest_version_index()
         return FieldGroup.model_validate(self.versions[first]), f"versions.{first}.fields"
 
     def to_draft(self) -> DeclarationDraft:
@@ -209,6 +223,7 @@ class SourceDeclaration(Model):
             member_source_id=self.registrant.member.id,
             category_id=self.category.id,
             category_name=self.category.name,
+            registration_date=self.registration_date(),
             funding=tuple(
                 DomainFundingEntry.model_validate(entry.model_dump()) for entry in funding
             ),
@@ -227,6 +242,7 @@ class Declaration(Model):
     registrant: Registrant
     funding: tuple[FundingEntry, ...]
     payer: str | None
+    registration_date: date | None = None
 
     def to_declaration(self) -> DomainDeclaration:
         return DomainDeclaration(
@@ -234,6 +250,7 @@ class Declaration(Model):
             member_source_id=self.registrant.member.id,
             category_id=self.category.id,
             category_name=self.category.name,
+            registration_date=self.registration_date,
             funding=tuple(
                 DomainFundingEntry.model_validate(entry.model_dump()) for entry in self.funding
             ),
@@ -251,4 +268,5 @@ class Declaration(Model):
                 FundingEntry.model_validate(entry.model_dump()) for entry in accepted.funding
             ),
             payer=accepted.payer,
+            registration_date=accepted.registration_date,
         )

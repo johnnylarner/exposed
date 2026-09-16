@@ -50,9 +50,6 @@ class MemoryDeclarationWriter:
     def __init__(self, members: dict[int, UUID], records: dict[int, tuple[Declaration, datetime]]):
         self.members, self.records = members, records
 
-    def cohort(self) -> dict[int, UUID]:
-        return dict(self.members)
-
     def write_declaration(
         self, member_id: UUID, declaration: Declaration, fetched_at: datetime
     ) -> None:
@@ -65,9 +62,11 @@ class MemoryDeclarationStore:
         self.term_start, self.members = term_start, members
         self.records: dict[int, tuple[Declaration, datetime]] = {}
 
+    def cohort(self, term_start: date) -> dict[int, UUID]:
+        return dict(self.members) if term_start == self.term_start else {}
+
     @contextmanager
-    def refresh(self, term_start: date) -> Iterator[DeclarationWriter]:
+    def refresh_member(self) -> Iterator[DeclarationWriter]:
         pending = dict(self.records)
-        members = self.members if term_start == self.term_start else {}
-        yield MemoryDeclarationWriter(members, pending)
+        yield MemoryDeclarationWriter(self.members, pending)
         self.records = pending

@@ -128,8 +128,8 @@ def test_storage_failure_rolls_back_and_preserves_core_diagnostic_cause():
 
     class FailingStore(MemoryDeclarationStore):
         @contextmanager
-        def refresh(self, term_start):
-            with super().refresh(term_start) as writer:
+        def refresh_member(self):
+            with super().refresh_member() as writer:
                 yield writer
                 raise failure
 

@@ -134,8 +134,8 @@ API/CLI and declaration characterization checks then passed (50 tests).
 | Retrieve and decode declarations | `declaration_api` and `declaration_models` | Parliament source adapter and response DTOs | All Commons categories/registers/dates, expired records, pagination, bounded retries, field diagnostics and raw payloads |
 | Choose a published version | `SourceDeclaration.latest_fields` | Core `latest_version` policy over normalized dates/content | Newest register date, rejection of conflicting ties, no extraction from old versions |
 | Complete declaration attribution | `Declaration.from_source` and importer parent resolution | Core draft acceptance and refresh orchestration | Ultimate-payer interpretation, required parent lookup, member identity, cycles, whole-declaration rejection and valid siblings |
-| Read cohort and publish | Direct SQL in `declaration_importer` / `declaration_db` | Atomic declaration-storage port and PostgreSQL adapter | Distinct stored members, stable UUIDs, multiplicity, whole funding-group replacement, no inferred deletion, one refresh transaction |
-| Detect duplicate delivery | Importer raw dictionaries | Core evidence comparison before source interpretation | Identical content logged/collapsed; conflicts fail and roll back the refresh |
+| Read cohort and publish | Direct SQL in `declaration_importer` / `declaration_db` | Atomic declaration-storage port and PostgreSQL adapter | Distinct stored members, stable UUIDs, multiplicity, whole funding-group replacement, no inferred deletion; one transaction per MP |
+| Detect duplicate delivery | Importer raw dictionaries | Core evidence comparison before source interpretation | Identical content logged/collapsed; conflicts fail the run and roll back the current MP |
 
 ### Declaration boundary map
 
@@ -173,13 +173,19 @@ its parent's payer cannot be accepted until that parent has been resolved. An
 explicitly different, withheld ultimate payer stays absent. The writer receives
 the accepted `Declaration` and its retrieval time directly; there is no snapshot wrapper.
 
-`DeclarationStore.refresh(term_start)` yields a writer inside one atomic scope.
-The writer reads the existing cohort and stages parsed declarations and funding. PostgreSQL commits only
-when the core exits successfully, and rolls back on source, storage, validation or
-interruption failures. Individual declaration rejections are caught before writes,
+`DeclarationStore.cohort(term_start)` reads the distinct stored members once.
+`DeclarationStore.refresh_member()` yields a writer inside one atomic scope for an MP.
+The writer stages parsed declarations, registration dates and funding. PostgreSQL commits when
+that MP finishes and rolls back that MP on source, storage, validation or interruption failures.
+Completed MPs remain committed. Individual declaration rejections are caught before writes,
 logged and skipped, preserving the existing completed-success exit behavior.
 The declaration schema stores parsed fields only. Locking, scheduling, retry and
 member-refresh semantics are unchanged.
+
+The source adapter reads `registrationDate` from the same selected version as funding.
+The nullable SQL `registration_date` is a source calendar date; `fetched_at` remains the retrieval
+timestamp. The one-off Bash backfill fetches batches of stored IDs, skips funding and parent
+interpretation, then fills missing dates with a bulk SQL update in a separate transaction.
 
 ### Compatibility and verification
 

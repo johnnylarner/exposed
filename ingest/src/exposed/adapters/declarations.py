@@ -1,6 +1,6 @@
 """Register of Interests v2 requests using the shared bounded HTTP retries."""
 
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from datetime import UTC, datetime
 
 import httpx
@@ -20,21 +20,42 @@ INTERESTS_BASE_URL = "https://interests-api.parliament.uk"
 
 class DeclarationsAPI(ParliamentAPI):
     def search_page(
-        self, member_id: int, *, skip: int, take: int, interest_id: int | None = None
+        self,
+        member_id: int | None,
+        *,
+        skip: int,
+        take: int,
+        interest_id: int | None = None,
+        interest_ids: Sequence[int] = (),
     ) -> DeclarationPage:
         params = httpx.QueryParams(
             {
                 "Type": "Commons",
-                "MemberId": member_id,
                 "ExcludeExpired": "false",
                 "ExpandChildInterests": "false",
                 "Skip": skip,
                 "Take": take,
             }
         )
+        if member_id is not None:
+            params = params.set("MemberId", member_id)
         if interest_id is not None:
             params = params.set("InterestIds", interest_id)
+        for source_id in interest_ids:
+            params = params.add("InterestIds", source_id)
         return DeclarationPage.model_validate_json(self._get("/api/v2/Interests", params))
+
+    def declarations_by_ids(self, source_ids: Sequence[int]) -> Iterator[DeclarationPage]:
+        """Fetch existing IDs in bounded requests without member or parent traversal."""
+        for start in range(0, len(source_ids), BATCH_SIZE):
+            ids = source_ids[start : start + BATCH_SIZE]
+            offset = 0
+            while True:
+                page = self.search_page(None, skip=offset, take=BATCH_SIZE, interest_ids=ids)
+                yield page
+                offset += len(page.items)
+                if not page.items or offset >= page.total_results:
+                    break
 
     def declarations(self, member_id: int) -> Iterator[tuple[RetrievedDeclaration, ...]]:
         """Traverse all registers and dates, allowing changing totals and empty final pages."""

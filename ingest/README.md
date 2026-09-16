@@ -67,11 +67,14 @@ are separate declarations; parent details are resolved during ingestion when nee
 
 | Table | Stores |
 | --- | --- |
-| `declarations` | Stable UUIDv7, unique API declaration ID, member FK, category ID and readable name, and retrieval time. |
+| `declarations` | Stable UUIDv7, unique API declaration ID, member FK, category ID and readable name, source registration date, and retrieval time. |
 | `funding_entries` | UUIDv7, declaration source ID, nullable source funder, exact numeric amount, currency and payment type. |
 
 A declaration can have zero or many funding rows. Names are source attributions; no shared donor
 identity is inferred. Funding is extracted from the version with the latest `register.publishedDate`.
+`registration_date` comes from that version's `registrationDate`, independently of `fetched_at`.
+Parliament supplies a calendar date, not a creation time of day. Missing source dates stay null;
+publication dates and retrieval timestamps are not substituted.
 Raw API responses and unused source fields are not stored. Equally recent versions with conflicting
 content are rejected. Declaration amounts are not comparable donation totals:
 ongoing earnings, in-kind valuations and other categories have different meanings.
@@ -84,7 +87,9 @@ Absent optional values stay null. Ordinary decimal strings and integer values ar
 unsupported numeric formats are logged for later parser improvements. Unrecognized currency-bearing
 fields or monetary fields in unsupported nesting are rejected rather than silently omitted.
 
-Each refresh uses one transaction for accepted declarations. Unchanged funding keeps its UUIDs,
+Each MP uses one transaction for their accepted declarations, spanning all their pages and parent
+lookups. It commits before the next MP is fetched, and logs `Committed declarations for member …`.
+Unchanged funding keeps its UUIDs,
 including when entries are reordered. Any funding change replaces the whole group, preserving
 multiplicity and the declaration UUID. Metadata-only changes update the header without replacing
 funding. Every response is reparsed, even when its JSON is unchanged.
@@ -97,10 +102,34 @@ member and accepted declaration counts, even if individual declarations were rej
 
 Identical duplicate IDs within a run are logged and collapsed; conflicting duplicates fail the
 refresh. Required HTTP failures after bounded retries, unreadable pages, database failures and
-interruptions roll back every accepted write. Fatal failures exit **1**, interruptions **130**.
+interruptions roll back only the current MP's writes; completed MPs remain committed and visible
+to other connections. Fatal failures exit **1**, interruptions **130**.
 Independent member refreshes remain committed. Missing declarations are left untouched; there is no
 inferred withdrawal, deletion or missing-record state. Changed pagination totals are tolerated and
 an empty page ends traversal. Execution remains externally controlled, without application locks.
+
+### Backfill registration dates without reimporting funding
+
+From the repository root, apply the new migration and run the Bash script:
+
+```sh
+make db-migrate
+./ingest/scripts/backfill-declaration-dates.sh
+```
+
+The script uses `ingest/.venv/bin/python` (override with `PYTHON`) and the existing dependencies.
+It loads `ingest/.env` with environment variables taking precedence. `--dry-run` downloads and
+validates the dates without writing; running it again to apply will fetch them again.
+
+The script selects all stored declarations with a missing registration date, requests their source
+IDs in batches of 100 across all available registers, including expired declarations, and follows
+pagination. It uses the importer's version-selection rule without parsing funding or resolving
+parents. After all responses validate, it bulk-loads a temporary table and executes
+[`backfill_declaration_dates.sql`](scripts/backfill_declaration_dates.sql) in one transaction.
+Only missing `registration_date` values are updated; funding, UUIDs and `fetched_at` are preserved.
+Source omissions, malformed dates and conflicting dates abort the backfill before any update.
+Unavailable source dates remain null and are counted in the JSON result. Reruns skip populated dates.
+Run the backfill separately from imports and migrations, following the existing single-job rule.
 
 ## Validation and typed responses
 
@@ -158,7 +187,7 @@ Astral also provides `ty`, a separate type checker and language server with Neov
 - `src/exposed/core/ports.py` and `declaration_ports.py`: source and atomic storage contracts.
 - `src/exposed/core/errors.py`: application-owned failures and safe diagnostics.
 - `src/exposed/adapters/parliament.py`, `parliament_models.py`, `declarations.py` and `declaration_models.py`: HTTP, retries, pagination and source decoding.
-- `src/exposed/adapters/postgres.py` and `declaration_postgres.py`: SQL and whole-refresh transactions.
+- `src/exposed/adapters/postgres.py` and `declaration_postgres.py`: SQL, whole-refresh member transactions and per-MP declaration transactions.
 - `src/exposed/composition.py`: client construction, connection lifetimes and production command runners.
 - `src/exposed/cli.py`: configuration, argument parsing, JSON and exit codes through injected commands.
 - The original top-level `api.py`, `models.py`, `db.py`, `importer.py` and `declaration_*.py` modules: compatibility facades.

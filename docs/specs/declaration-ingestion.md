@@ -1,5 +1,9 @@
 # Declaration ingestion
 
+Updated on 16 September 2026: declaration writes commit after each MP, and the selected
+version's nullable `registrationDate` is stored as `registration_date`. Existing missing dates
+can be filled by the dedicated Bash/SQL backfill without reimporting funding.
+
 ## Problem Statement
 
 Exposed currently imports members and their Commons service into PostgreSQL, but it cannot yet import the financial declarations needed for later display. The original donation sketch assumes a donor and an amount per record. Parliament's declarations are broader: they include nonfinancial disclosures, declarations with several funders, in-kind benefits, and payments whose payer information belongs to a related declaration.
@@ -10,11 +14,11 @@ The project needs a simple model that links declarations to their source IDs, ex
 
 Add a separate import-declarations command. It reads the existing member cohort from the database and retrieves the available Commons declarations for those members, across all categories and available dates, including expired declarations.
 
-Store one declaration record per source declaration ID, linked directly to the existing member, with its readable category and retrieval time. Persist only parsed fields; do not store raw source JSON. Store zero or more funding entries separately, each with its own UUID and the source declaration ID that groups it with its declaration.
+Store one declaration record per source declaration ID, linked directly to the existing member, with its readable category, source registration date and retrieval time. Persist only parsed fields; do not store raw source JSON. Store zero or more funding entries separately, each with its own UUID and the source declaration ID that groups it with its declaration.
 
 Funding entries expose the source funder, exact decimal amount, currency, and payment type. Prefer an explicitly supplied ultimate payer; otherwise use the source donor or payer, resolving the parent declaration when required. Store the selected name without retaining alternative payer identities or attempting to identify shared donors across declarations.
 
-Parse the whole declaration before changing its stored representation. If parsing fails, log the failure, keep the previously stored declaration and funding unchanged, and continue. A new rejected declaration produces no records. Publish all accepted changes together. An otherwise completed run succeeds even when individual declarations were rejected and logged.
+Parse the whole declaration before changing its stored representation. If parsing fails, log the failure, keep the previously stored declaration and funding unchanged, and continue. A new rejected declaration produces no records. Publish each MP's accepted changes together before processing the next MP. An otherwise completed run succeeds even when individual declarations were rejected and logged.
 
 ## User Stories
 
@@ -51,8 +55,8 @@ Parse the whole declaration before changing its stored representation. If parsin
 31. As a maintainer, I want parsing logs to identify the source declaration, field path, offending value, and reason, so that I can extend parsers for previously unsupported numbers.
 32. As an operator, I want valid declarations on the same page as an invalid declaration to continue, so that one bad item does not discard its valid siblings.
 33. As an operator, I want per-declaration parsing failures handled through logs, so that a completed run does not require a special partial-success exit status.
-34. As an operator, I want a failed source request to roll back accepted writes from that refresh, so that an interrupted fetch does not publish an unfinished run.
-35. As an operator, I want a database failure to roll back the refresh, so that earlier writes are not left committed after a later write fails.
+34. As an operator, I want a failed source request to roll back accepted writes for the current MP while preserving completed MPs.
+35. As an operator, I want a database failure to roll back the current MP's declarations and funding together.
 36. As an operator, I want identical repeated declaration IDs within a run reported and collapsed, so that duplicate source delivery does not duplicate funding.
 37. As an operator, I want conflicting content under one source ID to fail the refresh, so that ingestion does not arbitrarily choose between conflicting responses.
 38. As an operator, I want an ID already stored by a previous run treated as an update, so that normal refreshes are not mistaken for duplicate-source failures.
@@ -95,6 +99,7 @@ Use two domain tables, introduced through the existing SQL migration mechanism.
 | declarations | category_id | Source category identity. |
 | declarations | category_name | Human-readable source category name. |
 | declarations | fetched_at | Time the accepted source response was retrieved. |
+| declarations | registration_date | Nullable source registrationDate from the selected version; a calendar date, not a creation timestamp. |
 | funding_entries | id | Local UUIDv7 primary key for the current funding row. |
 | funding_entries | source_declaration_id | Foreign key to the declaration's unique source ID; shared by all its funding entries. |
 | funding_entries | funder | Source-derived donor or payer name, without canonical identity matching. |
@@ -153,11 +158,11 @@ Use two domain tables, introduced through the existing SQL migration mechanism.
 | Other declarations remain valid | Continue processing them, including siblings from the same source page. |
 | Run completes with declaration parsing rejections | Commit accepted declarations and exit successfully; report the rejections through logs. |
 | Identical source declaration ID and content repeat within the run | Report and collapse the duplicate before funding expansion. |
-| Same source declaration ID repeats with conflicting content | Fail the run and roll back accepted writes from that refresh. |
-| Source request fails after retries or its response cannot be read as a page | Fail the run and roll back accepted writes from that refresh. |
-| Database write fails or the run is interrupted | Roll back the refresh and use the existing fatal-failure/interruption conventions. |
+| Same source declaration ID repeats with conflicting content | Fail the run and roll back the current MP; completed MPs stay committed. |
+| Source request fails after retries or its response cannot be read as a page | Fail the run and roll back the current MP; completed MPs stay committed. |
+| Database write fails or the run is interrupted | Roll back the current MP and use the existing fatal-failure/interruption conventions; completed MPs stay committed. |
 
-- Use one database transaction to publish all accepted declaration changes together. Per-declaration parsing rejection is deliberately handled before persistence; it does not abort otherwise valid declarations.
+- Use one database transaction per MP to publish their accepted declaration changes together before retrieving the next MP. Per-declaration parsing rejection is deliberately handled before persistence; it does not abort otherwise valid declarations.
 - Member refreshes remain independent. A declaration refresh failure does not undo an earlier successful member refresh.
 - Log the rejected declaration's source ID where available, the relevant field path, the original offending value, and the reason. Include enough request/member context to locate an item whose identity itself could not be parsed.
 - Declaration diagnostics need the offending numeric input, unlike the existing member error formatter that omits raw values. Keep this diagnostic behavior specific to declaration ingestion.
@@ -198,8 +203,8 @@ Use a small number of CLI checks for command dispatch, stdout/stderr behavior, a
 12. A failure in the second funding entry rejects the whole declaration. Existing metadata, retrieval time, and funding remain unchanged; a rejected new declaration produces no rows.
 13. Valid declarations before and after a malformed sibling in the same page still commit. Logs identify the failed source item, field, original value, and reason.
 14. A completed run with parsing rejections exits successfully and uses ordinary logs rather than a special partial-success result.
-15. Identical duplicate source declarations are reported and collapsed; conflicting duplicates after earlier writes roll back the entire refresh.
-16. A later request failure, database failure, or interruption preserves the previously committed declaration dataset. Other connections do not see accepted writes before commit.
+15. Identical duplicate source declarations are reported and collapsed; conflicting duplicates roll back the current MP while preserving completed MPs.
+16. A later request failure, database failure, or interruption rolls back only the current MP. Other connections see each completed MP immediately, without seeing partial writes for an MP.
 17. Changed pagination totals do not fail an otherwise valid refresh, and traversal cannot loop indefinitely on an empty page. There is no inferred deletion or missing-record status for a stored declaration omitted by the source.
 18. A stored funding projection that differs from what the current parser derives is corrected on refresh even if the source payload is unchanged.
 19. New schema constraints enforce member and declaration relationships and source declaration uniqueness without modifying the member schema or its stored data.
