@@ -2,7 +2,7 @@
 
 Where do MPs get their money from?
 
-The first milestone imports everyone who has served in the Commons during the configured Parliament into PostgreSQL.
+Imports everyone who has served in the Commons during the configured Parliament and their available declarations into PostgreSQL. Declarations retain the source evidence alongside extracted funding for later display.
 
 ## Getting started
 
@@ -30,6 +30,7 @@ Run `make help` for all commands.
 | `make migrate` | Apply pending migrations |
 | `make migration-status` | Show applied and pending migrations |
 | `make import-members` | Refresh member data |
+| `make import-declarations` | Refresh declarations for the stored member cohort |
 | `make verify` | Check data in the local Compose database |
 | `make check` | Run lint, formatting checks, type checks and all tests |
 | `make test-unit` | Run tests without PostgreSQL |

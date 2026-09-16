@@ -21,7 +21,7 @@ APIError = SourceError
 BATCH_SIZE = 100
 
 
-class MembersAPI:
+class ParliamentAPI:
     def __init__(
         self,
         client: httpx.Client,
@@ -54,19 +54,21 @@ class MembersAPI:
                 response = self.client.get(path, params=params)
             except httpx.TransportError as exc:
                 if attempt == 3:
-                    raise APIError(f"Members API transport failure at {path}") from exc
+                    raise APIError(f"Parliament API transport failure at {path}") from exc
                 response = None
             else:
                 if response.status_code == 200:
                     return response.content
                 if response.status_code != 429 and response.status_code < 500:
-                    raise APIError(f"Members API returned HTTP {response.status_code} at {path}")
+                    raise APIError(f"Parliament API returned HTTP {response.status_code} at {path}")
                 if attempt == 3:
-                    raise APIError(f"Members API returned HTTP {response.status_code} at {path}")
+                    raise APIError(f"Parliament API returned HTTP {response.status_code} at {path}")
             logger.warning("Retrying %s (attempt %s/4)", path, attempt + 2)
             self.sleep(self._retry_delay(response, attempt))
         raise AssertionError("Unreachable retry state")
 
+
+class MembersAPI(ParliamentAPI):
     def search_page(
         self,
         filters: dict[str, str | int],

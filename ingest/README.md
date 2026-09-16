@@ -1,6 +1,6 @@
 # Exposed
 
-Import everyone who has served in the Commons during the configured current Parliament into PostgreSQL. Refreshes keep latest profiles, dated service and former members.
+Import Commons members and their available financial declarations into PostgreSQL. Member refreshes keep latest profiles, dated service and former members; declaration refreshes preserve source evidence and extracted funding independently.
 
 ## Run locally
 
@@ -24,7 +24,7 @@ The command is ready to run in GitHub Actions with `DATABASE_URL` supplied throu
 
 ## Data and date rules
 
-Domain tables live in the `exposed` schema; dbmate keeps migration versions in `public.schema_migrations`. Internal IDs are UUIDv7; `members.parliament_member_id` is Parliament's stable numeric ID and the future join key for interests.
+Domain tables live in the `exposed` schema; dbmate keeps migration versions in `public.schema_migrations`. Internal IDs are UUIDv7; `members.parliament_member_id` is Parliament's stable numeric ID and the source identity used to retrieve declarations.
 
 | Table | Stores |
 | --- | --- |
@@ -50,7 +50,57 @@ The transaction stays open during API requests and retries. PostgreSQL manages t
 
 Requests are sequential with a short delay, timeouts and up to four attempts for transport errors, HTTP 429 and server errors. API data can change between requests. Validation detects incomplete pagination and inconsistent membership, but the fixed observation date does not freeze the upstream data. Rerun after source data settles if validation fails.
 
-API responses and import execution history are not stored. Summaries and failures are command output only.
+Member API responses and import execution history are not stored. Declaration source responses are retained as described below. Summaries and failures are command output only.
+
+## Declaration ingestion
+
+After migrating and importing members, run `make import-declarations`, or
+`.venv/bin/python -m exposed import-declarations --term-start 2024-07-04` from `ingest/`.
+The command uses the same `DATABASE_URL` and `PARLIAMENT_TERM_START` configuration.
+It reads distinct members with Commons service in the stored term, including former MPs.
+It does not create or refresh members or terms; an absent matching cohort is a configuration failure.
+
+Requests explicitly select Commons, all categories, all available registers and expired declarations.
+The term determines which members are queried, without limiting declaration dates. Coverage is the
+history returned by Parliament's API, not a guarantee of a complete lifetime archive. Child payments
+are separate declarations linked to their parents in the source JSON.
+
+| Table | Stores |
+| --- | --- |
+| `declarations` | Stable UUIDv7, unique API declaration ID, member FK, category ID and readable name, full accepted source JSONB, and retrieval time. |
+| `funding_entries` | UUIDv7, declaration source ID, nullable source funder, exact numeric amount, currency and payment type. |
+
+A declaration can have zero or many funding rows. Names are source attributions; no shared donor
+identity is inferred. Funding is extracted from the version with the latest `register.publishedDate`.
+All returned versions and unknown source fields remain in `source_payload`. Equally recent versions
+with conflicting content are rejected. Declaration amounts are not comparable donation totals:
+ongoing earnings, in-kind valuations and other categories have different meanings.
+
+The parser supports direct `Value` fields and nested `Donors` groups, preserving each donor/amount
+pair. It prefers an explicit `UltimatePayerName`, then source donor/payer names, resolving required
+parent data through the API when necessary. A required parent with no usable payer rejects the child;
+an explicitly different but withheld ultimate payer remains absent. Nonfinancial declarations have no invented funding.
+Absent optional values stay null. Ordinary decimal strings and integer values are parsed exactly;
+unsupported numeric formats are logged for later parser improvements. Unrecognized currency-bearing
+fields or monetary fields in unsupported nesting are rejected rather than silently omitted.
+
+Each refresh uses one transaction for accepted declarations. Unchanged funding keeps its UUIDs,
+including when entries are reordered. Any funding change replaces the whole group, preserving
+multiplicity and the declaration UUID. Metadata-only changes update the header without replacing
+funding. Every response is reparsed, even when its JSON is unchanged.
+
+A parsing failure rejects the entire declaration before any write. Its previous payload, metadata
+and funding remain intact; a new rejected declaration creates nothing. Logs on stderr include its
+source ID, member/request context, field path, original offending value and reason. Valid siblings
+continue. A completed run exits **0** and prints an ordinary `status: succeeded` JSON summary with
+member and accepted declaration counts, even if individual declarations were rejected.
+
+Identical duplicate IDs within a run are logged and collapsed; conflicting duplicates fail the
+refresh. Required HTTP failures after bounded retries, unreadable pages, database failures and
+interruptions roll back every accepted write. Fatal failures exit **1**, interruptions **130**.
+Independent member refreshes remain committed. Missing declarations are left untouched; there is no
+inferred withdrawal, deletion or missing-record state. Changed pagination totals are tolerated and
+an empty page ends traversal. Execution remains externally controlled, without application locks.
 
 ## Validation and typed responses
 
@@ -114,6 +164,11 @@ Astral also provides `ty`, a separate type checker and language server with Neov
 - `src/exposed/api.py`, `models.py`, `db.py` and `importer.py`: compatibility imports for existing callers.
 - `../db/migrations/`: unchanged dbmate schema migrations.
 - [Architecture and port contracts](../docs/architecture.md): dependency direction, consistency guarantees and test seams.
+
+- `src/exposed/declaration_api.py`: Interests v2 pages, using the shared HTTP retry policy.
+- `src/exposed/declaration_models.py`: version selection, typed source fields and complete funding construction.
+- `src/exposed/declaration_importer.py`: declaration traversal, parent resolution, duplicate handling and publication.
+- `src/exposed/declaration_db.py`: stored cohort reads and declaration/funding writes.
 - [API research](../docs/research/uk-parliament-apis.md): source contracts, historical coverage and future interests ingestion.
 
 Contains Parliamentary information licensed under the [Open Parliament Licence v3.0](https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/).

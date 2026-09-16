@@ -8,7 +8,7 @@ export EXPOSED_TEST_ADMIN_DSN
 export DBMATE
 export name
 
-.PHONY: db-start db-stop db-nuke db-migrate db-add-migration import-members verify lint format typecheck test test-unit check
+.PHONY: db-start db-stop db-nuke db-migrate db-add-migration import-members import-declarations verify lint format typecheck test test-unit check
 
 db-start: ## Start the local PostgreSQL database
 	docker compose up -d --wait
@@ -30,6 +30,9 @@ db-add-migration:
 
 import-members: ## Refresh member data using ingest/.env or environment variables
 	cd ingest && $(VENV_PYTHON) -m exposed import-members
+
+import-declarations: ## Refresh declarations for the stored member cohort
+	cd ingest && $(VENV_PYTHON) -m exposed import-declarations
 
 verify: ## Check domain data in the local Compose database
 	docker compose exec -T postgres psql -U exposed -d exposed < ingest/scripts/verify.sql

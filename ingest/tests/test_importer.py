@@ -185,7 +185,8 @@ def test_corrected_service_dates_replace_old_intervals(database_url):
 def test_remove_membership_from_id_preserves_member_data(database_url):
     run(database_url, ParliamentFixture())
     before = dataset(database_url)
-    dbmate(database_url, "rollback")
+    dbmate(database_url, "rollback")  # Declaration tables.
+    dbmate(database_url, "rollback")  # Remove-latest-membership migration under test.
     with connect(database_url) as conn:
         conn.execute("UPDATE exposed.members SET latest_membership_from_id = 101")
     dbmate(database_url)

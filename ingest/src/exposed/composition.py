@@ -36,3 +36,16 @@ def import_members(database_url: str, term_start: date) -> dict[str, object]:
             return run_import(database_url, term_start, MembersAPI(client))
     except psycopg.Error as exc:
         raise storage_error(exc) from exc
+
+
+def import_declarations(database_url: str, term_start: date) -> dict[str, object]:
+    """Production declaration command; own HTTP client construction at the edge."""
+    from exposed.declaration_api import INTERESTS_BASE_URL, DeclarationsAPI
+    from exposed.declaration_importer import run_import as run_declaration_import
+
+    with httpx.Client(
+        base_url=INTERESTS_BASE_URL,
+        timeout=httpx.Timeout(30, connect=10),
+        headers={"Accept": "application/json", "User-Agent": "exposed-importer/0.1"},
+    ) as client:
+        return run_declaration_import(database_url, term_start, DeclarationsAPI(client))

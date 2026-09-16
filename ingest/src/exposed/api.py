@@ -9,3 +9,4 @@ from exposed.adapters.parliament import (
 from exposed.adapters.parliament import (
     MembersAPI as MembersAPI,
 )
+from exposed.adapters.parliament import ParliamentAPI as ParliamentAPI
