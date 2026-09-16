@@ -6,7 +6,7 @@ from datetime import UTC, date, datetime
 from uuid import UUID
 
 from exposed.core.declaration_ports import DeclarationWriter
-from exposed.core.declarations import DeclarationDraft, DeclarationSnapshot, RetrievedDeclaration
+from exposed.core.declarations import Declaration, DeclarationDraft, RetrievedDeclaration
 from exposed.core.errors import DeclarationParseError
 
 
@@ -47,21 +47,23 @@ class MemoryDeclarationSource:
 
 
 class MemoryDeclarationWriter:
-    def __init__(self, members: dict[int, UUID], records: dict[int, DeclarationSnapshot]):
+    def __init__(self, members: dict[int, UUID], records: dict[int, tuple[Declaration, datetime]]):
         self.members, self.records = members, records
 
     def cohort(self) -> dict[int, UUID]:
         return dict(self.members)
 
-    def write_declaration(self, member_id: UUID, snapshot: DeclarationSnapshot) -> None:
-        assert member_id == self.members[snapshot.declaration.member_source_id]
-        self.records[snapshot.declaration.id] = snapshot
+    def write_declaration(
+        self, member_id: UUID, declaration: Declaration, fetched_at: datetime
+    ) -> None:
+        assert member_id == self.members[declaration.member_source_id]
+        self.records[declaration.id] = (declaration, fetched_at)
 
 
 class MemoryDeclarationStore:
     def __init__(self, term_start: date, members: dict[int, UUID]):
         self.term_start, self.members = term_start, members
-        self.records: dict[int, DeclarationSnapshot] = {}
+        self.records: dict[int, tuple[Declaration, datetime]] = {}
 
     @contextmanager
     def refresh(self, term_start: date) -> Iterator[DeclarationWriter]:

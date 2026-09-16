@@ -1,6 +1,6 @@
 # Exposed
 
-Import Commons members and their available financial declarations into PostgreSQL. Member refreshes keep latest profiles, dated service and former members; declaration refreshes preserve source evidence and extracted funding independently.
+Import Commons members and their available financial declarations into PostgreSQL. Member refreshes keep latest profiles, dated service and former members; declaration refreshes store parsed declaration fields and funding independently.
 
 ## Run locally
 
@@ -63,17 +63,17 @@ It does not create or refresh members or terms; an absent matching cohort is a c
 Requests explicitly select Commons, all categories, all available registers and expired declarations.
 The term determines which members are queried, without limiting declaration dates. Coverage is the
 history returned by Parliament's API, not a guarantee of a complete lifetime archive. Child payments
-are separate declarations linked to their parents in the source JSON.
+are separate declarations; parent details are resolved during ingestion when needed for attribution.
 
 | Table | Stores |
 | --- | --- |
-| `declarations` | Stable UUIDv7, unique API declaration ID, member FK, category ID and readable name, full accepted source JSONB, and retrieval time. |
+| `declarations` | Stable UUIDv7, unique API declaration ID, member FK, category ID and readable name, and retrieval time. |
 | `funding_entries` | UUIDv7, declaration source ID, nullable source funder, exact numeric amount, currency and payment type. |
 
 A declaration can have zero or many funding rows. Names are source attributions; no shared donor
 identity is inferred. Funding is extracted from the version with the latest `register.publishedDate`.
-All returned versions and unknown source fields remain in `source_payload`. Equally recent versions
-with conflicting content are rejected. Declaration amounts are not comparable donation totals:
+Raw API responses and unused source fields are not stored. Equally recent versions with conflicting
+content are rejected. Declaration amounts are not comparable donation totals:
 ongoing earnings, in-kind valuations and other categories have different meanings.
 
 The parser supports direct `Value` fields and nested `Donors` groups, preserving each donor/amount

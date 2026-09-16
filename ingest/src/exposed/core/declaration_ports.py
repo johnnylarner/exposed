@@ -2,11 +2,11 @@
 
 from collections.abc import Iterator, Mapping
 from contextlib import AbstractContextManager
-from datetime import date
+from datetime import date, datetime
 from typing import Protocol
 from uuid import UUID
 
-from exposed.core.declarations import DeclarationDraft, DeclarationSnapshot, RetrievedDeclaration
+from exposed.core.declarations import Declaration, DeclarationDraft, RetrievedDeclaration
 
 
 class DeclarationSource(Protocol):
@@ -37,13 +37,16 @@ class DeclarationWriter(Protocol):
     Include distinct current/former members with Commons service in the configured
     term; do not create or change member/service/term records. Upsert by source ID,
     keeping declaration UUIDs and unchanged funding UUIDs. Compare funding values
-    with multiplicity, ignoring order; replace changed groups in full. Store each
-    accepted payload and projection together; leave unmentioned declarations intact.
+    with multiplicity, ignoring order; replace changed groups in full. Store parsed
+    declaration fields, funding and retrieval time together; leave unmentioned
+    declarations intact. Source responses are not persisted.
     """
 
     def cohort(self) -> Mapping[int, UUID]: ...
 
-    def write_declaration(self, member_id: UUID, snapshot: DeclarationSnapshot) -> None: ...
+    def write_declaration(
+        self, member_id: UUID, declaration: Declaration, fetched_at: datetime
+    ) -> None: ...
 
 
 class DeclarationStore(Protocol):

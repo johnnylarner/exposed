@@ -5,7 +5,6 @@ from collections import Counter
 from collections.abc import Sequence
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Self
 
 from pydantic import JsonValue
 
@@ -138,7 +137,7 @@ class DeclarationDraft(DeclarationIdentity):
 
 
 class RetrievedDeclaration(Model):
-    """Opaque source evidence and retrieval context; decoding belongs to its source."""
+    """Transient source response and retrieval context; never persisted."""
 
     identifier: JsonValue
     payload: JsonValue
@@ -150,19 +149,3 @@ class RetrievedDeclaration(Model):
         if isinstance(self.identifier, int) and not isinstance(self.identifier, bool):
             return self.identifier
         return None
-
-
-class DeclarationSnapshot(Model):
-    """Accepted interpretation and the evidence from which it was derived."""
-
-    declaration: Declaration
-    source_payload: JsonValue
-    fetched_at: datetime
-
-    @classmethod
-    def from_record(cls, declaration: Declaration, record: RetrievedDeclaration) -> Self:
-        if declaration.id != record.source_id:
-            raise DeclarationParseError("id", record.identifier, "source identity mismatch")
-        return cls(
-            declaration=declaration, source_payload=record.payload, fetched_at=record.fetched_at
-        )

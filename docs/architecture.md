@@ -141,7 +141,7 @@ API/CLI and declaration characterization checks then passed (50 tests).
 
 | Module | Owns |
 | --- | --- |
-| `core/declarations.py` | Validated declaration/funding values, funder precedence, latest-version selection, parent completion, evidence snapshots and funding equality |
+| `core/declarations.py` | Validated declaration/funding values, funder precedence, latest-version selection, parent completion, transient source records and funding equality |
 | `core/refresh_declarations.py` | `refresh_declarations(term_start, source, store)`, duplicate detection, parent resolution, rejection logging, acceptance and refresh results |
 | `core/declaration_ports.py` | `DeclarationSource`, `DeclarationStore`, `DeclarationWriter` and their failure/atomicity contracts |
 | `adapters/declarations.py` | Interests HTTP requests, pagination, timestamps, source context and exception translation |
@@ -150,10 +150,10 @@ API/CLI and declaration characterization checks then passed (50 tests).
 | `composition.py` | Concrete clients/connections and both production command runners |
 | `cli.py` | CLI parsing and output, with separate injected member and declaration command callables |
 
-`DeclarationSource.declarations()` yields bounded batches of `RetrievedDeclaration`
-evidence. Raw JSON is a deliberate domain requirement for traceability and exact
-duplicate comparison, not a transport DTO passed through the core. The core treats
-its payload as opaque: it never navigates Parliament keys, field arrays or response
+`DeclarationSource.declarations()` yields bounded batches of `RetrievedDeclaration`.
+Raw responses are held in memory during a refresh for exact duplicate comparison,
+parsing and parent resolution. They are never persisted. The core treats each
+payload as opaque: it never navigates Parliament keys, field arrays or response
 aliases. The adapter supplies the identifier, retrieval time and diagnostic context.
 
 The core checks duplicate evidence **before** calling `DeclarationSource.interpret()`.
@@ -161,8 +161,8 @@ That method translates the source shape into a `DeclarationDraft` or raises the
 core-owned `DeclarationParseError`. This split preserves duplicate-before-parsing
 behavior and permits a single bad item to be rejected without losing its page.
 The adapter uses the core version policy before decoding that version's fields;
-malformed historical funding remains retained without invalidating a valid latest
-version. Raw source data remains separate from normalized model dumps.
+malformed historical funding does not invalidate a valid latest version. Only
+parsed declaration fields, funding and retrieval times reach the storage port.
 
 The adapter decodes normalized funder candidates and delegates their precedence to
 core `preferred_funder()`. A candidate's decoding error is propagated only when
@@ -170,21 +170,23 @@ that name is needed, preserving the treatment of malformed unused fallbacks.
 
 `DeclarationDraft.accept()` produces a complete `Declaration`. A draft that needs
 its parent's payer cannot be accepted until that parent has been resolved. An
-explicitly different, withheld ultimate payer stays absent. `DeclarationSnapshot`
-keeps accepted values, original evidence and retrieval time together for storage.
+explicitly different, withheld ultimate payer stays absent. The writer receives
+the accepted `Declaration` and its retrieval time directly; there is no snapshot wrapper.
 
 `DeclarationStore.refresh(term_start)` yields a writer inside one atomic scope.
-The writer reads the existing cohort and stages snapshots. PostgreSQL commits only
+The writer reads the existing cohort and stages parsed declarations and funding. PostgreSQL commits only
 when the core exits successfully, and rolls back on source, storage, validation or
 interruption failures. Individual declaration rejections are caught before writes,
 logged and skipped, preserving the existing completed-success exit behavior.
-No schema, locking, scheduling, retry or member-refresh semantics changed.
+The declaration schema stores parsed fields only. Locking, scheduling, retry and
+member-refresh semantics are unchanged.
 
 ### Compatibility and verification
 
 The original `declaration_importer.run_import(database_url, term_start, api)` now
 wires the same core through composition. `declaration_api` and `declaration_models`
-retain source-client/model imports; `declaration_db` retains its SQL helper signature.
+retain source-client/model imports; `declaration_db` forwards parsed values and retrieval time
+to the PostgreSQL adapter, with no source-payload argument.
 Legacy response-shaped declaration construction delegates to core acceptance.
 These facades do not contain parallel refresh or acceptance implementations.
 

@@ -2,15 +2,14 @@
 
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import date
+from datetime import date, datetime
 from uuid import UUID, uuid7
 
 import psycopg
-from psycopg.types.json import Jsonb
 
 from exposed.adapters.postgres import DatabaseConnection, storage_error
 from exposed.core.declaration_ports import DeclarationWriter
-from exposed.core.declarations import DeclarationSnapshot, FundingEntry
+from exposed.core.declarations import Declaration, FundingEntry
 
 
 def cohort(conn: DatabaseConnection, term_start: date) -> dict[int, UUID]:
@@ -31,26 +30,25 @@ def cohort(conn: DatabaseConnection, term_start: date) -> dict[int, UUID]:
 def write_declaration(
     conn: DatabaseConnection,
     member_id: UUID,
-    snapshot: DeclarationSnapshot,
+    declaration: Declaration,
+    fetched_at: datetime,
 ) -> None:
-    declaration = snapshot.declaration
     conn.execute(
         """INSERT INTO exposed.declarations (
                id, source_declaration_id, member_id, category_id, category_name,
-               source_payload, fetched_at
-           ) VALUES (%s, %s, %s, %s, %s, %s, %s)
+               fetched_at
+           ) VALUES (%s, %s, %s, %s, %s, %s)
            ON CONFLICT (source_declaration_id) DO UPDATE SET
                member_id = EXCLUDED.member_id, category_id = EXCLUDED.category_id,
                category_name = EXCLUDED.category_name,
-               source_payload = EXCLUDED.source_payload, fetched_at = EXCLUDED.fetched_at""",
+               fetched_at = EXCLUDED.fetched_at""",
         (
             uuid7(),
             declaration.id,
             member_id,
             declaration.category_id,
             declaration.category_name,
-            Jsonb(snapshot.source_payload),
-            snapshot.fetched_at,
+            fetched_at,
         ),
     )
 
@@ -90,8 +88,10 @@ class _PostgresDeclarationWriter:
     def cohort(self) -> dict[int, UUID]:
         return cohort(self.conn, self.term_start)
 
-    def write_declaration(self, member_id: UUID, snapshot: DeclarationSnapshot) -> None:
-        write_declaration(self.conn, member_id, snapshot)
+    def write_declaration(
+        self, member_id: UUID, declaration: Declaration, fetched_at: datetime
+    ) -> None:
+        write_declaration(self.conn, member_id, declaration, fetched_at)
 
 
 class PostgresDeclarationStore:

@@ -19,7 +19,7 @@ def declaration_store(request):
         store = MemoryDeclarationStore(TERM_START, {1: UUID(int=1)})
         yield (
             store,
-            lambda: {id: s.declaration.funding[0].amount for id, s in store.records.items()},
+            lambda: {id: d.funding[0].amount for id, (d, _) in store.records.items()},
         )
     else:
         url = request.getfixturevalue("database_url")

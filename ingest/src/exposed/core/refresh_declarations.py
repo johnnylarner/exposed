@@ -6,7 +6,6 @@ from datetime import date
 from exposed.core.declaration_ports import DeclarationSource, DeclarationStore
 from exposed.core.declarations import (
     Declaration,
-    DeclarationSnapshot,
     RetrievedDeclaration,
     canonical_json,
 )
@@ -46,7 +45,6 @@ def refresh_declarations(
                             processed.add(source_id)
                         try:
                             declaration = sources.resolve(record, source_member_id)
-                            snapshot = DeclarationSnapshot.from_record(declaration, record)
                         except DeclarationParseError as exc:
                             logger.error(
                                 "Rejected declaration %s (member %s, %s): %s",
@@ -56,7 +54,7 @@ def refresh_declarations(
                                 exc,
                             )
                             continue
-                        writer.write_declaration(member_id, snapshot)
+                        writer.write_declaration(member_id, declaration, record.fetched_at)
                         accepted += 1
                 logger.info("Processed declarations for member %s (uncommitted)", source_member_id)
         return {
@@ -94,6 +92,8 @@ class DeclarationSources:
         ancestors: frozenset[int] = frozenset(),
     ) -> Declaration:
         draft = self.source.interpret(record)
+        if draft.id != record.source_id:
+            raise DeclarationParseError("id", record.identifier, "source identity mismatch")
         if draft.id in ancestors:
             raise DeclarationParseError("parent_id", draft.id, "cyclic parent relationship")
         if draft.member_source_id != member_id:

@@ -28,7 +28,7 @@ def dataset(url: str):
         }
 
 
-def test_imports_stored_cohort_once_and_preserves_nonfinancial_source(database_url):
+def test_imports_stored_cohort_once_and_stores_only_parsed_declaration_fields(database_url):
     members = ParliamentFixture(2)
     members.leave(2, lords=True)
     members.histories[1]["houseMembershipHistory"] = [
@@ -50,7 +50,15 @@ def test_imports_stored_cohort_once_and_preserves_nonfinancial_source(database_u
     member_ids = {r["parliament_member_id"]: r["id"] for r in before["members"]}
     for row, source in zip(data["declarations"], fixture.items, strict=True):
         assert row["id"].version == 7
-        assert row["source_payload"] == source
+        assert set(row) == {
+            "id",
+            "source_declaration_id",
+            "member_id",
+            "category_id",
+            "category_name",
+            "fetched_at",
+        }
+        assert row["source_declaration_id"] == source["id"]
         assert row["category_name"] == "Miscellaneous"
         assert row["member_id"] == member_ids[source["registrant"]["memberDetail"]["id"]]
         assert started <= row["fetched_at"] <= datetime.now(UTC)
@@ -109,7 +117,9 @@ def test_extracts_latest_direct_in_kind_and_nested_funding(database_url):
         (102, "Example ministry", Decimal("320.125"), "EUR", None),
     }
     assert all(r["id"].version == 7 for r in rows)
-    assert dataset(database_url)["declarations"][0]["source_payload"] == direct
+    assert (
+        dataset(database_url)["declarations"][0]["category_name"] == "Donations and other support"
+    )
 
 
 def test_refresh_preserves_unchanged_groups_and_replaces_changed_groups(database_url):
@@ -135,9 +145,10 @@ def test_refresh_preserves_unchanged_groups_and_replaces_changed_groups(database
     assert repeated["declarations"][0]["fetched_at"] >= before["declarations"][0]["fetched_at"]
     groups.reverse()
     source["unknownFutureField"] = {"changed": True}
+    source["category"]["name"] = "Updated category"
     run(database_url, fixture)
     assert dataset(database_url)["funding"] == before["funding"]
-    assert dataset(database_url)["declarations"][0]["source_payload"] == source
+    assert dataset(database_url)["declarations"][0]["category_name"] == "Updated category"
     groups.pop(0)
     groups[0][1]["value"] = "99.01"
     run(database_url, fixture)
@@ -208,7 +219,13 @@ def test_child_payment_resolves_parent_payer_and_prefers_explicit_ultimate_payer
     child["parentInterestId"] = 500
     parent = declaration(500, fields=[field("PayerName", "Example publisher")])
     explicit = declaration(
-        102, fields=[money("18450"), field("UltimatePayerName", "Ultimate publisher")]
+        102,
+        fields=[
+            money("18450"),
+            field("PayerName", "Intermediary publisher"),
+            field("DonorName", "Direct donor"),
+            field("UltimatePayerName", "Ultimate publisher"),
+        ],
     )
     explicit["parentInterestId"] = 501
     fixture = DeclarationsFixture(child, explicit, parent)
@@ -221,7 +238,7 @@ def test_child_payment_resolves_parent_payer_and_prefers_explicit_ultimate_payer
         102: "Ultimate publisher",
     }
     assert len(data["declarations"]) == 3
-    assert data["declarations"][0]["source_payload"]["parentInterestId"] == 500
+    assert all("InterestIds" not in r.url.params for r in fixture.requests)
 
 
 @pytest.mark.parametrize("conflicting", [False, True])
@@ -468,7 +485,7 @@ def test_schema_constraints_and_migration_preserve_members(database_url):
         with pytest.raises(psycopg.errors.UniqueViolation):
             conn.execute("""INSERT INTO exposed.declarations
                 SELECT '00000000-0000-0000-0000-000000000000', source_declaration_id,
-                       member_id, category_id, category_name, source_payload, fetched_at
+                       member_id, category_id, category_name, fetched_at
                 FROM exposed.declarations""")
     dbmate(database_url, "rollback")
     dbmate(database_url)

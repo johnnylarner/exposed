@@ -7,7 +7,7 @@ from tests.declaration_memory import MemoryDeclarationSource, MemoryDeclarationS
 from tests.fakes import TERM_START
 
 
-def test_refresh_resolves_parent_and_publishes_opaque_evidence_without_infrastructure():
+def test_refresh_resolves_parent_and_publishes_parsed_fields_without_infrastructure():
     source = MemoryDeclarationSource()
     child = source.add(
         DeclarationDraft(
@@ -43,12 +43,12 @@ def test_refresh_resolves_parent_and_publishes_opaque_evidence_without_infrastru
         "members": 1,
         "declarations": 1,
     }
-    assert store.records[101].source_payload == child.payload
-    assert store.records[101].fetched_at == child.fetched_at
-    assert store.records[101].declaration.funding[0].funder == "Publisher"
+    declaration, fetched_at = store.records[101]
+    assert fetched_at == child.fetched_at
+    assert declaration.funding[0].funder == "Publisher"
 
 
-def test_item_rejection_preserves_previous_snapshot_and_commits_valid_siblings(caplog):
+def test_item_rejection_preserves_previous_declaration_and_commits_valid_siblings(caplog):
     from exposed.core.errors import DeclarationParseError
 
     source = MemoryDeclarationSource()

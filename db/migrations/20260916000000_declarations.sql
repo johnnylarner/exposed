@@ -5,7 +5,6 @@ CREATE TABLE exposed.declarations (
     member_id uuid NOT NULL REFERENCES exposed.members(id),
     category_id integer NOT NULL CHECK (category_id > 0),
     category_name text NOT NULL CHECK (length(trim(category_name)) > 0),
-    source_payload jsonb NOT NULL CHECK (jsonb_typeof(source_payload) = 'object'),
     fetched_at timestamptz NOT NULL
 );
 CREATE INDEX declarations_member_idx ON exposed.declarations(member_id);
