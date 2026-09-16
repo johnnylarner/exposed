@@ -29,16 +29,12 @@ def validation_error_message(error: ValidationError) -> str:
     return f"Invalid {error.title}: {'; '.join(details)}"
 
 
-def calendar_date(value: object) -> object:
+def calendar_date(value: str) -> date:
     """Retain the source's calendar date, discarding time without timezone conversion."""
-    if isinstance(value, str):
-        try:
-            return datetime.fromisoformat(value).date()
-        except ValueError as exc:
-            raise ValueError("expected an ISO date or datetime") from exc
-    if isinstance(value, datetime):
-        return value.date()
-    return value
+    try:
+        return datetime.fromisoformat(value).date()
+    except (ValueError, TypeError) as exc:
+        raise ValueError("expected an ISO date or datetime") from exc
 
 
 type PositiveID = Annotated[int, Field(gt=0)]
