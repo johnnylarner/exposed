@@ -127,7 +127,7 @@ def test_missing_or_invalid_service_start_fails_with_a_field_path(bad_date):
         )
     message = validation_error_message(error.value)
     assert "0.value.houseMembershipHistory.0.membershipStartDate" in message
-    assert "nonsense" not in message
+    assert str(bad_date) not in message
 
 
 def test_open_ended_service_accepts_missing_or_null_end_dates():
@@ -176,16 +176,34 @@ def test_invalid_history_envelopes_fail_validation(payload):
         HistoryBatch.from_json(payload)
 
 
-def test_database_models_validate_fields_and_serialize_dates():
-    member = Member(parliament_member_id=1, name="Example", latest_house=1, is_current_commons=True)
+def test_member_requires_boolean_current_commons_status():
     with pytest.raises(ValidationError, match="is_current_commons"):
-        Member.model_validate({**member.model_dump(), "is_current_commons": "true"})
+        Member.model_validate(
+            {
+                "parliament_member_id": 1,
+                "name": "Example",
+                "latest_house": 1,
+                "is_current_commons": "true",
+            }
+        )
+
+
+def test_service_period_serializes_calendar_dates():
     period = ServicePeriod(
         parliament_member_id=1, source_start_date=date(1987, 6, 11), served_from=date(2024, 7, 4)
     )
     assert period.model_dump(mode="json")["served_from"] == "2024-07-04"
+
+
+def test_service_period_rejects_boolean_member_id():
     with pytest.raises(ValidationError, match="parliament_member_id"):
-        ServicePeriod.model_validate({**period.model_dump(), "parliament_member_id": True})
+        ServicePeriod.model_validate(
+            {
+                "parliament_member_id": True,
+                "source_start_date": date(1987, 6, 11),
+                "served_from": date(2024, 7, 4),
+            }
+        )
 
 
 def test_latest_profile_can_be_lords_while_commons_service_is_retained():
@@ -256,15 +274,14 @@ def test_disagreement_between_history_and_current_cohort_is_rejected():
 @pytest.mark.parametrize("end", ["2024-05-30", "2024-07-04"])
 def test_service_that_ceased_before_or_on_term_start_is_excluded(end):
     history = {"houseMembershipHistory": [service("2019-12-12", end)]}
-    assert (
-        CommonsService.from_history(
-            MemberHistory.model_validate_json(json.dumps({"id": 1, **history})),
-            term_start=TERM_START,
-            as_of=AS_OF,
-            is_current_commons=False,
-        ).periods
-        == ()
-    )
+    periods = CommonsService.from_history(
+        MemberHistory.model_validate_json(json.dumps({"id": 1, **history})),
+        term_start=TERM_START,
+        as_of=AS_OF,
+        is_current_commons=False,
+    ).periods
+
+    assert periods == ()
 
 
 @pytest.mark.parametrize(
@@ -276,7 +293,7 @@ def test_service_that_ceased_before_or_on_term_start_is_excluded(end):
         ([service("2024-07-04", "2025-06-01"), service("2025-05-01")], "overlapping"),
     ],
 )
-def test_service_period_relationships_are_checked_by_models(memberships, message):
+def test_invalid_service_periods_are_rejected(memberships, message):
     history = MemberHistory.model_validate_json(
         json.dumps({"id": 1, "houseMembershipHistory": memberships})
     )
@@ -290,14 +307,11 @@ def test_identical_source_periods_are_deduplicated():
     history = MemberHistory.model_validate_json(
         json.dumps({"id": 1, "houseMembershipHistory": [service(), service()]})
     )
-    assert (
-        len(
-            CommonsService.from_history(
-                history, term_start=TERM_START, as_of=AS_OF, is_current_commons=True
-            ).periods
-        )
-        == 1
-    )
+    periods = CommonsService.from_history(
+        history, term_start=TERM_START, as_of=AS_OF, is_current_commons=True
+    ).periods
+
+    assert len(periods) == 1
 
 
 def test_current_member_requires_commons_profile():

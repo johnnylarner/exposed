@@ -66,22 +66,28 @@ def test_pagination_follows_the_latest_reported_total():
 
 def test_missing_history_is_rejected():
     fixture = ParliamentFixture()
-    fixture.override = lambda r: httpx.Response(200, json=[])
+    fixture.override = lambda _: httpx.Response(200, json=[])
     api = fixture.api()
     with api.client, pytest.raises(ImportValidationError, match="all requested member IDs"):
         load_histories(api, set(fixture.profiles))
 
 
-@pytest.mark.parametrize("problem", ["duplicate", "unexpected_id", "missing_id"])
-def test_history_batch_must_match_requested_members(problem):
+@pytest.mark.parametrize(
+    ("returned_ids", "message"),
+    [
+        pytest.param([1, 1, 2], "Duplicate history", id="duplicate"),
+        pytest.param([1, 3], "all requested member IDs", id="unexpected_id"),
+        pytest.param([1], "all requested member IDs", id="missing_id"),
+    ],
+)
+def test_history_batch_must_match_requested_members(returned_ids, message):
     fixture = ParliamentFixture(2)
-    returned_ids = {"duplicate": [1, 1, 2], "unexpected_id": [1, 3], "missing_id": [1]}[problem]
-    fixture.override = lambda r: httpx.Response(
+    fixture.override = lambda _: httpx.Response(
         200,
         json=[{"value": {**fixture.histories[1], "id": member_id}} for member_id in returned_ids],
     )
     api = fixture.api()
-    with api.client, pytest.raises(ImportValidationError):
+    with api.client, pytest.raises(ImportValidationError, match=message):
         load_histories(api, {1, 2})
 
 

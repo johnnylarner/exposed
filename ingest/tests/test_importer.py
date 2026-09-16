@@ -5,8 +5,6 @@ import psycopg
 import pytest
 from psycopg import sql
 
-import exposed.importer as importer
-from exposed.db import DatabaseConnection
 from exposed.importer import ImportFailed, connect, run_import
 from tests.conftest import dbmate
 from tests.fakes import AS_OF, TERM_START, ParliamentFixture, service
@@ -37,13 +35,13 @@ def test_repeat_import_keeps_ids_and_data(database_url):
     before = dataset(database_url)
     second = run(database_url, fixture)
     after = dataset(database_url)
+
     assert (first["members"], first["current_commons"], first["former_commons"]) == (3, 2, 1)
     assert first["inserted"] == 3
     assert (second["inserted"], second["updated"], second["unchanged"]) == (0, 0, 3)
-    for table in ["members", "parliament_terms", "member_terms"]:
-        assert [r["id"] for r in before[table]] == [r["id"] for r in after[table]]
-        assert all(r["id"].version == 7 for r in after[table])
     assert after == before
+    for rows in after.values():
+        assert all(row["id"].version == 7 for row in rows)
     assert "run_id" not in second
     assert "raw_responses" not in second
 
@@ -67,36 +65,26 @@ def test_profile_changes_departures_and_new_members_are_reconciled(database_url)
     assert periods[old_ids[1]]["served_until"] == date(2025, 3, 17)
 
 
-def test_later_api_page_failure_rolls_back_batches_already_written(database_url, monkeypatch):
+def test_later_api_page_failure_preserves_previous_completed_data(database_url):
     fixture = ParliamentFixture(101)
     run(database_url, fixture)
     before = dataset(database_url)
     fixture.profiles[1]["nameDisplayAs"] = "Changed before a failed refresh"
-    connections: list[DatabaseConnection] = []
-
-    def track_connect(url: str) -> DatabaseConnection:
-        conn = connect(url)
-        connections.append(conn)
-        return conn
-
-    monkeypatch.setattr(importer, "connect", track_connect)
-    observed: list[bool] = []
+    observed = []
 
     def fail_second_page(request: httpx.Request) -> httpx.Response | None:
         if request.url.params.get("IsCurrentMember") or request.url.params.get("skip") != "100":
             return None
-        # The first batch really has been written, but other sessions still see the old data.
-        query = "SELECT name FROM exposed.members WHERE parliament_member_id = 1"
-        assert next(connections[0].execute(query))["name"] == "Changed before a failed refresh"
-        with connect(database_url) as reader:
-            assert next(reader.execute(query))["name"] == "Example Member 1"
-        observed.append(True)
+        # Observe the published dataset through an independent database session.
+        observed.append(dataset(database_url))
         return httpx.Response(503)
 
     fixture.override = fail_second_page
     with pytest.raises(ImportFailed, match="503"):
         run(database_url, fixture)
+
     assert observed
+    assert all(data == before for data in observed)
     assert dataset(database_url) == before
 
 
