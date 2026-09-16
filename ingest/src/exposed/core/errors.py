@@ -38,3 +38,18 @@ def safe_error(exc: BaseException) -> str:
     if isinstance(exc, KeyboardInterrupt):
         return "Import interrupted"
     return f"Unexpected importer failure ({type(exc).__name__})"
+
+
+class DeclarationParseError(ValueError):
+    """One declaration cannot be completely interpreted; log it and retain previous data."""
+
+    def __init__(self, path: str, value: object = None, reason: str | None = None):
+        # Adapters can supply an already formatted multi-field diagnostic.
+        super().__init__(path if reason is None else f"{path}: {reason}; input={value!r}")
+
+
+class ParentRequired(Exception):
+    """A draft needs its parent's complete interpretation before acceptance."""
+
+    def __init__(self, source_id: int):
+        self.source_id = source_id

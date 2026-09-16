@@ -6,9 +6,13 @@ from zoneinfo import ZoneInfo
 import httpx
 import psycopg
 
+from exposed.adapters.declaration_postgres import PostgresDeclarationStore
+from exposed.adapters.declarations import INTERESTS_BASE_URL, DeclarationsAPI
 from exposed.adapters.parliament import BASE_URL, MembersAPI
 from exposed.adapters.postgres import PostgresStore, connect, storage_error
+from exposed.core.errors import ImportFailed
 from exposed.core.refresh import refresh_members
+from exposed.core.refresh_declarations import refresh_declarations
 
 
 def run_import(
@@ -40,12 +44,24 @@ def import_members(database_url: str, term_start: date) -> dict[str, object]:
 
 def import_declarations(database_url: str, term_start: date) -> dict[str, object]:
     """Production declaration command; own HTTP client construction at the edge."""
-    from exposed.declaration_api import INTERESTS_BASE_URL, DeclarationsAPI
-    from exposed.declaration_importer import run_import as run_declaration_import
-
     with httpx.Client(
         base_url=INTERESTS_BASE_URL,
         timeout=httpx.Timeout(30, connect=10),
         headers={"Accept": "application/json", "User-Agent": "exposed-importer/0.1"},
     ) as client:
         return run_declaration_import(database_url, term_start, DeclarationsAPI(client))
+
+
+def run_declaration_import(
+    database_url: str,
+    term_start: date,
+    api: DeclarationsAPI,
+) -> dict[str, object]:
+    """Legacy importer signature, wiring the source and the atomic PostgreSQL store."""
+    try:
+        with connect(database_url) as conn:
+            return refresh_declarations(term_start, api, PostgresDeclarationStore(conn))
+    except psycopg.Error as exc:
+        raise ImportFailed(str(storage_error(exc))) from exc
+    except KeyboardInterrupt as exc:
+        raise ImportFailed("Import interrupted", interrupted=True) from exc

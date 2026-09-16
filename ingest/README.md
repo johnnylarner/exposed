@@ -153,22 +153,17 @@ Astral also provides `ty`, a separate type checker and language server with Neov
 
 ## Implementation map
 
-- `src/exposed/core/models.py`: validated member values and Commons service rules.
-- `src/exposed/core/refresh.py`: refresh orchestration through injected source and storage ports.
-- `src/exposed/core/ports.py`: member-source and atomic-refresh storage contracts.
-- `src/exposed/core/errors.py`: core failures and safe diagnostics.
-- `src/exposed/adapters/parliament.py` and `parliament_models.py`: HTTP, retries, pagination and source JSON translation.
-- `src/exposed/adapters/postgres.py`: SQL and the transaction spanning the entire refresh.
-- `src/exposed/composition.py`: client construction, resource lifetimes and the UK observation date.
-- `src/exposed/cli.py`: configuration, argument parsing, JSON and exit codes.
-- `src/exposed/api.py`, `models.py`, `db.py` and `importer.py`: compatibility imports for existing callers.
-- `../db/migrations/`: unchanged dbmate schema migrations.
+- `src/exposed/core/models.py` and `declarations.py`: validated domain values and rules.
+- `src/exposed/core/refresh.py` and `refresh_declarations.py`: refresh use cases with injected ports.
+- `src/exposed/core/ports.py` and `declaration_ports.py`: source and atomic storage contracts.
+- `src/exposed/core/errors.py`: application-owned failures and safe diagnostics.
+- `src/exposed/adapters/parliament.py`, `parliament_models.py`, `declarations.py` and `declaration_models.py`: HTTP, retries, pagination and source decoding.
+- `src/exposed/adapters/postgres.py` and `declaration_postgres.py`: SQL and whole-refresh transactions.
+- `src/exposed/composition.py`: client construction, connection lifetimes and production command runners.
+- `src/exposed/cli.py`: configuration, argument parsing, JSON and exit codes through injected commands.
+- The original top-level `api.py`, `models.py`, `db.py`, `importer.py` and `declaration_*.py` modules: compatibility facades.
+- `../db/migrations/`: dbmate schema migrations.
 - [Architecture and port contracts](../docs/architecture.md): dependency direction, consistency guarantees and test seams.
-
-- `src/exposed/declaration_api.py`: Interests v2 pages, using the shared HTTP retry policy.
-- `src/exposed/declaration_models.py`: version selection, typed source fields and complete funding construction.
-- `src/exposed/declaration_importer.py`: declaration traversal, parent resolution, duplicate handling and publication.
-- `src/exposed/declaration_db.py`: stored cohort reads and declaration/funding writes.
-- [API research](../docs/research/uk-parliament-apis.md): source contracts, historical coverage and future interests ingestion.
+- [API research](../docs/research/uk-parliament-apis.md): source contracts and historical coverage.
 
 Contains Parliamentary information licensed under the [Open Parliament Licence v3.0](https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/).
