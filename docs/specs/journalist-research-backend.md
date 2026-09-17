@@ -8,7 +8,8 @@ Repository baseline inspected: `52c20d37a2f88f4e9b12cb591092da497fa9efa7`.
 
 This is a specification for a person implementing the backend by hand. It defines the
 behaviour to build, the evidence available today, and the boundaries that should make
-the work manageable. It does not select a backend language or web framework.
+the work manageable. The serving backend will be written in **Rust**, using hexagonal
+architecture. The web framework, runtime and database driver remain implementation choices.
 
 **Start with [the first implementation slice](#the-first-implementation-slice).**
 Read the product scope and the data rules before designing an aggregate query.
@@ -59,6 +60,7 @@ purpose, but does not require a separate backend capability.
 The existing application is a Python 3.14+ ingestion tool using PostgreSQL. Its core,
 ports, adapters and composition root already follow hexagonal architecture.
 There is no serving backend or HTTP framework in the inspected repository.
+The new Rust application will read the existing PostgreSQL data; ingestion remains Python.
 
 Read these as the source of truth for existing behaviour:
 
@@ -262,8 +264,8 @@ not a successful complete import of the whole dataset.
 
 ## Application capabilities
 
-These are inbound use cases, not prescribed HTTP endpoints. Names can follow the
-implementation language. Inputs and results belong to the research core.
+These are inbound use cases, not prescribed HTTP endpoints. Their Rust inputs and
+results belong to the research core.
 
 | Capability | Inputs | Meaningful result |
 | --- | --- | --- |
@@ -318,8 +320,8 @@ rules rather than leaving those rules implicit in SQL.
 
 Use validated core result types on the port. Do not expose ORM queries, cursors,
 connection/transaction objects, web requests or database exceptions to the core.
-Rehydrate stored data through the same applicable invariants. Reuse pure existing
-values if helpful, but do not import ingestion adapters into the research core.
+Rehydrate stored data through the same applicable invariants. Carry the existing domain
+conventions into Rust values; the serving application does not depend on Python modules.
 
 A composed page must be internally consistent: metadata, totals, previews and rankings
 within that response must observe one committed database snapshot. The read adapter can
@@ -331,10 +333,42 @@ Requests read stored data. They do not trigger a Parliament fetch, ingestion, da
 migration or schema reset. No queues, outboxes, write ports, precomputed rank tables,
 generic unit-of-work framework or search service are required to demonstrate this slice.
 
-The language/framework and precise package location remain implementation choices.
-The existing Python code is an architectural reference, not a requirement to implement
-the serving backend in Python. Keep one small serving application initially; add
-interfaces only at boundaries that need substitution.
+### Rust implementation starting point
+
+**Recommended layout:** one Cargo package under `backend/`, with a library target for
+testable modules and a small binary entry point. Keep domain values, use cases and ports
+under `core`; transport and PostgreSQL code under `adapters`; construction under
+`composition`. Let `main.rs` handle startup and lifecycle through that composition root.
+Expose the library surface integration tests need, including adapter construction.
+Separate crates can wait until a concrete boundary needs compiler-enforced isolation.
+
+Start with a use-case service generic over the core-owned read trait. Production injects
+the PostgreSQL adapter; core tests inject a fake. Use private fields and fallible
+constructors or `TryFrom` for validated references, scopes and page requests. Decode
+transport and database representations at their adapters, then construct core values.
+Deserialization must not provide a route around validation.
+
+Represent expected failures with typed `Result` errors. Preserve a storage failure's
+diagnostic cause inside the adapter boundary without exposing driver-specific types
+in the core contract or driver messages in public responses. Use optional values for
+missing amounts/dates, exact decimal values for money and enums for entity kind and sort
+choices. Operational failures should not become panics.
+
+Decide whether port operations are asynchronous when choosing the runtime and driver.
+Async operations and dynamic dispatch are separate choices. For the proposed generic
+service, native async trait methods or returned futures can suffice. If the runtime
+requires sendable futures, express `Send` on the returned future: a bare async trait
+method does not promise that bound to generic callers. See the
+[Rust async-trait guidance](https://blog.rust-lang.org/2023/12/21/async-fn-rpit-in-traits/).
+If dynamic dispatch later becomes necessary, use a compatible erased-future signature;
+native async methods cannot be called through `dyn` under the documented
+[trait compatibility rules](https://doc.rust-lang.org/reference/items/traits.html#dyn-compatibility).
+
+The framework, runtime and driver are still open. Keep their types at the edges, choose
+only dependencies needed for the first slice, and confirm their current APIs against the
+chosen Rust toolchain. No Cargo package or toolchain pin exists yet. Compile the actual
+handler-to-service-to-adapter composition early so ownership and future bounds are
+checked where the application will run.
 
 ## The first implementation slice
 
@@ -344,9 +378,9 @@ select either kind to retrieve its identity and recorded declarations.**
 This deliberately starts with the product's main entrance. The aggregate interpretation
 work can then be tackled with a functioning, testable read path.
 
-1. Choose the serving language and entry mechanism. Sketch the small boundary map above.
-   Read the hexagonal skill's bootstrap workflow for the new serving application and
-   preserve the ingestion compatibility described in its migration workflow.
+1. Sketch the Rust module boundaries above and create the small serving package. Select
+   its toolchain, entry mechanism and adapter dependencies. Read the hexagonal skill's
+   bootstrap workflow and Rust reference, preserving the existing ingestion application.
 2. Define only the reference, search input/result and failure types needed for this path.
    Give the read port a bounded search operation and typed selection/history reads.
 3. Exercise the use case with a small fake: both result kinds, literal matching,
@@ -442,10 +476,22 @@ Existing commands, from the repository root:
   environment and local PostgreSQL.
 - `git diff --check`: whitespace validation for changed files.
 
-Those commands do not yet validate a future serving backend. Add explicit run/test
-commands for that application once its language and framework are chosen. For existing
-disposable-database patterns, read [the test fixtures](../../ingest/tests/conftest.py).
-For dependency checks, read [the architecture tests](../../ingest/tests/test_architecture.py).
+Those commands do not yet validate the planned Rust backend. Once its package exists,
+run the following from that package directory:
+
+```sh
+cargo fmt --all -- --check
+cargo check --all-targets
+cargo test
+cargo clippy --all-targets -- -D warnings
+```
+
+These are implementation checks to wire up tomorrow; no Rust application has been
+created or tested as part of this spec. Document the chosen application's run command
+and disposable PostgreSQL setup alongside it. For existing database-test patterns, read
+[the test fixtures](../../ingest/tests/conftest.py); the Rust adapter tests will need
+their own fixture setup. For dependency-check ideas, read
+[the architecture tests](../../ingest/tests/test_architecture.py).
 
 The first slice can begin without enrichment. Before presenting stronger financial
 comparisons publicly, revisit payment-period semantics, possible cross-record overlap,
