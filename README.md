@@ -4,6 +4,9 @@ Where do MPs get their money from?
 
 Imports everyone who has served in the Commons during the configured Parliament and their available declarations into PostgreSQL. Declarations store parsed fields and extracted funding for later display.
 
+The planned journalist-facing research application is described in the
+[backend product specification](docs/specs/journalist-research-backend.md).
+
 ## Getting started
 
 Requires Python **3.14+**, Docker Compose and [dbmate](https://github.com/amacneil/dbmate) (verified with 2.35.1). On macOS, install dbmate with `brew install dbmate`.
