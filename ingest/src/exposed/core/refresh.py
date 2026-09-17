@@ -1,10 +1,11 @@
 """Refresh Commons membership through application-owned source and storage ports."""
 
 import logging
+from collections.abc import Iterable, Iterator
 from datetime import date
 
 from exposed.core.errors import ImportFailed, ImportValidationError, safe_error
-from exposed.core.models import CommonsService, Member, MemberHistory
+from exposed.core.models import CommonsService, Member, MemberHistory, MemberProfile
 from exposed.core.ports import MemberSource, MemberWriter, RefreshStore
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,21 @@ def match_histories[T: MemberHistory](member_ids: set[int], batch: tuple[T, ...]
     if histories.keys() != member_ids:
         raise ImportValidationError("History response does not contain all requested member IDs")
     return histories
+
+
+def _unique_profiles(
+    profiles: Iterable[MemberProfile], seen: dict[int, MemberProfile]
+) -> Iterator[MemberProfile]:
+    """Validate repeated identities within one source stream, including across pages."""
+    for profile in profiles:
+        member_id = profile.parliament_member_id
+        if member_id in seen:
+            if seen[member_id] != profile:
+                raise ImportValidationError(f"Conflicting duplicate member {member_id}")
+            logger.warning("Duplicate member %s; identical profile collapsed", member_id)
+            continue
+        seen[member_id] = profile
+        yield profile
 
 
 def _import_batches(
@@ -45,12 +61,14 @@ def _import_batches(
     )
 
     logger.info("Fetching current Commons member IDs")
-    current_ids: set[int] = set()
-    current_ids.update(member.parliament_member_id for member in source.current_commons())
+    current_ids = {
+        member.parliament_member_id for member in _unique_profiles(source.current_commons(), {})
+    }
 
     logger.info("Importing Commons service since %s in batches", term_start)
-    seen_ids: set[int] = set()
-    for profiles in source.commons_candidates(term_start, as_of):
+    seen_profiles: dict[int, MemberProfile] = {}
+    for batch in source.commons_candidates(term_start, as_of):
+        profiles = tuple(_unique_profiles(batch, seen_profiles))
         if not profiles:
             continue
         member_ids = {member.parliament_member_id for member in profiles}
@@ -64,7 +82,6 @@ def _import_batches(
                 as_of=as_of,
                 is_current_commons=current,
             )
-            seen_ids.add(member_id)
             if not service.periods:
                 summary["excluded_candidates"] += 1
                 continue
@@ -77,9 +94,9 @@ def _import_batches(
             summary["former_commons"] += not current
             summary["service_periods"] += len(service.periods)
 
-        logger.info("Processed %s historical candidates (uncommitted)", len(seen_ids))
+        logger.info("Processed %s historical candidates (uncommitted)", len(seen_profiles))
 
-    if not current_ids <= seen_ids:
+    if not current_ids <= seen_profiles.keys():
         raise ImportValidationError(
             "Current search contains members missing from historical search"
         )

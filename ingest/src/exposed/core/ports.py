@@ -13,6 +13,8 @@ type WriteResult = Literal["inserted", "updated", "unchanged"]
 class MemberSource(Protocol):
     """Stream source order, retaining duplicates for the refresh to validate.
 
+    Within each profile stream, identical repeated IDs are logged and collapsed;
+    conflicting profiles for one ID fail the refresh, including across batches.
     Candidate batches are bounded by the source. History results must contain
     exactly the requested IDs; incomplete or duplicate histories fail the refresh.
     Implementations translate dependency failures into SourceError and malformed

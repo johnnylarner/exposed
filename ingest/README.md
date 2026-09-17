@@ -4,7 +4,7 @@ Import Commons members and their available financial declarations into PostgreSQ
 
 ## Run locally
 
-From the repository root, follow the [setup instructions](../README.md), then use `make import-members` to refresh. Database changes use [dbmate](../db/README.md) through `make migrate`.
+From the repository root, follow the [setup instructions](../README.md), then use `make import-members` to refresh. The development schema uses [dbmate](../db/README.md) through `make db-migrate`.
 
 Member and service IDs remain stable across unchanged imports. Progress goes to stderr; stdout contains a JSON summary with member/current/former counts, inserted/updated/unchanged profiles and service periods. A successful import exits `0`, an import failure `1`, invalid CLI configuration `2`, and an interrupted import `130`.
 
@@ -41,16 +41,16 @@ This version refreshes **one explicitly configured current Parliament**. It refu
 ## Refresh guarantees
 
 1. Open **one database transaction for the whole refresh**.
-2. Fetch current Commons membership pages, keeping their member IDs in memory.
-3. Read the historical Commons cohort one page at a time using `MembershipInDateRange`. Fetch that page's service histories, validate the data, and immediately write its member profiles and service periods. No current/latest-House/eligibility filter is applied to the historical cohort.
+2. Fetch current Commons membership pages. Within this stream, log and collapse identical profiles for a repeated member ID; reject conflicting profiles.
+3. Read the historical Commons cohort one page at a time using `MembershipInDateRange`. Apply the same duplicate checks across all candidate pages, then fetch histories for the remaining members, validate the data, and immediately write their profiles and service periods. No current/latest-House/eligibility filter is applied to the historical cohort.
 4. Reconcile corrected service periods and, after the last page, check that all current members appear in the historical results. Commit once. Previously stored members absent from the response are kept unchanged.
 5. If any request, validation or database write fails, the transaction rolls back **all batches** and the command reports the failure. Other database sessions see the previous completed data until commit.
 
-The transaction stays open during API requests and retries. PostgreSQL manages the transaction's normal write locks and releases them when it ends. The importer keeps ID sets and the current page in memory; it does not assemble a complete copy of the import before writing it.
+The transaction stays open during API requests and retries. PostgreSQL manages the transaction's normal write locks and releases them when it ends. The importer retains profiles to compare duplicates within each source stream and processes service histories one batch at a time. Identical repeats do not add writes or inflate summary counts; conflicting repeats roll back the entire member refresh.
 
 Requests are sequential with a short delay, timeouts and up to four attempts for transport errors, HTTP 429 and server errors. API data can change between requests. Validation detects incomplete pagination and inconsistent membership, but the fixed observation date does not freeze the upstream data. Rerun after source data settles if validation fails.
 
-Member API responses and import execution history are not stored. Declaration source responses are retained as described below. Summaries and failures are command output only.
+Source responses and import execution history are not stored. Summaries and failures are command output only.
 
 ## Declaration ingestion
 
@@ -75,6 +75,8 @@ identity is inferred. Funding is extracted from the version with the latest `reg
 `registration_date` comes from that version's `registrationDate`, independently of `fetched_at`.
 Parliament supplies a calendar date, not a creation time of day. Missing source dates stay null;
 publication dates and retrieval timestamps are not substituted.
+New declaration ingestions populate these fields directly. After recreating the development
+schema, run `make import-members` followed by `make import-declarations`.
 Raw API responses and unused source fields are not stored. Equally recent versions with conflicting
 content are rejected. Declaration amounts are not comparable donation totals:
 ongoing earnings, in-kind valuations and other categories have different meanings.
@@ -94,7 +96,7 @@ including when entries are reordered. Any funding change replaces the whole grou
 multiplicity and the declaration UUID. Metadata-only changes update the header without replacing
 funding. Every response is reparsed, even when its JSON is unchanged.
 
-A parsing failure rejects the entire declaration before any write. Its previous payload, metadata
+A parsing failure rejects the entire declaration before any write. Its previous metadata
 and funding remain intact; a new rejected declaration creates nothing. Logs on stderr include its
 source ID, member/request context, field path, original offending value and reason. Valid siblings
 continue. A completed run exits **0** and prints an ordinary `status: succeeded` JSON summary with
@@ -107,29 +109,6 @@ to other connections. Fatal failures exit **1**, interruptions **130**.
 Independent member refreshes remain committed. Missing declarations are left untouched; there is no
 inferred withdrawal, deletion or missing-record state. Changed pagination totals are tolerated and
 an empty page ends traversal. Execution remains externally controlled, without application locks.
-
-### Backfill registration dates without reimporting funding
-
-From the repository root, apply the new migration and run the Bash script:
-
-```sh
-make db-migrate
-./ingest/scripts/backfill-declaration-dates.sh
-```
-
-The script uses `ingest/.venv/bin/python` (override with `PYTHON`) and the existing dependencies.
-It loads `ingest/.env` with environment variables taking precedence. `--dry-run` downloads and
-validates the dates without writing; running it again to apply will fetch them again.
-
-The script selects all stored declarations with a missing registration date, requests their source
-IDs in batches of 100 across all available registers, including expired declarations, and follows
-pagination. It uses the importer's version-selection rule without parsing funding or resolving
-parents. After all responses validate, it bulk-loads a temporary table and executes
-[`backfill_declaration_dates.sql`](scripts/backfill_declaration_dates.sql) in one transaction.
-Only missing `registration_date` values are updated; funding, UUIDs and `fetched_at` are preserved.
-Source omissions, malformed dates and conflicting dates abort the backfill before any update.
-Unavailable source dates remain null and are counted in the JSON result. Reruns skip populated dates.
-Run the backfill separately from imports and migrations, following the existing single-job rule.
 
 ## Validation and typed responses
 

@@ -1,8 +1,8 @@
 # Declaration ingestion
 
-Updated on 16 September 2026: declaration writes commit after each MP, and the selected
-version's nullable `registrationDate` is stored as `registration_date`. Existing missing dates
-can be filled by the dedicated Bash/SQL backfill without reimporting funding.
+Updated on 17 September 2026: declaration writes commit after each MP, and the selected
+version's nullable `registrationDate` is stored as `registration_date`. The single development
+schema baseline includes these fields; a new ingestion populates them from the source.
 
 ## Problem Statement
 
@@ -89,7 +89,7 @@ Parse the whole declaration before changing its stored representation. If parsin
 
 ### Data model
 
-Use two domain tables, introduced through the existing SQL migration mechanism.
+Use two domain tables in the shared development schema baseline, applied through dbmate.
 
 | Table | Field | Meaning |
 | --- | --- | --- |

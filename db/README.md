@@ -1,19 +1,29 @@
 # Database migrations
 
-[dbmate](https://github.com/amacneil/dbmate) owns schema migrations. SQL files live in `db/migrations/`; application code no longer applies migrations.
+[dbmate](https://github.com/amacneil/dbmate) applies the single development baseline,
+[`20260915000000_initial.sql`](migrations/20260915000000_initial.sql).
+It creates the member, service, declaration, and funding tables, including
+`registration_date`. Application code does not apply migrations.
 
 From the repository root:
 
 ```sh
-make migration-new name=add_example
-# Edit the generated SQL.
-make migrate
-make migration-status
+make db-migrate
+make import-members
+make import-declarations
 ```
 
-Each file has `-- migrate:up` and `-- migrate:down` sections. dbmate applies each pending migration in its own transaction and records its numeric version in `public.schema_migrations`. Make corrections with new migrations once a migration has been shared. dbmate records version numbers, not content checksums.
+The baseline has `-- migrate:up` and `-- migrate:down` sections. dbmate applies it
+in a transaction and records its numeric version in `public.schema_migrations`.
 
-The initial migration creates the current development schema, including nullable `term_end`. There is no upgrade path from the retired Python migration runner.
+During development, edit this baseline directly when the schema changes. Recreate
+an existing development database and ingest members and declarations again to use
+the updated schema. dbmate records versions rather than content checksums, so
+`make db-migrate` does not reapply an edited baseline to an existing database.
+Upgrade compatibility with earlier development schemas is not maintained.
+
+New declaration ingestions populate the parsed fields, including registration
+dates when supplied by Parliament. Missing source dates remain null.
 
 The Makefile explicitly selects the environment file, migration directory and history table. It disables automatic schema dumps so applying migrations does not require a local `pg_dump` installation. No migration command runs automatically during an import.
 
@@ -21,8 +31,6 @@ Run only one import or migration against a database at a time.
 
 ## Tests
 
-`make check` uses the actual dbmate CLI to initialize isolated PostgreSQL databases for importer tests. Migration-specific tests are not retained. Reversing the initial migration drops its domain tables and their data.
-
-The registration-date migration adds a nullable column without rewriting existing declarations.
-After `make db-migrate`, use `./ingest/scripts/backfill-declaration-dates.sh` to populate it without
-rerunning the funding import; see the [backfill instructions](../ingest/README.md#backfill-registration-dates-without-reimporting-funding).
+`make check` uses the actual dbmate CLI to initialize isolated PostgreSQL databases
+from the baseline for importer tests. Reversing the baseline drops its domain
+tables and their data.

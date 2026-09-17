@@ -9,5 +9,8 @@
 
 ## Git history
 
+- After completing and validating a task, commit its changes on the task's work
+  branch without waiting for a separate request.
+- Never commit directly on `main`.
 - Keep Git history linear. Rebase feature branches onto the target branch and
   integrate changes with a fast-forward or squash; do not create merge commits.

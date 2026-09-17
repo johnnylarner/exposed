@@ -16,7 +16,6 @@ CREATE TABLE exposed.members (
     party_name text,
     latest_house smallint NOT NULL CHECK (latest_house IN (1, 2)),
     latest_membership_from text,
-    latest_membership_from_id integer,
     is_current_commons boolean NOT NULL,
     CHECK (NOT is_current_commons OR latest_house = 1)
 );
@@ -54,7 +53,33 @@ CREATE TRIGGER member_terms_check_start
 BEFORE INSERT OR UPDATE ON exposed.member_terms
 FOR EACH ROW EXECUTE FUNCTION exposed.check_term_service_start();
 
+CREATE TABLE exposed.declarations (
+    id uuid PRIMARY KEY,
+    source_declaration_id integer NOT NULL UNIQUE CHECK (source_declaration_id > 0),
+    member_id uuid NOT NULL REFERENCES exposed.members(id),
+    category_id integer NOT NULL CHECK (category_id > 0),
+    category_name text NOT NULL CHECK (length(trim(category_name)) > 0),
+    registration_date date,
+    fetched_at timestamptz NOT NULL
+);
+CREATE INDEX declarations_member_idx ON exposed.declarations(member_id);
+
+COMMENT ON COLUMN exposed.declarations.registration_date IS
+    'Parliament registrationDate from the latest selected register version; NULL when unavailable';
+
+CREATE TABLE exposed.funding_entries (
+    id uuid PRIMARY KEY,
+    source_declaration_id integer NOT NULL REFERENCES exposed.declarations(source_declaration_id),
+    funder text,
+    amount numeric,
+    currency text,
+    payment_type text
+);
+CREATE INDEX funding_entries_declaration_idx ON exposed.funding_entries(source_declaration_id);
+
 -- migrate:down
+DROP TABLE exposed.funding_entries;
+DROP TABLE exposed.declarations;
 DROP TABLE exposed.member_terms;
 DROP FUNCTION exposed.check_term_service_start();
 DROP TABLE exposed.members;

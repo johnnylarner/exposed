@@ -49,6 +49,10 @@ bounded batches; `member_histories()` returns core histories. The HTTP adapter
 retains the original pages of 100, query filters, changing-total handling, retry
 limits and 1–100 history-request size rule. Typed decoding preserves order and
 duplicates so the core can reject incomplete or mismatched history batches.
+For profiles, the core logs and collapses identical repeated member IDs within each
+source stream, including across pages. Conflicting profiles fail the refresh and
+roll back its transaction. Historical duplicates are checked before history retrieval,
+writes, and summary counts.
 
 `RefreshStore.refresh(term_start)` yields a `MemberWriter` inside one atomic
 scope. The PostgreSQL implementation uses a composition-owned connection from
@@ -184,8 +188,9 @@ member-refresh semantics are unchanged.
 
 The source adapter reads `registrationDate` from the same selected version as funding.
 The nullable SQL `registration_date` is a source calendar date; `fetched_at` remains the retrieval
-timestamp. The one-off Bash backfill fetches batches of stored IDs, skips funding and parent
-interpretation, then fills missing dates with a bulk SQL update in a separate transaction.
+timestamp. The single development schema baseline creates all member and declaration tables,
+including registration dates. Recreate development databases after baseline changes and run
+member and declaration ingestion to populate the current fields.
 
 ### Compatibility and verification
 

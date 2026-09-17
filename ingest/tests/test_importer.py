@@ -64,6 +64,54 @@ def test_profile_changes_departures_and_new_members_are_reconciled(database_url)
     assert periods[old_ids[1]]["served_until"] == date(2025, 3, 17)
 
 
+@pytest.mark.parametrize("source_stream", ["current", "historical"])
+@pytest.mark.parametrize("split_pages", [False, True], ids=["same-page", "across-pages"])
+@pytest.mark.parametrize("conflicting", [False, True], ids=["identical", "conflicting"])
+def test_duplicate_profiles_are_collapsed_or_roll_back_the_refresh(
+    database_url, caplog, source_stream, split_pages, conflicting
+):
+    fixture = ParliamentFixture(2)
+    run(database_url, fixture)
+    before = dataset(database_url)
+    fixture.profiles[2]["nameDisplayAs"] = "Updated member"
+    repeated = dict(fixture.profiles[1])
+    if conflicting:
+        repeated["nameDisplayAs"] = "Conflicting member"
+    profiles = [fixture.profiles[1], fixture.profiles[2], repeated]
+
+    def repeat_profile(request: httpx.Request) -> httpx.Response | None:
+        if not request.url.path.endswith("/Search"):
+            return None
+        is_current_search = request.url.params.get("IsCurrentMember") == "true"
+        if is_current_search != (source_stream == "current"):
+            return None
+        skip = int(request.url.params["skip"])
+        page_size = 2 if split_pages else len(profiles)
+        return httpx.Response(
+            200,
+            json={
+                "items": [{"value": profile} for profile in profiles[skip : skip + page_size]],
+                "totalResults": len(profiles),
+                "skip": skip,
+                "take": page_size,
+            },
+        )
+
+    fixture.override = repeat_profile
+    if conflicting:
+        with pytest.raises(ImportFailed, match="Conflicting duplicate member 1"):
+            run(database_url, fixture)
+        assert dataset(database_url) == before
+    else:
+        result = run(database_url, fixture)
+        after = dataset(database_url)
+        assert result["members"] == result["current_commons"] == len(after["members"]) == 2
+        assert result["service_periods"] == len(after["member_terms"]) == 2
+        assert (result["inserted"], result["updated"], result["unchanged"]) == (0, 1, 1)
+        assert {row["id"] for row in after["members"]} == {row["id"] for row in before["members"]}
+        assert "Duplicate member 1" in caplog.text
+
+
 def test_later_api_page_failure_preserves_previous_completed_data(database_url):
     fixture = ParliamentFixture(101)
     run(database_url, fixture)
