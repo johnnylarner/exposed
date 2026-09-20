@@ -73,9 +73,18 @@ CREATE TABLE exposed.funding_entries (
     funder text,
     amount numeric,
     currency text,
-    payment_type text
+    payment_type text,
+    donor_status text,
+    company_number text,
+    CONSTRAINT funding_entries_company_number_status
+        CHECK (company_number IS NULL OR donor_status IS NOT DISTINCT FROM 'Company')
 );
 CREATE INDEX funding_entries_declaration_idx ON exposed.funding_entries(source_declaration_id);
+
+COMMENT ON COLUMN exposed.funding_entries.donor_status IS
+    'Explicit Parliament DonorStatus for the attributed donor; NULL when unavailable';
+COMMENT ON COLUMN exposed.funding_entries.company_number IS
+    'Parliament DonorCompanyIdentifier when DonorStatus is Company; text preserves leading zeros';
 
 -- migrate:down
 DROP TABLE exposed.funding_entries;

@@ -42,8 +42,9 @@ def backfill_funders(
 ) -> dict[str, object]:
     """Preview or fill missing fields; each declaration commits independently.
 
-    Only existing funded declarations are queried. The additive migration must
-    already be applied. As with imports, run without concurrent imports/migrations.
+    Only existing funded declarations are queried. The database must already
+    have the funder-identification columns from the current baseline. As with imports,
+    run without concurrent imports/migrations.
     """
     if not 1 <= batch_size <= 100:
         raise ValueError("batch_size must be between 1 and 100")

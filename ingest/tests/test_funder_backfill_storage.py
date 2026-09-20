@@ -4,7 +4,6 @@ import pytest
 from exposed.adapters.postgres import connect
 from exposed.backfill_funders import backfill_funders
 from exposed.core.errors import ImportValidationError, SourceError
-from tests.conftest import dbmate
 from tests.declaration_fakes import DeclarationsFixture, declaration, field, money
 from tests.fakes import ParliamentFixture
 from tests.test_declaration_importer import dataset
@@ -72,17 +71,6 @@ def test_preview_apply_and_rerun_preserve_ids_finances_and_declaration_metadata(
     # Normal imports keep the enriched rows and their UUIDs too.
     import_declarations(database_url, fixture)
     assert dataset(database_url)["funding"] == after["funding"]
-
-
-def test_additive_migration_preserves_populated_database(database_url):
-    seed(database_url)
-    before = dataset(database_url)
-    dbmate(database_url, "rollback")
-    with connect(database_url) as conn:
-        columns = conn.execute("SELECT * FROM exposed.funding_entries LIMIT 1").fetchone()
-        assert columns is not None and "donor_status" not in columns
-    dbmate(database_url)
-    assert dataset(database_url) == before
 
 
 @pytest.mark.parametrize("problem", ["changed", "missing", "malformed", "wrong_member", "conflict"])

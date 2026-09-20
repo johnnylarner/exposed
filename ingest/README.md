@@ -123,10 +123,14 @@ Nested donor groups use only their own explicit fields. Payer names,
 `IsPrivateIndividual` flags and parent names do not imply a donor status.
 
 To upgrade existing rows, run from the repository root with the usual Python
-installation and `DATABASE_URL` configuration. Apply the migration before running
-the backfill or the updated importer:
+installation and `DATABASE_URL` configuration. The baseline includes both new
+columns. For an existing database, first apply the equivalent schema changes in
+place as described in the [migration instructions](../db/README.md); dbmate does
+not reapply an edited baseline. Verify the columns exist before running the
+backfill or the updated importer:
 
 ```sh
+# Install the baseline on a fresh database (existing databases need the update above):
 make db-migrate
 # Preview all existing funded declarations; no rows are changed:
 ingest/.venv/bin/python ingest/scripts/backfill_funders.py

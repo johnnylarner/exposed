@@ -19,3 +19,12 @@
   fenced `sh` code block with the copy-to-clipboard control.
 - Keep Git history linear. Rebase feature branches onto the target branch and
   integrate changes with a fast-forward or squash; do not create merge commits.
+
+## Development database migrations
+
+- While the project is in development, keep a single baseline migration at
+  `db/migrations/20260915000000_initial.sql`. Fold schema changes into that file
+  without adding migration files or incrementing the version.
+- For an existing database, inspect its applied schema and apply the necessary
+  changes in place to preserve imported data. dbmate does not reapply an edited
+  baseline; verify the live schema before reporting a migration complete.
