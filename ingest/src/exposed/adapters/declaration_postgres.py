@@ -55,7 +55,8 @@ def write_declaration(
     )
 
     previous = conn.execute(
-        """SELECT funder, amount, currency, payment_type FROM exposed.funding_entries
+        """SELECT funder, amount, currency, payment_type, donor_status, company_number
+           FROM exposed.funding_entries
            WHERE source_declaration_id = %s""",
         (declaration.id,),
     ).fetchall()
@@ -67,8 +68,9 @@ def write_declaration(
     with conn.cursor() as cursor:
         cursor.executemany(
             """INSERT INTO exposed.funding_entries (
-                   id, source_declaration_id, funder, amount, currency, payment_type
-               ) VALUES (%s, %s, %s, %s, %s, %s)""",
+                   id, source_declaration_id, funder, amount, currency, payment_type,
+                   donor_status, company_number
+               ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
             [
                 (
                     uuid7(),
@@ -77,6 +79,8 @@ def write_declaration(
                     entry.amount,
                     entry.currency,
                     entry.payment_type,
+                    entry.donor_status,
+                    entry.company_number,
                 )
                 for entry in declaration.funding
             ],

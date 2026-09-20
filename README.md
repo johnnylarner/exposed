@@ -26,8 +26,9 @@ make import-declarations
 
 Setup creates `ingest/.env` only when absent. Both dbmate and the importer use that file; existing environment variables take precedence. The example URL targets local PostgreSQL and explicitly disables TLS for that loopback connection. Use the appropriate TLS setting for a hosted database.
 
-The schema is a single development baseline. See [migration instructions](db/README.md)
-for recreating development databases after schema changes and ingesting the current fields.
+The schema uses a development baseline followed by additive migrations. See the
+[migration instructions](db/README.md) for upgrading existing databases and the
+[funder backfill](ingest/README.md#backfill-funder-identification) for enriching existing funding.
 
 ## View example declarations from the API
 

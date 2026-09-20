@@ -137,16 +137,23 @@ class FundingEntry(DomainFundingEntry):
                     location + ".typeInfo.currencyCode", code, "expected a currency string"
                 )
             currency = code
+        funder = preferred_funder(
+            ultimate_payer=funder_name("UltimatePayerName"),
+            donor=funder_name("DonorName"),
+            payer=funder_name("PayerName"),
+            group_donor=funder_name("Name") if donor else None,
+        )
+        # Donor fields describe the donor, not a different ultimate payer or intermediary.
+        named_donor = funder_name("DonorName") or (funder_name("Name") if donor else None)
+        donor_applies = funder == named_donor
+        donor_status = text("DonorStatus") if donor_applies else None
         return cls(
-            funder=preferred_funder(
-                ultimate_payer=funder_name("UltimatePayerName"),
-                donor=funder_name("DonorName"),
-                payer=funder_name("PayerName"),
-                group_donor=funder_name("Name") if donor else None,
-            ),
+            funder=funder,
             amount=amount,
             currency=currency,
             payment_type=text("PaymentType"),
+            donor_status=donor_status,
+            company_number=text("DonorCompanyIdentifier") if donor_status == "Company" else None,
         )
 
 

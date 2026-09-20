@@ -68,7 +68,7 @@ are separate declarations; parent details are resolved during ingestion when nee
 | Table | Stores |
 | --- | --- |
 | `declarations` | Stable UUIDv7, unique API declaration ID, member FK, category ID and readable name, source registration date, and retrieval time. |
-| `funding_entries` | UUIDv7, declaration source ID, nullable source funder, exact numeric amount, currency and payment type. |
+| `funding_entries` | UUIDv7, declaration source ID, nullable source funder, donor status, company number, exact numeric amount, currency and payment type. |
 
 A declaration can have zero or many funding rows. Names are source attributions; no shared donor
 identity is inferred. Funding is extracted from the version with the latest `register.publishedDate`.
@@ -109,6 +109,60 @@ to other connections. Fatal failures exit **1**, interruptions **130**.
 Independent member refreshes remain committed. Missing declarations are left untouched; there is no
 inferred withdrawal, deletion or missing-record state. Changed pagination totals are tolerated and
 an empty page ends traversal. Execution remains externally controlled, without application locks.
+
+## Backfill funder identification
+
+Normal declaration imports now retain `donor_status` from `DonorStatus` and
+`company_number` from `DonorCompanyIdentifier` when the status is exactly `Company`.
+Both columns are nullable text. Company numbers retain leading zeros and letter
+prefixes; the importer does not validate them against Companies House. Blank or
+missing source values stay null, and source statuses are preserved without an enum
+or inferred classification. The donor metadata must refer to the attributed donor;
+a different ultimate payer does not inherit an intermediary's company number.
+Nested donor groups use only their own explicit fields. Payer names,
+`IsPrivateIndividual` flags and parent names do not imply a donor status.
+
+To upgrade existing rows, run from the repository root with the usual Python
+installation and `DATABASE_URL` configuration. Apply the migration before running
+the backfill or the updated importer:
+
+```sh
+make db-migrate
+# Preview all existing funded declarations; no rows are changed:
+ingest/.venv/bin/python ingest/scripts/backfill_funders.py
+# Populate the new columns:
+ingest/.venv/bin/python ingest/scripts/backfill_funders.py --apply
+# Limit either mode to specific stored declarations (repeat the option):
+ingest/.venv/bin/python ingest/scripts/backfill_funders.py --declaration-id 16901 --declaration-id 16863
+```
+
+The script loads `ingest/.env` by default (override with `--env-file PATH`);
+existing environment variables take precedence. No term-start setting is needed.
+The optional declaration IDs must have stored funding entries.
+
+The script fetches only existing funded declaration IDs, in batches of 100,
+including expired declarations and all registers. It uses the normal parser's
+latest-version selection, retry policy and parent resolution. Funding rows match
+by donor name, amount, currency and payment type, including duplicate multiplicity,
+independently of API order. Each declaration is updated atomically. Only missing
+identification fields are filled: funding UUIDs, financial values and declaration
+metadata (including `fetched_at`) stay unchanged.
+
+Changed financial data, ambiguous duplicates, conflicting existing identification,
+invalid declarations and records absent from the API are logged to stderr and
+skipped as whole declarations. Valid declarations continue. Resolve logged
+conflicts before rerunning; a normal import can reconcile changed financial data.
+HTTP or database failures stop the run, retaining earlier completed declarations.
+Run without concurrent imports or migrations, as with the existing import commands.
+
+Stdout is a JSON summary. `changed_entries` counts proposed changes in `dry-run`
+mode and committed changes in `apply` mode. `unchanged_entries` counts matched rows
+requiring no changes. `entries_without_status` and `companies_without_number`
+report remaining missing source data among matched rows. A successful run exits
+0, skipped declarations produce `status: partial` and exit 1, fatal failures exit 1,
+invalid arguments/configuration exit 2, and interruption exits 130. Rerunning is
+safe: already populated matching rows are unchanged; nulls may remain where the
+API provides no explicit identification.
 
 ## Validation and typed responses
 

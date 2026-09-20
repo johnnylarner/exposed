@@ -70,6 +70,8 @@ class FundingEntry(Model):
     amount: Decimal | None
     currency: str | None
     payment_type: str | None
+    donor_status: str | None = None
+    company_number: str | None = None
 
 
 class DeclarationIdentity(Model):
@@ -119,12 +121,7 @@ class DeclarationDraft(DeclarationIdentity):
                 )
             payer = payer or parent.payer
             funding = tuple(
-                FundingEntry(
-                    funder=entry.funder or parent.payer,
-                    amount=entry.amount,
-                    currency=entry.currency,
-                    payment_type=entry.payment_type,
-                )
+                entry.model_copy(update={"funder": entry.funder or parent.payer})
                 for entry in funding
             )
         return Declaration(
