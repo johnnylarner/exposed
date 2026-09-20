@@ -29,6 +29,40 @@ Setup creates `ingest/.env` only when absent. Both dbmate and the importer use t
 The schema is a single development baseline. See [migration instructions](db/README.md)
 for recreating development databases after schema changes and ingesting the current fields.
 
+## View example declarations from the API
+
+These standalone scripts require `bash`, `curl` and `jq`; no database, API key or
+Python setup is needed. Run from the repository root:
+
+```sh
+./scripts/view-individual-declaration.sh
+./scripts/view-legal-entity-declaration.sh
+# View the complete API response, including all returned fields and versions:
+./scripts/view-individual-declaration.sh --raw
+./scripts/view-legal-entity-declaration.sh --raw
+```
+
+The scripts fetch fixed examples directly from Parliament on each run and print
+formatted JSON. The default view selects the version with the latest register
+publication date and includes the MP, donor, donor status, amount, currency,
+company number and how the support was received. Amounts remain decimal strings.
+
+Examples verified on 20 September 2026:
+
+| Script | Declaration | Source donor status | Support |
+| --- | --- | --- | --- |
+| Individual | [16901](https://interests-api.parliament.uk/api/v2/Interests/16901), Alex Burghart | Individual | David Robert Meller, GBP 2,000 |
+| Legal entity | [16863](https://interests-api.parliament.uk/api/v2/Interests/16863), Dr Simon Opher | Company | Labour Together Limited (09630980), GBP 5,000 |
+
+Both examples record support linked to the MP but received by a party organisation,
+rather than a direct personal payment. The legal-entity example uses the API's
+explicit `Company` status. These are illustrative records, not searches for every
+individual or legal entity. Upstream records can change; the default view fails
+if the expected donor status changes, and `--raw` lets you inspect the response.
+
+Contains Parliamentary information licensed under the
+[Open Parliament Licence v3.0](https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/).
+
 ## Useful commands
 
 | Command | Purpose |
