@@ -1,0 +1,14 @@
+[package]
+name = "exposed"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+path = "src/lib/lib.rs"
+
+[[bin]]
+name = "exposed"
+path = "src/bin/main.rs"
+
+
+[dependencies]
