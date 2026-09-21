@@ -1,11 +1,13 @@
 use thiserror::Error;
 
+use crate::domain::models::{funder::Funder, search_similarity::SearchSimilarity};
+
 /// Allows users to search the databse using free text.
 pub trait FunderRepo: Clone + Send + Sync + 'static {
     /// Returns entities based on free text search
-    fn get_funders_by_text_search(
+    fn get_funders_by_text_search_score(
         &self,
-    ) -> impl Future<Output = Result<(), FunderRepoError>> + Send;
+    ) -> impl Future<Output = Result<Vec<(Funder, SearchSimilarity)>, FunderRepoError>> + Send;
 }
 
 /// Errors that can occur when interacting with the repo
