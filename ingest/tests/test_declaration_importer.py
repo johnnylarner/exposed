@@ -622,3 +622,30 @@ def test_withheld_ultimate_payer_does_not_get_replaced_by_parent_name(database_u
     parent = declaration(500, fields=[field("PayerName", "Intermediary publisher")])
     run(database_url, DeclarationsFixture(child, parent))
     assert dataset(database_url)["funding"][0]["funder"] is None
+
+
+def test_normal_imports_store_funder_identification_and_preserve_funding_ids_on_rerun(database_url):
+    from tests.declaration_fakes import field, money
+
+    import_members(database_url, ParliamentFixture(1))
+    fixture = DeclarationsFixture(
+        declaration(
+            fields=[
+                field("DonorName", "Company"),
+                money(),
+                field("DonorStatus", "Company"),
+                field("DonorCompanyIdentifier", "00123456"),
+            ]
+        ),
+        declaration(
+            102, fields=[field("DonorName", "Person"), money(), field("DonorStatus", "Individual")]
+        ),
+    )
+    run(database_url, fixture)
+    funding = dataset(database_url)["funding"]
+    assert [(row["donor_status"], row["company_number"]) for row in funding] == [
+        ("Company", "00123456"),
+        ("Individual", None),
+    ]
+    run(database_url, fixture)
+    assert dataset(database_url)["funding"] == funding

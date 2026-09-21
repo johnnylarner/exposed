@@ -27,10 +27,6 @@ changes in place to preserve imported data, then verify the resulting schema.
 Recreating a development database also installs the new baseline, but removes
 its imported data.
 
-Once the funder-identification columns exist, use the
-[backfill script](../ingest/README.md#backfill-funder-identification) to populate
-existing funding rows. The schema change alone leaves these nullable fields empty.
-
 New declaration ingestions populate the parsed fields, including registration
 dates when supplied by Parliament. Missing source dates remain null.
 

@@ -28,7 +28,7 @@ Setup creates `ingest/.env` only when absent. Both dbmate and the importer use t
 
 The schema uses a single development baseline. See the
 [migration instructions](db/README.md) for upgrading existing databases and the
-[funder backfill](ingest/README.md#backfill-funder-identification) for enriching existing funding.
+[funder identification rules](ingest/README.md#funder-identification) for imported funding.
 
 ## View example declarations from the API
 
