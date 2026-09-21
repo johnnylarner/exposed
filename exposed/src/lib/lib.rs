@@ -4,7 +4,8 @@
     clippy::pedantic,
     clippy::nursery,
     clippy::cargo,
-    missing_docs
+    missing_docs,
+    warnings
 )]
 
 //! The exposed project serves declaration data from MPs in the UK parliament.

@@ -2,4 +2,4 @@
 
 mod models;
 mod repositories;
-mod services;
+pub mod services;
