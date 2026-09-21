@@ -1,14 +1,19 @@
-pub fn add(left: u64, right: u64) -> u64 {
-    left + right
-}
+#![deny(
+    clippy::all,
+    clippy::restriction,
+    clippy::pedantic,
+    clippy::nursery,
+    clippy::cargo,
+    missing_docs
+)]
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+//! The exposed project serves declaration data from MPs in the UK parliament.
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+/// Contains the domain models for the project.
+pub mod domain;
+
+/// Contains the inbound adapters for the project
+pub mod inbound;
+
+/// Contains the outbound adapters for the project
+pub mod outbound;
