@@ -12,3 +12,12 @@ path = "src/bin/main.rs"
 
 
 [dependencies]
+axum = "0.8.9"
+chrono = "0.4.45"
+sqlx = { version = "0.9.0", features = ["postgres", "runtime-tokio","uuid", "time", "bigdecimal"] }
+strum = { version = "0.28.0", features = ["derive", "strum_macros"] }
+thiserror = "2.0.20"
+tokio = "1.53.1"
+
+[dev-dependencies]
+sqlx = { version = "0.9.0", features = ["postgres", "runtime-tokio", "migrate"] }

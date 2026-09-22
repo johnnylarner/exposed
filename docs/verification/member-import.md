@@ -1,5 +1,8 @@
 # Member importer verification
 
+For the current migration tooling, see the [SQLx verification](#sqlx-migration-tooling)
+and [migration instructions](../../db/README.md). Earlier sections record historical checks.
+
 Verified on **15 September 2026**, using Python 3.14.6 and the isolated Compose PostgreSQL 17.11 database.
 
 ## Automated checks
@@ -65,3 +68,29 @@ Verified with dbmate **2.35.1**:
 - `make migrate` and `make migration-status` succeed locally, reporting one applied migration and zero pending.
 - `make migration-new` generated the expected up/down template; the temporary file was removed.
 - Switched the local development database's tracking table to dbmate and compared all member, service and term records before and after; domain data was unchanged.
+
+## SQLx migration tooling
+
+Verified on **22 September 2026**, using SQLx CLI **0.9.0** and the local Compose
+PostgreSQL database. The single SQLx baseline includes the existing `pg_trgm`
+extension and member/funding `NOT NULL` constraints.
+
+- Before the refactor, `make check` with dbmate produced **186 passed, 20 failed**.
+  After switching to SQLx it produced **190 passed, 20 failed**, with exactly the
+  same failing test names. The four new migration checks all passed. Existing
+  failures come from importer/test expectations of nullable fields conflicting
+  with the already committed `NOT NULL` migrations; this tooling change preserves
+  those constraints.
+- Ruff lint/format checks and Pyright passed with no errors or warnings.
+- Fresh migration, repeat migration, status, and database reset commands passed.
+  Reset was exercised only against a disposable database. Tests verified checksum
+  mismatch rejection and existing-schema adoption without losing records.
+- Fresh and live `exposed` schema dumps matched after excluding pg_dump's random
+  restriction tokens. Extension versions and schemas matched too, including
+  `pg_trgm` in `exposed`.
+- Adopted the verified live schema with `sqlx migrate override skip` and confirmed
+  `make db-migrate` succeeds with one installed baseline. The previous dbmate
+  history remains as unused metadata.
+- Before/after row counts and full-row fingerprints matched for all five domain
+  tables: **1 Parliament term, 655 members, 656 service records, 10,973 declarations,
+  and 8,620 funding entries**. The live schema was checked again after adoption.

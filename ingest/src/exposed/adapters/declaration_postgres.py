@@ -7,7 +7,7 @@ from uuid import UUID, uuid7
 
 import psycopg
 
-from exposed.adapters.postgres import DatabaseConnection, storage_error
+from exposed.adapters.postgres import DatabaseConnection, date_timestamp, storage_error
 from exposed.core.declaration_ports import DeclarationWriter
 from exposed.core.declarations import Declaration, FundingEntry
 
@@ -22,7 +22,7 @@ def cohort(conn: DatabaseConnection, term_start: date) -> dict[int, UUID]:
                JOIN exposed.parliament_terms t ON t.id = s.term_id
                WHERE t.term_start = %s AND s.house = 1
                ORDER BY m.parliament_member_id""",
-            (term_start,),
+            (date_timestamp(term_start),),
         )
     }
 
@@ -49,7 +49,7 @@ def write_declaration(
             member_id,
             declaration.category_id,
             declaration.category_name,
-            declaration.registration_date,
+            date_timestamp(declaration.registration_date),
             fetched_at,
         ),
     )

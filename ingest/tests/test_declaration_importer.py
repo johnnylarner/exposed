@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import pytest
 
@@ -26,6 +27,36 @@ def dataset(url: str):
             ).fetchall(),
             "funding": conn.execute("SELECT * FROM exposed.funding_entries ORDER BY id").fetchall(),
         }
+
+
+@pytest.mark.parametrize("timezone", ["America/Los_Angeles", "Europe/Berlin"])
+def test_date_storage_and_repeat_imports_are_independent_of_session_timezone(
+    database_url: str, timezone: str
+):
+    parts = urlsplit(database_url)
+    query = dict(parse_qsl(parts.query))
+    query["options"] = f"-cTimeZone={timezone}"
+    url = urlunsplit(parts._replace(query=urlencode(query)))
+    members = ParliamentFixture(1)
+    members.leave(1)
+    members.histories[1]["houseMembershipHistory"] = [service("2019-12-12", "2025-03-17")]
+    import_members(url, members)
+    before = member_dataset(url)
+    repeated = import_members(url, members)
+    assert repeated["unchanged"] == 1
+    assert member_dataset(url) == before
+    term = before["parliament_terms"][0]
+    period = before["member_terms"][0]
+    assert term["term_start"] == datetime(2024, 7, 4, tzinfo=UTC)
+    assert period["served_from"] == datetime(2024, 7, 4, tzinfo=UTC)
+    assert period["source_start_date"] == datetime(2019, 12, 12, tzinfo=UTC)
+    assert period["source_end_date"] == datetime(2025, 3, 17, tzinfo=UTC)
+    assert period["served_until"] == datetime(2025, 3, 17, tzinfo=UTC)
+
+    declarations = DeclarationsFixture(declaration())
+    run(url, declarations)
+    run(url, declarations)
+    assert dataset(url)["declarations"][0]["registration_date"] == datetime(2016, 1, 27, tzinfo=UTC)
 
 
 def test_imports_stored_cohort_once_and_stores_only_parsed_declaration_fields(database_url):
@@ -58,12 +89,14 @@ def test_imports_stored_cohort_once_and_stores_only_parsed_declaration_fields(da
             "category_name",
             "fetched_at",
             "registration_date",
+            "created_at",
+            "updated_at",
         }
         assert row["source_declaration_id"] == source["id"]
         assert row["category_name"] == "Miscellaneous"
         assert row["member_id"] == member_ids[source["registrant"]["memberDetail"]["id"]]
         assert started <= row["fetched_at"] <= datetime.now(UTC)
-        assert row["registration_date"] == date(2016, 1, 27)
+        assert row["registration_date"] == datetime(2016, 1, 27, tzinfo=UTC)
     assert member_dataset(database_url) == before
 
 
@@ -152,7 +185,9 @@ def test_refresh_preserves_unchanged_groups_and_replaces_changed_groups(database
     run(database_url, fixture)
     assert dataset(database_url)["funding"] == before["funding"]
     assert dataset(database_url)["declarations"][0]["category_name"] == "Updated category"
-    assert dataset(database_url)["declarations"][0]["registration_date"] == date(2016, 1, 28)
+    assert dataset(database_url)["declarations"][0]["registration_date"] == datetime(
+        2016, 1, 28, tzinfo=UTC
+    )
     groups.pop(0)
     groups[0][1]["value"] = "99.01"
     run(database_url, fixture)
@@ -526,7 +561,6 @@ def test_schema_constraints_preserve_members(database_url):
 
 
 def test_requires_a_matching_stored_cohort_without_creating_members_or_terms(database_url):
-    from datetime import date
 
     from exposed.importer import ImportFailed
 

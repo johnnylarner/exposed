@@ -117,9 +117,9 @@ All inventoried application paths reach the intended modules. SQL migrations and
 the deployment/toolchain remain unchanged. Run the application from the repository
 root with `make import-members`; see the importer README for configuration.
 
-Pre-existing issue outside this migration: the CLI's setup error suggests
-`make migrate`, but the current Makefile defines `db-migrate`. That existing error
-text was retained for compatibility; this migration did not change Make targets.
+The CLI's setup error originally suggested `make migrate` even though the
+Makefile defined `db-migrate`. The SQLx tooling refactor on 22 September 2026
+corrected this message; see the [current migration instructions](../db/README.md).
 
 
 ## Declaration ingestion migration

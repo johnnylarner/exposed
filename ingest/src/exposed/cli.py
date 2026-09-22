@@ -59,7 +59,7 @@ def run_cli(
     except (StorageError, ImportValidationError) as exc:
         print(json.dumps({"status": "failed", "error": safe_error(exc)}))
         logging.error(
-            "Check DATABASE_URL and run 'make migrate' from the repository root before importing"
+            "Check DATABASE_URL and run 'make db-migrate' from the repository root before importing"
         )
         return 1
     except KeyboardInterrupt:

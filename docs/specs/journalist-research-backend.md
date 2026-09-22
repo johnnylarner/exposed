@@ -66,7 +66,7 @@ Read these as the source of truth for existing behaviour:
 
 | Reference | Why it matters |
 | --- | --- |
-| [Database baseline](../../db/migrations/20260915000000_initial.sql) | Actual tables, nullable fields and identities. |
+| [Database baseline](../../db/migrations/20260915000000_initial.up.sql) | Actual tables, nullable fields and identities. |
 | [Ingestion README](../../ingest/README.md) | Cohort, dates, refresh behaviour and source coverage. |
 | [Ingestion architecture](../architecture.md) | Existing boundaries and tests worth following. |
 | [Declaration ingestion spec](declaration-ingestion.md) | Existing writer contract; this new serving feature does not change it. |

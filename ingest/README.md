@@ -4,11 +4,11 @@ Import Commons members and their available financial declarations into PostgreSQ
 
 ## Run locally
 
-From the repository root, follow the [setup instructions](../README.md), then use `make import-members` to refresh. The development schema uses [dbmate](../db/README.md) through `make db-migrate`.
+From the repository root, follow the [setup instructions](../README.md), then use `make import-members` to refresh. The development schema uses [SQLx](../db/README.md) through `make db-migrate`.
 
 Member and service IDs remain stable across unchanged imports. Progress goes to stderr; stdout contains a JSON summary with member/current/former counts, inserted/updated/unchanged profiles and service periods. A successful import exits `0`, an import failure `1`, invalid CLI configuration `2`, and an interrupted import `130`.
 
-Both the Makefile's dbmate commands and the importer load `ingest/.env`; existing environment variables take precedence. For direct CLI use, run `.venv/bin/python -m exposed import-members` from `ingest/`.
+Both the Makefile's SQLx commands and the importer load `ingest/.env`; existing environment variables take precedence. For direct CLI use, run `.venv/bin/python -m exposed import-members` from `ingest/`.
 
 ## Configuration
 
@@ -24,7 +24,7 @@ The command is ready to run in GitHub Actions with `DATABASE_URL` supplied throu
 
 ## Data and date rules
 
-Domain tables live in the `exposed` schema; dbmate keeps migration versions in `public.schema_migrations`. Internal IDs are UUIDv7; `members.parliament_member_id` is Parliament's stable numeric ID and the source identity used to retrieve declarations.
+Domain tables live in the `exposed` schema; SQLx keeps migration versions and checksums in `public._sqlx_migrations`. Internal IDs are UUIDv7; `members.parliament_member_id` is Parliament's stable numeric ID and the source identity used to retrieve declarations.
 
 | Table | Stores |
 | --- | --- |
@@ -161,7 +161,7 @@ make check
 make test-unit
 ```
 
-Integration tests create and drop their own randomly named `exposed_test_*` databases; the test role needs `CREATE DATABASE`. They do not modify the application database. The Makefile supplies the local test-server URL through `EXPOSED_TEST_ADMIN_DSN`. Direct pytest invocations without that variable explicitly skip integration tests. Test schemas are created by dbmate. All API responses in automated tests use synthetic fixtures; a live import is a separate end-to-end check.
+Integration tests create and drop their own randomly named `exposed_test_*` databases; the test role needs `CREATE DATABASE`. They do not modify the application database. The Makefile supplies the local test-server URL through `EXPOSED_TEST_ADMIN_DSN`. Direct pytest invocations without that variable explicitly skip integration tests. Test schemas are created by SQLx. All API responses in automated tests use synthetic fixtures; a live import is a separate end-to-end check.
 
 See the [recorded verification results](../docs/verification/member-import.md) for automated and live import checks.
 
@@ -182,7 +182,7 @@ Astral also provides `ty`, a separate type checker and language server with Neov
 - `src/exposed/composition.py`: client construction, connection lifetimes and production command runners.
 - `src/exposed/cli.py`: configuration, argument parsing, JSON and exit codes through injected commands.
 - The original top-level `api.py`, `models.py`, `db.py`, `importer.py` and `declaration_*.py` modules: compatibility facades.
-- `../db/migrations/`: dbmate schema migrations.
+- `../db/migrations/`: SQLx development schema baseline.
 - [Architecture and port contracts](../docs/architecture.md): dependency direction, consistency guarantees and test seams.
 - [API research](../docs/research/uk-parliament-apis.md): source contracts and historical coverage.
 

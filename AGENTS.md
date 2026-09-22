@@ -1,11 +1,15 @@
 ## Worktree policy
 
-- Before changing files for a new task, work in a dedicated Git worktree.
-- If this chat already has a dedicated worktree, reuse it for follow-up work.
-- Otherwise, create a sibling worktree with a unique branch and perform all
+- For read-only tasks (investigating, reading, summarizing, or describing code),
+  work on the current branch without creating a worktree.
+- For tasks that require changing code or other files, work in a dedicated Git
+  worktree before making changes. If a read-only task expands to require changes,
+  switch to a dedicated worktree first.
+- For such changes, reuse this chat's dedicated worktree if one already exists.
+  Otherwise, create a sibling worktree with a unique branch and perform all
   edits, installs, and checks there.
 - Never modify the primary checkout.
-- Report the worktree path and branch when starting work.
+- Report the worktree path and branch when starting work in a dedicated worktree.
 
 ## Git history
 
@@ -22,9 +26,10 @@
 
 ## Development database migrations
 
-- While the project is in development, keep a single baseline migration at
-  `db/migrations/20260915000000_initial.sql`. Fold schema changes into that file
-  without adding migration files or incrementing the version.
+- While the project is in development, keep one reversible baseline version in
+  `db/migrations/20260915000000_initial.up.sql` and its `.down.sql` counterpart.
+  Fold schema changes into this pair without adding migration versions.
 - For an existing database, inspect its applied schema and apply the necessary
-  changes in place to preserve imported data. dbmate does not reapply an edited
-  baseline; verify the live schema before reporting a migration complete.
+  changes in place to preserve imported data. SQLx rejects an edited baseline's
+  checksum; verify the live schema before updating its recorded checksum using
+  the procedure in `db/README.md` or reporting a migration complete.
