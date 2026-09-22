@@ -2,9 +2,11 @@
 
 #[allow(dead_code)]
 #[derive(Clone)]
+/// Trigram similarity score
 pub struct SearchSimilarity(f32);
 
 impl SearchSimilarity {
+    /// Trigram similarity score value
     pub fn value(&self) -> f32 {
         self.0
     }

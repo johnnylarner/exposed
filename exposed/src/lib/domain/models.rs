@@ -1,6 +1,7 @@
 //! Collection of models used in the `exposed` project
 
 pub mod declaration;
+/// Contains search entity models
 pub mod entity;
 #[allow(dead_code)]
 pub mod funder;

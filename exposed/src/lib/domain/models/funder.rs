@@ -3,12 +3,16 @@
 use strum::EnumString;
 
 #[derive(Clone, Debug)]
+/// Funder kinds
 pub enum Funder {
+    /// Legal person funder
     Individual(IndividualFunder),
+    /// Legal entity funder
     Company(CompanyFunder),
 }
 
 impl Funder {
+    /// Creates a new funder
     pub fn name(&self) -> &str {
         match self {
             Self::Company(c) => &c.name,
@@ -30,23 +34,27 @@ impl From<CompanyFunder> for Funder {
 }
 
 #[derive(Clone, Debug)]
+/// Legal person funder
 pub struct IndividualFunder {
     name: String,
 }
 
 impl IndividualFunder {
+    /// Creates a legal person funder
     pub fn new(name: String) -> Self {
         Self { name }
     }
 }
 
 #[derive(Clone, Debug)]
+/// Legal entity funder
 pub struct CompanyFunder {
     name: String,
     company_number: Option<String>,
 }
 
 impl CompanyFunder {
+    /// Creates a legal entity funder
     pub fn new(name: String, company_number: Option<String>) -> Self {
         Self {
             name,
@@ -56,6 +64,8 @@ impl CompanyFunder {
 }
 
 #[derive(Clone, Debug, EnumString)]
+/// All possible funder kinds
+#[allow(missing_docs)] // Self explanatory
 pub enum FunderKind {
     Company,
     Individual,
@@ -63,6 +73,7 @@ pub enum FunderKind {
     #[strum(serialize = "Trade Union")]
     TradeUnion,
     Other,
+    /// We don't know what this is supposed to be
     #[strum(disabled)]
     NotSpecified,
     #[strum(serialize = "Building society")]

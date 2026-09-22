@@ -1,7 +1,5 @@
 //! Concrete implementation of the repository
 
-use std::str::FromStr;
-
 use crate::{
     domain::{
         models::{parliament_member::ParliamentMember, search_similarity::SearchSimilarity},

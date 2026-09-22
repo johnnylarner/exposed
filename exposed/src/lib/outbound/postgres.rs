@@ -21,3 +21,42 @@ impl ExposedDatabase {
         &self.pool
     }
 }
+
+#[cfg(test)]
+mod test_scaffolding {
+    use sqlx::PgPool;
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn migrations_work(pool: PgPool) -> sqlx::Result<()> {
+        let res = sqlx::query!("SELECT name FROM members")
+            .fetch_all(&pool)
+            .await;
+        assert!(res.is_ok());
+        Ok(())
+    }
+
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures(
+            "../../../../db/fixtures/add_members.sql",
+            "../../../../db/fixtures/add_declarations_and_funding_entries.sql"
+        )
+    )]
+    async fn fixtures_work(pool: PgPool) -> sqlx::Result<()> {
+        let res = sqlx::query!("SELECT name FROM members")
+            .fetch_all(&pool)
+            .await?;
+        assert_eq!(res.len(), 2);
+
+        let res = sqlx::query!("SELECT * FROM declarations")
+            .fetch_all(&pool)
+            .await?;
+        assert_eq!(res.len(), 2);
+
+        let res = sqlx::query!("SELECT * FROM funding_entries")
+            .fetch_all(&pool)
+            .await?;
+        assert_eq!(res.len(), 2);
+        Ok(())
+    }
+}

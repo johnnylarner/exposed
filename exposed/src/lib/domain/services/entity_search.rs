@@ -151,11 +151,14 @@ mod merge_scores {
     fn works_for_balanced_results() {
         let funders = vec![
             (
-                Funder::from(CompanyFunder::new("heavenly ltd".into(), Some(999))),
+                Funder::from(CompanyFunder::new(
+                    "heavenly ltd".into(),
+                    Some("999".into()),
+                )),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                Funder::from(CompanyFunder::new("canna ltd".into(), Some(1000))),
+                Funder::from(CompanyFunder::new("canna ltd".into(), Some("1000".into()))),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -199,11 +202,14 @@ mod merge_scores {
     fn works_for_more_funders() {
         let funders = vec![
             (
-                Funder::from(CompanyFunder::new("heavenly ltd".into(), Some(999))),
+                Funder::from(CompanyFunder::new(
+                    "heavenly ltd".into(),
+                    Some("999".into()),
+                )),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                Funder::from(CompanyFunder::new("canna ltd".into(), Some(1000))),
+                Funder::from(CompanyFunder::new("canna ltd".into(), Some("1000".into()))),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -236,7 +242,7 @@ mod merge_scores {
     #[test]
     fn works_for_more_mps() {
         let funders = vec![(
-            Funder::from(CompanyFunder::new("canna ltd".into(), Some(1000))),
+            Funder::from(CompanyFunder::new("canna ltd".into(), Some("1000".into()))),
             SearchSimilarity::from(2_f32),
         )];
         let mps = vec![

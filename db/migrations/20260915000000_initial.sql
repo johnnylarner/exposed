@@ -2,14 +2,14 @@ CREATE SCHEMA IF NOT EXISTS exposed;
 CREATE EXTENSION pg_trgm WITH SCHEMA exposed;
 
 CREATE TABLE exposed.parliament_terms (
-    id uuid PRIMARY KEY,
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
     term_start date NOT NULL UNIQUE,
     term_end date,
     CONSTRAINT parliament_terms_valid_dates CHECK (term_end IS NULL OR term_end >= term_start)
 );
 
 CREATE TABLE exposed.members (
-    id uuid PRIMARY KEY,
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
     parliament_member_id integer NOT NULL UNIQUE CHECK (parliament_member_id > 0),
     name text NOT NULL CHECK (length(trim(name)) > 0),
     party_id integer NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE exposed.members (
 );
 
 CREATE TABLE exposed.member_terms (
-    id uuid PRIMARY KEY,
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
     member_id uuid NOT NULL REFERENCES exposed.members(id),
     term_id uuid NOT NULL REFERENCES exposed.parliament_terms(id),
     house smallint NOT NULL CHECK (house IN (1, 2)),
@@ -54,7 +54,7 @@ BEFORE INSERT OR UPDATE ON exposed.member_terms
 FOR EACH ROW EXECUTE FUNCTION exposed.check_term_service_start();
 
 CREATE TABLE exposed.declarations (
-    id uuid PRIMARY KEY,
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
     source_declaration_id integer NOT NULL UNIQUE CHECK (source_declaration_id > 0),
     member_id uuid NOT NULL REFERENCES exposed.members(id),
     category_id integer NOT NULL CHECK (category_id > 0),
@@ -68,7 +68,7 @@ COMMENT ON COLUMN exposed.declarations.registration_date IS
     'Parliament registrationDate from the latest selected register version; NULL when unavailable';
 
 CREATE TABLE exposed.funding_entries (
-    id uuid PRIMARY KEY,
+    id uuid PRIMARY KEY DEFAULT uuidv7(),
     source_declaration_id integer NOT NULL REFERENCES exposed.declarations(source_declaration_id),
     funder text NOT NULL,
     amount numeric,
