@@ -61,32 +61,31 @@ fn merge_scores(
     // Unwrap acceptable as index check in
     // while function
     while l < mps.len() && r < funders.len() {
-        let mp = mps.get(l).unwrap();
-        let fund = funders.get(r).unwrap();
+        let mp: &(ParliamentMember, SearchSimilarity) = mps.get(l).unwrap();
+        let fund: &(Funder, SearchSimilarity) = funders.get(r).unwrap();
 
-        if mp.1.value() > fund.1.value() {
-            scores.push(Entity::new(
-                mp.0.name().to_string(),
-                EntityKind::ParliamentMember,
-            ));
-            l += 1;
-            continue;
-        }
-
-        if mp.1.value() < fund.1.value() {
-            scores.push(Entity::new(fund.0.name().to_string(), EntityKind::Company));
-            r += 1;
-            continue;
-        }
-
-        // Put MPs first
-        scores.push(Entity::new(
-            mp.0.name().to_string(),
-            EntityKind::ParliamentMember,
-        ));
-        scores.push(Entity::new(fund.0.name().to_string(), EntityKind::Company));
-        l += 1;
-        r += 1;
+        match &mp.1.value().total_cmp(&fund.1.value()) {
+            std::cmp::Ordering::Equal => {
+                scores.push(Entity::new(
+                    mp.0.name().to_string(),
+                    EntityKind::ParliamentMember,
+                ));
+                scores.push(Entity::new(fund.0.name().to_string(), EntityKind::Company));
+                l += 1;
+                r += 1;
+            }
+            std::cmp::Ordering::Greater => {
+                scores.push(Entity::new(
+                    mp.0.name().to_string(),
+                    EntityKind::ParliamentMember,
+                ));
+                l += 1;
+            }
+            std::cmp::Ordering::Less => {
+                scores.push(Entity::new(fund.0.name().to_string(), EntityKind::Company));
+                r += 1;
+            }
+        };
     }
     if l < mps.len() {
         for mp in mps[l..].iter() {
@@ -106,7 +105,7 @@ fn merge_scores(
 }
 
 #[cfg(test)]
-mod ranking {
+mod merge_scores {
     use crate::domain::{
         models::{
             entity::{Entity, EntityKind},
@@ -128,11 +127,11 @@ mod ranking {
                     "satan corp".into(),
                     "hell".into(),
                 ),
-                SearchSimilarity::from(1_f64),
+                SearchSimilarity::from(1_f32),
             ),
             (
                 ParliamentMember::new("hades".into(), 667, "satan corp".into(), "hell".into()),
-                SearchSimilarity::from(2_f64),
+                SearchSimilarity::from(2_f32),
             ),
         ];
 
@@ -153,11 +152,11 @@ mod ranking {
         let funders = vec![
             (
                 Funder::from(CompanyFunder::new("heavenly ltd".into(), Some(999))),
-                SearchSimilarity::from(4_f64),
+                SearchSimilarity::from(4_f32),
             ),
             (
                 Funder::from(CompanyFunder::new("canna ltd".into(), Some(1000))),
-                SearchSimilarity::from(2_f64),
+                SearchSimilarity::from(2_f32),
             ),
         ];
         let mps = vec![
@@ -168,11 +167,11 @@ mod ranking {
                     "satan corp".into(),
                     "hell".into(),
                 ),
-                SearchSimilarity::from(4_f64),
+                SearchSimilarity::from(4_f32),
             ),
             (
                 ParliamentMember::new("hades".into(), 667, "satan corp".into(), "hell".into()),
-                SearchSimilarity::from(3_f64),
+                SearchSimilarity::from(3_f32),
             ),
         ];
 
@@ -201,11 +200,11 @@ mod ranking {
         let funders = vec![
             (
                 Funder::from(CompanyFunder::new("heavenly ltd".into(), Some(999))),
-                SearchSimilarity::from(4_f64),
+                SearchSimilarity::from(4_f32),
             ),
             (
                 Funder::from(CompanyFunder::new("canna ltd".into(), Some(1000))),
-                SearchSimilarity::from(2_f64),
+                SearchSimilarity::from(2_f32),
             ),
         ];
         let mps = vec![(
@@ -215,7 +214,7 @@ mod ranking {
                 "satan corp".into(),
                 "hell".into(),
             ),
-            SearchSimilarity::from(4_f64),
+            SearchSimilarity::from(4_f32),
         )];
 
         let ranked = merge_scores(&mps, &funders);
@@ -238,7 +237,7 @@ mod ranking {
     fn works_for_more_mps() {
         let funders = vec![(
             Funder::from(CompanyFunder::new("canna ltd".into(), Some(1000))),
-            SearchSimilarity::from(2_f64),
+            SearchSimilarity::from(2_f32),
         )];
         let mps = vec![
             (
@@ -248,11 +247,11 @@ mod ranking {
                     "satan corp".into(),
                     "hell".into(),
                 ),
-                SearchSimilarity::from(4_f64),
+                SearchSimilarity::from(4_f32),
             ),
             (
                 ParliamentMember::new("hades".into(), 667, "satan corp".into(), "hell".into()),
-                SearchSimilarity::from(2_f64),
+                SearchSimilarity::from(2_f32),
             ),
         ];
 

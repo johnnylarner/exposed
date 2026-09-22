@@ -1,20 +1,18 @@
 //! Declarations are groups of funding entries that are submitted by MPs to Parliament.
 
-use rust_decimal::Decimal;
-
 #[allow(dead_code)]
 #[derive(Clone)]
-pub struct SearchSimilarity(i128);
+pub struct SearchSimilarity(f32);
 
 impl SearchSimilarity {
-    pub fn value(&self) -> i128 {
+    pub fn value(&self) -> f32 {
         self.0
     }
 }
 
-impl From<f64> for SearchSimilarity {
-    fn from(value: f64) -> Self {
-        Self(Decimal::from_f64_retain(value).map_or(-1, |v| v.as_i128()))
+impl From<f32> for SearchSimilarity {
+    fn from(value: f32) -> Self {
+        Self(value)
     }
 }
 
@@ -24,8 +22,16 @@ mod f64_conversion {
 
     #[test]
     fn behaves_as_expected() {
-        let small = SearchSimilarity::from(1_f64);
-        let big = SearchSimilarity::from(2_f64);
+        let small = SearchSimilarity::from(1_f32);
+        let big = SearchSimilarity::from(2_f32);
+
+        assert!(big.value() > small.value());
+    }
+
+    #[test]
+    fn does_not_round() {
+        let small = SearchSimilarity::from(0.1_f32);
+        let big = SearchSimilarity::from(0.9_f32);
 
         assert!(big.value() > small.value());
     }
