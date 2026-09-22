@@ -13,7 +13,7 @@ are observations from that review, not assertions about future imports.
 ## Follow-up decisions and changes
 
 - Development schema compatibility is not required. All tables and current fields
-  now live in [one baseline](../../db/migrations/20260915000000_initial.sql).
+  now live in [one baseline](../../db/migrations/20260915000000_initial.up.sql).
   Recreate development databases after schema changes and ingest the data again;
   an upgrade path from previous development schemas is intentionally not maintained.
 - New ingestion populates registration dates when supplied by Parliament. The

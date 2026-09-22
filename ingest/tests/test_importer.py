@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import UTC, date, datetime
 
 import httpx
 import psycopg
@@ -61,7 +61,7 @@ def test_profile_changes_departures_and_new_members_are_reconciled(database_url)
     assert members[1]["is_current_commons"] is False
     assert members[2]["party_name"] == "Independent"
     periods = {r["member_id"]: r for r in dataset(database_url)["member_terms"]}
-    assert periods[old_ids[1]]["served_until"] == date(2025, 3, 17)
+    assert periods[old_ids[1]]["served_until"] == datetime(2025, 3, 17, tzinfo=UTC)
 
 
 @pytest.mark.parametrize("source_stream", ["current", "historical"])
@@ -226,7 +226,7 @@ def test_corrected_service_dates_replace_old_intervals(database_url):
     run(database_url, fixture)
     data = dataset(database_url)
     assert len(data["member_terms"]) == 1
-    assert data["member_terms"][0]["served_from"] == date(2025, 5, 1)
+    assert data["member_terms"][0]["served_from"] == datetime(2025, 5, 1, tzinfo=UTC)
 
 
 def test_invalid_later_history_rolls_back_prior_batch_and_reports_field(database_url):

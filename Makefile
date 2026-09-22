@@ -8,7 +8,7 @@ EXPOSED_TEST_ADMIN_DSN ?= postgresql://exposed:exposed_local_dev@localhost:55432
 export EXPOSED_TEST_ADMIN_DSN
 export SQLX
 
-.PHONY: db-start db-stop db-nuke db-migrate db-migration-status db-add-migration import-members import-declarations verify lint format typecheck test test-unit check
+.PHONY: db-start db-stop db-nuke db-migrate db-revert db-migration-status db-add-migration import-members import-declarations verify lint format typecheck test test-unit check
 
 db-start: ## Start the local PostgreSQL database
 	docker compose up -d --wait
@@ -23,11 +23,14 @@ db-nuke: ## Delete the configured database and recreate it from the baseline
 db-migrate: ## Apply the development schema baseline using SQLx
 	$(SQLX_CMD) migrate run $(SQLX_MIGRATION_ARGS)
 
+db-revert: ## Revert the baseline, deleting all domain tables and their data
+	$(SQLX_CMD) migrate revert $(SQLX_MIGRATION_ARGS)
+
 db-migration-status: ## Show SQLx migration status
 	$(SQLX_CMD) migrate info $(SQLX_MIGRATION_ARGS)
 
 db-add-migration:
-	@echo "Edit db/migrations/20260915000000_initial.sql; development uses one baseline (see db/README.md)." >&2
+	@echo "Edit db/migrations/20260915000000_initial.{up,down}.sql; development uses one baseline version (see db/README.md)." >&2
 	@exit 1
 
 import-members: ## Refresh member data using ingest/.env or environment variables

@@ -2,7 +2,7 @@
 
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
-from datetime import date
+from datetime import UTC, date, datetime, time
 from uuid import UUID, uuid7
 
 import psycopg
@@ -16,9 +16,15 @@ from exposed.core.ports import MemberWriter, WriteResult
 type DatabaseConnection = Connection[DictRow]
 
 
+def date_timestamp(value: date | None) -> datetime | None:
+    """Store source calendar dates at midnight UTC regardless of the session timezone."""
+    return datetime.combine(value, time.min, UTC) if value is not None else None
+
+
 def ensure_term(conn: DatabaseConnection, term_start: date) -> UUID:
     dates = {
-        row["term_start"] for row in conn.execute("SELECT term_start FROM exposed.parliament_terms")
+        row["term_start"].astimezone(UTC).date()
+        for row in conn.execute("SELECT term_start FROM exposed.parliament_terms")
     }
     validate_configured_term(term_start, dates)
     return next(
@@ -26,7 +32,7 @@ def ensure_term(conn: DatabaseConnection, term_start: date) -> UUID:
             """INSERT INTO exposed.parliament_terms (id, term_start) VALUES (%s, %s)
            ON CONFLICT (term_start) DO UPDATE SET term_start = EXCLUDED.term_start
            RETURNING id""",
-            (uuid7(), term_start),
+            (uuid7(), date_timestamp(term_start)),
         )
     )["id"]
 
@@ -87,10 +93,10 @@ def write_member(
                     member_id,
                     term_id,
                     p.house,
-                    p.source_start_date,
-                    p.source_end_date,
-                    p.served_from,
-                    p.served_until,
+                    date_timestamp(p.source_start_date),
+                    date_timestamp(p.source_end_date),
+                    date_timestamp(p.served_from),
+                    date_timestamp(p.served_until),
                 )
                 for p in periods
             ],
@@ -99,7 +105,7 @@ def write_member(
         """DELETE FROM exposed.member_terms
            WHERE member_id = %s AND term_id = %s
              AND NOT (source_start_date = ANY(%s))""",
-        (member_id, term_id, [p.source_start_date for p in periods]),
+        (member_id, term_id, [date_timestamp(p.source_start_date) for p in periods]),
     )
     return change
 

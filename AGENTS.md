@@ -26,9 +26,9 @@
 
 ## Development database migrations
 
-- While the project is in development, keep a single baseline migration at
-  `db/migrations/20260915000000_initial.sql`. Fold schema changes into that file
-  without adding migration files or incrementing the version.
+- While the project is in development, keep one reversible baseline version in
+  `db/migrations/20260915000000_initial.up.sql` and its `.down.sql` counterpart.
+  Fold schema changes into this pair without adding migration versions.
 - For an existing database, inspect its applied schema and apply the necessary
   changes in place to preserve imported data. SQLx rejects an edited baseline's
   checksum; verify the live schema before updating its recorded checksum using

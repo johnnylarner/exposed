@@ -79,6 +79,7 @@ Contains Parliamentary information licensed under the
 | Command | Purpose |
 | --- | --- |
 | `make db-migrate` | Apply the development schema baseline |
+| `make db-revert` | Revert the baseline, deleting its tables and data |
 | `make db-migration-status` | Show SQLx migration status |
 | `make db-nuke` | Delete the configured database and recreate it from the baseline |
 | `make import-members` | Refresh member data |
