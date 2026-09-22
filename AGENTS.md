@@ -1,11 +1,15 @@
 ## Worktree policy
 
-- Before changing files for a new task, work in a dedicated Git worktree.
-- If this chat already has a dedicated worktree, reuse it for follow-up work.
-- Otherwise, create a sibling worktree with a unique branch and perform all
+- For read-only tasks (investigating, reading, summarizing, or describing code),
+  work on the current branch without creating a worktree.
+- For tasks that require changing code or other files, work in a dedicated Git
+  worktree before making changes. If a read-only task expands to require changes,
+  switch to a dedicated worktree first.
+- For such changes, reuse this chat's dedicated worktree if one already exists.
+  Otherwise, create a sibling worktree with a unique branch and perform all
   edits, installs, and checks there.
 - Never modify the primary checkout.
-- Report the worktree path and branch when starting work.
+- Report the worktree path and branch when starting work in a dedicated worktree.
 
 ## Git history
 
