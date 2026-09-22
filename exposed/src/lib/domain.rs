@@ -1,5 +1,5 @@
 //! This module contains the `exposed` domains.
 
-mod models;
-mod repositories;
+pub mod models;
+pub mod repositories;
 pub mod services;
