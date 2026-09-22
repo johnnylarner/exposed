@@ -12,18 +12,19 @@ from exposed.importer import connect
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def dbmate(url: str, command: str = "migrate") -> subprocess.CompletedProcess[str]:
+def sqlx_migrate(
+    url: str, *arguments: str, source: Path = ROOT / "db/migrations"
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
-            os.environ.get("DBMATE", "dbmate"),
-            "--env-file",
-            "/dev/null",
-            "--migrations-dir",
-            str(ROOT / "db/migrations"),
-            "--migrations-table",
-            "public.schema_migrations",
-            "--no-dump-schema",
-            command,
+            os.environ.get("SQLX", "sqlx"),
+            "--no-dotenv",
+            "migrate",
+            *(arguments or ("run",)),
+            "--config",
+            str(ROOT / "sqlx.toml"),
+            "--source",
+            str(source),
         ],
         env={**os.environ, "DATABASE_URL": url},
         capture_output=True,
@@ -56,5 +57,5 @@ def empty_database_url():
 
 @pytest.fixture
 def database_url(empty_database_url):
-    dbmate(empty_database_url)
+    sqlx_migrate(empty_database_url)
     return empty_database_url

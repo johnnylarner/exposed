@@ -1,5 +1,5 @@
--- migrate:up
 CREATE SCHEMA IF NOT EXISTS exposed;
+CREATE EXTENSION pg_trgm WITH SCHEMA exposed;
 
 CREATE TABLE exposed.parliament_terms (
     id uuid PRIMARY KEY,
@@ -12,10 +12,10 @@ CREATE TABLE exposed.members (
     id uuid PRIMARY KEY,
     parliament_member_id integer NOT NULL UNIQUE CHECK (parliament_member_id > 0),
     name text NOT NULL CHECK (length(trim(name)) > 0),
-    party_id integer,
-    party_name text,
+    party_id integer NOT NULL,
+    party_name text NOT NULL,
     latest_house smallint NOT NULL CHECK (latest_house IN (1, 2)),
-    latest_membership_from text,
+    latest_membership_from text NOT NULL,
     is_current_commons boolean NOT NULL,
     CHECK (NOT is_current_commons OR latest_house = 1)
 );
@@ -59,8 +59,8 @@ CREATE TABLE exposed.declarations (
     member_id uuid NOT NULL REFERENCES exposed.members(id),
     category_id integer NOT NULL CHECK (category_id > 0),
     category_name text NOT NULL CHECK (length(trim(category_name)) > 0),
-    registration_date date,
-    fetched_at timestamptz NOT NULL
+    fetched_at timestamptz NOT NULL,
+    registration_date date
 );
 CREATE INDEX declarations_member_idx ON exposed.declarations(member_id);
 
@@ -70,10 +70,10 @@ COMMENT ON COLUMN exposed.declarations.registration_date IS
 CREATE TABLE exposed.funding_entries (
     id uuid PRIMARY KEY,
     source_declaration_id integer NOT NULL REFERENCES exposed.declarations(source_declaration_id),
-    funder text,
+    funder text NOT NULL,
     amount numeric,
-    currency text,
-    payment_type text,
+    currency text NOT NULL,
+    payment_type text NOT NULL,
     donor_status text,
     company_number text,
     CONSTRAINT funding_entries_company_number_status
@@ -85,11 +85,3 @@ COMMENT ON COLUMN exposed.funding_entries.donor_status IS
     'Explicit Parliament DonorStatus for the attributed donor; NULL when unavailable';
 COMMENT ON COLUMN exposed.funding_entries.company_number IS
     'Parliament DonorCompanyIdentifier when DonorStatus is Company; text preserves leading zeros';
-
--- migrate:down
-DROP TABLE exposed.funding_entries;
-DROP TABLE exposed.declarations;
-DROP TABLE exposed.member_terms;
-DROP FUNCTION exposed.check_term_service_start();
-DROP TABLE exposed.members;
-DROP TABLE exposed.parliament_terms;

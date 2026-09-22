@@ -1,14 +1,14 @@
 .DEFAULT_GOAL := help
 PYTHON ?= python3
-DBMATE ?= dbmate
+SQLX ?= sqlx
 VENV_PYTHON := .venv/bin/python
-DBMATE_CMD = $(DBMATE) --env-file ingest/.env --migrations-dir db/migrations --migrations-table public.schema_migrations --no-dump-schema
+SQLX_CMD = cd ingest && $(SQLX)
+SQLX_MIGRATION_ARGS = --config ../sqlx.toml --source ../db/migrations
 EXPOSED_TEST_ADMIN_DSN ?= postgresql://exposed:exposed_local_dev@localhost:55432/postgres?sslmode=disable
 export EXPOSED_TEST_ADMIN_DSN
-export DBMATE
-export name
+export SQLX
 
-.PHONY: db-start db-stop db-nuke db-migrate db-add-migration import-members import-declarations verify lint format typecheck test test-unit check
+.PHONY: db-start db-stop db-nuke db-migrate db-migration-status db-add-migration import-members import-declarations verify lint format typecheck test test-unit check
 
 db-start: ## Start the local PostgreSQL database
 	docker compose up -d --wait
@@ -16,17 +16,19 @@ db-start: ## Start the local PostgreSQL database
 db-stop: ## Stop PostgreSQL, keeping its data
 	docker compose stop
 
-db-nuke:
-	$(DBMATE_CMD) drop exposed
-	$(DBMATE_CMD) create exposed
-	$(DBMATE_CMD) migrate
+db-nuke: ## Delete the configured database and recreate it from the baseline
+	$(SQLX_CMD) database reset -y $(SQLX_MIGRATION_ARGS)
 
 
-db-migrate:
-	$(DBMATE_CMD) migrate
+db-migrate: ## Apply the development schema baseline using SQLx
+	$(SQLX_CMD) migrate run $(SQLX_MIGRATION_ARGS)
+
+db-migration-status: ## Show SQLx migration status
+	$(SQLX_CMD) migrate info $(SQLX_MIGRATION_ARGS)
 
 db-add-migration:
-	$(DBMATE_CMD) new "$$name"
+	@echo "Edit db/migrations/20260915000000_initial.sql; development uses one baseline (see db/README.md)." >&2
+	@exit 1
 
 import-members: ## Refresh member data using ingest/.env or environment variables
 	cd ingest && $(VENV_PYTHON) -m exposed import-members

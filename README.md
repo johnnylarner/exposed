@@ -9,7 +9,13 @@ The planned journalist-facing research application is described in the
 
 ## Getting started
 
-Requires Python **3.14+**, Docker Compose and [dbmate](https://github.com/amacneil/dbmate) (verified with 2.35.1). On macOS, install dbmate with `brew install dbmate`.
+Requires Python **3.14+**, Docker Compose, a Rust toolchain and
+[SQLx CLI](https://github.com/launchbadge/sqlx/tree/v0.9.0/sqlx-cli) **0.9.0**
+(matching the Rust workspace). Install the PostgreSQL CLI with:
+
+```sh
+cargo install sqlx-cli --version 0.9.0 --no-default-features --features rustls,postgres,sqlx-toml
+```
 
 Run commands from the repository root:
 
@@ -24,10 +30,14 @@ make import-members
 make import-declarations
 ```
 
-Setup creates `ingest/.env` only when absent. Both dbmate and the importer use that file; existing environment variables take precedence. The example URL targets local PostgreSQL and explicitly disables TLS for that loopback connection. Use the appropriate TLS setting for a hosted database.
+Setup creates `ingest/.env` only when absent. The Makefile runs SQLx from `ingest/`
+so it and the importer use that file; existing environment variables take
+precedence. The example URL targets local PostgreSQL and explicitly disables TLS
+for that loopback connection. Use the appropriate TLS setting for a hosted database.
 
 The schema uses a single development baseline. See the
-[migration instructions](db/README.md) for upgrading existing databases and the
+[migration instructions](db/README.md) before adopting SQLx on an existing dbmate
+database or editing the baseline. See the
 [funder identification rules](ingest/README.md#funder-identification) for imported funding.
 
 ## View example declarations from the API
@@ -69,6 +79,8 @@ Contains Parliamentary information licensed under the
 | Command | Purpose |
 | --- | --- |
 | `make db-migrate` | Apply the development schema baseline |
+| `make db-migration-status` | Show SQLx migration status |
+| `make db-nuke` | Delete the configured database and recreate it from the baseline |
 | `make import-members` | Refresh member data |
 | `make import-declarations` | Refresh declarations for the stored member cohort |
 | `make verify` | Check data in the local Compose database |
@@ -77,6 +89,6 @@ Contains Parliamentary information licensed under the
 | `make format` | Format Python files |
 | `make db-stop` | Stop local PostgreSQL while retaining data |
 
-`make test` and `make check` require local PostgreSQL (`make db-start`). Tests create and remove their own temporary databases. Override `EXPOSED_TEST_ADMIN_DSN` with a PostgreSQL URL to use a different test server; it must allow database creation. `DBMATE` can also be overridden.
+`make test` and `make check` require local PostgreSQL (`make db-start`). Tests create and remove their own temporary databases. Override `EXPOSED_TEST_ADMIN_DSN` with a PostgreSQL URL to use a different test server; it must allow database creation. `SQLX` can also be overridden with an absolute SQLx CLI executable path.
 
 See the [importer documentation](ingest/README.md) for configuration, data rules and refresh behavior.

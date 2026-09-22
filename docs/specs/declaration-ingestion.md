@@ -89,7 +89,7 @@ Parse the whole declaration before changing its stored representation. If parsin
 
 ### Data model
 
-Use two domain tables in the shared development schema baseline, applied through dbmate.
+Use two domain tables in the shared development schema baseline, applied through SQLx.
 
 | Table | Field | Meaning |
 | --- | --- | --- |

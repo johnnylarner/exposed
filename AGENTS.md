@@ -26,5 +26,6 @@
   `db/migrations/20260915000000_initial.sql`. Fold schema changes into that file
   without adding migration files or incrementing the version.
 - For an existing database, inspect its applied schema and apply the necessary
-  changes in place to preserve imported data. dbmate does not reapply an edited
-  baseline; verify the live schema before reporting a migration complete.
+  changes in place to preserve imported data. SQLx rejects an edited baseline's
+  checksum; verify the live schema before updating its recorded checksum using
+  the procedure in `db/README.md` or reporting a migration complete.
