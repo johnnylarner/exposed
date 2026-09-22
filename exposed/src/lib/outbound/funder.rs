@@ -29,7 +29,7 @@ impl FunderRepo for ExposedDatabase {
                 fe.company_number,
                  word_similarity($1, fe.funder) as similarity_score
             FROM funding_entries fe
-            ORDER BY 3 DESC
+            ORDER BY similarity_score DESC
             ",
             word,
         )
@@ -50,5 +50,32 @@ impl FunderRepo for ExposedDatabase {
             Ok((funder, score))
         })
         .collect()
+    }
+}
+
+#[cfg(test)]
+mod scoring {
+    use sqlx::PgPool;
+
+    use crate::{
+        domain::repositories::funder_repository::FunderRepo, outbound::postgres::ExposedDatabase,
+    };
+
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures(
+            "../../../../db/fixtures/add_members.sql",
+            "../../../../db/fixtures/add_declarations_and_funding_entries.sql"
+        )
+    )]
+    async fn orders_correctly(pool: PgPool) -> sqlx::Result<()> {
+        let db = ExposedDatabase::from(pool);
+
+        let results = db.get_funders_by_text_search_score().await.unwrap();
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results.first().unwrap().0.name(), "McDonald's");
+
+        Ok(())
     }
 }

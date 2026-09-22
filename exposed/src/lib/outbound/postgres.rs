@@ -23,6 +23,13 @@ impl ExposedDatabase {
 }
 
 #[cfg(test)]
+impl From<PgPool> for ExposedDatabase {
+    fn from(value: PgPool) -> Self {
+        Self { pool: value }
+    }
+}
+
+#[cfg(test)]
 mod test_scaffolding {
     use sqlx::PgPool;
 

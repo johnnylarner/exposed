@@ -9,7 +9,7 @@ INSERT INTO exposed.members (
 ) VALUES 
 	(
 		1,
-		'Neil Duncan-Jordan',
+		'John McDonnell',
 		15,
 		'Labour',
 		1,

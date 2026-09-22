@@ -24,7 +24,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 m.latest_membership_from as constituency,
                  word_similarity($1, m.name) as similarity_score
             FROM members m
-            ORDER BY 3 DESC
+            ORDER BY similarity_score DESC
             ",
             word,
         )
@@ -43,5 +43,33 @@ impl ParliamentMemberRepo for ExposedDatabase {
             Ok((member, score))
         })
         .collect()
+    }
+}
+
+#[cfg(test)]
+mod scoring {
+    use sqlx::PgPool;
+
+    use crate::{
+        domain::repositories::parliament_member_repository::ParliamentMemberRepo,
+        outbound::postgres::ExposedDatabase,
+    };
+
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures(
+            "../../../../db/fixtures/add_members.sql",
+            "../../../../db/fixtures/add_declarations_and_funding_entries.sql"
+        )
+    )]
+    async fn orders_correctly(pool: PgPool) -> sqlx::Result<()> {
+        let db = ExposedDatabase::from(pool);
+
+        let results = db.get_members_by_text_search_score().await.unwrap();
+
+        assert_eq!(results.len(), 2);
+        assert_eq!(results.first().unwrap().0.name(), "John McDonnell");
+
+        Ok(())
     }
 }

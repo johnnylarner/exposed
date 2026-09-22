@@ -8,7 +8,7 @@ INSERT INTO exposed.declarations (
 ) VALUES 
 	(
 	    1,
-	    (SELECT id FROM members WHERE name='Neil Duncan-Jordan'),
+	    (SELECT id FROM members WHERE name='John McDonnell'),
 	    12,
 	    'Employment and earnings',
 	    now(),
@@ -34,7 +34,7 @@ INSERT INTO exposed.funding_entries (
 ) VALUES 
 	(
 	    1,
-	    'Open AI',
+	    E'McDonald\'s',
 	    10,
 	    'GBP',
 	    'Monetary',
