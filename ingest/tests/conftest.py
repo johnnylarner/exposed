@@ -12,27 +12,6 @@ from exposed.importer import connect
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def sqlx_migrate(
-    url: str, *arguments: str, source: Path = ROOT / "db/migrations"
-) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        [
-            os.environ.get("SQLX", "sqlx"),
-            "--no-dotenv",
-            "migrate",
-            *(arguments or ("run",)),
-            "--config",
-            str(ROOT / "sqlx.toml"),
-            "--source",
-            str(source),
-        ],
-        env={**os.environ, "DATABASE_URL": url},
-        capture_output=True,
-        text=True,
-        check=True,
-    )
-
-
 @pytest.fixture
 def empty_database_url():
     admin_url = os.environ.get("EXPOSED_TEST_ADMIN_DSN")
@@ -54,8 +33,3 @@ def empty_database_url():
         with connect(admin_url) as admin:
             admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(database)))
 
-
-@pytest.fixture
-def database_url(empty_database_url):
-    sqlx_migrate(empty_database_url)
-    return empty_database_url
