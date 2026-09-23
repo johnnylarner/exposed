@@ -1,50 +1,61 @@
-use strum::{AsRefStr, EnumString};
 use thiserror::Error;
+
+use crate::domain::models::{funder::Funder as FunderDetails, parliament_member::ParliamentMember};
 
 const MAX_STRICTNESS: f32 = 1_f32;
 const MIN_STRICTNESS: f32 = 0_f32;
 const MIN_ENTRIES: u8 = 1;
 
 #[derive(Clone, Debug, PartialEq)]
-/// Search entity result
-pub struct Entity {
-    name: EntityName,
-    kind: EntityKind,
+/// Search entity kind
+pub enum Entity {
+    /// Company entity
+    Funder(FunderDetails),
+    /// Member entitiy
+    ParliamentMember(ParliamentMember),
 }
 
 impl Entity {
-    /// Creates a new entity
-    pub fn new(name: String, kind: EntityKind) -> Self {
-        Self {
-            name: EntityName(name),
-            kind,
-        }
-    }
-
     /// Entity name
     pub fn name(&self) -> &str {
-        &self.name.0
+        match self {
+            Self::Funder(kind) => kind.name(),
+            Self::ParliamentMember(mp) => mp.name(),
+        }
     }
 
     /// Entity kind
     pub fn kind(&self) -> &str {
-        self.kind.as_ref()
+        match self {
+            Self::Funder(_) => "Funder",
+            Self::ParliamentMember(_) => "MP",
+        }
+    }
+
+    /// Funder kind
+    pub fn funder_kind(&self) -> Option<&str> {
+        match self {
+            Self::Funder(kind) => Some(kind.kind()),
+            Self::ParliamentMember(_) => None,
+        }
+    }
+}
+
+impl From<&ParliamentMember> for Entity {
+    fn from(value: &ParliamentMember) -> Self {
+        Self::ParliamentMember(value.clone())
+    }
+}
+
+impl From<&FunderDetails> for Entity {
+    fn from(value: &FunderDetails) -> Self {
+        Self::Funder(value.clone())
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
 /// Search entity name
 pub struct EntityName(String);
-
-#[derive(Clone, Debug, EnumString, AsRefStr, PartialEq)]
-/// Search entity kind
-pub enum EntityKind {
-    /// Company entity
-    Company,
-    #[strum(serialize = "MP")]
-    /// Member entitiy
-    ParliamentMember,
-}
 
 #[derive(Clone, Debug, PartialEq)]
 /// Data required to search entities

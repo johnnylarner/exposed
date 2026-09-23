@@ -1,67 +1,32 @@
 //! Funders give financial compensation to [`parliament_members`]
 
-use strum::EnumString;
+use strum::{AsRefStr, EnumString};
 
-/// Funder kinds
-pub enum Funder {
-    /// Legal person funder
-    Individual(IndividualFunder),
-    /// Legal entity funder
-    Company(CompanyFunder),
+#[derive(Clone, Debug, PartialEq)]
+/// Funder of MP declarations
+pub struct Funder {
+    name: String,
+    funder_kind: FunderKind,
 }
 
 impl Funder {
-    /// Creates a new funder
+    /// Creates a new instance
+    pub fn new(name: String, funder_kind: FunderKind) -> Self {
+        Self { name, funder_kind }
+    }
+
+    /// Gets funder name
     pub fn name(&self) -> &str {
-        match self {
-            Self::Company(c) => &c.name,
-            Self::Individual(i) => &i.name,
-        }
+        &self.name
+    }
+
+    /// Gets legal person
+    pub fn kind(&self) -> &str {
+        self.funder_kind.as_ref()
     }
 }
 
-impl From<IndividualFunder> for Funder {
-    fn from(value: IndividualFunder) -> Self {
-        Self::Individual(value)
-    }
-}
-
-impl From<CompanyFunder> for Funder {
-    fn from(value: CompanyFunder) -> Self {
-        Self::Company(value)
-    }
-}
-
-#[derive(Clone, Debug)]
-/// Legal person funder
-pub struct IndividualFunder {
-    name: String,
-}
-
-impl IndividualFunder {
-    /// Creates a legal person funder
-    pub fn new(name: String) -> Self {
-        Self { name }
-    }
-}
-
-/// Legal entity funder
-pub struct CompanyFunder {
-    name: String,
-    _company_number: Option<String>,
-}
-
-impl CompanyFunder {
-    /// Creates a legal entity funder
-    pub fn new(name: String, company_number: Option<String>) -> Self {
-        Self {
-            name,
-            _company_number: company_number,
-        }
-    }
-}
-
-#[derive(Clone, Debug, EnumString)]
+#[derive(Clone, Debug, AsRefStr, EnumString, PartialEq)]
 /// All possible funder kinds
 #[allow(missing_docs)] // Self explanatory
 pub enum FunderKind {
@@ -72,7 +37,7 @@ pub enum FunderKind {
     TradeUnion,
     Other,
     /// We don't know what this is supposed to be
-    #[strum(disabled)]
+    #[strum(serialize = "Not Specified")]
     NotSpecified,
     #[strum(serialize = "Building society")]
     BuildingSociety,
