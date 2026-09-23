@@ -45,6 +45,8 @@ impl From<&[Entity]> for SearchEntityResponseData {
 pub struct SearchEntity {
     name: String,
     kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    funder_kind: Option<String>,
 }
 
 impl From<&Entity> for SearchEntity {
@@ -52,6 +54,7 @@ impl From<&Entity> for SearchEntity {
         Self {
             name: value.name().to_string(),
             kind: value.kind().to_string(),
+            funder_kind: value.funder_kind().map(String::from),
         }
     }
 }

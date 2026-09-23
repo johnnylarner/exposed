@@ -1,6 +1,7 @@
 //! Representatives of the public in parliament.
 
 /// Member of Parliament
+#[derive(Clone, Debug, PartialEq)]
 pub struct ParliamentMember {
     name: ParliamentMemberName,
     _member_id: MemberId,
@@ -25,9 +26,8 @@ impl ParliamentMember {
     }
 }
 
-#[derive(Clone, Debug)]
-
 /// Member name
+#[derive(Clone, Debug, PartialEq)]
 pub struct ParliamentMemberName(String);
 
 impl ParliamentMemberName {
@@ -37,7 +37,7 @@ impl ParliamentMemberName {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 /// Party name
 #[allow(dead_code)]
 pub struct PartyName(String);
@@ -49,7 +49,7 @@ impl PartyName {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 /// Member constituency
 #[allow(dead_code)]
 pub struct Constituency(String);
@@ -61,7 +61,7 @@ impl Constituency {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 /// Member parliament API ID
 #[allow(dead_code)]
 pub struct MemberId(usize);
