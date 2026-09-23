@@ -5,23 +5,24 @@
 mod error;
 mod interface;
 
-use crate::domain::models::entity::{Entity, EntityKind};
+use crate::domain::models::entity_search::{
+    Entity, EntityKind, EntitySearchError, EntitySearchRequest,
+};
 use crate::domain::models::funder::Funder;
 use crate::domain::models::parliament_member::ParliamentMember;
 use crate::domain::models::search_similarity::SearchSimilarity;
 use crate::domain::repositories::funder_repository::FunderRepo;
 use crate::domain::repositories::parliament_member_repository::ParliamentMemberRepo;
-pub use crate::domain::services::entity_search::error::EntitySearchError;
-pub use crate::domain::services::entity_search::interface::EntitySearchService as Interface;
+pub use crate::domain::services::entity_search::interface::EntitySearchService;
 
 /// Allows users to search the databse using free text.
 #[derive(Clone)]
-pub struct EntitySearchService<P, F> {
+pub struct Service<P, F> {
     mp_repo: P,
     funder_repo: F,
 }
 
-impl<P, F> EntitySearchService<P, F> {
+impl<P, F> Service<P, F> {
     /// Creates a new instance
     pub fn new(mp_repo: P, funder_repo: F) -> Self {
         Self {
@@ -31,7 +32,7 @@ impl<P, F> EntitySearchService<P, F> {
     }
 }
 
-impl<P, F> Interface<P, F> for EntitySearchService<P, F>
+impl<P, F> EntitySearchService for Service<P, F>
 where
     P: ParliamentMemberRepo,
     F: FunderRepo,
@@ -40,9 +41,15 @@ where
     ///
     /// This function expects the repositories to return their results
     /// in order where a higher score means a higher similarity.
-    async fn search_entities(&self) -> Result<Vec<Entity>, EntitySearchError> {
-        let mps = self.mp_repo.get_members_by_text_search_score().await?;
-        let funders = self.funder_repo.get_funders_by_text_search_score().await?;
+    async fn search_entities(
+        &self,
+        req: &EntitySearchRequest,
+    ) -> Result<Vec<Entity>, EntitySearchError> {
+        let mps = self.mp_repo.get_members_by_text_search_score(&req).await?;
+        let funders = self
+            .funder_repo
+            .get_funders_by_text_search_score(&req)
+            .await?;
 
         let scored = merge_scores(&mps, &funders);
         Ok(scored)
@@ -108,7 +115,7 @@ fn merge_scores(
 mod merge_scores {
     use crate::domain::{
         models::{
-            entity::{Entity, EntityKind},
+            entity_search::{Entity, EntityKind},
             funder::{CompanyFunder, Funder},
             parliament_member::ParliamentMember,
             search_similarity::SearchSimilarity,

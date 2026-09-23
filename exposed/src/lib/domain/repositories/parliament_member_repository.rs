@@ -1,7 +1,8 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    parliament_member::ParliamentMember, search_similarity::SearchSimilarity,
+    entity_search::EntitySearchRequest, parliament_member::ParliamentMember,
+    search_similarity::SearchSimilarity,
 };
 
 /// Allows users to search the databse using free text.
@@ -9,6 +10,7 @@ pub trait ParliamentMemberRepo: Clone + Send + Sync + 'static {
     /// Returns entities based on free text search
     fn get_members_by_text_search_score(
         &self,
+        params: &EntitySearchRequest,
     ) -> impl Future<
         Output = Result<Vec<(ParliamentMember, SearchSimilarity)>, ParliamentMemberRepoError>,
     > + Send;

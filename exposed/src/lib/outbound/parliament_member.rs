@@ -2,7 +2,10 @@
 
 use crate::{
     domain::{
-        models::{parliament_member::ParliamentMember, search_similarity::SearchSimilarity},
+        models::{
+            entity_search::EntitySearchRequest, parliament_member::ParliamentMember,
+            search_similarity::SearchSimilarity,
+        },
         repositories::parliament_member_repository::{
             ParliamentMemberRepo, ParliamentMemberRepoError,
         },
@@ -13,8 +16,8 @@ use crate::{
 impl ParliamentMemberRepo for ExposedDatabase {
     async fn get_members_by_text_search_score(
         &self,
+        req: &EntitySearchRequest,
     ) -> Result<Vec<(ParliamentMember, SearchSimilarity)>, ParliamentMemberRepoError> {
-        let word = "McDonald";
         sqlx::query!(
             "
             SELECT  
@@ -26,12 +29,13 @@ impl ParliamentMemberRepo for ExposedDatabase {
             FROM members m
             ORDER BY similarity_score DESC
             ",
-            word,
+            req.term()
         )
         .fetch_all(self.pool())
         .await
         .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?
         .into_iter()
+        .filter(|r| r.similarity_score.unwrap_or(0_f32) >= req.strictness())
         .map(|r| {
             let member = ParliamentMember::new(
                 r.name,
@@ -51,7 +55,10 @@ mod scoring {
     use sqlx::PgPool;
 
     use crate::{
-        domain::repositories::parliament_member_repository::ParliamentMemberRepo,
+        domain::{
+            models::entity_search::EntitySearchRequest,
+            repositories::parliament_member_repository::ParliamentMemberRepo,
+        },
         outbound::postgres::ExposedDatabase,
     };
 
@@ -65,7 +72,8 @@ mod scoring {
     async fn orders_correctly(pool: PgPool) -> sqlx::Result<()> {
         let db = ExposedDatabase::from(pool);
 
-        let results = db.get_members_by_text_search_score().await.unwrap();
+        let term = EntitySearchRequest::new_strict("McDonald's".into()).unwrap();
+        let results = db.get_members_by_text_search_score(&term).await.unwrap();
 
         assert_eq!(results.len(), 2);
         assert_eq!(results.first().unwrap().0.name(), "John McDonnell");

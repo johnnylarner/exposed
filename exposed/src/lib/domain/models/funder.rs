@@ -2,7 +2,6 @@
 
 use strum::EnumString;
 
-#[derive(Clone, Debug)]
 /// Funder kinds
 pub enum Funder {
     /// Legal person funder
@@ -46,11 +45,10 @@ impl IndividualFunder {
     }
 }
 
-#[derive(Clone, Debug)]
 /// Legal entity funder
 pub struct CompanyFunder {
     name: String,
-    company_number: Option<String>,
+    _company_number: Option<String>,
 }
 
 impl CompanyFunder {
@@ -58,7 +56,7 @@ impl CompanyFunder {
     pub fn new(name: String, company_number: Option<String>) -> Self {
         Self {
             name,
-            company_number,
+            _company_number: company_number,
         }
     }
 }

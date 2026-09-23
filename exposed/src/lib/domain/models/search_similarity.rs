@@ -1,6 +1,5 @@
 //! Declarations are groups of funding entries that are submitted by MPs to Parliament.
 
-#[allow(dead_code)]
 #[derive(Clone)]
 /// Trigram similarity score
 pub struct SearchSimilarity(f32);
