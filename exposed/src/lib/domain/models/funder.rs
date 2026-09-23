@@ -3,7 +3,7 @@
 use strum::{AsRefStr, EnumString};
 
 #[derive(Clone, Debug, PartialEq)]
-/// Legal person funder
+/// Funder of MP declarations
 pub struct Funder {
     name: String,
     funder_kind: FunderKind,
