@@ -2,5 +2,6 @@
 
 mod funder;
 mod parliament_member;
-#[allow(dead_code)]
 mod postgres;
+
+pub use postgres::ExposedDatabase;

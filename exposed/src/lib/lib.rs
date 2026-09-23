@@ -18,3 +18,6 @@ pub mod inbound;
 
 /// Contains the outbound adapters for the project
 pub mod outbound;
+
+/// Contains the configuration parameters for this project
+pub mod config;

@@ -1,12 +1,11 @@
 //! Representatives of the public in parliament.
 
-#[derive(Clone, Debug)]
 /// Member of Parliament
 pub struct ParliamentMember {
     name: ParliamentMemberName,
-    member_id: MemberId,
-    party_name: PartyName,
-    constituency: Constituency,
+    _member_id: MemberId,
+    _party_name: PartyName,
+    _constituency: Constituency,
 }
 
 impl ParliamentMember {
@@ -14,9 +13,9 @@ impl ParliamentMember {
     pub fn new(name: String, member_id: usize, party_name: String, constituency: String) -> Self {
         Self {
             name: ParliamentMemberName::new(name),
-            member_id: MemberId::new(member_id),
-            party_name: PartyName::new(party_name),
-            constituency: Constituency::new(constituency),
+            _member_id: MemberId::new(member_id),
+            _party_name: PartyName::new(party_name),
+            _constituency: Constituency::new(constituency),
         }
     }
 
@@ -40,6 +39,7 @@ impl ParliamentMemberName {
 
 #[derive(Clone, Debug)]
 /// Party name
+#[allow(dead_code)]
 pub struct PartyName(String);
 
 impl PartyName {
@@ -51,6 +51,7 @@ impl PartyName {
 
 #[derive(Clone, Debug)]
 /// Member constituency
+#[allow(dead_code)]
 pub struct Constituency(String);
 
 impl Constituency {
@@ -62,6 +63,7 @@ impl Constituency {
 
 #[derive(Clone, Debug)]
 /// Member parliament API ID
+#[allow(dead_code)]
 pub struct MemberId(usize);
 
 impl MemberId {
