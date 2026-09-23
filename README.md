@@ -40,6 +40,35 @@ The schema uses a single development baseline. See the
 database or editing the baseline. See the
 [funder identification rules](ingest/README.md#funder-identification) for imported funding.
 
+## Develop the Rust app with Docker Compose
+
+Initialize the database using the setup above before starting the app. SQLx checks
+queries against the live schema during compilation, so a fresh database needs
+`make db-migrate` first. Migrations remain an explicit step.
+
+```sh
+docker compose up --build exposed
+```
+
+The API listens at `http://localhost:6999`. For example:
+
+```sh
+curl 'http://localhost:6999/search?term=McDonald'
+```
+
+The repository is bind-mounted into the container. `cargo watch` rebuilds and
+restarts the app when Rust source, Cargo manifests, `Cargo.lock`, or files in
+`exposed/config/` change. Polling detects edits through Docker Desktop bind mounts.
+The first image and app builds take longer; named volumes cache Cargo downloads
+and Linux build artifacts separately from the host's `target/` directory.
+
+The container uses `exposed/config/compose.yaml` and connects to `postgres:5432`.
+Its `DATABASE_URL` supplies the same connection for SQLx compile-time checks.
+For running Cargo on the host, `exposed/config/dev.yaml` uses `localhost:55432`.
+
+Use `docker compose stop exposed` to stop the app and keep the caches.
+`make db-start` and `make db-stop` control only PostgreSQL.
+
 ## View example declarations from the API
 
 These standalone scripts require `bash`, `curl` and `jq`; no database, API key or
