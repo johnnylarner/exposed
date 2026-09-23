@@ -15,6 +15,7 @@ use crate::{
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct SearchEntitiesHttpRequest {
     term: String,
+    max_entries: u8,
     strictness: Option<f32>,
 }
 
@@ -22,8 +23,8 @@ impl SearchEntitiesHttpRequest {
     /// Converts the HTTP request body into a domain request.
     fn try_into_domain(self) -> Result<EntitySearchRequest, EntitySearchError> {
         match self.strictness {
-            Some(s) => EntitySearchRequest::new_with_strictness(self.term, s),
-            None => EntitySearchRequest::new_strict(self.term),
+            Some(s) => EntitySearchRequest::new_with_strictness(self.term, self.max_entries, s),
+            None => EntitySearchRequest::new_strict(self.term, self.max_entries),
         }
     }
 }
@@ -60,6 +61,7 @@ impl From<EntitySearchError> for ApiError {
         match value {
             EntitySearchError::InvalidTerm(_) => Self::UnprocessibleEntity(value.to_string()),
             EntitySearchError::InvalidStrictness(_) => Self::UnprocessibleEntity(value.to_string()),
+            EntitySearchError::TooFewEntries => Self::UnprocessibleEntity(value.to_string()),
             EntitySearchError::UnexpectedError(_) => Self::InternalServerError,
         }
     }
