@@ -117,16 +117,11 @@ mod merge_scores {
         let funders = Vec::new();
         let mps = vec![
             (
-                ParliamentMember::new(
-                    "johnny larner".into(),
-                    666,
-                    "satan corp".into(),
-                    "hell".into(),
-                ),
+                ParliamentMember::new("johnny larner".into(), 1, "".into(), "".into()),
                 SearchSimilarity::from(1_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 667, "satan corp".into(), "hell".into()),
+                ParliamentMember::new("hades".into(), 1, "".into(), "".into()),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -161,22 +156,17 @@ mod merge_scores {
                 SearchSimilarity::from(4_f32),
             ),
             (
-                Funder::new("conna ltd".into(), FunderKind::Company),
+                Funder::new("canna ltd".into(), FunderKind::Company),
                 SearchSimilarity::from(2_f32),
             ),
         ];
         let mps = vec![
             (
-                ParliamentMember::new(
-                    "johnny larner".into(),
-                    666,
-                    "satan corp".into(),
-                    "hell".into(),
-                ),
+                ParliamentMember::new("johnny larner".into(), 1, "".into(), "".into()),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 667, "satan corp".into(), "hell".into()),
+                ParliamentMember::new("hades".into(), 1, "".into(), "".into()),
                 SearchSimilarity::from(3_f32),
             ),
         ];
@@ -224,12 +214,7 @@ mod merge_scores {
             ),
         ];
         let mps = vec![(
-            ParliamentMember::new(
-                "johnny larner".into(),
-                666,
-                "satan corp".into(),
-                "hell".into(),
-            ),
+            ParliamentMember::new("johnny larner".into(), 1, "".into(), "".into()),
             SearchSimilarity::from(4_f32),
         )];
 
@@ -262,16 +247,11 @@ mod merge_scores {
         )];
         let mps = vec![
             (
-                ParliamentMember::new(
-                    "johnny larner".into(),
-                    666,
-                    "satan corp".into(),
-                    "hell".into(),
-                ),
+                ParliamentMember::new("johnny larner".into(), 1, "".into(), "".into()),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 667, "satan corp".into(), "hell".into()),
+                ParliamentMember::new("hades".into(), 1, "".into(), "".into()),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -297,7 +277,7 @@ mod merge_scores {
         );
         assert_eq!(
             ranked.get(2).unwrap(),
-            &Entity::from(&Funder::new("conna ltd".into(), FunderKind::Company,))
+            &Entity::from(&Funder::new("canna ltd".into(), FunderKind::Company,))
         );
     }
 }
