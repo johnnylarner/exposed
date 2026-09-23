@@ -25,17 +25,22 @@ impl FunderRepo for ExposedDatabase {
                 fe.funder as name,
                 fe.donor_status as kind,
                 fe.company_number,
-                 word_similarity($1, fe.funder) as similarity_score
+                word_similarity($1, fe.funder) as similarity_score,
+                row_number() OVER (ORDER BY word_similarity($1, fe.funder) DESC) as rank
             FROM funding_entries fe
+            WHERE word_similarity($1, fe.funder) >= $2
             ORDER BY similarity_score DESC
             ",
             req.term(),
+            req.strictness(),
         )
         .fetch_all(self.pool())
         .await
         .map_err(|e| FunderRepoError::DatabaseError(e.to_string()))?
         .into_iter()
-        .filter(|r| r.similarity_score.unwrap_or(0_f32) >= req.strictness())
+        .take_while(|r| {
+            r.rank.unwrap_or((req.max_entries() + 1) as i64) <= req.max_entries() as i64
+        })
         .map(|r| {
             let kind = match &r.kind {
                 Some(kind) => FunderKind::from_str(kind).unwrap(),
@@ -73,11 +78,49 @@ mod scoring {
     async fn orders_correctly(pool: PgPool) -> sqlx::Result<()> {
         let db = ExposedDatabase::from(pool);
 
-        let term = EntitySearchRequest::new_strict("McDonald's".into()).unwrap();
+        let term = EntitySearchRequest::new_with_strictness("McDonald's".into(), 5, 0_f32).unwrap();
         let results = db.get_funders_by_text_search_score(&term).await.unwrap();
 
         assert_eq!(results.len(), 2);
         assert_eq!(results.first().unwrap().0.name(), "McDonald's");
+
+        Ok(())
+    }
+
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures(
+            "../../../../db/fixtures/add_members.sql",
+            "../../../../db/fixtures/add_declarations_and_funding_entries.sql"
+        )
+    )]
+    async fn obeys_max_entries(pool: PgPool) -> sqlx::Result<()> {
+        let db = ExposedDatabase::from(pool);
+
+        let term = EntitySearchRequest::new_with_strictness("McDonald's".into(), 1, 0_f32).unwrap();
+        let results = db.get_funders_by_text_search_score(&term).await.unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results.first().unwrap().0.name(), "McDonald's");
+
+        Ok(())
+    }
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures(
+            "../../../../db/fixtures/add_members.sql",
+            "../../../../db/fixtures/add_declarations_and_funding_entries.sql"
+        )
+    )]
+    async fn filters_similarity(pool: PgPool) -> sqlx::Result<()> {
+        let db = ExposedDatabase::from(pool);
+
+        let term =
+            EntitySearchRequest::new_with_strictness("Aaron Banks".into(), 5, 1_f32).unwrap();
+        let results = db.get_funders_by_text_search_score(&term).await.unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results.first().unwrap().0.name(), "Aaron Banks");
 
         Ok(())
     }
