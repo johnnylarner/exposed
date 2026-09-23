@@ -11,10 +11,10 @@ export SQLX
 .PHONY: db-start db-stop db-nuke db-migrate db-revert db-migration-status db-add-migration import-members import-declarations verify lint format typecheck test test-unit check
 
 db-start: ## Start the local PostgreSQL database
-	docker compose up -d --wait
+	docker compose up -d --wait postgres
 
 db-stop: ## Stop PostgreSQL, keeping its data
-	docker compose stop
+	docker compose stop postgres
 
 db-nuke: ## Delete the configured database and recreate it from the baseline
 	$(SQLX_CMD) database reset -y $(SQLX_MIGRATION_ARGS)
