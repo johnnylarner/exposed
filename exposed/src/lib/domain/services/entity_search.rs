@@ -5,9 +5,7 @@
 mod error;
 mod interface;
 
-use crate::domain::models::entity_search::{
-    Entity, EntityKind, EntitySearchError, EntitySearchRequest,
-};
+use crate::domain::models::entity_search::{Entity, EntitySearchError, EntitySearchRequest};
 use crate::domain::models::funder::Funder;
 use crate::domain::models::parliament_member::ParliamentMember;
 use crate::domain::models::search_similarity::SearchSimilarity;
@@ -73,38 +71,29 @@ fn merge_scores(
 
         match &mp.1.value().total_cmp(&fund.1.value()) {
             std::cmp::Ordering::Equal => {
-                scores.push(Entity::new(
-                    mp.0.name().to_string(),
-                    EntityKind::ParliamentMember,
-                ));
-                scores.push(Entity::new(fund.0.name().to_string(), EntityKind::Company));
+                scores.push(Entity::from(&mp.0));
+                scores.push(Entity::from(&fund.0));
                 l += 1;
                 r += 1;
             }
             std::cmp::Ordering::Greater => {
-                scores.push(Entity::new(
-                    mp.0.name().to_string(),
-                    EntityKind::ParliamentMember,
-                ));
+                scores.push(Entity::from(&mp.0));
                 l += 1;
             }
             std::cmp::Ordering::Less => {
-                scores.push(Entity::new(fund.0.name().to_string(), EntityKind::Company));
+                scores.push(Entity::from(&fund.0));
                 r += 1;
             }
         };
     }
     if l < mps.len() {
         for mp in mps[l..].iter() {
-            scores.push(Entity::new(
-                mp.0.name().to_string(),
-                EntityKind::ParliamentMember,
-            ));
+            scores.push(Entity::from(&mp.0));
         }
     }
     if r < funders.len() {
         for fund in funders[r..].iter() {
-            scores.push(Entity::new(fund.0.name().to_string(), EntityKind::Company));
+            scores.push(Entity::from(&fund.0));
         }
     }
 
@@ -115,8 +104,8 @@ fn merge_scores(
 mod merge_scores {
     use crate::domain::{
         models::{
-            entity_search::{Entity, EntityKind},
-            funder::{CompanyFunder, Funder},
+            entity_search::Entity,
+            funder::{Funder, FunderKind},
             parliament_member::ParliamentMember,
             search_similarity::SearchSimilarity,
         },
@@ -145,12 +134,22 @@ mod merge_scores {
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(
             ranked.get(0).unwrap(),
-            &Entity::new("johnny larner".into(), EntityKind::ParliamentMember)
+            &Entity::from(&ParliamentMember::new(
+                "johnny larner".into(),
+                1,
+                "".into(),
+                "".into(),
+            ))
         );
 
         assert_eq!(
             ranked.get(1).unwrap(),
-            &Entity::new("hades".into(), EntityKind::ParliamentMember)
+            &Entity::from(&ParliamentMember::new(
+                "hades".into(),
+                1,
+                "".into(),
+                "".into(),
+            ))
         );
     }
 
@@ -158,14 +157,11 @@ mod merge_scores {
     fn works_for_balanced_results() {
         let funders = vec![
             (
-                Funder::from(CompanyFunder::new(
-                    "heavenly ltd".into(),
-                    Some("999".into()),
-                )),
+                Funder::new("heavenly ltd".into(), FunderKind::Company),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                Funder::from(CompanyFunder::new("canna ltd".into(), Some("1000".into()))),
+                Funder::new("conna ltd".into(), FunderKind::Company),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -189,19 +185,29 @@ mod merge_scores {
         assert_eq!(ranked.len(), 4);
         assert_eq!(
             ranked.get(0).unwrap(),
-            &Entity::new("johnny larner".into(), EntityKind::ParliamentMember)
+            &Entity::from(&ParliamentMember::new(
+                "johnny larner".into(),
+                1,
+                "".into(),
+                "".into(),
+            ))
         );
         assert_eq!(
             ranked.get(1).unwrap(),
-            &Entity::new("heavenly ltd".into(), EntityKind::Company)
+            &Entity::from(&Funder::new("heavenly ltd".into(), FunderKind::Company),)
         );
         assert_eq!(
             ranked.get(2).unwrap(),
-            &Entity::new("hades".into(), EntityKind::ParliamentMember)
+            &Entity::from(&ParliamentMember::new(
+                "hades".into(),
+                1,
+                "".into(),
+                "".into(),
+            ))
         );
         assert_eq!(
             ranked.get(3).unwrap(),
-            &Entity::new("canna ltd".into(), EntityKind::Company)
+            &Entity::from(&Funder::new("canna ltd".into(), FunderKind::Company),)
         );
     }
 
@@ -209,14 +215,11 @@ mod merge_scores {
     fn works_for_more_funders() {
         let funders = vec![
             (
-                Funder::from(CompanyFunder::new(
-                    "heavenly ltd".into(),
-                    Some("999".into()),
-                )),
+                Funder::new("heavenly ltd".into(), FunderKind::Company),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                Funder::from(CompanyFunder::new("canna ltd".into(), Some("1000".into()))),
+                Funder::new("canna ltd".into(), FunderKind::Company),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -234,22 +237,27 @@ mod merge_scores {
         assert_eq!(ranked.len(), 3);
         assert_eq!(
             ranked.get(0).unwrap(),
-            &Entity::new("johnny larner".into(), EntityKind::ParliamentMember)
+            &Entity::from(&ParliamentMember::new(
+                "johnny larner".into(),
+                1,
+                "".into(),
+                "".into(),
+            ))
         );
         assert_eq!(
             ranked.get(1).unwrap(),
-            &Entity::new("heavenly ltd".into(), EntityKind::Company)
+            &Entity::from(&Funder::new("heavenly ltd".into(), FunderKind::Company),)
         );
         assert_eq!(
             ranked.get(2).unwrap(),
-            &Entity::new("canna ltd".into(), EntityKind::Company)
+            &Entity::from(&Funder::new("canna ltd".into(), FunderKind::Company),)
         );
     }
 
     #[test]
     fn works_for_more_mps() {
         let funders = vec![(
-            Funder::from(CompanyFunder::new("canna ltd".into(), Some("1000".into()))),
+            Funder::new("canna ltd".into(), FunderKind::Company),
             SearchSimilarity::from(2_f32),
         )];
         let mps = vec![
@@ -271,15 +279,25 @@ mod merge_scores {
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(
             ranked.get(0).unwrap(),
-            &Entity::new("johnny larner".into(), EntityKind::ParliamentMember)
+            &Entity::from(&ParliamentMember::new(
+                "johnny larner".into(),
+                1,
+                "".into(),
+                "".into(),
+            ))
         );
         assert_eq!(
             ranked.get(1).unwrap(),
-            &Entity::new("hades".into(), EntityKind::ParliamentMember)
+            &Entity::from(&ParliamentMember::new(
+                "hades".into(),
+                1,
+                "".into(),
+                "".into(),
+            ))
         );
         assert_eq!(
             ranked.get(2).unwrap(),
-            &Entity::new("canna ltd".into(), EntityKind::Company)
+            &Entity::from(&Funder::new("conna ltd".into(), FunderKind::Company,))
         );
     }
 }
