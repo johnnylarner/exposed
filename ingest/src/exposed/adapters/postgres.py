@@ -1,4 +1,4 @@
-"""PostgreSQL implementation of an atomic Commons refresh."""
+"""PostgreSQL implementation of atomic Commons member batches."""
 
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
@@ -136,13 +136,13 @@ class _PostgresWriter:
 
 
 class PostgresStore:
-    """Use a composition-owned connection; own the transaction spanning all batches."""
+    """Use a composition-owned connection; own one transaction per member batch."""
 
     def __init__(self, conn: DatabaseConnection):
         self.conn = conn
 
     @contextmanager
-    def refresh(self, term_start: date) -> Iterator[MemberWriter]:
+    def refresh_batch(self, term_start: date) -> Iterator[MemberWriter]:
         try:
             with self.conn.transaction():
                 term_id = ensure_term(self.conn, term_start)

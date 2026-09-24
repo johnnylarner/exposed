@@ -18,8 +18,22 @@ from exposed.core.ports import MemberWriter, WriteResult
 class MemorySource:
     def __init__(self):
         self.profiles = (
-            MemberProfile(parliament_member_id=1, name="Current member", latest_house=1),
-            MemberProfile(parliament_member_id=2, name="Former member", latest_house=2),
+            MemberProfile(
+                parliament_member_id=1,
+                name="Current member",
+                latest_house=1,
+                party_id=1,
+                party_name="Example party",
+                latest_membership_from="Example constituency",
+            ),
+            MemberProfile(
+                parliament_member_id=2,
+                name="Former member",
+                latest_house=2,
+                party_id=1,
+                party_name="Example party",
+                latest_membership_from="Example membership",
+            ),
         )
 
     def current_commons(self) -> Iterator[MemberProfile]:
@@ -67,7 +81,7 @@ class MemoryStore:
         self.term_starts: set[date] = set()
 
     @contextmanager
-    def refresh(self, term_start: date) -> Iterator[MemberWriter]:
+    def refresh_batch(self, term_start: date) -> Iterator[MemberWriter]:
         validate_configured_term(term_start, self.term_starts)
         pending = dict(self.members)
         pending_service = dict(self.service)

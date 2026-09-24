@@ -13,7 +13,7 @@ the declaration migration is documented below.
 | Discover current and historical Commons members | `importer.search_pages` → `api.MembersAPI.search_page` | Pages of 100, current Commons filter, inclusive historical query dates, no latest-House filter on historical candidates, changing totals, failure on premature empty pages | `test_api.py`, `test_import_rules.py` |
 | Match and validate histories | `importer.load_histories` → `api.MembersAPI.histories` → model constructors | Complete history batches, duplicate rejection, calendar dates, Commons service clipping, re-entry gaps, current-membership consistency | `test_models.py`, `test_import_rules.py` |
 | Reconcile members and service | `importer._import_batches` → `db.ensure_term` / `db.write_member` | Single configured term, stable UUIDv7 IDs, profile outcomes, corrected intervals, absent members retained, stored term end preserved | `test_importer.py` with real temporary PostgreSQL databases |
-| Complete or reject a refresh | `importer.run_import` | One transaction around all pages and final completeness checks; rollback on request, validation, write or interruption failure; safe diagnostic messages | Later-page and database-failure integration tests |
+| Complete or reject a refresh | `importer.run_import` | Commit each batch before fetching the next page; failures roll back the active batch and preserve completed batches; safe diagnostic messages | Later-page and database-failure integration tests |
 
 Baseline on 16 September 2026: `make check` passed with **103 tests**, Ruff lint
 and formatting checks, and no Pyright errors or warnings. Dependencies were
@@ -29,7 +29,7 @@ installed from `ingest/requirements.lock` in the dedicated worktree.
 | `ingest/src/exposed/core/errors.py` | Expected validation failures, source/storage failures, import failure and safe diagnostics | Python and Pydantic |
 | `ingest/src/exposed/adapters/parliament.py` | HTTP requests, retries, query parameters, pagination and the member-source implementation | Core contracts, HTTPX and response decoding |
 | `ingest/src/exposed/adapters/parliament_models.py` | Parliament wrappers, source field aliases and calendar-date decoding | Core values and Pydantic |
-| `ingest/src/exposed/adapters/postgres.py` | Connection factory, SQL, term rehydration, atomic refresh and driver-error translation | Core contracts and Psycopg |
+| `ingest/src/exposed/adapters/postgres.py` | Connection factory, SQL, term rehydration, atomic batches and driver-error translation | Core contracts and Psycopg |
 | `ingest/src/exposed/cli.py` | Configuration, argument parsing, JSON output and exit codes through `run_cli` | Core errors and an injected command callable |
 | `ingest/src/exposed/composition.py` | Concrete adapter construction, resource lifetimes and the fixed UK observation date | Adapters and the refresh interface |
 
@@ -50,22 +50,24 @@ retains the original pages of 100, query filters, changing-total handling, retry
 limits and 1–100 history-request size rule. Typed decoding preserves order and
 duplicates so the core can reject incomplete or mismatched history batches.
 For profiles, the core logs and collapses identical repeated member IDs within each
-source stream, including across pages. Conflicting profiles fail the refresh and
-roll back its transaction. Historical duplicates are checked before history retrieval,
+source stream, including across pages. Conflicting profiles fail the refresh without
+reverting completed batches. Historical duplicates are checked before history retrieval,
 writes, and summary counts.
 
-`RefreshStore.refresh(term_start)` yields a `MemberWriter` inside one atomic
-scope. The PostgreSQL implementation uses a composition-owned connection from
-`connect()` (autocommit enabled, with no surrounding transaction), and opens one
-transaction covering term selection, every page and final validation. It commits
-only after successful completion, and rolls back on request, validation, write
-or interruption failure. The adapter invokes the core's single-Parliament
-invariant when reading stored terms. Term ends and absent members remain intact.
+`RefreshStore.refresh_batch(term_start)` yields a `MemberWriter` inside one atomic
+scope for a candidate batch. The PostgreSQL implementation uses a composition-owned
+connection from `connect()` (autocommit enabled, with no surrounding transaction).
+After fetching the batch and its histories, the core opens a transaction for term
+selection, service validation and all member/service writes in that batch. It commits
+before the next source page is requested. Validation, write or interruption failures
+roll back the active batch. Completed batches remain committed if a later request,
+batch or final completeness check fails. The adapter invokes the core's single-Parliament
+invariant when reading stored terms for each batch. Term ends and absent members remain intact.
 
 The writer reconciles the profile and all service periods for one member, returns
 `inserted`, `updated` or `unchanged` for the profile, and retains stable IDs.
-Corrected source periods replace old intervals. No notifications, background jobs,
-new transaction boundaries or concurrency guarantees were introduced.
+Corrected source periods replace old intervals. Imports remain sequential and externally
+serialized, without application-level concurrency control.
 
 Source and storage adapters translate dependency failures into `SourceError` and
 `StorageError`, retaining original diagnostic causes. `ImportFailed` reports a

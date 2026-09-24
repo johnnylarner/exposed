@@ -6,7 +6,7 @@ from datetime import date
 
 from exposed.core.errors import ImportFailed, ImportValidationError, safe_error
 from exposed.core.models import CommonsService, Member, MemberHistory, MemberProfile
-from exposed.core.ports import MemberSource, MemberWriter, RefreshStore
+from exposed.core.ports import MemberSource, RefreshStore
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +40,12 @@ def _unique_profiles(
 
 
 def _import_batches(
-    writer: MemberWriter,
+    store: RefreshStore,
     term_start: date,
     as_of: date,
     source: MemberSource,
 ) -> dict[str, int]:
-    """Write each page immediately; the caller commits only after every page is complete."""
+    """Commit each candidate batch before requesting the next page from the source."""
     summary = dict.fromkeys(
         [
             "members",
@@ -73,28 +73,33 @@ def _import_batches(
             continue
         member_ids = {member.parliament_member_id for member in profiles}
         histories = match_histories(member_ids, source.member_histories(member_ids))
-        for profile in profiles:
-            member_id = profile.parliament_member_id
-            current = member_id in current_ids
-            service = CommonsService.from_history(
-                histories[member_id],
-                term_start=term_start,
-                as_of=as_of,
-                is_current_commons=current,
-            )
-            if not service.periods:
-                summary["excluded_candidates"] += 1
-                continue
-            member = Member.from_profile(profile, is_current_commons=current)
-            write_result = writer.write_member(member, service.periods)
+        with store.refresh_batch(term_start) as writer:
+            for profile in profiles:
+                member_id = profile.parliament_member_id
+                current = member_id in current_ids
+                service = CommonsService.from_history(
+                    histories[member_id],
+                    term_start=term_start,
+                    as_of=as_of,
+                    is_current_commons=current,
+                )
+                if not service.periods:
+                    summary["excluded_candidates"] += 1
+                    continue
+                member = Member.from_profile(profile, is_current_commons=current)
+                write_result = writer.write_member(member, service.periods)
 
-            summary[write_result] += 1
-            summary["members"] += 1
-            summary["current_commons"] += current
-            summary["former_commons"] += not current
-            summary["service_periods"] += len(service.periods)
+                summary[write_result] += 1
+                summary["members"] += 1
+                summary["current_commons"] += current
+                summary["former_commons"] += not current
+                summary["service_periods"] += len(service.periods)
 
-        logger.info("Processed %s historical candidates (uncommitted)", len(seen_profiles))
+        logger.info(
+            "Committed member batch (%s candidates; %s processed total)",
+            len(profiles),
+            len(seen_profiles),
+        )
 
     if not current_ids <= seen_profiles.keys():
         raise ImportValidationError(
@@ -111,12 +116,11 @@ def refresh_members(
     source: MemberSource,
     store: RefreshStore,
 ) -> dict[str, object]:
-    """Refresh a term on a fixed date, publishing all batches together."""
+    """Refresh a term on a fixed date, publishing completed batches independently."""
     try:
         if term_start > as_of:
             raise ImportValidationError("Term start cannot be after the import date")
-        with store.refresh(term_start) as writer:
-            summary = _import_batches(writer, term_start, as_of, source)
+        summary = _import_batches(store, term_start, as_of, source)
         return {
             "status": "succeeded",
             "term_start": term_start.isoformat(),

@@ -33,3 +33,23 @@ def empty_database_url():
         with connect(admin_url) as admin:
             admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(database)))
 
+
+@pytest.fixture
+def database_url(empty_database_url):
+    subprocess.run(
+        [
+            os.environ.get("SQLX", "sqlx"),
+            "migrate",
+            "run",
+            "--config",
+            str(ROOT / "sqlx.toml"),
+            "--source",
+            str(ROOT / "db/migrations"),
+            "--database-url",
+            empty_database_url,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return empty_database_url

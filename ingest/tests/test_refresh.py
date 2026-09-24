@@ -33,14 +33,32 @@ def test_refresh_reports_current_and_former_members_without_http_or_postgresql()
     assert (second["inserted"], second["unchanged"]) == (0, 2)
 
 
-def test_later_source_failure_preserves_the_completed_refresh_and_its_diagnostic_cause():
+def test_each_batch_is_committed_before_fetching_the_next_batch(caplog):
+    store = MemoryStore()
+
+    class ObservingSource(MemorySource):
+        def commons_candidates(self, term_start, as_of):
+            yield self.profiles[:1]
+            assert set(store.members) == set(store.service) == {1}
+            assert store.term_starts == {TERM_START}
+            assert "Committed member batch" in caplog.text
+            yield self.profiles[1:]
+            assert set(store.members) == set(store.service) == {1, 2}
+
+    caplog.set_level("INFO", logger="exposed.core.refresh")
+    result = refresh_members(TERM_START, AS_OF, ObservingSource(), store)
+
+    assert result["inserted"] == result["members"] == 2
+
+
+def test_later_source_failure_preserves_the_completed_batch_and_its_diagnostic_cause():
     failure = SourceError("Members API returned HTTP 503 at /api/Members/Search")
 
     class FailingSource(MemorySource):
         def commons_candidates(
             self, term_start: date, as_of: date
         ) -> Iterator[tuple[MemberProfile, ...]]:
-            yield (MemberProfile(parliament_member_id=1, name="Unpublished", latest_house=1),)
+            yield (self.profiles[0].model_copy(update={"name": "Committed"}),)
             raise failure
 
     store = MemoryStore()
@@ -50,5 +68,6 @@ def test_later_source_failure_preserves_the_completed_refresh_and_its_diagnostic
         refresh_members(TERM_START, AS_OF, FailingSource(), store)
 
     assert error.value.__cause__ is failure
+    assert store.members[1].name == "Committed"
     recovered = refresh_members(TERM_START, AS_OF, MemorySource(), store)
-    assert (recovered["updated"], recovered["unchanged"]) == (0, 2)
+    assert (recovered["updated"], recovered["unchanged"]) == (1, 1)
