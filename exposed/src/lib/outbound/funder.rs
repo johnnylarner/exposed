@@ -22,13 +22,13 @@ impl FunderRepo for ExposedDatabase {
         sqlx::query!(
             "
             SELECT  
-                fe.funder as name,
-                fe.donor_status as kind,
-                fe.company_number,
-                word_similarity($1, fe.funder) as similarity_score,
-                row_number() OVER (ORDER BY word_similarity($1, fe.funder) DESC) as rank
-            FROM funding_entries fe
-            WHERE word_similarity($1, fe.funder) >= $2
+                f.funder_name as name,
+                f.funder_kind as kind,
+                f.company_number,
+                word_similarity($1, f.funder_name) as similarity_score,
+                row_number() OVER (ORDER BY word_similarity($1, f.funder_name) DESC) as rank
+            FROM funders f
+            WHERE word_similarity($1, f.funder_name) >= $2
             ORDER BY similarity_score DESC
             ",
             req.term(),
