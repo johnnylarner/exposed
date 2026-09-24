@@ -114,7 +114,10 @@ def test_completed_member_is_visible_and_survives_later_member_failure(declarati
                 payer="Donor",
                 funding=(
                     FundingEntry(
-                        funder_name="Donor", amount=Decimal("100"), currency="GBP", payment_type=None
+                        funder_name="Donor",
+                        amount=Decimal("100"),
+                        currency="GBP",
+                        payment_type=None,
                     ),
                 ),
             )

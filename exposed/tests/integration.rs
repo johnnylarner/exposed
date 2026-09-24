@@ -1,34 +1,40 @@
-//! Integration test for the entity seacrh endpoint.
-//! This test suite expects a pre-loaded database.
-//!
-//!
+//! Search uses shared funder identities even when they have multiple payments.
 
-use std::{collections::HashMap, time::Duration};
-
-use exposed::domain::models::entity_search::EntitySearchRequest;
-use tokio::time;
-
-use crate::common::{search_entities, start_app};
+use serde_json::json;
+use sqlx::PgPool;
 
 mod common;
 
-#[tokio::test]
-async fn shows_hsbc_duplicates() {
-    let _guard = start_app().await.unwrap();
-    time::sleep(Duration::from_secs(2)).await;
-
-    let known_duplicate = EntitySearchRequest::new_with_strictness("HSBC".into(), 10, 0.9).unwrap();
-    let entities = search_entities(&known_duplicate).await.unwrap();
-
-    let mut duplicates: HashMap<String, usize> = HashMap::new();
-    for e in entities.into_iter() {
-        duplicates
-            .entry(e.get("name").unwrap().as_str().unwrap().into())
-            .and_modify(|count| *count += 1)
-            .or_insert(1);
-    }
-
-    assert_eq!(duplicates.get("HSBC UK Bank plc"), Some(&5));
-    assert_eq!(duplicates.get("HSBC UK Bank PLC"), Some(&1));
-    assert_eq!(duplicates.get("HSBC UK (Ian Stuart, CEO)"), Some(&1));
+#[sqlx::test(
+    migrations = "../db/migrations",
+    fixtures(
+        "../../db/fixtures/add_members.sql",
+        "../../db/fixtures/add_declarations_and_funding_entries.sql"
+    )
+)]
+async fn repeated_funding_returns_one_funder(pool: PgPool) -> anyhow::Result<()> {
+    sqlx::query(
+        "INSERT INTO exposed.funding_entries (
+            source_declaration_id, funder_id, amount, currency, payment_type
+         ) SELECT source_declaration_id, funder_id, amount, currency, payment_type
+           FROM exposed.funding_entries CROSS JOIN generate_series(1, 4)
+           WHERE source_declaration_id = 1",
+    )
+    .execute(&pool)
+    .await?;
+    let app = common::start_app(&pool).await?;
+    let response = reqwest::Client::new()
+        .get(format!(
+            "{}/search?term=McDonald%27s&strictness=1&max_entries=10",
+            app.url
+        ))
+        .send()
+        .await?
+        .error_for_status()?;
+    let body: serde_json::Value = serde_json::from_slice(&response.bytes().await?)?;
+    assert_eq!(
+        body,
+        json!({"entities": [{"name": "McDonald's", "kind": "Funder", "funder_kind": "Company"}]})
+    );
+    Ok(())
 }
