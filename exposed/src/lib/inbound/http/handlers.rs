@@ -45,7 +45,6 @@ impl From<&[Entity]> for SearchEntityResponseData {
 pub struct SearchEntity {
     name: String,
     kind: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
     funder_kind: Option<String>,
 }
 
