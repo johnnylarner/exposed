@@ -55,9 +55,12 @@ def write_declaration(
     )
 
     previous = conn.execute(
-        """SELECT funder, amount, currency, payment_type, donor_status, company_number
-           FROM exposed.funding_entries
-           WHERE source_declaration_id = %s""",
+        """SELECT f.funder_name, f.funder_kind, f.company_numer, amount, currency, payment_type,
+           FROM exposed.funding_entries fe
+           WHERE source_declaration_id = %s
+           JOIN funders f
+                ON f.id = fe.funder_id
+           """,
         (declaration.id,),
     ).fetchall()
     if declaration.has_same_funding(tuple(FundingEntry.model_validate(row) for row in previous)):
@@ -66,23 +69,45 @@ def write_declaration(
         "DELETE FROM exposed.funding_entries WHERE source_declaration_id = %s", (declaration.id,)
     )
     with conn.cursor() as cursor:
+
+        ids = []
+        for entry in declaration.funding:
+            cursor.execute(
+                """INSERT INTO exposed.funder (
+                        funder_name, funder_kind, company_number
+                   ) VALUES (%s, %s, %s, %s)
+                   ON CONFLICT(funder_name) DO NOTHING
+                   RETURNING id
+                   """,
+                [
+                    (
+                        entry.funder_name,
+                        entry.funder_kind,
+                        entry.company_number,
+                    )
+                ],
+            )
+            row = cursor.fetchone()
+            if row is not None:
+                ids.append(row["id"])
+            
+        assert len(ids) == declaration.funding, "Bad SQL"
+
+
         cursor.executemany(
             """INSERT INTO exposed.funding_entries (
-                   id, source_declaration_id, funder, amount, currency, payment_type,
-                   donor_status, company_number
-               ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
+                   id, source_declaration_id,  amount, currency, payment_type, funder_id
+               ) VALUES (%s, %s, %s, %s, %s, %s)""",
             [
                 (
                     uuid7(),
                     declaration.id,
-                    entry.funder,
                     entry.amount,
                     entry.currency,
                     entry.payment_type,
-                    entry.donor_status,
-                    entry.company_number,
+                    funder_id,
                 )
-                for entry in declaration.funding
+                for funder_id, entry in zip(ids, declaration.funding)
             ],
         )
 

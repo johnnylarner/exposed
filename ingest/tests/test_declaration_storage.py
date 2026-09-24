@@ -52,7 +52,7 @@ def test_declaration_store_publishes_member_writes_together_and_rolls_back_befor
             payer="Donor",
             funding=(
                 FundingEntry(
-                    funder="Donor", amount=Decimal("100"), currency="GBP", payment_type=None
+                    funder_name="Donor", amount=Decimal("100"), currency="GBP", payment_type=None
                 ),
             ),
         )
@@ -66,7 +66,7 @@ def test_declaration_store_publishes_member_writes_together_and_rolls_back_befor
             **old_draft.model_dump(),
             "funding": (
                 FundingEntry(
-                    funder="Donor", amount=Decimal("200"), currency="GBP", payment_type=None
+                    funder_name="Donor", amount=Decimal("200"), currency="GBP", payment_type=None
                 ),
             ),
         }
@@ -114,7 +114,7 @@ def test_completed_member_is_visible_and_survives_later_member_failure(declarati
                 payer="Donor",
                 funding=(
                     FundingEntry(
-                        funder="Donor", amount=Decimal("100"), currency="GBP", payment_type=None
+                        funder_name="Donor", amount=Decimal("100"), currency="GBP", payment_type=None
                     ),
                 ),
             )

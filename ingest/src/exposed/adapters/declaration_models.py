@@ -148,11 +148,11 @@ class FundingEntry(DomainFundingEntry):
         donor_applies = funder == named_donor
         donor_status = text("DonorStatus") if donor_applies else None
         return cls(
-            funder=funder,
+            funder_name=funder,
             amount=amount,
             currency=currency,
             payment_type=text("PaymentType"),
-            donor_status=donor_status,
+            funder_kind=donor_status,
             company_number=text("DonorCompanyIdentifier") if donor_status == "Company" else None,
         )
 
@@ -234,7 +234,7 @@ class SourceDeclaration(Model):
             funding=tuple(
                 DomainFundingEntry.model_validate(entry.model_dump()) for entry in funding
             ),
-            payer=FundingEntry.from_fields(fields.fields, path).funder,
+            payer=FundingEntry.from_fields(fields.fields, path).funder_name,
             parent_id=self.parent_id,
             ultimate_payer_differs=self.parent_id is not None
             and not fields.parent_payer_applies(path),

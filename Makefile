@@ -17,7 +17,7 @@ db-stop: ## Stop PostgreSQL, keeping its data
 	docker compose stop postgres
 
 db-nuke: ## Delete the configured database and recreate it from the baseline
-	$(SQLX_CMD) database reset -y $(SQLX_MIGRATION_ARGS)
+	$(SQLX_CMD) database reset -yf $(SQLX_MIGRATION_ARGS)
 
 
 db-migrate: ## Apply the development schema baseline using SQLx

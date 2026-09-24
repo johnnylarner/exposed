@@ -19,7 +19,7 @@ def test_refresh_resolves_parent_and_publishes_parsed_fields_without_infrastruct
             payer=None,
             funding=(
                 FundingEntry(
-                    funder=None, amount=Decimal("340"), currency="GBP", payment_type="Monetary"
+                    funder_name=None, amount=Decimal("340"), currency="GBP", payment_type="Monetary"
                 ),
             ),
         )
@@ -45,7 +45,7 @@ def test_refresh_resolves_parent_and_publishes_parsed_fields_without_infrastruct
     }
     declaration, fetched_at = store.records[101]
     assert fetched_at == child.fetched_at
-    assert declaration.funding[0].funder == "Publisher"
+    assert declaration.funding[0].funder_name == "Publisher"
 
 
 def test_item_rejection_preserves_previous_declaration_and_commits_valid_siblings(caplog):
