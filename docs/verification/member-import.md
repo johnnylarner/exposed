@@ -94,3 +94,26 @@ extension and member/funding `NOT NULL` constraints.
 - Before/after row counts and full-row fingerprints matched for all five domain
   tables: **1 Parliament term, 655 members, 656 service records, 10,973 declarations,
   and 8,620 funding entries**. The live schema was checked again after adoption.
+
+## Member batch commits
+
+Verified on **24 September 2026**, using synthetic API responses and disposable
+PostgreSQL databases initialized by SQLx. Member ingestion now commits each candidate
+batch before fetching the next page; this supersedes the whole-refresh transaction
+behavior recorded above.
+
+- **138 member-ingestion and related tests passed**, including PostgreSQL checks
+  that observe committed profiles and service through an independent connection
+  before the next page is fetched. A database failure after a write in the second
+  batch rolls back that batch while preserving the first. Source failures,
+  interruptions, conflicting duplicates, final completeness failures and retries
+  are covered as well.
+- Ruff lint/format checks passed; Pyright reported **0 errors and 0 warnings**.
+- The shared `database_url` test fixture was missing on `main`, causing **62 setup
+  errors**. Restoring SQLx initialization allows the integration suite to run.
+  Member storage fixtures now supply the metadata required by the baseline schema.
+- Full `make check`: **196 passed, 18 failed**. All 18 failures are in declaration
+  ingestion and also reproduce on `main` with the database fixture restored.
+  That baseline run produced **188 passed, 20 failed**; the other two failures were
+  the member storage fixtures corrected here. No new failing tests were introduced.
+- No live import or application database migration was performed.

@@ -67,7 +67,7 @@ def test_profile_changes_departures_and_new_members_are_reconciled(database_url)
 @pytest.mark.parametrize("source_stream", ["current", "historical"])
 @pytest.mark.parametrize("split_pages", [False, True], ids=["same-page", "across-pages"])
 @pytest.mark.parametrize("conflicting", [False, True], ids=["identical", "conflicting"])
-def test_duplicate_profiles_are_collapsed_or_roll_back_the_refresh(
+def test_duplicate_profiles_are_collapsed_or_fail_without_reverting_committed_batches(
     database_url, caplog, source_stream, split_pages, conflicting
 ):
     fixture = ParliamentFixture(2)
@@ -78,6 +78,7 @@ def test_duplicate_profiles_are_collapsed_or_roll_back_the_refresh(
     if conflicting:
         repeated["nameDisplayAs"] = "Conflicting member"
     profiles = [fixture.profiles[1], fixture.profiles[2], repeated]
+    committed = []
 
     def repeat_profile(request: httpx.Request) -> httpx.Response | None:
         if not request.url.path.endswith("/Search"):
@@ -87,6 +88,8 @@ def test_duplicate_profiles_are_collapsed_or_roll_back_the_refresh(
             return None
         skip = int(request.url.params["skip"])
         page_size = 2 if split_pages else len(profiles)
+        if source_stream == "historical" and skip:
+            committed.append(dataset(database_url))
         return httpx.Response(
             200,
             json={
@@ -101,7 +104,12 @@ def test_duplicate_profiles_are_collapsed_or_roll_back_the_refresh(
     if conflicting:
         with pytest.raises(ImportFailed, match="Conflicting duplicate member 1"):
             run(database_url, fixture)
-        assert dataset(database_url) == before
+        if source_stream == "historical" and split_pages:
+            assert len(committed) == 1
+            assert committed[0]["members"][1]["name"] == "Updated member"
+            assert dataset(database_url) == committed[0]
+        else:
+            assert dataset(database_url) == before
     else:
         result = run(database_url, fixture)
         after = dataset(database_url)
@@ -112,11 +120,12 @@ def test_duplicate_profiles_are_collapsed_or_roll_back_the_refresh(
         assert "Duplicate member 1" in caplog.text
 
 
-def test_later_api_page_failure_preserves_previous_completed_data(database_url):
+@pytest.mark.parametrize("interrupted", [False, True], ids=["http-failure", "interruption"])
+def test_later_api_page_failure_preserves_committed_batches(database_url, interrupted):
     fixture = ParliamentFixture(101)
     run(database_url, fixture)
     before = dataset(database_url)
-    fixture.profiles[1]["nameDisplayAs"] = "Changed before a failed refresh"
+    fixture.profiles[1]["nameDisplayAs"] = "Committed before the next page"
     observed = []
 
     def fail_second_page(request: httpx.Request) -> httpx.Response | None:
@@ -124,32 +133,56 @@ def test_later_api_page_failure_preserves_previous_completed_data(database_url):
             return None
         # Observe the published dataset through an independent database session.
         observed.append(dataset(database_url))
+        if interrupted:
+            raise KeyboardInterrupt
         return httpx.Response(503)
 
     fixture.override = fail_second_page
-    with pytest.raises(ImportFailed, match="503"):
+    with pytest.raises(ImportFailed, match="interrupted" if interrupted else "503") as error:
         run(database_url, fixture)
 
+    assert error.value.interrupted is interrupted
     assert observed
-    assert all(data == before for data in observed)
-    assert dataset(database_url) == before
+    assert observed[0]["members"][0]["name"] == "Committed before the next page"
+    assert observed[0]["members"][1:] == before["members"][1:]
+    assert observed[0]["member_terms"] == before["member_terms"]
+    assert all(data == observed[0] for data in observed)
+    assert dataset(database_url) == observed[0]
 
 
-def test_database_failure_after_member_writes_rolls_back_everything(database_url):
-    fixture = ParliamentFixture(101)
+def test_database_failure_rolls_back_only_the_active_batch(database_url):
+    fixture = ParliamentFixture(102)
     run(database_url, fixture)
     before = dataset(database_url)
-    fixture.profiles[1]["nameDisplayAs"] = "Must roll back"
+    fixture.profiles[1]["nameDisplayAs"] = "Committed first batch"
     fixture.leave(2)
+    fixture.profiles[101]["nameDisplayAs"] = "Must roll back"
+    fixture.leave(101)
+    committed = []
+
+    def observe_second_page(request: httpx.Request) -> None:
+        if (
+            "MembershipInDateRange.WasMemberOfHouse" in request.url.params
+            and request.url.params["skip"] == "100"
+        ):
+            committed.append(dataset(database_url))
+
+    fixture.override = observe_second_page
     with connect(database_url) as conn:
-        # Fail member 101 after the first 100 member and service writes.
+        # Fail after member 101 and its service have been written in batch two.
         conn.execute(
             """ALTER TABLE exposed.members ADD CONSTRAINT fail_second_page
-               CHECK (parliament_member_id <> 101) NOT VALID"""
+               CHECK (parliament_member_id <> 102) NOT VALID"""
         )
     with pytest.raises(ImportFailed, match="23514"):
         run(database_url, fixture)
-    assert dataset(database_url) == before
+    assert len(committed) == 1
+    assert committed[0]["members"][0]["name"] == "Committed first batch"
+    assert committed[0]["members"][1]["is_current_commons"] is False
+    assert committed[0]["member_terms"][1]["served_until"] == datetime(2025, 3, 17, tzinfo=UTC)
+    assert committed[0]["members"][2:] == before["members"][2:]
+    assert committed[0]["member_terms"][2:] == before["member_terms"][2:]
+    assert dataset(database_url) == committed[0]
 
 
 def test_disappearing_historical_member_does_not_delete_or_deactivate_records(database_url):
@@ -172,7 +205,7 @@ def test_future_term_start_is_rejected_before_api_fetch(database_url):
     assert fixture.requests == []
 
 
-def test_current_member_missing_from_historical_search_rolls_back(database_url):
+def test_current_member_missing_from_historical_search_preserves_committed_batches(database_url):
     fixture = ParliamentFixture(2)
 
     def omit_member(request: httpx.Request) -> httpx.Response | None:
@@ -191,7 +224,9 @@ def test_current_member_missing_from_historical_search_rolls_back(database_url):
     fixture.override = omit_member
     with pytest.raises(ImportFailed, match="missing from historical"):
         run(database_url, fixture)
-    assert all(not rows for rows in dataset(database_url).values())
+    after = dataset(database_url)
+    assert [row["parliament_member_id"] for row in after["members"]] == [1]
+    assert len(after["parliament_terms"]) == len(after["member_terms"]) == 1
 
 
 def test_historical_candidate_without_service_in_term_is_excluded(database_url):
@@ -229,13 +264,16 @@ def test_corrected_service_dates_replace_old_intervals(database_url):
     assert data["member_terms"][0]["served_from"] == datetime(2025, 5, 1, tzinfo=UTC)
 
 
-def test_invalid_later_history_rolls_back_prior_batch_and_reports_field(database_url):
+def test_invalid_later_history_preserves_prior_batch_and_reports_field(database_url):
     fixture = ParliamentFixture(101)
     run(database_url, fixture)
     before = dataset(database_url)
-    fixture.profiles[1]["nameDisplayAs"] = "Must roll back"
+    fixture.profiles[1]["nameDisplayAs"] = "Committed first batch"
     fixture.histories[101]["houseMembershipHistory"][0]["membershipStartDate"] = "invalid-date"
     with pytest.raises(ImportFailed, match="houseMembershipHistory.0.membershipStartDate") as error:
         run(database_url, fixture)
     assert "invalid-date" not in str(error.value)
-    assert dataset(database_url) == before
+    after = dataset(database_url)
+    assert after["members"][0]["name"] == "Committed first batch"
+    assert after["members"][1:] == before["members"][1:]
+    assert after["member_terms"] == before["member_terms"]

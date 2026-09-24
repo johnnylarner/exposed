@@ -40,13 +40,13 @@ This version refreshes **one explicitly configured current Parliament**. It refu
 
 ## Refresh guarantees
 
-1. Open **one database transaction for the whole refresh**.
-2. Fetch current Commons membership pages. Within this stream, log and collapse identical profiles for a repeated member ID; reject conflicting profiles.
-3. Read the historical Commons cohort one page at a time using `MembershipInDateRange`. Apply the same duplicate checks across all candidate pages, then fetch histories for the remaining members, validate the data, and immediately write their profiles and service periods. No current/latest-House/eligibility filter is applied to the historical cohort.
-4. Reconcile corrected service periods and, after the last page, check that all current members appear in the historical results. Commit once. Previously stored members absent from the response are kept unchanged.
-5. If any request, validation or database write fails, the transaction rolls back **all batches** and the command reports the failure. Other database sessions see the previous completed data until commit.
+1. Fetch current Commons membership pages. Within this stream, log and collapse identical profiles for a repeated member ID; reject conflicting profiles.
+2. Read the historical Commons cohort one page at a time using `MembershipInDateRange`. Apply the same duplicate checks across all candidate pages, then fetch histories for the remaining members. No current/latest-House/eligibility filter is applied to the historical cohort.
+3. Open **one database transaction per batch** to select the configured term, validate service and write profiles and service periods. Commit the batch before fetching the next page, and log `Committed member batch …`. Other database sessions can immediately see the completed batch.
+4. Reconcile corrected service periods and, after the last page, check that all current members appear in the historical results. Previously stored members absent from the response are kept unchanged.
+5. If any request, validation or database write fails, the command reports the failure. Any active batch rolls back; **completed batches stay committed**, including when final completeness validation fails. Rerunning safely reconciles those batches and imports the remaining members.
 
-The transaction stays open during API requests and retries. PostgreSQL manages the transaction's normal write locks and releases them when it ends. The importer retains profiles to compare duplicates within each source stream and processes service histories one batch at a time. Identical repeats do not add writes or inflate summary counts; conflicting repeats roll back the entire member refresh.
+No member transaction stays open during API requests or retries. PostgreSQL manages the transaction's normal write locks and releases them after each batch. The importer retains profiles to compare duplicates within each source stream and processes service histories one batch at a time. Identical repeats do not add writes or inflate summary counts; conflicting repeats fail the run without reverting completed batches.
 
 Requests are sequential with a short delay, timeouts and up to four attempts for transport errors, HTTP 429 and server errors. API data can change between requests. Validation detects incomplete pagination and inconsistent membership, but the fixed observation date does not freeze the upstream data. Rerun after source data settles if validation fails.
 
@@ -139,7 +139,7 @@ time is discarded without timezone conversion. An absent end date remains null.
 The importer requests pages of 100, advances by the number returned and stops at the API's
 reported total. An empty page before that total fails the import so pagination cannot stall.
 The core matches history batches to the requested member IDs; the PostgreSQL adapter owns
-the atomic refresh transaction.
+each atomic batch transaction.
 
 `Member.from_profile()` constructs a member and validates current Commons membership.
 `CommonsService.from_history()` explicitly filters Commons memberships to the configured term,
@@ -147,8 +147,9 @@ then constructs dated `ServicePeriod` models. Their model validators check date 
 conflicting or overlapping periods, and agreement with current membership. Identical periods
 are collapsed. These rules apply whenever the models are constructed, including outside the importer.
 
-Validation errors include the model and field path without raw input values, and fail the entire
-transaction. Database writes use explicit model attributes rather than depending on model field order.
+Validation errors include the model and field path without raw input values, and fail the run.
+Any active batch rolls back; completed batches remain committed. Database writes use explicit
+model attributes rather than depending on model field order.
 
 ## Tests
 
@@ -178,7 +179,7 @@ Astral also provides `ty`, a separate type checker and language server with Neov
 - `src/exposed/core/ports.py` and `declaration_ports.py`: source and atomic storage contracts.
 - `src/exposed/core/errors.py`: application-owned failures and safe diagnostics.
 - `src/exposed/adapters/parliament.py`, `parliament_models.py`, `declarations.py` and `declaration_models.py`: HTTP, retries, pagination and source decoding.
-- `src/exposed/adapters/postgres.py` and `declaration_postgres.py`: SQL, whole-refresh member transactions and per-MP declaration transactions.
+- `src/exposed/adapters/postgres.py` and `declaration_postgres.py`: SQL, per-batch member transactions and per-MP declaration transactions.
 - `src/exposed/composition.py`: client construction, connection lifetimes and production command runners.
 - `src/exposed/cli.py`: configuration, argument parsing, JSON and exit codes through injected commands.
 - The original top-level `api.py`, `models.py`, `db.py`, `importer.py` and `declaration_*.py` modules: compatibility facades.

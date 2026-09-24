@@ -31,24 +31,25 @@ class MemberSource(Protocol):
 
 
 class MemberWriter(Protocol):
-    """Reconcile a profile and all its term service within an active refresh.
+    """Reconcile a profile and all its term service within an active batch.
 
     Return the profile's change status, retain existing identifiers, replace
     corrected service periods, and leave unmentioned members untouched.
-    Writes become visible together only after the refresh exits successfully.
+    Writes become visible together only after the batch exits successfully.
     """
 
     def write_member(self, member: Member, periods: Sequence[ServicePeriod]) -> WriteResult: ...
 
 
 class RefreshStore(Protocol):
-    """One atomic scope for the configured term and every member/service write.
+    """One atomic scope for the configured term and one batch of member/service writes.
 
     Validate the stored term with the core's single-term invariant. Preserve a
     stored term end. Commit on successful exit; roll back on any exception,
-    including interruption and errors during final validation. Translate storage
-    failures into StorageError, preserving their diagnostic causes. Assume one
-    import/migration at a time, as before; this port adds no concurrency control.
+    including interruption. Completed batches remain committed if a later batch
+    or final refresh validation fails. Translate storage failures into StorageError,
+    preserving their diagnostic causes. Assume one import/migration at a time,
+    as before; this port adds no concurrency control.
     """
 
-    def refresh(self, term_start: date) -> AbstractContextManager[MemberWriter]: ...
+    def refresh_batch(self, term_start: date) -> AbstractContextManager[MemberWriter]: ...
