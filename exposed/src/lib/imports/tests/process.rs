@@ -42,3 +42,47 @@ raise SystemExit(source_worker(Fixture()))
     drop(source);
     std::fs::remove_file(script).unwrap();
 }
+
+#[tokio::test]
+async fn configured_virtualenv_worker_loads_dependencies_and_reports_source_errors() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let source = CliTransport::new(root.join("ingest/.venv/bin/python"), root.join("ingest"));
+    // Python rejects this before making a network request, after loading its real dependencies.
+    let error = source
+        .fetch(Request::MemberHistories { ids: vec![] })
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("History requests require 1 to 100 IDs"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
+async fn failed_worker_start_retains_io_cause_without_exposing_local_paths() {
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .unwrap();
+    let missing = root
+        .join("target")
+        .join(format!("missing-python-{}", uuid::Uuid::new_v4()));
+    let source = CliTransport::new(missing.clone(), root.join("ingest"));
+    let error = source
+        .fetch(Request::CurrentMembers { offset: 0 })
+        .await
+        .unwrap_err();
+    assert!(
+        error
+            .to_string()
+            .contains("Could not start Python API worker")
+    );
+    assert!(!error.to_string().contains(missing.to_str().unwrap()));
+    let cause = std::error::Error::source(&error)
+        .and_then(|cause| cause.downcast_ref::<std::io::Error>())
+        .expect("the operating system error must remain available for diagnosis");
+    assert_eq!(cause.kind(), std::io::ErrorKind::NotFound);
+}

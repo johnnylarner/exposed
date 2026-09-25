@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 
 use crate::imports::core::{
     ImportError, Result,
-    declarations::{Draft, Funding, funder_attribution, latest_version},
+    declarations::{Draft, FunderCandidates, Funding, funder_attribution, latest_version},
 };
 
 pub(crate) fn invalid(path: &str, value: &Value, message: &str) -> ImportError {
@@ -134,7 +134,14 @@ fn funding(fields: &[Field], path: &str, donor_group: bool) -> Result<Funding> {
         if !value.value.is_null() {
             let raw = match &value.value {
                 Value::String(text) => text.clone(),
-                Value::Number(number) if number.is_i64() || number.is_u64() => number.to_string(),
+                Value::Number(number) => {
+                    let raw = number.to_string();
+                    // Python accepts arbitrary-size JSON integers, but rejects JSON floats.
+                    if raw.contains(['.', 'e', 'E']) {
+                        return Err(invalid(&location, &value.value, "unsupported amount"));
+                    }
+                    raw
+                }
                 _ => return Err(invalid(&location, &value.value, "unsupported amount")),
             };
             let unsigned = raw.strip_prefix('-').unwrap_or(&raw);
@@ -165,12 +172,12 @@ fn funding(fields: &[Field], path: &str, donor_group: bool) -> Result<Funding> {
         }
     }
     let (funder_name, funder_kind, company_number) = funder_attribution(
-        [
-            text("UltimatePayerName"),
-            text("DonorName"),
-            text("PayerName"),
-            if donor_group { text("Name") } else { Ok(None) },
-        ],
+        FunderCandidates {
+            ultimate_payer: text("UltimatePayerName"),
+            donor: text("DonorName"),
+            payer: text("PayerName"),
+            group_donor: if donor_group { text("Name") } else { Ok(None) },
+        },
         text("DonorStatus"),
         text("DonorCompanyIdentifier"),
     )?;

@@ -258,10 +258,9 @@ impl CliTransport {
         }
     }
     fn start(&self) -> Result<Worker> {
-        let python = self
-            .python
-            .canonicalize()
-            .map_err(|_| ImportError::Source("Python executable is unavailable".into()))?;
+        // Preserve the venv executable symlink: resolving it selects the base Python.
+        let python = std::path::absolute(&self.python)
+            .map_err(|e| ImportError::source_failure("Python executable is unavailable", e))?;
         let mut command = Command::new(python);
         command
             .args(["-m", "exposed", "source"])
@@ -285,7 +284,7 @@ impl CliTransport {
         }
         let mut child = command
             .spawn()
-            .map_err(|_| ImportError::Source("Could not start Python API worker".into()))?;
+            .map_err(|e| ImportError::source_failure("Could not start Python API worker", e))?;
         let input = child
             .stdin
             .take()
@@ -314,34 +313,34 @@ impl Transport for CliTransport {
             let worker = slot
                 .as_mut()
                 .ok_or_else(|| ImportError::Source("Worker did not start".into()))?;
-            let mut data =
-                serde_json::to_vec(&request).map_err(|e| ImportError::Source(e.to_string()))?;
+            let mut data = serde_json::to_vec(&request)
+                .map_err(|e| ImportError::source_failure("Could not encode worker request", e))?;
             data.push(b'\n');
             worker
                 .input
                 .write_all(&data)
                 .await
-                .map_err(|_| ImportError::Source("Worker input closed".into()))?;
+                .map_err(|e| ImportError::source_failure("Worker input closed", e))?;
             worker
                 .input
                 .flush()
                 .await
-                .map_err(|_| ImportError::Source("Worker input closed".into()))?;
+                .map_err(|e| ImportError::source_failure("Worker input closed", e))?;
             let mut line = String::new();
             worker
                 .output
                 .read_line(&mut line)
                 .await
-                .map_err(|_| ImportError::Source("Worker output closed".into()))?;
+                .map_err(|e| ImportError::source_failure("Worker output closed", e))?;
             let value: Value = serde_json::from_str(&line)
-                .map_err(|_| ImportError::Source("Invalid worker response".into()))?;
+                .map_err(|e| ImportError::source_failure("Invalid worker response", e))?;
             if let Some(error) = value.get("error").and_then(Value::as_str) {
                 return Err(ImportError::Source(error.to_owned()));
             }
             serde_json::from_value(value)
-                .map_err(|e| ImportError::Source(format!("Invalid evidence envelope: {e}")))
+                .map_err(|e| ImportError::source_failure("Invalid evidence envelope", e))
         })
         .await
-        .map_err(|_| ImportError::Source("Python API worker timed out".into()))?
+        .map_err(|e| ImportError::source_failure("Python API worker timed out", e))?
     }
 }

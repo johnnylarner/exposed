@@ -2,7 +2,7 @@ use super::date;
 use crate::imports::{
     adapters::postgres::PostgresStore,
     core::{
-        members::{Member, MemberProfile, ServicePeriod},
+        members::{HouseMembership, Member, MemberHistory, MemberProfile},
         ports::ImportStore,
     },
 };
@@ -10,8 +10,8 @@ use chrono::Utc;
 use sqlx::{PgPool, Row};
 
 fn member(id: i32) -> Member {
-    Member {
-        profile: MemberProfile {
+    Member::from_history(
+        MemberProfile {
             id,
             name: format!("Member {id}"),
             party_id: Some(1),
@@ -19,13 +19,19 @@ fn member(id: i32) -> Member {
             house: 1,
             membership_from: Some("Seat".into()),
         },
-        current: true,
-        periods: vec![ServicePeriod {
-            source_start: date("1987-06-11"),
-            served_from: date("2024-07-04"),
-            end: None,
-        }],
-    }
+        &MemberHistory {
+            id,
+            memberships: vec![HouseMembership {
+                house: 1,
+                start: date("1987-06-11"),
+                end: None,
+            }],
+        },
+        date("2024-07-04"),
+        date("2026-09-15"),
+        true,
+    )
+    .unwrap()
 }
 
 #[sqlx::test(migrations = "../db/migrations")]
@@ -58,11 +64,11 @@ async fn member_batches_preserve_ids_and_rollback_whole_failed_batch(pool: PgPoo
         before.get::<chrono::DateTime<Utc>, _>("updated_at"),
         after.get::<chrono::DateTime<Utc>, _>("updated_at")
     );
-    let mut invalid = member(3);
-    invalid.profile.party_id = None;
+    sqlx::query("ALTER TABLE exposed.members ADD CONSTRAINT injected_failure CHECK (parliament_member_id != 3)")
+        .execute(&pool).await.unwrap();
     assert!(
         store
-            .member_batch(date("2024-07-04"), &[member(2), invalid])
+            .member_batch(date("2024-07-04"), &[member(2), member(3)])
             .await
             .is_err()
     );
@@ -177,8 +183,15 @@ async fn declaration_database_failure_rolls_back_headers_payments_and_shared_fun
             .unwrap(),
         fetched_at: Utc::now(),
     };
-    let mut bad = good.clone();
-    bad.declaration.draft.id = -1;
+    let bad = Accepted {
+        declaration: interpret(&super::refresh::declaration(102, 1, "20"))
+            .unwrap()
+            .accept(None)
+            .unwrap(),
+        fetched_at: Utc::now(),
+    };
+    sqlx::query("ALTER TABLE exposed.declarations ADD CONSTRAINT injected_failure CHECK (source_declaration_id != 102)")
+        .execute(&pool).await.unwrap();
     assert!(store.publish(id, &[good, bad]).await.is_err());
     for query in [
         "SELECT count(*) FROM exposed.declarations",

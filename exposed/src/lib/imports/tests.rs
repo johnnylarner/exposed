@@ -48,6 +48,32 @@ fn declaration_projection_matches_python_characterizations() {
         }
     }
 }
+
+#[test]
+fn declaration_amounts_preserve_large_json_integers_and_still_reject_floats() {
+    let amount = "1000000000000000000000000000001";
+    let mut raw = refresh::declaration(101, 1, "10");
+    raw["versions"][0]["fields"][1]["value"] = serde_json::from_str(amount).unwrap();
+    let draft = super::adapters::declarations::interpret(&raw).unwrap();
+    assert_eq!(
+        draft.funding[0].amount.as_ref().unwrap().to_string(),
+        amount
+    );
+    for value in ["10.0", "0.1", "1e30"] {
+        raw["versions"][0]["fields"][1]["value"] = serde_json::from_str(value).unwrap();
+        assert!(super::adapters::declarations::interpret(&raw).is_err());
+    }
+}
+
+#[test]
+fn latest_version_ties_compare_uninterpreted_numeric_evidence_exactly() {
+    let mut raw = refresh::declaration(101, 1, "10");
+    let mut other = raw["versions"][0].clone();
+    raw["versions"][0]["unknown"] = serde_json::json!(-0.0);
+    other["unknown"] = serde_json::json!(0.0);
+    raw["versions"].as_array_mut().unwrap().push(other);
+    assert!(super::adapters::declarations::interpret(&raw).is_err());
+}
 mod admin;
 mod refresh;
 mod storage;

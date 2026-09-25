@@ -62,7 +62,7 @@ pub(crate) async fn run_import(
     store.record_refresh(term, &state).await?;
     if let Err(error) = queue_refresh_notification(term, store, clock, notification_interval).await
     {
-        eprintln!("Could not queue import notification: {error}");
+        eprintln!("Could not queue import notification: {error:?}");
     }
     let declarations = result?;
     Ok(if matches!(kind, ImportKind::Initialize) {
@@ -81,7 +81,7 @@ pub(crate) async fn deliver_pending(
         match notifications.deliver(&message).await {
             Ok(()) => queue.delivered(id).await?,
             Err(error) => {
-                eprintln!("Notification delivery failed: {error}");
+                eprintln!("Notification delivery failed: {error:?}");
                 let seconds = 60_i64
                     .saturating_mul(2_i64.saturating_pow(attempts.clamp(0, 6) as u32))
                     .min(3600);

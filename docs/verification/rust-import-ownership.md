@@ -39,9 +39,22 @@ blanket `clippy::restriction`, `pedantic`, `nursery`, and `cargo` policy. That
 pre-existing lint-policy cleanup is outside this refactor. Rust type/build checks
 and behavioral tests are checked separately.
 
-Implementation validation: `make check` passed (7 Python tests, 34 Rust tests,
+Implementation validation: `make check` passed (7 Python tests, 39 Rust tests,
 Ruff lint/format, Pyright, Rust formatting and all-target build checks). The Rust
 projection test also checks all 92 independent declaration fixtures. The dev
 Docker image built successfully; its Python worker started and exited on EOF with
 network access disabled. Compose configuration and SQLx migration status checks
 passed. No runtime was deployed over the existing running application.
+
+Standards and spec reviews found issues with accepted-model mutability, retained
+diagnostic causes, positional funder candidates, virtualenv startup, and operator
+cancellation during publication. All were corrected and the reviewers cleared
+their findings. Regression tests launch the configured virtualenv and cancel a
+publication blocked by a PostgreSQL lock, verifying that the current MP rolls
+back while the previous MP stays committed.
+
+Additional comparisons against the original Python implementation confirmed exact
+large-integer monetary parsing and strict signed-zero evidence comparisons. Rust
+now preserves JSON number precision before interpretation; floating-point monetary
+inputs remain rejected. These regressions failed before the corrections and pass
+in the final suite, alongside the 92-case compatibility corpus.
