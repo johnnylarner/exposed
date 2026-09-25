@@ -26,19 +26,19 @@ ingest/.venv/bin/python -m pip install --no-deps -e ./ingest
 test -f ingest/.env || cp ingest/.env.example ingest/.env
 make db-start
 make db-migrate
-make import-members
-make import-declarations
+docker compose up --build -d exposed
+make initialize
 ```
 
 Setup creates `ingest/.env` only when absent. The Makefile runs SQLx from `ingest/`
-so it and the importer use that file; existing environment variables take
+so it and the operator command use that file; existing environment variables take
 precedence. The example URL targets local PostgreSQL and explicitly disables TLS
 for that loopback connection. Use the appropriate TLS setting for a hosted database.
 
 The schema uses a single development baseline. See the
 [migration instructions](db/README.md) before adopting SQLx on an existing dbmate
 database or editing the baseline. See the
-[funder identification rules](ingest/README.md#funder-identification) for imported funding.
+[import architecture](docs/architecture.md) for imported funding and ownership.
 
 ## Develop the Rust app with Docker Compose
 
@@ -50,7 +50,11 @@ queries against the live schema during compilation, so a fresh database needs
 docker compose up --build exposed
 ```
 
-The API listens at `http://localhost:6999`. For example:
+The search API listens at `http://localhost:6999`; the operator API is exposed on
+loopback port 7000. Rust schedules declaration refreshes daily and retries failures.
+Member refreshes remain manual (`make import-members`). The Compose development
+token is `exposed_local_import`; set `EXPOSED_IMPORT_TOKEN` to override it in both
+the container environment and the operator command. For example:
 
 ```sh
 curl 'http://localhost:6999/search?term=McDonald'
@@ -111,7 +115,8 @@ Contains Parliamentary information licensed under the
 | `make db-revert` | Revert the baseline, deleting its tables and data |
 | `make db-migration-status` | Show SQLx migration status |
 | `make db-nuke` | Delete the configured database and recreate it from the baseline |
-| `make import-members` | Refresh member data |
+| `make initialize` | Initialize members and declarations; safe to repeat |
+| `make import-members` | Manually refresh member data through Rust |
 | `make import-declarations` | Refresh declarations for the stored member cohort |
 | `make verify` | Check data in the local Compose database |
 | `make check` | Run lint, formatting checks, type checks and all tests |
@@ -119,6 +124,33 @@ Contains Parliamentary information licensed under the
 | `make format` | Format Python files |
 | `make db-stop` | Stop local PostgreSQL while retaining data |
 
-`make test` and `make check` require local PostgreSQL (`make db-start`). Tests create and remove their own temporary databases. Override `EXPOSED_TEST_ADMIN_DSN` with a PostgreSQL URL to use a different test server; it must allow database creation. `SQLX` can also be overridden with an absolute SQLx CLI executable path.
+`make test-rust` and `make check` require local PostgreSQL (`make db-start`). Rust tests create and remove their own temporary databases. Override `RUST_DATABASE_URL` with an initialized PostgreSQL URL to use another server; it must allow database creation and include the `exposed` search path for existing SQLx query macros. `SQLX` can also be overridden with an absolute CLI path. Python tests need no database.
 
 See the [importer documentation](ingest/README.md) for configuration, data rules and refresh behavior.
+
+## Refresh status and optional WhatsApp
+
+Host development uses `exposed/config/dev.yaml` with a loopback-only operator listener.
+Run `cargo run -- exposed/config/dev.yaml` after Python setup and migrations.
+Set `DATABASE_URL` for SQLx compile-time queries (see `RUST_DATABASE_URL` in the Makefile).
+The application starts its timers and catches up when a refresh is due.
+Inspect `GET /imports/status` on port 7000 (include the bearer token for Compose).
+`last_completed`, `outcome`, `rejected`, `new_members` and `next_attempt` explain freshness.
+
+WhatsApp is disabled by default. Add this under `imports` only after provisioning
+a Business Platform sender and an approved template with one body text parameter:
+
+```yaml
+# Choose notification_interval_seconds later; omitting it queues no notifications.
+whatsapp:
+  api_version: vXX.Y             # supported version chosen during setup
+  phone_number_id: 'SENDER_ID'
+  recipient: 'RECIPIENT_DIGITS'
+  template: exposed_refresh
+  language: en_GB
+  token_env: WHATSAPP_ACCESS_TOKEN
+```
+
+Supply the access token through the application's environment. Notification timing
+is an application setting, independent of WhatsApp and import retry timing. A durable
+queue retries delivery without changing import results. Setup never sends a message.

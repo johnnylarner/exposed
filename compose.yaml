@@ -2,8 +2,8 @@ name: exposed
 services:
   exposed:
     build:
-      context: ./docker
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: docker/Dockerfile.dev
     init: true
     working_dir: /app
     command:
@@ -21,8 +21,10 @@ services:
     environment:
       DATABASE_URL: postgresql://exposed:exposed_local_dev@postgres:5432/exposed?sslmode=disable
       RUST_BACKTRACE: "1"
+      EXPOSED_IMPORT_TOKEN: ${EXPOSED_IMPORT_TOKEN:-exposed_local_import}
     ports:
       - "127.0.0.1:6999:6999"
+      - "127.0.0.1:7000:7000"
     volumes:
       - .:/app
       - cargo_registry:/usr/local/cargo/registry

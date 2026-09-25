@@ -14,6 +14,19 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::try_from(&args.config)?;
 
-    let _ = serve_exposed(&config).await?;
-    Ok(())
+    let services = async {
+        if let Some(imports) = &config.imports {
+            tokio::try_join!(
+                serve_exposed(&config),
+                exposed::imports::serve(imports, &config.connection_string)
+            )?;
+        } else {
+            serve_exposed(&config).await?;
+        }
+        Ok(())
+    };
+    tokio::select! {
+        result = services => result,
+        signal = tokio::signal::ctrl_c() => { signal?; Ok(()) }
+    }
 }

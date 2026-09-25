@@ -1,2 +1,9 @@
 connection_string: postgresql://exposed:exposed_local_dev@postgres:5432/exposed?sslmode=disable
 port: 6999
+imports:
+  term_start: 2024-07-04
+  python: /usr/local/bin/python3.14
+  source_directory: ingest
+  admin_bind: 0.0.0.0:7000
+  admin_token_env: EXPOSED_IMPORT_TOKEN
+  automatic_refresh: true

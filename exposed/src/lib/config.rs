@@ -10,6 +10,8 @@ pub struct Config {
     pub connection_string: String,
     /// Port for server to listen on
     pub port: u16,
+    /// Optional import runtime; omitted configurations continue to serve search only.
+    pub imports: Option<crate::imports::config::ImportConfig>,
 }
 
 impl TryFrom<&PathBuf> for Config {

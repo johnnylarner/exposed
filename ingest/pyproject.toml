@@ -5,12 +5,10 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "exposed"
 version = "0.1.0"
-description = "Import UK Parliament Commons members into PostgreSQL"
+description = "Parliament API client for the Exposed Rust application"
 requires-python = ">=3.14"
 dependencies = [
   "httpx>=0.28,<0.29",
-  "psycopg[binary]>=3.3,<3.4",
-  "pydantic>=2.12,<3",
   "python-dotenv>=1.1,<2",
 ]
 

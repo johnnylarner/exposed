@@ -7,8 +7,9 @@ SQLX_MIGRATION_ARGS = --config ../sqlx.toml --source ../db/migrations
 EXPOSED_TEST_ADMIN_DSN ?= postgresql://exposed:exposed_local_dev@localhost:55432/postgres?sslmode=disable
 export EXPOSED_TEST_ADMIN_DSN
 export SQLX
+RUST_DATABASE_URL ?= postgresql://exposed:exposed_local_dev@localhost:55432/exposed?options=-csearch_path%3Dexposed,public
 
-.PHONY: db-start db-stop db-nuke db-migrate db-revert db-migration-status db-add-migration import-members import-declarations verify lint format typecheck test test-unit check
+.PHONY: db-start db-stop db-nuke db-migrate db-revert db-migration-status db-add-migration import-members import-declarations initialize verify lint format typecheck test test-unit rust-check test-rust check
 
 db-start: ## Start the local PostgreSQL database
 	docker compose up -d --wait postgres
@@ -33,11 +34,14 @@ db-add-migration:
 	@echo "Edit db/migrations/20260915000000_initial.{up,down}.sql; development uses one baseline version (see db/README.md)." >&2
 	@exit 1
 
-import-members: ## Refresh member data using ingest/.env or environment variables
+import-members: ## Manually refresh members through the running Rust application
 	cd ingest && $(VENV_PYTHON) -m exposed import-members
 
-import-declarations: ## Refresh declarations for the stored member cohort
+import-declarations: ## Manually request a declaration refresh (also scheduled by Rust)
 	cd ingest && $(VENV_PYTHON) -m exposed import-declarations
+
+initialize: ## Initialize members, then declarations; safe to repeat
+	cd ingest && $(VENV_PYTHON) -m exposed initialize
 
 verify: ## Check domain data in the local Compose database
 	docker compose exec -T postgres psql -U exposed -d exposed < ingest/scripts/verify.sql
@@ -52,10 +56,17 @@ format: ## Format Python code
 typecheck: ## Run Pyright
 	cd ingest && $(VENV_PYTHON) -m pyright
 
-test: ## Run all tests, including isolated PostgreSQL databases (requires db-start)
+test: ## Run Python API and operator tests (no PostgreSQL required)
 	cd ingest && $(VENV_PYTHON) -m pytest -q
 
 test-unit: ## Run tests without PostgreSQL
 	cd ingest && $(VENV_PYTHON) -m pytest -q -m 'not integration'
 
-check: lint typecheck test ## Run lint, type checking and the full test suite
+rust-check: ## Check Rust formatting and all build targets
+	cargo fmt --all -- --check
+	DATABASE_URL='$(RUST_DATABASE_URL)' cargo check --all-targets
+
+test-rust: ## Run Rust tests with isolated PostgreSQL databases
+	DATABASE_URL='$(RUST_DATABASE_URL)' cargo test --workspace
+
+check: lint typecheck rust-check test test-rust ## Run lint, type checking and all tests

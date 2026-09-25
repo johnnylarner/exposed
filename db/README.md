@@ -1,240 +1,124 @@
-# Database migrations
+# Development database
 
-[SQLx CLI 0.9.0](https://github.com/launchbadge/sqlx/tree/v0.9.0/sqlx-cli) applies
-the single development baseline version, with an
-[`up` migration](migrations/20260915000000_initial.up.sql) and a
-[`down` migration](migrations/20260915000000_initial.down.sql).
-It creates the member, service, declaration, funder and funding tables, their current
-constraints, and `pg_trgm` in the `exposed` schema. Application code does not
-apply migrations.
+SQLx CLI 0.9.0 applies one reversible baseline:
+`migrations/20260915000000_initial.{up,down}.sql`. Application startup and imports
+never run migrations. Domain tables are in `exposed`; SQLx history is in
+`public._sqlx_migrations`, fixed by the root `sqlx.toml`.
 
-For a fresh database, from the repository root:
+For a new database, run from the repository root:
 
 ```sh
 make db-start
 make db-migrate
 make db-migration-status
-make import-members
-make import-declarations
+docker compose up --build -d exposed
+make initialize
 ```
 
-The baseline uses [SQLx reversible migrations](https://github.com/launchbadge/sqlx/blob/v0.9.0/sqlx-cli/README.md#reverting-migrations).
-Each direction runs in a transaction. `make db-revert` applies the down migration,
-removing all six domain tables and their data, functions, `pg_trgm`, and the
-`exposed` schema. It leaves SQLx's history table in `public`; `make db-migrate`
-can then apply the baseline again. The down migration uses dependency order
-without `CASCADE`, so unexpected dependencies cause a transactional failure.
-`make db-nuke` deletes the entire configured database and recreates it from the
-baseline.
+SQLx commands run from `ingest/` to load its explicit `.env`; environment variables
+win. `DATABASE_URL` there is used by SQLx only. Python imports now talk to Rust's
+operator API. Rust database configuration is in `exposed/config/`.
 
-The Makefile runs SQLx from `ingest/` to load `ingest/.env`, with environment
-variables taking precedence. It explicitly selects the migration directory and
-the root [`sqlx.toml`](../sqlx.toml), which fixes the history table at
-`public._sqlx_migrations` regardless of the connection's search path. Direct SQLx
-commands from the repository root read the root `.env` instead; set
-`DATABASE_URL` explicitly when targeting another database. No migration command
-runs automatically during an import.
+## Editing or adopting the baseline
 
-Run only one import or migration against a database at a time.
+Follow [AGENTS.md](../AGENTS.md): fold development changes into the single up/down
+pair and preserve existing imported records. An edited checksum does not apply
+schema changes. Stop imports before migrations; the application serializes imports
+with a PostgreSQL advisory lock but migrations remain an operator responsibility.
 
-## Timestamps
+For this ownership refactor, the only additions are `import_refresh_state` and
+`import_notifications`. Existing member, service, declaration, funder and funding
+columns are unchanged. The former stores the last completed source check, attempt,
+retry time, outcome, rejection count and newly observed MPs. The latter stores
+pending/delivered notification summaries and independent retry state. Neither is
+an ingestion event archive or a delta-resolution system.
 
-Every domain table has `created_at` and `updated_at`, both
-`TIMESTAMPTZ NOT NULL DEFAULT now()`. A shared `BEFORE UPDATE` trigger function
-sets `updated_at` when `OLD.* IS DISTINCT FROM NEW.*`; no-op updates and unchanged
-upserts retain their timestamps. Updates preserve `created_at` unless the caller
-explicitly changes it. PostgreSQL's `now()` is the transaction start time, so
-changes within the same transaction share a timestamp.
+For an existing database:
 
-All source date/time columns also use `TIMESTAMPTZ`. The importer converts
-date-only values to midnight UTC at the persistence boundary, keeping calendar
-dates in the domain model. It supplies timezone-aware parameters and reads stored
-term starts in UTC, independent of the database session's timezone. PostgreSQL
-stores instants; their displayed offset depends on the session timezone.
-`members.latest_membership_from` remains text: it is a constituency or membership
-description, not a date.
-
-SQL uses uppercase keywords/types, lowercase snake_case identifiers, and
-schema-qualified domain objects.
-
-## Adopt an existing dbmate database
-
-SQLx does not read `public.schema_migrations`. Running the baseline normally
-against an existing schema would try to create tables that already exist.
-
-1. Inspect the existing schema and compare it with a fresh database initialized
-   from the baseline. Verify columns, nullability, constraints, indexes, the
-   service-start and audit triggers, and the `pg_trgm` extension's schema. Old
-   dbmate history alone is insufficient because the baseline has been edited during development.
-2. Apply any missing schema changes in place, preserving imported data. This
-   baseline includes `pg_trgm`, the later member/funding `NOT NULL` changes, and
-   the timestamps described above.
-   Resolve missing values explicitly before adding those constraints; do not
-   replace missing source data with invented values.
-3. Once the schema matches, record the baseline without executing it using
-   SQLx 0.9's `migrate override skip`:
+1. Inspect the applied schema and SQLx migration history. Preserve a data snapshot
+   or record-level fingerprints, including IDs and audit timestamps.
+2. With `DATABASE_URL` exported, apply the additive upgrade with errors stopping
+   execution:
 
    ```sh
-   (cd ingest && sqlx migrate override skip --config ../sqlx.toml --source ../db/migrations)
-   make db-migrate
-   make db-migration-status
+   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/upgrades/import_refresh_state.sql
    ```
 
-4. Verify that all domain data is unchanged and the baseline is installed.
-   The old `public.schema_migrations` table can remain as historical metadata;
-   SQLx does not use it. Use SQLx for all subsequent migrations.
-
-`override skip` records the current checksum without checking the domain schema.
-Use it only after the comparison and any required in-place changes above.
-
-## Editing the development baseline
-
-Fold schema changes into the up/down pair without adding migration versions,
-as required by [AGENTS.md](../AGENTS.md).
-`make db-add-migration` explains this policy and exits without creating a file.
-
-SQLx records a SHA-384 checksum and rejects edits to an already applied migration.
-It does not apply those edits to the database. For an existing database:
-
-1. Inspect the live schema and apply the required changes in place.
-2. Compare the result with a fresh database migrated from the edited baseline,
-   and verify that imported records were preserved.
-3. Only after verification, update the recorded checksum. From the repository
-   root, this uses the same environment file as the Makefile:
+3. Initialize a separate disposable database from the edited baseline. Compare
+   columns (including defaults/nullability), constraints, indexes, functions,
+   triggers and the `pg_trgm` extension/schema. Column order can differ after
+   historic in-place upgrades. Verify all imported records against the snapshot.
+   The upgrade's `IF NOT EXISTS` allows reruns but does not establish equivalence.
+4. **Only after that verification**, update the recorded checksum. This example
+   uses Python's standard library, the existing dotenv package, and `psql`; no
+   Python database driver is needed:
 
    ```sh
    ingest/.venv/bin/python - <<'PY'
    import hashlib
    import os
+   import subprocess
    from pathlib import Path
-
-   import psycopg
    from dotenv import load_dotenv
 
-   load_dotenv('ingest/.env')
-   baseline = Path('db/migrations/20260915000000_initial.up.sql')
-   checksum = hashlib.sha384(baseline.read_bytes()).digest()
-   with psycopg.connect(os.environ['DATABASE_URL']) as conn:
-       updated = conn.execute(
-           'UPDATE public._sqlx_migrations SET checksum = %s '
-           'WHERE version = %s AND success = true',
-           (checksum, 20260915000000),
-       )
-       if updated.rowcount != 1:
-           raise RuntimeError('Expected one successfully applied baseline')
+   load_dotenv('ingest/.env', override=False)
+   checksum = hashlib.sha384(
+       Path('db/migrations/20260915000000_initial.up.sql').read_bytes()
+   ).hexdigest()
+   statement = f"""
+   DO $$
+   DECLARE changed INTEGER;
+   BEGIN
+       UPDATE public._sqlx_migrations SET checksum = decode('{checksum}', 'hex')
+       WHERE version = 20260915000000 AND success = true;
+       GET DIAGNOSTICS changed = ROW_COUNT;
+       IF changed <> 1 THEN
+           RAISE EXCEPTION 'Expected one successfully applied baseline';
+       END IF;
+   END;
+   $$;
+   """
+   subprocess.run(
+       ['psql', os.environ['DATABASE_URL'], '--no-psqlrc', '-v', 'ON_ERROR_STOP=1'],
+       input=statement, text=True, check=True,
+   )
    PY
    make db-migrate
    make db-migration-status
    ```
 
-Changing the checksum alone does not change the schema. If imported data is
-disposable, `make db-nuke` installs the edited baseline instead.
+If adopting a schema with no SQLx history, inspect and reconcile it first, then use
+`sqlx migrate override skip --config ../sqlx.toml --source ../db/migrations` from
+`ingest/` to record the verified baseline. Do not use this to conceal a mismatch.
+Old dbmate history alone cannot establish that the schema matches the edited baseline.
 
-New declaration ingestions populate parsed fields, including registration dates
-when supplied by Parliament. Missing source dates remain null.
+`make db-revert` drops all eight application tables, functions, the extension and
+schema; SQLx history remains. `make db-nuke` deletes the entire configured database.
+Neither is part of normal initialization or recovery of an existing database.
 
-### Normalize existing funders in place
+## Data semantics
 
-The baseline now stores one `funders` row per exact source name. Payments reference
-it through nullable `funding_entries.funder_id`; currency and payment type are also
-nullable to preserve genuinely absent source values. No placeholder funders are created.
+All domain tables have `created_at` and `updated_at`, with a shared trigger that
+changes `updated_at` only when row values change. Date-only source values become
+midnight UTC timestamps at the persistence boundary. Missing dates stay null.
+An unchanged member upsert retains its timestamps. Declaration retrieval updates
+`fetched_at`, so reparsing unchanged evidence is not literally a no-write operation.
 
-After inspecting and backing up the existing database, apply
-[`upgrades/normalize_funders.sql`](upgrades/normalize_funders.sql) with a client that
-stops on errors. It supports both the previous baseline with inline funder fields
-and this feature branch's previously applied `20260924095042` migration. For example,
-with the configured `DATABASE_URL` exported:
+Funders are shared by normalized name. Funding rows reference them through a
+nullable FK. Metadata omissions retain known details; explicit corrections update
+them, and non-company status clears the company number. Funding equality retains
+multiplicity and ignores order; unchanged payments retain UUIDs. A changed group
+is replaced atomically with its declaration. Missing upstream records are retained.
 
-```sh
-psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/upgrades/normalize_funders.sql
-```
+SQL uses uppercase keywords/types, lowercase snake_case identifiers and
+schema-qualified application objects. `pg_trgm` is in the `exposed` schema. Existing
+search query macros require `exposed,public` on the build connection's search path.
 
-The upgrade preserves declaration and payment UUIDs, amounts, source references and
-existing audit times. It groups exact names, retaining available donor metadata, and
-aborts atomically if a name has conflicting statuses/company numbers or an unnamed
-payment has metadata that cannot be retained. Resolve those cases explicitly before
-retrying. The script does not change SQLx history and is safe to rerun on the normalized
-schema. Newly created funders receive the upgrade's audit timestamps.
+## Verification
 
-Compare all columns, constraints, indexes, functions and triggers with a fresh database
-initialized from the baseline; column order may differ after the in-place upgrade.
-Also compare the original records with the upgraded records joined through `funder_id`.
-Only after that verification, update the baseline checksum using the procedure above.
-If the removed feature migration `20260924095042` was already recorded, remove its
-successful history row in the same transaction as the verified checksum update:
-
-```sql
-DELETE FROM public._sqlx_migrations
-WHERE version = 20260924095042 AND success = true;
-```
-
-This retires the extra migration version after consolidation; it does not revert its
-schema changes. Run `make db-migrate` and `make db-migration-status` afterward. Do not
-run the old feature migration's down script: it cannot restore the inline funding data.
-
-### Upgrade the previous date-based baseline in place
-
-For a database with the previous `DATE` columns and no audit columns, apply these
-changes in a transaction. The explicit UTC conversion preserves calendar dates
-regardless of the session timezone. Existing records receive the upgrade's
-transaction timestamp for both audit columns; historical creation/update times
-were not recorded and cannot be reconstructed.
-
-```sql
-BEGIN;
-
-ALTER TABLE exposed.parliament_terms
-    ALTER COLUMN term_start TYPE TIMESTAMPTZ
-        USING term_start::TIMESTAMP AT TIME ZONE 'UTC',
-    ALTER COLUMN term_end TYPE TIMESTAMPTZ
-        USING term_end::TIMESTAMP AT TIME ZONE 'UTC',
-    ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
-
-ALTER TABLE exposed.members
-    ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
-
-ALTER TABLE exposed.member_terms
-    ALTER COLUMN source_start_date TYPE TIMESTAMPTZ
-        USING source_start_date::TIMESTAMP AT TIME ZONE 'UTC',
-    ALTER COLUMN source_end_date TYPE TIMESTAMPTZ
-        USING source_end_date::TIMESTAMP AT TIME ZONE 'UTC',
-    ALTER COLUMN served_from TYPE TIMESTAMPTZ
-        USING served_from::TIMESTAMP AT TIME ZONE 'UTC',
-    ALTER COLUMN served_until TYPE TIMESTAMPTZ
-        USING served_until::TIMESTAMP AT TIME ZONE 'UTC',
-    ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
-
-ALTER TABLE exposed.declarations
-    ALTER COLUMN registration_date TYPE TIMESTAMPTZ
-        USING registration_date::TIMESTAMP AT TIME ZONE 'UTC',
-    ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
-
-ALTER TABLE exposed.funding_entries
-    ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ADD COLUMN updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
-```
-
-Before committing, run the `CREATE FUNCTION exposed.set_updated_at()` statement
-and all five audit `CREATE TRIGGER` statements from the up migration. Also apply
-its `COMMENT ON COLUMN` statements and replace `check_term_service_start()` with
-the baseline definition using `CREATE OR REPLACE FUNCTION`. Then `COMMIT`.
-
-Compare the schema with a fresh database, including defaults, constraints,
-indexes, functions, and triggers, and verify every original record, treating
-midnight UTC timestamps as their original calendar dates. Only then update the
-checksum using the procedure above. The migration version stays `20260915000000`;
-SQLx records the checksum of the `.up.sql` file. Renaming the old simple migration
-to this reversible pair does not require deleting its history row.
-
-## Tests
-
-`make check` uses the actual SQLx CLI to initialize isolated PostgreSQL databases
-from the baseline for importer tests. Migration tests cover the consolidated
-schema, audit defaults and change triggers, timezone-independent imports,
-up/down/up cycles, repeat runs with data present, checksum mismatch detection,
-and adopting an existing schema without losing records. They never reset the
-application database.
+`make test-rust` creates temporary PostgreSQL databases from the actual baseline.
+It tests atomic writes, rollback, IDs/timestamps, shared metadata, repeat imports,
+up/down/up, and applying the additive upgrade twice without losing domain data.
+It never resets the application database. See
+[the ownership migration verification](../docs/verification/rust-import-ownership.md)
+for the inspected development database.
