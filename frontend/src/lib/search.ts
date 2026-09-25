@@ -1,4 +1,4 @@
-// Search tuning is deliberately separate from the interface. The API applies
+// Search defaults live here. The API applies
 // max_entries independently to MPs and funders, then merges by similarity.
 export const searchConfiguration = {
   minimumCharacters: 3,
@@ -7,6 +7,14 @@ export const searchConfiguration = {
   strictness: 1,
   timeoutMs: 10_000,
 };
+
+export function readStrictness(value: string | null): number {
+  if (!value?.trim()) return searchConfiguration.strictness;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1
+    ? Math.round(parsed * 100) / 100
+    : searchConfiguration.strictness;
+}
 
 export interface Entity {
   name: string;
@@ -43,6 +51,7 @@ function readEntities(body: unknown): Entity[] {
 export async function searchEntities(
   term: string,
   signal: AbortSignal,
+  strictness: number,
 ): Promise<Entity[]> {
   const controller = new AbortController();
   let timedOut = false;
@@ -58,7 +67,7 @@ export async function searchEntities(
     const params = new URLSearchParams({
       term,
       max_entries: String(searchConfiguration.maxEntriesPerType),
-      strictness: String(searchConfiguration.strictness),
+      strictness: String(strictness),
     });
     const response = await fetch(`/api/search?${params}`, {
       signal: controller.signal,

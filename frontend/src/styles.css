@@ -505,3 +505,45 @@ mark {
     font-size: 11px;
   }
 }
+
+.threshold-control {
+  max-width: 360px;
+  margin-top: 24px;
+}
+.threshold-label,
+.threshold-scale {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.threshold-label {
+  font-size: 13px;
+  font-weight: 600;
+}
+.threshold-label output {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.threshold-control input {
+  display: block;
+  width: 100%;
+  height: 28px;
+  margin: 6px 0 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.threshold-control input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+.threshold-scale,
+#threshold-help {
+  color: var(--muted);
+  font-size: 12px;
+}
+#threshold-help {
+  margin: 10px 0 0;
+  line-height: 1.5;
+}

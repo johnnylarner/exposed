@@ -104,9 +104,11 @@ The frontend image is for local development. `npm run build` produces static
 assets in `frontend/dist`; a production host must also route `/api/search` to
 the Rust API.
 
-Search delay, result limits and match strictness live in
-[`frontend/src/lib/search.ts`](frontend/src/lib/search.ts), separately from the
-UI. The API caps each entity type separately, so the UI describes the returned
+The similarity threshold slider refreshes results automatically: lower values
+include broader matches, from 0 to 1 in steps of 0.01 (default 1). The search URL
+preserves the query and threshold, for example `/?q=John&strictness=0.65`.
+Search delay, result limits and defaults live in
+[`frontend/src/lib/search.ts`](frontend/src/lib/search.ts). The API caps each entity type separately, so the UI describes the returned
 results without claiming a total count or offering unsupported pagination.
 This slice displays results; entity pages and in-app feedback collection are
 future work. Feedback is gathered through manual testing.

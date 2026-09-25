@@ -3,6 +3,7 @@
   import {
     entityType,
     highlightName,
+    readStrictness,
     searchConfiguration,
     searchEntities,
     type Entity,
@@ -15,6 +16,11 @@
     | { status: "error"; term: string; message: string };
 
   let query = $state(new URL(window.location.href).searchParams.get("q") ?? "");
+  let strictness = $state(
+    readStrictness(
+      new URL(window.location.href).searchParams.get("strictness"),
+    ),
+  );
   let composing = $state(false);
   let attempt = $state(0);
   let input: HTMLInputElement;
@@ -33,6 +39,7 @@
 
   $effect(() => {
     const currentTerm = term;
+    const currentStrictness = strictness;
     const currentAttempt = attempt;
     if (
       composing ||
@@ -48,7 +55,11 @@
     const timer = setTimeout(
       async () => {
         try {
-          const entities = await searchEntities(currentTerm, controller.signal);
+          const entities = await searchEntities(
+            currentTerm,
+            controller.signal,
+            currentStrictness,
+          );
           if (current)
             searchState = { status: "success", term: currentTerm, entities };
         } catch (error) {
@@ -79,6 +90,14 @@
     const url = new URL(window.location.href);
     if (value.trim()) url.searchParams.set("q", value.trim());
     else url.searchParams.delete("q");
+    window.history.replaceState(null, "", url);
+  }
+
+  function updateStrictness(value: string) {
+    attempt = 0;
+    strictness = readStrictness(value);
+    const url = new URL(window.location.href);
+    url.searchParams.set("strictness", String(strictness));
     window.history.replaceState(null, "", url);
   }
 
@@ -129,7 +148,9 @@
 <svelte:window
   onkeydown={shortcut}
   onpopstate={() => {
-    query = new URL(window.location.href).searchParams.get("q") ?? "";
+    const params = new URL(window.location.href).searchParams;
+    query = params.get("q") ?? "";
+    strictness = readStrictness(params.get("strictness"));
     attempt = 0;
   }}
 />
@@ -194,6 +215,28 @@
           MPs and funders, ordered by the closest name match.
         {/if}
       </p>
+      <div class="threshold-control">
+        <div class="threshold-label">
+          <label for="similarity-threshold">Similarity threshold</label>
+          <output for="similarity-threshold">{strictness.toFixed(2)}</output>
+        </div>
+        <input
+          id="similarity-threshold"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={strictness}
+          oninput={(event) => updateStrictness(event.currentTarget.value)}
+          aria-describedby="threshold-help"
+        />
+        <div class="threshold-scale" aria-hidden="true">
+          <span>Broader matches</span><span>Closer matches</span>
+        </div>
+        <p id="threshold-help">
+          Lower the threshold to include less similar names.
+        </p>
+      </div>
     </form>
 
     <p

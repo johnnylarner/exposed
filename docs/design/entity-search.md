@@ -13,7 +13,8 @@ slice; feedback comes from manual testing.
 - One prominent search field and a persistent list beneath it.
 - MPs and funders stay mixed in backend similarity order. Type labels supply
   context without regrouping, reranking or merging records.
-- Search updates after a short typing pause. Tuning stays in code.
+- Search updates after a short typing pause. A labelled similarity slider
+  lets users broaden matches without changing their query.
 - Preserve source spelling and casing, including lowercase funder names. There
   are no portraits, parties, constituencies or recency claims without API data.
 
@@ -40,6 +41,9 @@ exposed                                          UK Parliament
           Register context
           [ Search by name                           / ]
 
+          Similarity threshold                    1.00
+          [ Broader ------------------------- Closer ]
+
           Results shown                 Best matches first
           [icon] Entity name                         Type
           [icon] Entity name                         Type
@@ -55,6 +59,12 @@ corrected from coloured backgrounds to black with coloured accents.
 ## Interaction and testing
 
 - Three characters, a 250 ms debounce, and ten results per entity type initially.
+- The similarity threshold runs from 0 to 1 in steps of 0.01, defaulting to 1.
+  Lower values include less similar names; 1 does not mean an exact full name.
+  Threshold changes use the same debounce and cancellation as typing.
+  Query and threshold are preserved in the URL, including on reload and history
+  navigation. Clearing the query keeps the chosen threshold. Invalid URL
+  thresholds fall back to the default.
 - The backend determines similarity and order; substring highlighting is only
   visual. Original spelling and duplicate-looking entries remain intact.
 - Superseded requests are cancelled and cannot replace current results.
