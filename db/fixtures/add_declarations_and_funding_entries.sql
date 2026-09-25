@@ -23,30 +23,16 @@ INSERT INTO exposed.declarations (
 	    now()
 	);
 
-INSERT INTO exposed.funding_entries (  
-    source_declaration_id,
-    funder,
-    amount,
-    currency,
-    payment_type,
-    donor_status,
-    company_number
-) VALUES 
-	(
-	    1,
-	    E'McDonald\'s',
-	    10,
-	    'GBP',
-	    'Monetary',
-	    'Company',
-	    '123'
-	),
-	(
-	    2,
-	    'Aaron Banks',
-	    100,
-	    'GBP',
-	    'In Kind',
-	    'Individual',
-	    NULL
-	);
+INSERT INTO exposed.funders (funder_name, funder_kind, company_number)
+VALUES
+    (E'McDonald\'s', 'Company', '123'),
+    ('Aaron Banks', 'Individual', NULL);
+
+
+INSERT INTO exposed.funding_entries (
+    source_declaration_id, funder_id, amount, currency, payment_type
+) VALUES
+    (1, (SELECT id FROM exposed.funders WHERE funder_name = E'McDonald\'s'),
+     10, 'GBP', 'Monetary'),
+    (2, (SELECT id FROM exposed.funders WHERE funder_name = 'Aaron Banks'),
+     100, 'GBP', 'In Kind');

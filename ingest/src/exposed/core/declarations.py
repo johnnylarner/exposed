@@ -65,13 +65,16 @@ def preferred_funder(
     return None
 
 
-class FundingEntry(Model):
-    funder: str | None
+class Funder(Model):
+    funder_name: str | None
+    funder_kind: str | None = None
+    company_number: str | None = None
+
+
+class FundingEntry(Funder):
     amount: Decimal | None
     currency: str | None
     payment_type: str | None
-    donor_status: str | None = None
-    company_number: str | None = None
 
 
 class DeclarationIdentity(Model):
@@ -106,7 +109,10 @@ class DeclarationDraft(DeclarationIdentity):
         needs_parent = (
             self.parent_id is not None
             and not self.ultimate_payer_differs
-            and (any(entry.funder is None for entry in funding) or (not funding and payer is None))
+            and (
+                any(entry.funder_name is None for entry in funding)
+                or (not funding and payer is None)
+            )
         )
         if needs_parent and self.parent_id is not None:
             if parent is None:
@@ -121,7 +127,7 @@ class DeclarationDraft(DeclarationIdentity):
                 )
             payer = payer or parent.payer
             funding = tuple(
-                entry.model_copy(update={"funder": entry.funder or parent.payer})
+                entry.model_copy(update={"funder_name": entry.funder_name or parent.payer})
                 for entry in funding
             )
         return Declaration(

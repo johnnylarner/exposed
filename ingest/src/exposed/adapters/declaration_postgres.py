@@ -1,5 +1,6 @@
 """Read the existing member cohort and persist accepted declarations."""
 
+from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import date, datetime
@@ -9,7 +10,7 @@ import psycopg
 
 from exposed.adapters.postgres import DatabaseConnection, date_timestamp, storage_error
 from exposed.core.declaration_ports import DeclarationWriter
-from exposed.core.declarations import Declaration, FundingEntry
+from exposed.core.declarations import Declaration, Funder
 
 
 def cohort(conn: DatabaseConnection, term_start: date) -> dict[int, UUID]:
@@ -54,13 +55,21 @@ def write_declaration(
         ),
     )
 
+    # Resolve shared identities before comparing payment rows. Updating a funder's
+    # metadata must not replace otherwise unchanged funding (including duplicates).
+    funding = [
+        (write_funder(conn, entry), entry.amount, entry.currency, entry.payment_type)
+        for entry in declaration.funding
+    ]
     previous = conn.execute(
-        """SELECT funder, amount, currency, payment_type, donor_status, company_number
+        """SELECT funder_id, amount, currency, payment_type
            FROM exposed.funding_entries
            WHERE source_declaration_id = %s""",
         (declaration.id,),
     ).fetchall()
-    if declaration.has_same_funding(tuple(FundingEntry.model_validate(row) for row in previous)):
+    if Counter(funding) == Counter(
+        (row["funder_id"], row["amount"], row["currency"], row["payment_type"]) for row in previous
+    ):
         return
     conn.execute(
         "DELETE FROM exposed.funding_entries WHERE source_declaration_id = %s", (declaration.id,)
@@ -68,23 +77,36 @@ def write_declaration(
     with conn.cursor() as cursor:
         cursor.executemany(
             """INSERT INTO exposed.funding_entries (
-                   id, source_declaration_id, funder, amount, currency, payment_type,
-                   donor_status, company_number
-               ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""",
-            [
-                (
-                    uuid7(),
-                    declaration.id,
-                    entry.funder,
-                    entry.amount,
-                    entry.currency,
-                    entry.payment_type,
-                    entry.donor_status,
-                    entry.company_number,
-                )
-                for entry in declaration.funding
-            ],
+                   id, source_declaration_id, funder_id, amount, currency, payment_type
+               ) VALUES (%s, %s, %s, %s, %s, %s)""",
+            [(uuid7(), declaration.id, *entry) for entry in funding],
         )
+
+
+def write_funder(conn: DatabaseConnection, funder: Funder) -> UUID | None:
+    """Share exact names and retain known metadata when a source omits it.
+
+    Explicit incoming values correct the shared record. A non-company status
+    clears a previously stored company number. Unnamed payments have no funder.
+    """
+    if funder.funder_name is None:
+        return None
+    return next(
+        conn.execute(
+            """INSERT INTO exposed.funders AS existing (
+                   funder_name, funder_kind, company_number
+               ) VALUES (%s, %s, %s)
+               ON CONFLICT (funder_name) DO UPDATE SET
+                   funder_kind = COALESCE(EXCLUDED.funder_kind, existing.funder_kind),
+                   company_number = CASE
+                       WHEN COALESCE(EXCLUDED.funder_kind, existing.funder_kind) = 'Company'
+                       THEN COALESCE(EXCLUDED.company_number, existing.company_number)
+                       ELSE NULL
+                   END
+               RETURNING id""",
+            (funder.funder_name, funder.funder_kind, funder.company_number),
+        )
+    )["id"]
 
 
 class _PostgresDeclarationWriter:

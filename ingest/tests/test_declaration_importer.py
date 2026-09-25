@@ -25,7 +25,12 @@ def dataset(url: str):
             "declarations": conn.execute(
                 "SELECT * FROM exposed.declarations ORDER BY source_declaration_id"
             ).fetchall(),
-            "funding": conn.execute("SELECT * FROM exposed.funding_entries ORDER BY id").fetchall(),
+            "funding": conn.execute(
+                """SELECT fe.*, f.funder_name, f.funder_kind, f.company_number
+                   FROM exposed.funding_entries fe
+                   LEFT JOIN exposed.funders f ON f.id = fe.funder_id
+                   ORDER BY fe.id"""
+            ).fetchall(),
         }
 
 
@@ -144,7 +149,13 @@ def test_extracts_latest_direct_in_kind_and_nested_funding(database_url):
 
     rows = dataset(database_url)["funding"]
     assert {
-        (r["source_declaration_id"], r["funder"], r["amount"], r["currency"], r["payment_type"])
+        (
+            r["source_declaration_id"],
+            r["funder_name"],
+            r["amount"],
+            r["currency"],
+            r["payment_type"],
+        )
         for r in rows
     } == {
         (101, "Example donor", Decimal("2000.01"), "GBP", "Monetary"),
@@ -272,7 +283,7 @@ def test_child_payment_resolves_parent_payer_and_prefers_explicit_ultimate_payer
     run(database_url, fixture)
 
     data = dataset(database_url)
-    assert {r["source_declaration_id"]: r["funder"] for r in data["funding"]} == {
+    assert {r["source_declaration_id"]: r["funder_name"] for r in data["funding"]} == {
         101: "Example publisher",
         102: "Ultimate publisher",
     }
@@ -474,7 +485,7 @@ def test_absent_values_remain_absent_and_unrelated_numbers_are_not_funding(datab
     rows = dataset(database_url)["funding"]
     assert len(rows) == 1
     assert (
-        rows[0]["funder"]
+        rows[0]["funder_name"]
         is rows[0]["amount"]
         is rows[0]["currency"]
         is rows[0]["payment_type"]
@@ -503,7 +514,7 @@ def test_required_parent_is_resolved_before_accepting_child(database_url, caplog
     run(database_url, fixture)
     data = dataset(database_url)
     if relationship == "later_page":
-        assert data["funding"][0]["funder"] == "Publisher"
+        assert data["funding"][0]["funder_name"] == "Publisher"
         assert any(r.url.params.get("InterestIds") == "500" for r in fixture.requests)
     else:
         assert 101 not in {r["source_declaration_id"] for r in data["declarations"]}
@@ -655,7 +666,7 @@ def test_withheld_ultimate_payer_does_not_get_replaced_by_parent_name(database_u
     child["parentInterestId"] = 500
     parent = declaration(500, fields=[field("PayerName", "Intermediary publisher")])
     run(database_url, DeclarationsFixture(child, parent))
-    assert dataset(database_url)["funding"][0]["funder"] is None
+    assert dataset(database_url)["funding"][0]["funder_name"] is None
 
 
 def test_normal_imports_store_funder_identification_and_preserve_funding_ids_on_rerun(database_url):
@@ -677,7 +688,7 @@ def test_normal_imports_store_funder_identification_and_preserve_funding_ids_on_
     )
     run(database_url, fixture)
     funding = dataset(database_url)["funding"]
-    assert [(row["donor_status"], row["company_number"]) for row in funding] == [
+    assert [(row["funder_kind"], row["company_number"]) for row in funding] == [
         ("Company", "00123456"),
         ("Individual", None),
     ]

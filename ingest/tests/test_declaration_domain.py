@@ -29,13 +29,13 @@ def test_parent_completion_uses_domain_values_without_parliament_json():
         parent_id=500,
         funding=(
             FundingEntry(
-                funder=None, amount=Decimal("340"), currency="GBP", payment_type="Monetary"
+                funder_name=None, amount=Decimal("340"), currency="GBP", payment_type="Monetary"
             ),
         ),
         payer=None,
     )
-    assert child.accept(parent=parent).funding[0].funder == "Publisher"
-    assert child.funding[0].funder is None
+    assert child.accept(parent=parent).funding[0].funder_name == "Publisher"
+    assert child.funding[0].funder_name is None
     with pytest.raises(DeclarationParseError, match="member mismatch"):
         child.model_copy(update={"member_source_id": 2}).accept(parent=parent)
 
