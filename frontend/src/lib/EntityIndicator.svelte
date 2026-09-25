@@ -32,33 +32,40 @@
   }}
 />
 
-<span
-  role="presentation"
-  class="entity-indicator"
-  class:entity-kind={detail === "kind"}
-  onpointerenter={() => {
-    hovered = true;
-    dismissed = false;
-  }}
-  onpointerleave={() => (hovered = false)}
->
-  <button
-    type="button"
-    class="entity-icon"
-    aria-label={label}
-    onfocus={() => {
-      focused = true;
+{#if detail === "kind"}
+  <span class="entity-kind">
+    <Icon name={icon} size={16} />
+    <span class="entity-kind-label">{label}</span>
+  </span>
+{:else}
+  <span
+    role="presentation"
+    class="entity-indicator"
+    onpointerenter={() => {
+      hovered = true;
       dismissed = false;
     }}
-    onblur={() => (focused = false)}
-    onclick={(event) => {
-      event.currentTarget.focus();
-      dismissed = false;
-    }}
+    onpointerleave={() => (hovered = false)}
   >
-    <Icon name={icon} size={detail === "kind" ? 18 : 20} />
-  </button>
-  {#if (hovered || focused) && !dismissed}
-    <span class="entity-tooltip" aria-hidden="true"><span>{label}</span></span>
-  {/if}
-</span>
+    <button
+      type="button"
+      class="entity-icon"
+      aria-label={label}
+      onfocus={() => {
+        focused = true;
+        dismissed = false;
+      }}
+      onblur={() => (focused = false)}
+      onclick={(event) => {
+        event.currentTarget.focus();
+        dismissed = false;
+      }}
+    >
+      <Icon name={icon} size={20} />
+    </button>
+    {#if (hovered || focused) && !dismissed}
+      <span class="entity-tooltip" aria-hidden="true"><span>{label}</span></span
+      >
+    {/if}
+  </span>
+{/if}

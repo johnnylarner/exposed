@@ -36,13 +36,7 @@ test("live search preserves API ranking, spelling, duplicates and entity context
   await expect(page.locator(".entity-name")).toHaveText(
     entities.map((entity) => entity.name),
   );
-  expect(
-    await page
-      .locator(".entity-kind .entity-icon")
-      .evaluateAll((icons) =>
-        icons.map((icon) => icon.getAttribute("aria-label")),
-      ),
-  ).toEqual([
+  await expect(page.locator(".entity-kind-label")).toHaveText([
     "Company",
     "Individual",
     "Company",
@@ -50,6 +44,7 @@ test("live search preserves API ranking, spelling, duplicates and entity context
     "Unclassified",
     "Unclassified",
   ]);
+  await expect(page.locator(".entity-kind-label").first()).toBeVisible();
   await expect(
     page.locator(".entity-row").nth(1).locator(".entity-kind"),
   ).toHaveCount(0);
@@ -68,13 +63,6 @@ test("live search preserves API ranking, spelling, duplicates and entity context
     "Funder: Unclassified",
     "Funder: Unclassified",
   ]);
-  const companyKind = page
-    .getByRole("button", { name: "Company", exact: true })
-    .first();
-  await companyKind.focus();
-  await expect(page.locator(".entity-tooltip")).toHaveText("Company");
-  await companyKind.press("Escape");
-  await expect(page.locator(".entity-tooltip")).toHaveCount(0);
   const individual = page.getByRole("button", {
     name: "Funder: Individual",
     exact: true,
@@ -214,12 +202,10 @@ test("keyboard search and long results remain usable on a narrow screen", async 
   await expect(
     page.getByRole("button", { name: "Funder: Unincorporated association" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", {
-      name: "Unincorporated association",
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(page.locator(".entity-kind-label")).toHaveText(
+    "Unincorporated association",
+  );
+  await expect(page.locator(".entity-kind-label")).toBeVisible();
   await expect(page.locator(".entity-kind")).toBeVisible();
   expect(
     await page.evaluate(

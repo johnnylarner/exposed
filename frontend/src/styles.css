@@ -245,14 +245,27 @@ h1 {
   font-weight: 500;
   overflow-wrap: anywhere;
 }
-.entity-kind .entity-icon {
-  width: 28px;
-  height: 28px;
+.entity-kind {
+  display: inline-flex;
+  align-items: center;
+  justify-self: end;
+  gap: 6px;
+  max-width: 210px;
+  padding: 4px 8px;
+  border: 1px solid #483159;
   border-radius: 6px;
+  background: #25182f;
+  color: #d3b1ef;
+  font-size: 12px;
+  line-height: 1.5;
 }
-.entity-kind .entity-tooltip {
-  left: auto;
-  right: 0;
+.entity-kind svg {
+  flex: none;
+  color: var(--accent);
+}
+.entity-kind-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 mark {
   background: none;
@@ -504,13 +517,18 @@ mark {
     display: none;
   }
   .entity-row {
-    grid-template-columns: 32px minmax(0, 1fr) auto;
+    grid-template-columns: 32px minmax(0, 1fr);
     gap: 5px 12px;
     padding: 18px 0;
   }
   .entity-icon {
     width: 32px;
     height: 32px;
+  }
+  .entity-kind {
+    grid-column: 2;
+    justify-self: start;
+    max-width: 100%;
   }
   .results-heading {
     gap: 12px;
