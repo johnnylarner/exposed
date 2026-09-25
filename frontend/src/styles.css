@@ -234,10 +234,10 @@ h1 {
   width: 36px;
   height: 36px;
   padding: 0;
-  color: #c2bdc9;
-  border: 1px solid var(--line);
+  color: var(--accent);
+  border: 1px solid #483159;
   border-radius: 8px;
-  background: var(--surface);
+  background: #25182f;
 }
 .entity-name {
   font-size: 17px;
@@ -250,12 +250,7 @@ mark {
   color: #cc9bf1;
   font-weight: 650;
 }
-/* Role is encoded by shape as well as colour; subtype appears on demand. */
-.entity-icon.mp {
-  color: var(--accent);
-  border-color: #483159;
-  background: #25182f;
-}
+/* Shape distinguishes roles; shared colour gives both equal emphasis. */
 .entity-indicator {
   position: relative;
   justify-self: start;
@@ -295,7 +290,7 @@ mark {
   align-items: center;
   gap: 6px;
 }
-.entity-legend .mp svg {
+.entity-legend svg {
   color: var(--accent);
 }
 .results-note {

@@ -26,7 +26,6 @@
   <button
     type="button"
     class="entity-icon"
-    class:mp={entity.kind === "MP"}
     aria-label={entityType(entity)}
     onfocus={() => {
       focused = true;

@@ -12,8 +12,9 @@ slice; feedback comes from manual testing.
   the functionality; the palette follows this project's brief.
 - One prominent search field and a persistent list beneath it.
 - MPs and funders stay mixed in backend similarity order. Left-hand icons
-  distinguish the roles: a purple Parliament icon for MPs, a neutral coin for
-  every funder. A small legend explains the shapes. Hover, keyboard focus or tap
+  distinguish the roles: a Parliament icon for MPs and a coin for every funder.
+  Both use identical purple colouring, backgrounds and borders for equal
+  emphasis. A small legend explains the shapes. Hover, keyboard focus or tap
   reveals the role and funder subtype; Escape dismisses it. Accessible labels
   retain this context for screen readers. Rows have no trailing type badges.
 - Search updates after a short typing pause. A labelled similarity slider

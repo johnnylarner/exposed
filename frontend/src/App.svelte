@@ -307,7 +307,7 @@
           <span>Best matches first</span>
         </div>
         <div class="entity-legend" aria-label="Entity icon key">
-          <span class="mp"><Icon name="parliament" size={16} />MP</span>
+          <span><Icon name="parliament" size={16} />MP</span>
           <span><Icon name="coin" size={16} />Funder</span>
         </div>
         <ul class="results-list">
