@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from "./lib/Icon.svelte";
+  import EntityIndicator from "./lib/EntityIndicator.svelte";
   import {
-    entityType,
     highlightName,
     readStrictness,
     searchConfiguration,
@@ -124,16 +124,6 @@
     }
     if (event.key === "Escape" && target === input && !event.isComposing)
       clearSearch();
-  }
-
-  function iconFor(entity: Entity) {
-    if (
-      entity.kind === "MP" ||
-      entity.funderKind?.toLowerCase() === "individual"
-    )
-      return "person";
-    if (entity.funderKind?.toLowerCase() === "company") return "building";
-    return "group";
   }
 
   function atLimit(entities: Entity[]) {
@@ -279,7 +269,7 @@
               <span class="skeleton-icon"></span><span
                 class="skeleton-name"
                 style:width={`${width}%`}
-              ></span><span class="skeleton-type"></span>
+              ></span>
             </div>{/each}
         </div>
       {:else if searchState.status === "error"}
@@ -316,19 +306,18 @@
           </h2>
           <span>Best matches first</span>
         </div>
+        <div class="entity-legend" aria-label="Entity icon key">
+          <span class="mp"><Icon name="parliament" size={16} />MP</span>
+          <span><Icon name="coin" size={16} />Funder</span>
+        </div>
         <ul class="results-list">
           {#each searchState.entities as entity}
             <li class="entity-row">
-              <span class="entity-icon"
-                ><Icon name={iconFor(entity)} size={20} /></span
-              >
+              <EntityIndicator {entity} />
               <span class="entity-name"
                 >{#each highlightName(entity.name, searchState.term) as part}{#if part.matched}<mark
                       >{part.text}</mark
                     >{:else}{part.text}{/if}{/each}</span
-              >
-              <span class="entity-type" class:mp={entity.kind === "MP"}
-                >{entityType(entity)}</span
               >
             </li>
           {/each}

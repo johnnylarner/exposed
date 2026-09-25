@@ -222,7 +222,7 @@ h1 {
 }
 .entity-row {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr) auto;
+  grid-template-columns: 36px minmax(0, 1fr);
   align-items: center;
   gap: 18px;
   padding: 21px 0;
@@ -233,10 +233,11 @@ h1 {
   place-items: center;
   width: 36px;
   height: 36px;
-  color: #b8a9c5;
-  border: 1px solid #302635;
+  padding: 0;
+  color: #c2bdc9;
+  border: 1px solid var(--line);
   border-radius: 8px;
-  background: #17111c;
+  background: var(--surface);
 }
 .entity-name {
   font-size: 17px;
@@ -249,23 +250,53 @@ mark {
   color: #cc9bf1;
   font-weight: 650;
 }
-.entity-type {
-  justify-self: end;
-  color: #c4b7ce;
-  background: #19141f;
-  border: 1px solid #302537;
-  padding: 4px 9px;
-  border-radius: 5px;
-  font-size: 11px;
-  font-weight: 500;
-  line-height: 1.5;
-  max-width: 170px;
-  overflow-wrap: anywhere;
-}
-.entity-type.mp {
-  color: #d3b1ef;
+/* Role is encoded by shape as well as colour; subtype appears on demand. */
+.entity-icon.mp {
+  color: var(--accent);
   border-color: #483159;
   background: #25182f;
+}
+.entity-indicator {
+  position: relative;
+  justify-self: start;
+}
+.entity-tooltip {
+  position: absolute;
+  z-index: 1;
+  top: 100%;
+  left: 0;
+  padding-top: 6px;
+  width: max-content;
+  max-width: min(280px, calc(100vw - 48px));
+  pointer-events: auto;
+}
+.entity-tooltip > span {
+  display: block;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #19141f;
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  box-shadow: 0 4px 16px #0008;
+}
+.entity-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+.entity-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.entity-legend .mp svg {
+  color: var(--accent);
 }
 .results-note {
   color: var(--muted);
@@ -388,13 +419,6 @@ mark {
   border-radius: 3px;
   background: #1c1622;
 }
-.skeleton-type {
-  margin-left: auto;
-  width: 65px;
-  height: 22px;
-  border-radius: 4px;
-  background: #151119;
-}
 .app-footer {
   display: flex;
   align-items: center;
@@ -457,9 +481,6 @@ mark {
   .entity-name {
     font-size: 15px;
   }
-  .entity-type {
-    max-width: 124px;
-  }
 }
 @media (max-width: 480px) {
   .app-shell {
@@ -486,14 +507,6 @@ mark {
   .entity-icon {
     width: 32px;
     height: 32px;
-    grid-row: span 2;
-    align-self: start;
-  }
-  .entity-type {
-    grid-column: 2;
-    justify-self: start;
-    max-width: 100%;
-    font-size: 11px;
   }
   .results-heading {
     gap: 12px;

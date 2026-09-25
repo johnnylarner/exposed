@@ -11,8 +11,11 @@ slice; feedback comes from manual testing.
 - A true black application base with restrained purple accents. Attio informed
   the functionality; the palette follows this project's brief.
 - One prominent search field and a persistent list beneath it.
-- MPs and funders stay mixed in backend similarity order. Type labels supply
-  context without regrouping, reranking or merging records.
+- MPs and funders stay mixed in backend similarity order. Left-hand icons
+  distinguish the roles: a purple Parliament icon for MPs, a neutral coin for
+  every funder. A small legend explains the shapes. Hover, keyboard focus or tap
+  reveals the role and funder subtype; Escape dismisses it. Accessible labels
+  retain this context for screen readers. Rows have no trailing type badges.
 - Search updates after a short typing pause. A labelled similarity slider
   lets users broaden matches without changing their query.
 - Preserve source spelling and casing, including lowercase funder names. There
@@ -45,9 +48,9 @@ exposed                                          UK Parliament
           [ Broader ------------------------- Closer ]
 
           Results shown                 Best matches first
-          [icon] Entity name                         Type
-          [icon] Entity name                         Type
-          [icon] Entity name                         Type
+          [role icon] Entity name
+          [role icon] Entity name
+          [role icon] Entity name
 ```
 
 Review against the brief: the characteristic content is people's and

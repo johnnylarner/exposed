@@ -35,7 +35,13 @@ test("live search preserves API ranking, spelling, duplicates and entity context
   await expect(page.locator(".entity-name")).toHaveText(
     entities.map((entity) => entity.name),
   );
-  await expect(page.locator(".entity-type")).toHaveText([
+  expect(
+    await page
+      .locator(".entity-icon")
+      .evaluateAll((icons) =>
+        icons.map((icon) => icon.getAttribute("aria-label")),
+      ),
+  ).toEqual([
     "Funder: Company",
     "MP",
     "Funder: Individual",
@@ -43,6 +49,25 @@ test("live search preserves API ranking, spelling, duplicates and entity context
     "Funder: Trade union",
     "Funder: Unclassified",
   ]);
+  const individual = page.getByRole("button", {
+    name: "Funder: Individual",
+    exact: true,
+  });
+  await individual.focus();
+  await expect(page.locator(".entity-tooltip")).toHaveText(
+    "Funder: Individual",
+  );
+  await individual.press("Escape");
+  await expect(page.locator(".entity-tooltip")).toHaveCount(0);
+  await individual.blur();
+  await individual.hover();
+  await expect(page.locator(".entity-tooltip")).toHaveText(
+    "Funder: Individual",
+  );
+  await page.locator(".entity-tooltip").hover();
+  await expect(page.locator(".entity-tooltip")).toBeVisible();
+  await input.hover();
+  await expect(page.locator(".entity-tooltip")).toHaveCount(0);
   await expect(page.locator("mark").first()).toHaveText("john");
   await expect(page).toHaveURL(/q=John/);
 });
@@ -160,9 +185,9 @@ test("keyboard search and long results remain usable on a narrow screen", async 
   await page.keyboard.press("/");
   await expect(page.getByRole("searchbox")).toBeFocused();
   await page.getByRole("searchbox").fill("Association");
-  await expect(page.locator(".entity-type")).toHaveText(
-    "Funder: Unincorporated association",
-  );
+  await expect(
+    page.getByRole("button", { name: "Funder: Unincorporated association" }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
