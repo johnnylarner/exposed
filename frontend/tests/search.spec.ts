@@ -10,6 +10,7 @@ test("live search preserves API ranking, spelling, duplicates and entity context
     { name: "john lewis partnership", kind: "Funder", funder_kind: "Company" },
     { name: "John Union", kind: "Funder", funder_kind: "Trade Union" },
     { name: "John Trust", kind: "Funder", funder_kind: "Not Specified" },
+    { name: "John Foundation", kind: "Funder", funder_kind: null },
   ];
   const requests: URL[] = [];
   await page.route("**/api/search?*", async (route) => {
@@ -26,7 +27,7 @@ test("live search preserves API ranking, spelling, duplicates and entity context
   expect(requests).toHaveLength(0);
   await input.fill("  John  ");
   await expect(
-    page.getByRole("heading", { name: "6 results shown" }),
+    page.getByRole("heading", { name: "7 results shown" }),
   ).toBeVisible();
   expect(requests).toHaveLength(1);
   expect(requests[0].searchParams.get("term")).toBe("John");
@@ -37,7 +38,24 @@ test("live search preserves API ranking, spelling, duplicates and entity context
   );
   expect(
     await page
-      .locator(".entity-icon")
+      .locator(".entity-kind .entity-icon")
+      .evaluateAll((icons) =>
+        icons.map((icon) => icon.getAttribute("aria-label")),
+      ),
+  ).toEqual([
+    "Company",
+    "Individual",
+    "Company",
+    "Trade union",
+    "Unclassified",
+    "Unclassified",
+  ]);
+  await expect(
+    page.locator(".entity-row").nth(1).locator(".entity-kind"),
+  ).toHaveCount(0);
+  expect(
+    await page
+      .locator(".entity-indicator:not(.entity-kind) .entity-icon")
       .evaluateAll((icons) =>
         icons.map((icon) => icon.getAttribute("aria-label")),
       ),
@@ -48,7 +66,15 @@ test("live search preserves API ranking, spelling, duplicates and entity context
     "Funder: Company",
     "Funder: Trade union",
     "Funder: Unclassified",
+    "Funder: Unclassified",
   ]);
+  const companyKind = page
+    .getByRole("button", { name: "Company", exact: true })
+    .first();
+  await companyKind.focus();
+  await expect(page.locator(".entity-tooltip")).toHaveText("Company");
+  await companyKind.press("Escape");
+  await expect(page.locator(".entity-tooltip")).toHaveCount(0);
   const individual = page.getByRole("button", {
     name: "Funder: Individual",
     exact: true,
@@ -188,6 +214,13 @@ test("keyboard search and long results remain usable on a narrow screen", async 
   await expect(
     page.getByRole("button", { name: "Funder: Unincorporated association" }),
   ).toBeVisible();
+  await expect(
+    page.getByRole("button", {
+      name: "Unincorporated association",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".entity-kind")).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

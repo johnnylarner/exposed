@@ -17,6 +17,11 @@ slice; feedback comes from manual testing.
   emphasis. A small legend explains the shapes. Hover, keyboard focus or tap
   reveals the role and funder subtype; Escape dismisses it. Accessible labels
   retain this context for screen readers. Rows have no trailing type badges.
+- Funder kind appears as a compact purple icon to the right of the name:
+  person for Individual, building for Company, group for Trade union, question
+  mark for Unclassified, and a tag for other kinds. Hover, focus or tap reveals
+  the exact kind from the API's existing `funder_kind` field. Missing or
+  unspecified kinds display as "Unclassified". No persistent text badge is needed.
 - Search updates after a short typing pause. A labelled similarity slider
   lets users broaden matches without changing their query.
 - Preserve source spelling and casing, including lowercase funder names. There

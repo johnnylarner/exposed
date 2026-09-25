@@ -222,7 +222,7 @@ h1 {
 }
 .entity-row {
   display: grid;
-  grid-template-columns: 36px minmax(0, 1fr);
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px;
   padding: 21px 0;
@@ -244,6 +244,15 @@ h1 {
   line-height: 1.6;
   font-weight: 500;
   overflow-wrap: anywhere;
+}
+.entity-kind .entity-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+}
+.entity-kind .entity-tooltip {
+  left: auto;
+  right: 0;
 }
 mark {
   background: none;
@@ -495,7 +504,7 @@ mark {
     display: none;
   }
   .entity-row {
-    grid-template-columns: 32px minmax(0, 1fr);
+    grid-template-columns: 32px minmax(0, 1fr) auto;
     gap: 5px 12px;
     padding: 18px 0;
   }

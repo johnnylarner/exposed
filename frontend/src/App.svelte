@@ -319,6 +319,9 @@
                       >{part.text}</mark
                     >{:else}{part.text}{/if}{/each}</span
               >
+              {#if entity.kind === "Funder"}
+                <EntityIndicator {entity} detail="kind" />
+              {/if}
             </li>
           {/each}
         </ul>

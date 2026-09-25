@@ -96,13 +96,31 @@ export async function searchEntities(
 
 export function entityType(entity: Entity): string {
   if (entity.kind === "MP") return "MP";
-  const kind = entity.funderKind?.trim();
-  if (!kind || kind.toLowerCase() === "not specified")
-    return "Funder: Unclassified";
-  if (kind.toLowerCase() === "individual") return "Funder: Individual";
-  if (kind.toLowerCase() === "company") return "Funder: Company";
-  if (kind.toLowerCase() === "trade union") return "Funder: Trade union";
-  return `Funder: ${kind}`;
+  return `Funder: ${funderKindLabel(entity.funderKind)}`;
+}
+
+export function funderKindLabel(value: string | null): string {
+  const kind = value?.trim();
+  if (!kind || kind.toLowerCase() === "not specified") return "Unclassified";
+  if (kind.toLowerCase() === "individual") return "Individual";
+  if (kind.toLowerCase() === "company") return "Company";
+  if (kind.toLowerCase() === "trade union") return "Trade union";
+  return kind;
+}
+
+export function funderKindIcon(value: string | null) {
+  switch (funderKindLabel(value).toLowerCase()) {
+    case "individual":
+      return "person";
+    case "company":
+      return "building";
+    case "trade union":
+      return "group";
+    case "unclassified":
+      return "question";
+    default:
+      return "tag";
+  }
 }
 
 // Plain-text segments keep source names intact and never interpret names or
