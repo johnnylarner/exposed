@@ -10,6 +10,43 @@ def parse(fields):
 
 
 @pytest.mark.parametrize(
+    "name,expected",
+    [
+        ("UNITE The Union", "unite the union"),
+        ("ÉXAMPLE", "éxample"),
+        ("Example Limited", "example ltd"),
+        ("Example LTD", "example ltd"),
+        ("Example Ltd.", "example ltd"),
+        (" \tExample LiMiTeD\n ", "example ltd"),
+        ("\tExample LTD.\u00a0", "example ltd"),
+        ("  Example  Donor  ", "example  donor"),
+        ("Example  Limited", "example  ltd"),
+        ("Example\tLimited", "example\tltd"),
+        ("Limited", "ltd"),
+        ("Limited Edition", "limited edition"),
+        ("Example Ltd. Holdings", "example ltd. holdings"),
+        ("Example Unlimited", "example unlimited"),
+        ("ExampleLimited", "examplelimited"),
+        ("Example Limited.", "example limited."),
+        (" \t\n", None),
+        (None, None),
+    ],
+)
+def test_funder_names_are_standardized(name, expected):
+    result = parse([field("DonorName", name), money()])
+    assert result.funding[0].funder_name == expected
+    assert result.payer == expected
+
+
+@pytest.mark.parametrize("name", ["UltimatePayerName", "DonorName", "PayerName", "Name"])
+def test_all_funder_name_fields_are_standardized(name):
+    fields = [field(name, "  Example LIMITED  "), money()]
+    if name == "Name":
+        fields = [field("Donors", None, "Donor[]", values=[fields])]
+    assert parse(fields).funding[0].funder_name == "example ltd"
+
+
+@pytest.mark.parametrize(
     "status,number,expected",
     [
         ("Company", "00123456", "00123456"),
@@ -76,9 +113,9 @@ def test_donor_groups_keep_metadata_paired_without_inheriting_outer_fields():
         ]
     )
     assert [(e.funder_name, e.funder_kind, e.company_number) for e in result.funding] == [
-        ("Person", "Individual", None),
-        ("Company", "Company", "00123456"),
-        ("Unknown", None, None),
+        ("person", "Individual", None),
+        ("company", "Company", "00123456"),
+        ("unknown", None, None),
     ]
 
 
@@ -92,8 +129,23 @@ def test_donor_metadata_is_not_attached_to_a_different_ultimate_payer():
             money(),
         ]
     ).funding[0]
-    assert result.funder_name == "Another funder"
+    assert result.funder_name == "another funder"
     assert result.funder_kind is result.company_number is None
+
+
+def test_donor_metadata_applies_to_the_same_standardized_ultimate_payer():
+    result = parse(
+        [
+            field("UltimatePayerName", " EXAMPLE LTD. "),
+            field("DonorName", "Example Limited"),
+            field("DonorStatus", "Company"),
+            field("DonorCompanyIdentifier", "SC001234"),
+            money(),
+        ]
+    ).funding[0]
+    assert result.funder_name == "example ltd"
+    assert result.funder_kind == "Company"
+    assert result.company_number == "SC001234"
 
 
 def test_latest_publication_supplies_metadata():
