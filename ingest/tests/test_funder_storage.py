@@ -16,24 +16,24 @@ def funders(url):
         return conn.execute("SELECT * FROM exposed.funders ORDER BY funder_name").fetchall()
 
 
-def test_exact_names_share_funders_across_payments_and_members_without_collapsing_payments(
+def test_standardized_names_share_funders_across_members_without_collapsing_payments(
     database_url,
 ):
     import_members(database_url, ParliamentFixture(2))
-    donor = [field("Name", "Shared donor"), money("12.50")]
+    donor = [field("Name", " Shared Donor Limited "), money("12.50")]
     fixture = DeclarationsFixture(
         declaration(fields=[field("Donors", None, "Donor[]", values=[donor, donor])]),
-        declaration(102, member=2, fields=[field("DonorName", "Shared donor"), money()]),
-        declaration(103, member=2, fields=[field("DonorName", "SHARED DONOR"), money()]),
+        declaration(102, member=2, fields=[field("DonorName", "Shared Donor ltd"), money()]),
+        declaration(103, member=2, fields=[field("DonorName", "SHARED DONOR LTD."), money()]),
     )
     run(database_url, fixture)
     before = dataset(database_url)
     identities = funders(database_url)
-    assert len(identities) == 2
+    assert len(identities) == 1
     assert all(f["id"].version == 7 for f in identities)
-    shared = [r for r in before["funding"] if r["funder_name"] == "Shared donor"]
-    assert len(shared) == 3
-    assert len({r["id"] for r in shared}) == 3
+    shared = [r for r in before["funding"] if r["funder_name"] == "shared donor ltd"]
+    assert len(shared) == 4
+    assert len({r["id"] for r in shared}) == 4
     assert len({r["funder_id"] for r in shared}) == 1
     run(database_url, fixture)
     assert dataset(database_url)["funding"] == before["funding"]

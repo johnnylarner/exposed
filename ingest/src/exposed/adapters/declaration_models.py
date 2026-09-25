@@ -114,9 +114,12 @@ class FundingEntry(DomainFundingEntry):
 
         def funder_name(name: str) -> FunderName:
             try:
-                return text(name)
+                value = text(name)
             except DeclarationParseError as exc:
                 return exc
+            if value is None:
+                return None
+            return re.sub(r"(?<!\S)(?:limited|ltd\.?)\s*\Z", "ltd", value.lower()).strip()
 
         amount = None
         currency = None
