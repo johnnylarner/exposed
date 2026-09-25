@@ -1,24 +1,18 @@
 <div id="exposed-colour-study" data-palette="purple">
   <style>
     #exposed-colour-study {
-      --exposed-surround: #42175d;
-      --exposed-surface: #000000;
-      --exposed-text: #f3e7ff;
-      --exposed-secondary: #c9b4d6;
-      --exposed-accent: #d5a1ff;
-      --exposed-line: #4c365a;
-      --exposed-focus: #ad80c9;
+      --exposed-surround: #000000;
+      --exposed-surface: #111111;
+      --exposed-text: #f0edf3;
+      --exposed-secondary: #ada6b4;
+      --exposed-accent: #a863d6;
+      --exposed-line: #2a272f;
       font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
       color: var(--exposed-text);
       width: 100%;
     }
     #exposed-colour-study[data-palette="red"] {
-      --exposed-surround: #651e30;
-      --exposed-text: #ffe8e7;
-      --exposed-secondary: #d7b6bb;
-      --exposed-accent: #ffadaa;
-      --exposed-line: #593a40;
-      --exposed-focus: #d38e98;
+      --exposed-accent: #e84b5b;
     }
     #exposed-colour-study * { box-sizing: border-box; }
     #exposed-colour-study .palette-controls {
@@ -30,22 +24,24 @@
     #exposed-colour-study .palette-control {
       appearance: none;
       font: 500 14px/1.4 "Avenir Next", Avenir, "Segoe UI", sans-serif;
-      border: 1px solid #d0a3e5;
+      border: 1px solid #a863d6;
       border-radius: 6px;
       padding: 10px 18px;
-      background: #42175d;
-      color: #f3e7ff;
+      background: #000000;
+      color: #f0edf3;
       cursor: pointer;
     }
     #exposed-colour-study .palette-control[data-choice="red"] {
-      background: #651e30;
-      border-color: #eca8ae;
-      color: #ffe8e7;
+      border-color: #e84b5b;
     }
     #exposed-colour-study .palette-control[aria-pressed="true"] {
+      background: #24122f;
       text-decoration: underline;
       text-underline-offset: 5px;
       text-decoration-thickness: 2px;
+    }
+    #exposed-colour-study .palette-control[data-choice="red"][aria-pressed="true"] {
+      background: #2d1018;
     }
     #exposed-colour-study .search-preview {
       background: var(--exposed-surround);
@@ -84,7 +80,7 @@
       align-items: center;
       gap: 14px;
       background: var(--exposed-surface);
-      border: 1px solid var(--exposed-focus);
+      border: 1px solid var(--exposed-accent);
       border-radius: 7px;
       padding: 16px 18px;
     }
@@ -117,9 +113,8 @@
     }
     #exposed-colour-study .matches {
       list-style: none;
-      background: var(--exposed-surface);
-      border-radius: 7px;
-      padding: 0 20px;
+      background: var(--exposed-surround);
+      padding: 0;
       margin: 0;
     }
     #exposed-colour-study .match {
@@ -161,13 +156,12 @@
       #exposed-colour-study .search-preview { padding: 24px 18px; }
       #exposed-colour-study .preview-header { margin-bottom: 26px; }
       #exposed-colour-study .query-label { font-size: 22px; }
-      #exposed-colour-study .matches { padding: 0 16px; }
       #exposed-colour-study .match { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 16px 0; }
     }
   </style>
   <div class="palette-controls" role="group" aria-label="Search colour study">
-    <button class="palette-control" type="button" data-choice="purple" aria-pressed="true">Purple and black</button>
-    <button class="palette-control" type="button" data-choice="red" aria-pressed="false">Red and black</button>
+    <button class="palette-control" type="button" data-choice="purple" aria-pressed="true">Purple accent</button>
+    <button class="palette-control" type="button" data-choice="red" aria-pressed="false">Red accent</button>
   </div>
   <section class="search-preview" aria-label="Search preview with illustrative results">
     <div class="preview-header">
@@ -182,15 +176,15 @@
       </svg>
       <input id="exposed-study-query" type="text" value="hart" readonly aria-label="Illustrative search query">
     </div>
-    <div class="results-heading"><span>4 matches</span><span>By similarity</span></div>
+    <div class="results-heading"><span>4 results shown</span><span>Best matches first</span></div>
     <ul class="matches" aria-label="Illustrative search results">
       <li class="match"><span class="entity-name">Harriet <mark>Hart</mark>well</span><span class="entity-type">MP</span></li>
-      <li class="match"><span class="entity-name"><mark>Hart</mark>well Group Ltd</span><span class="entity-type">Company</span></li>
-      <li class="match"><span class="entity-name">Daniel <mark>Hart</mark>well</span><span class="entity-type">Individual funder</span></li>
-      <li class="match"><span class="entity-name"><mark>Hart</mark>well Workers Union</span><span class="entity-type">Trade union</span></li>
+      <li class="match"><span class="entity-name"><mark>hart</mark>well group ltd</span><span class="entity-type">Company</span></li>
+      <li class="match"><span class="entity-name">daniel <mark>hart</mark>well</span><span class="entity-type">Individual funder</span></li>
+      <li class="match"><span class="entity-name"><mark>hart</mark>well workers union</span><span class="entity-type">Trade union</span></li>
     </ul>
   </section>
-  <span class="palette-announcement" aria-live="polite">Purple and black palette</span>
+  <span class="palette-announcement" aria-live="polite">Purple accent palette</span>
   <script>
     (() => {
       const root = document.getElementById('exposed-colour-study');
