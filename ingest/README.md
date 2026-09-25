@@ -68,11 +68,13 @@ are separate declarations; parent details are resolved during ingestion when nee
 | Table | Stores |
 | --- | --- |
 | `declarations` | Stable UUIDv7, unique API declaration ID, member FK, category ID and readable name, source registration date, and retrieval time. |
-| `funders` | UUIDv7, unique source funder name, nullable funder kind and company number. |
+| `funders` | UUIDv7, unique standardized funder name, nullable funder kind and company number. |
 | `funding_entries` | UUIDv7, declaration source ID, nullable funder FK, exact numeric amount, currency and payment type. |
 
-A declaration can have zero or many funding rows. Funders are shared by exact source name
-(case and whitespace are significant); this is a storage key, not verified identity matching.
+A declaration can have zero or many funding rows. Funder names are lowercased, a final word
+of `limited`, `ltd` or `ltd.` is standardized to `ltd`, and surrounding whitespace is trimmed.
+Internal whitespace is preserved. Funders are shared by this standardized name;
+this is a storage key, not verified identity matching.
 Missing names produce a null funder reference without inventing an unknown-funder record.
 Funding is extracted from the version with the latest `register.publishedDate`.
 `registration_date` comes from that version's `registrationDate`, independently of `fetched_at`.
@@ -126,7 +128,7 @@ a different ultimate payer does not inherit an intermediary's company number.
 Nested donor groups use only their own explicit fields. Payer names,
 `IsPrivateIndividual` flags and parent names do not imply a donor status.
 
-Repeated exact names reuse one funder UUID across declarations and MPs. Explicit incoming
+Repeated standardized names reuse one funder UUID across declarations and MPs. Explicit incoming
 metadata corrects that shared record, with the last imported explicit value winning;
 omitted metadata does not erase known details. An explicit non-company kind clears an
 old company number. These fields describe the shared funder, not a per-declaration

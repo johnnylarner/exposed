@@ -158,9 +158,9 @@ def test_extracts_latest_direct_in_kind_and_nested_funding(database_url):
         )
         for r in rows
     } == {
-        (101, "Example donor", Decimal("2000.01"), "GBP", "Monetary"),
-        (102, "Example council", Decimal("10230"), "GBP", "In kind"),
-        (102, "Example ministry", Decimal("320.125"), "EUR", None),
+        (101, "example donor", Decimal("2000.01"), "GBP", "Monetary"),
+        (102, "example council", Decimal("10230"), "GBP", "In kind"),
+        (102, "example ministry", Decimal("320.125"), "EUR", None),
     }
     assert all(r["id"].version == 7 for r in rows)
     assert (
@@ -267,7 +267,7 @@ def test_child_payment_resolves_parent_payer_and_prefers_explicit_ultimate_payer
     import_members(database_url, ParliamentFixture(1))
     child = declaration(101, fields=[money("340"), field("HoursWorked", "2", "Decimal")])
     child["parentInterestId"] = 500
-    parent = declaration(500, fields=[field("PayerName", "Example publisher")])
+    parent = declaration(500, fields=[field("PayerName", "  Example Publisher Limited  ")])
     explicit = declaration(
         102,
         fields=[
@@ -284,8 +284,8 @@ def test_child_payment_resolves_parent_payer_and_prefers_explicit_ultimate_payer
 
     data = dataset(database_url)
     assert {r["source_declaration_id"]: r["funder_name"] for r in data["funding"]} == {
-        101: "Example publisher",
-        102: "Ultimate publisher",
+        101: "example publisher ltd",
+        102: "ultimate publisher",
     }
     assert len(data["declarations"]) == 3
     assert all("InterestIds" not in r.url.params for r in fixture.requests)
@@ -514,7 +514,7 @@ def test_required_parent_is_resolved_before_accepting_child(database_url, caplog
     run(database_url, fixture)
     data = dataset(database_url)
     if relationship == "later_page":
-        assert data["funding"][0]["funder_name"] == "Publisher"
+        assert data["funding"][0]["funder_name"] == "publisher"
         assert any(r.url.params.get("InterestIds") == "500" for r in fixture.requests)
     else:
         assert 101 not in {r["source_declaration_id"] for r in data["declarations"]}
