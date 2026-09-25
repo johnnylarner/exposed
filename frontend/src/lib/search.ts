@@ -97,10 +97,12 @@ export async function searchEntities(
 export function entityType(entity: Entity): string {
   if (entity.kind === "MP") return "MP";
   const kind = entity.funderKind?.trim();
-  if (!kind || kind.toLowerCase() === "not specified") return "Funder";
-  if (kind.toLowerCase() === "individual") return "Individual funder";
-  if (kind.toLowerCase() === "trade union") return "Trade union";
-  return kind;
+  if (!kind || kind.toLowerCase() === "not specified")
+    return "Funder: Unclassified";
+  if (kind.toLowerCase() === "individual") return "Funder: Individual";
+  if (kind.toLowerCase() === "company") return "Funder: Company";
+  if (kind.toLowerCase() === "trade union") return "Funder: Trade union";
+  return `Funder: ${kind}`;
 }
 
 // Plain-text segments keep source names intact and never interpret names or

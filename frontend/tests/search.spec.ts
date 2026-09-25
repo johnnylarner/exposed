@@ -36,12 +36,12 @@ test("live search preserves API ranking, spelling, duplicates and entity context
     entities.map((entity) => entity.name),
   );
   await expect(page.locator(".entity-type")).toHaveText([
-    "Company",
+    "Funder: Company",
     "MP",
-    "Individual funder",
-    "Company",
-    "Trade union",
-    "Funder",
+    "Funder: Individual",
+    "Funder: Company",
+    "Funder: Trade union",
+    "Funder: Unclassified",
   ]);
   await expect(page.locator("mark").first()).toHaveText("john");
   await expect(page).toHaveURL(/q=John/);
@@ -161,7 +161,7 @@ test("keyboard search and long results remain usable on a narrow screen", async 
   await expect(page.getByRole("searchbox")).toBeFocused();
   await page.getByRole("searchbox").fill("Association");
   await expect(page.locator(".entity-type")).toHaveText(
-    "Unincorporated association",
+    "Funder: Unincorporated association",
   );
   expect(
     await page.evaluate(
