@@ -1,3 +1,6 @@
+DROP TABLE exposed.import_notifications;
+DROP TABLE exposed.import_refresh_state;
+
 -- Drop dependent tables first; their triggers and indexes are removed with them.
 DROP TABLE exposed.funding_entries;
 DROP TABLE exposed.funders;

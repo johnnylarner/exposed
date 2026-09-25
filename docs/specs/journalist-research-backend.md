@@ -1,5 +1,7 @@
 # Journalist research backend
 
+Ownership and scheduling are superseded by [Rust import ownership](rust-import-ownership.md). Data semantics in this document remain the compatibility reference.
+
 Status: product scope agreed; implementation defaults proposed below.
 
 Prepared: 17 September 2026.

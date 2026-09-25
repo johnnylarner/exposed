@@ -1,34 +1,34 @@
-//! Integration test for the entity seacrh endpoint.
-//! This test suite expects a pre-loaded database.
-//!
-//!
+//! Search remains available alongside the import runtime, using an isolated database.
+use exposed::{
+    domain::services::entity_search::Service,
+    inbound::http::{routes::routes, state::AppState},
+    outbound::ExposedDatabase,
+};
+use sqlx::PgPool;
+use std::sync::Arc;
 
-use std::{collections::HashMap, time::Duration};
-
-use exposed::domain::models::entity_search::EntitySearchRequest;
-use tokio::time;
-
-use crate::common::{search_entities, start_app};
-
-mod common;
-
-#[tokio::test]
-async fn shows_no_hsbc_duplicates() {
-    let _guard = start_app().await.unwrap();
-    time::sleep(Duration::from_secs(2)).await;
-
-    let known_duplicate = EntitySearchRequest::new_with_strictness("HSBC".into(), 10, 0.9).unwrap();
-    let entities = search_entities(&known_duplicate).await.unwrap();
-
-    let mut duplicates: HashMap<String, usize> = HashMap::new();
-    for e in entities.into_iter() {
-        duplicates
-            .entry(e.get("name").unwrap().as_str().unwrap().into())
-            .and_modify(|count| *count += 1)
-            .or_insert(1);
-    }
-
-    assert_eq!(duplicates.get("HSBC UK Bank plc"), Some(&1));
-    assert_eq!(duplicates.get("HSBC UK Bank PLC"), Some(&1));
-    assert_eq!(duplicates.get("HSBC UK (Ian Stuart, CEO)"), Some(&1));
+#[sqlx::test(migrations = "../db/migrations")]
+async fn search_returns_one_shared_funder(pool: PgPool) {
+    sqlx::query("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('hsbc uk bank plc','Company')").execute(&pool).await.unwrap();
+    let database = ExposedDatabase::from(pool);
+    let state = AppState {
+        entity_search_service: Arc::new(Service::new(database.clone(), database)),
+    };
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let task = tokio::spawn(async move {
+        axum::serve(listener, routes().with_state(state))
+            .await
+            .unwrap();
+    });
+    let response = reqwest::get(format!(
+        "http://{address}/search?term=hsbc&strictness=0.9&max_entries=10"
+    ))
+    .await
+    .unwrap();
+    assert!(response.status().is_success());
+    let body: serde_json::Value = response.json().await.unwrap();
+    assert_eq!(body["entities"].as_array().unwrap().len(), 1);
+    assert_eq!(body["entities"][0]["name"], "hsbc uk bank plc");
+    task.abort();
 }

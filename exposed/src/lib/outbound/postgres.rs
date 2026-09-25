@@ -22,7 +22,6 @@ impl ExposedDatabase {
     }
 }
 
-#[cfg(test)]
 impl From<PgPool> for ExposedDatabase {
     fn from(value: PgPool) -> Self {
         Self { pool: value }

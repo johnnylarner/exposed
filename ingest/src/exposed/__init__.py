@@ -1,1 +1,1 @@
-"""Exposed's Commons member importer."""
+"""Parliament API interaction and Rust operator commands."""

@@ -1,0 +1,6513 @@
+[
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "UNITE The Union"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "unite the union",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "unite the union",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "\u00c9XAMPLE"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "\u00e9xample",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "\u00e9xample",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example Limited"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example LTD"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example Ltd."
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": " \tExample LiMiTeD\n "
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "\tExample LTD.\u00a0"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "  Example  Donor  "
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example  donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example  donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example  Limited"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example  ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example  ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example\tLimited"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example\tltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example\tltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Limited"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Limited Edition"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "limited edition",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "limited edition",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example Ltd. Holdings"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd. holdings",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd. holdings",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example Unlimited"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example unlimited",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example unlimited",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "ExampleLimited"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "examplelimited",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "examplelimited",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example Limited."
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example limited.",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example limited.",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": " \t\n"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "UltimatePayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "  Example LIMITED  "
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "  Example LIMITED  "
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "PayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "  Example LIMITED  "
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "  Example LIMITED  "
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "2000.00"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "00123456"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Company",
+          "company_number": "00123456",
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "OC012345"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Company",
+          "company_number": "OC012345",
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Company",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "  "
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Company",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Individual"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "00123456"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Individual",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Trade Union"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "00123456"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Trade Union",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Future status"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Future status",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "00123456"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": ""
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": 123
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": 123
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "99999999"
+            },
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Person"
+                  },
+                  {
+                    "name": "DonorStatus",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Individual"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "2000.00"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Company"
+                  },
+                  {
+                    "name": "DonorStatus",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Company"
+                  },
+                  {
+                    "name": "DonorCompanyIdentifier",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "00123456"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "2000.00"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Unknown"
+                  },
+                  {
+                    "name": "IsPrivateIndividual",
+                    "type": "Boolean",
+                    "typeInfo": null,
+                    "value": false
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "2000.00"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "person",
+          "funder_kind": "Individual",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        },
+        {
+          "funder_name": "company",
+          "funder_kind": "Company",
+          "company_number": "00123456",
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        },
+        {
+          "funder_name": "unknown",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "UltimatePayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Another funder"
+            },
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Intermediary"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "00123456"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "another funder",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "another funder",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "UltimatePayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": " EXAMPLE LTD. "
+            },
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example Limited"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "SC001234"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example ltd",
+          "funder_kind": "Company",
+          "company_number": "SC001234",
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "example ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2023-01-01",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Individual"
+            }
+          ]
+        },
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Company",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2020-01-01",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "invalid historical date",
+          "fields": [
+            {
+              "name": "Description",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Unpaid trustee"
+            }
+          ]
+        },
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": null,
+          "fields": [
+            {
+              "name": "Description",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Unpaid trustee"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": null,
+      "funding": [],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2020-01-01",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "invalid historical date",
+          "fields": [
+            {
+              "name": "Description",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Unpaid trustee"
+            }
+          ]
+        },
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Description",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Unpaid trustee"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Description",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Unpaid trustee"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "janky"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "100"
+            },
+            {
+              "name": "UltimatePayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Ultimate payer"
+            },
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": {
+                "invalid": "unused fallback"
+              }
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "ultimate payer",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "100",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "ultimate payer",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 3,
+        "name": "Donations and other support",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.01"
+            },
+            {
+              "name": "PaymentType",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Monetary"
+            },
+            {
+              "name": "HoursWorked",
+              "type": "Decimal",
+              "typeInfo": null,
+              "value": "9.5"
+            }
+          ]
+        },
+        {
+          "register": {
+            "id": 9999,
+            "publishedDate": "2023-01-01",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Example donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "999.00"
+            },
+            {
+              "name": "PaymentType",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Monetary"
+            },
+            {
+              "name": "HoursWorked",
+              "type": "Decimal",
+              "typeInfo": null,
+              "value": "9.5"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 3,
+      "category_name": "Donations and other support",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.01",
+          "currency": "GBP",
+          "payment_type": "Monetary"
+        }
+      ],
+      "payer": "example donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Example council"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "10230.00"
+                  },
+                  {
+                    "name": "PaymentType",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "In kind"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Example ministry"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "EUR"
+                    },
+                    "value": "320.125"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 102,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "example council",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "10230.00",
+          "currency": "GBP",
+          "payment_type": "In kind"
+        },
+        {
+          "funder_name": "example ministry",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "320.125",
+          "currency": "EUR",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Same donor"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "12.50"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Same donor"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "12.50"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Other donor"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "25"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "same donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "12.50",
+          "currency": "GBP",
+          "payment_type": null
+        },
+        {
+          "funder_name": "same donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "12.50",
+          "currency": "GBP",
+          "payment_type": null
+        },
+        {
+          "funder_name": "other donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "25",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Updated category",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-28",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Other donor"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "25"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Same donor"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "12.50"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Same donor"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "12.50"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "changed": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Updated category",
+      "registration_date": "2016-01-28",
+      "funding": [
+        {
+          "funder_name": "other donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "25",
+          "currency": "GBP",
+          "payment_type": null
+        },
+        {
+          "funder_name": "same donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "12.50",
+          "currency": "GBP",
+          "payment_type": null
+        },
+        {
+          "funder_name": "same donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "12.50",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Updated category",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-28",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Same donor"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "99.01"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Same donor"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "12.50"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "changed": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Updated category",
+      "registration_date": "2016-01-28",
+      "funding": [
+        {
+          "funder_name": "same donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "99.01",
+          "currency": "GBP",
+          "payment_type": null
+        },
+        {
+          "funder_name": "same donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "12.50",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "First"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "100"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Second"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "200"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "first",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "100",
+          "currency": "GBP",
+          "payment_type": null
+        },
+        {
+          "funder_name": "second",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "200",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "First"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "100"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Second"
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "about \u00a3200"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": 500,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "340"
+            },
+            {
+              "name": "HoursWorked",
+              "type": "Decimal",
+              "typeInfo": null,
+              "value": "2"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "340",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": 500,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 500,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "PayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "  Example Publisher Limited  "
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 500,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [],
+      "payer": "example publisher ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": 501,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "18450"
+            },
+            {
+              "name": "PayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Intermediary publisher"
+            },
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Direct donor"
+            },
+            {
+              "name": "UltimatePayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Ultimate publisher"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 102,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "ultimate publisher",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "18450",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "ultimate publisher",
+      "parent_id": 501,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Description",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Unpaid trustee"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": "Updated in first page"
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "FutureAmount",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "20"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "OtherPayments",
+              "values": [
+                [
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "value": "20"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "values": null
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "values": [
+                []
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 2
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 2,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 2
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "1"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 2,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "1",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 201,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 2
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "999"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 201,
+      "member_source_id": 2,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "999",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "not a date",
+          "fields": [
+            {
+              "name": "Description",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Unpaid trustee"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "fields": [
+            {
+              "name": "Description",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Unpaid trustee"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 102,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": null,
+      "funding": [],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "100"
+            }
+          ]
+        },
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "200"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2020-01-01",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "invalid old amount"
+            }
+          ]
+        },
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "7"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 102,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "7",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "7"
+            }
+          ]
+        },
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2020-01-01",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "invalid old amount"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 102,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "7",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": null
+              },
+              "value": null
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": null,
+          "currency": null,
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "HoursWorked",
+              "type": "Decimal",
+              "typeInfo": null,
+              "value": "3.5"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 102,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": 500,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": 500,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 500,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "PayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Publisher"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 500,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [],
+      "payer": "publisher",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 500,
+      "parentInterestId": 101,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 500,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": 101,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 500,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "PayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": {
+                "bad": "name"
+              }
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": "not-an-id",
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Description",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Unpaid trustee"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": null,
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": "Top donor"
+                  },
+                  {
+                    "name": "Donors",
+                    "type": "Donor[]",
+                    "typeInfo": null,
+                    "value": null,
+                    "values": [
+                      [
+                        {
+                          "name": "Name",
+                          "type": "String",
+                          "typeInfo": null,
+                          "value": "Nested donor"
+                        },
+                        {
+                          "name": "Value",
+                          "type": "Decimal",
+                          "typeInfo": {
+                            "currencyCode": "GBP"
+                          },
+                          "value": "200"
+                        }
+                      ]
+                    ]
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "rejected": true
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": 500,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "340"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "340",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": 500,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 500,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "PayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 500,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": 500,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "340"
+            },
+            {
+              "name": "IsUltimatePayerDifferent",
+              "type": "Boolean",
+              "typeInfo": null,
+              "value": true
+            },
+            {
+              "name": "UltimatePayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            },
+            {
+              "name": "UltimatePayerProtectedByConfidentiality",
+              "type": "Boolean",
+              "typeInfo": null,
+              "value": true
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "340",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": 500,
+      "ultimate_payer_differs": true
+    }
+  },
+  {
+    "source": {
+      "id": 500,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "PayerName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Intermediary publisher"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 500,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [],
+      "payer": "intermediary publisher",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "00123456"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "company",
+          "funder_kind": "Company",
+          "company_number": "00123456",
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "company",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Person"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Individual"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 102,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "person",
+          "funder_kind": "Individual",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "person",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Donors",
+              "type": "Donor[]",
+              "typeInfo": null,
+              "value": null,
+              "values": [
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": " Shared Donor Limited "
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "12.50"
+                  }
+                ],
+                [
+                  {
+                    "name": "Name",
+                    "type": "String",
+                    "typeInfo": null,
+                    "value": " Shared Donor Limited "
+                  },
+                  {
+                    "name": "Value",
+                    "type": "Decimal",
+                    "typeInfo": {
+                      "currencyCode": "GBP"
+                    },
+                    "value": "12.50"
+                  }
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "shared donor ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "12.50",
+          "currency": "GBP",
+          "payment_type": null
+        },
+        {
+          "funder_name": "shared donor ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "12.50",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 2
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Shared Donor ltd"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 102,
+      "member_source_id": 2,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "shared donor ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "shared donor ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 103,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 2
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "SHARED DONOR LTD."
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 103,
+      "member_source_id": 2,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "shared donor ltd",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "shared donor ltd",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Company"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": "SC001234"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Company",
+          "company_number": "SC001234",
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Donor"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Individual"
+            },
+            {
+              "name": "DonorCompanyIdentifier",
+              "type": "String",
+              "typeInfo": null,
+              "value": null
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "donor",
+          "funder_kind": "Individual",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "donor",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": null
+              },
+              "value": "10"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": null,
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "10",
+          "currency": null,
+          "payment_type": null
+        }
+      ],
+      "payer": null,
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": null
+              },
+              "value": "10"
+            },
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Now identified"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "now identified",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "10",
+          "currency": null,
+          "payment_type": null
+        }
+      ],
+      "payer": "now identified",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Existing"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "existing",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "existing",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 101,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Existing"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "2000.00"
+            },
+            {
+              "name": "DonorStatus",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Individual"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 101,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "existing",
+          "funder_kind": "Individual",
+          "company_number": null,
+          "amount": "2000.00",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "existing",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  },
+  {
+    "source": {
+      "id": 102,
+      "parentInterestId": null,
+      "category": {
+        "id": 9,
+        "name": "Miscellaneous",
+        "type": "Commons"
+      },
+      "registrant": {
+        "type": "Member",
+        "memberDetail": {
+          "id": 1
+        }
+      },
+      "childInterests": [],
+      "versions": [
+        {
+          "register": {
+            "id": 729,
+            "publishedDate": "2024-08-04",
+            "type": "Commons"
+          },
+          "publishedDate": "2016-02-01",
+          "registrationDate": "2016-01-27",
+          "fields": [
+            {
+              "name": "DonorName",
+              "type": "String",
+              "typeInfo": null,
+              "value": "Must roll back"
+            },
+            {
+              "name": "Value",
+              "type": "Decimal",
+              "typeInfo": {
+                "currencyCode": "GBP"
+              },
+              "value": "999"
+            }
+          ]
+        }
+      ],
+      "unknownFutureField": {
+        "retained": true
+      }
+    },
+    "draft": {
+      "id": 102,
+      "member_source_id": 1,
+      "category_id": 9,
+      "category_name": "Miscellaneous",
+      "registration_date": "2016-01-27",
+      "funding": [
+        {
+          "funder_name": "must roll back",
+          "funder_kind": null,
+          "company_number": null,
+          "amount": "999",
+          "currency": "GBP",
+          "payment_type": null
+        }
+      ],
+      "payer": "must roll back",
+      "parent_id": null,
+      "ultimate_payer_differs": false
+    }
+  }
+]

@@ -1,2 +1,9 @@
 connection_string: postgresql://exposed:exposed_local_dev@localhost:55432/exposed?sslmode=disable
 port: 6999
+imports:
+  term_start: 2024-07-04
+  python: ingest/.venv/bin/python
+  source_directory: ingest
+  admin_bind: 127.0.0.1:7000
+  automatic_refresh: true
+  # Notifications stay off until a sender, template and interval are configured.

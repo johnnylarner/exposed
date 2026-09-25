@@ -1,5 +1,7 @@
 # Declaration ingestion
 
+Ownership and scheduling are superseded by [Rust import ownership](rust-import-ownership.md). Data semantics in this document remain the compatibility reference.
+
 Updated on 24 September 2026: funders are now stored in `funders`, shared by exact
 source name, with `funder_kind` and `company_number` on that record. Funding entries
 reference its UUID through nullable `funder_id`; unnamed payments keep a null

@@ -1,3 +1,7 @@
+FROM python:3.14-slim-bookworm AS python
 FROM rust:1.98.1-bookworm
 
+COPY --from=python /usr/local/ /usr/local/
+COPY ingest/requirements.lock /tmp/ingest-requirements.lock
+RUN python3.14 -m pip install --no-cache-dir -r /tmp/ingest-requirements.lock
 RUN cargo install cargo-watch --version 8.5.3 --locked
