@@ -1,5 +1,6 @@
 -- Drop dependent tables first; their triggers and indexes are removed with them.
 DROP TABLE exposed.funding_entries;
+DROP TABLE exposed.funders;
 DROP TABLE exposed.declarations;
 DROP TABLE exposed.member_terms;
 DROP TABLE exposed.members;

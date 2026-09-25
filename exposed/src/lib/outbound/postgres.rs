@@ -60,10 +60,16 @@ mod test_scaffolding {
             .await?;
         assert_eq!(res.len(), 2);
 
+        let res = sqlx::query!("SELECT * FROM funders")
+            .fetch_all(&pool)
+            .await?;
+        assert_eq!(res.len(), 2);
+
         let res = sqlx::query!("SELECT * FROM funding_entries")
             .fetch_all(&pool)
             .await?;
         assert_eq!(res.len(), 2);
+
         Ok(())
     }
 }

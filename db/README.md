@@ -4,7 +4,7 @@
 the single development baseline version, with an
 [`up` migration](migrations/20260915000000_initial.up.sql) and a
 [`down` migration](migrations/20260915000000_initial.down.sql).
-It creates the member, service, declaration and funding tables, their current
+It creates the member, service, declaration, funder and funding tables, their current
 constraints, and `pg_trgm` in the `exposed` schema. Application code does not
 apply migrations.
 
@@ -20,7 +20,7 @@ make import-declarations
 
 The baseline uses [SQLx reversible migrations](https://github.com/launchbadge/sqlx/blob/v0.9.0/sqlx-cli/README.md#reverting-migrations).
 Each direction runs in a transaction. `make db-revert` applies the down migration,
-removing all five domain tables and their data, functions, `pg_trgm`, and the
+removing all six domain tables and their data, functions, `pg_trgm`, and the
 `exposed` schema. It leaves SQLx's history table in `public`; `make db-migrate`
 can then apply the baseline again. The down migration uses dependency order
 without `CASCADE`, so unexpected dependencies cause a transactional failure.
@@ -132,6 +132,45 @@ disposable, `make db-nuke` installs the edited baseline instead.
 
 New declaration ingestions populate parsed fields, including registration dates
 when supplied by Parliament. Missing source dates remain null.
+
+### Normalize existing funders in place
+
+The baseline now stores one `funders` row per exact source name. Payments reference
+it through nullable `funding_entries.funder_id`; currency and payment type are also
+nullable to preserve genuinely absent source values. No placeholder funders are created.
+
+After inspecting and backing up the existing database, apply
+[`upgrades/normalize_funders.sql`](upgrades/normalize_funders.sql) with a client that
+stops on errors. It supports both the previous baseline with inline funder fields
+and this feature branch's previously applied `20260924095042` migration. For example,
+with the configured `DATABASE_URL` exported:
+
+```sh
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/upgrades/normalize_funders.sql
+```
+
+The upgrade preserves declaration and payment UUIDs, amounts, source references and
+existing audit times. It groups exact names, retaining available donor metadata, and
+aborts atomically if a name has conflicting statuses/company numbers or an unnamed
+payment has metadata that cannot be retained. Resolve those cases explicitly before
+retrying. The script does not change SQLx history and is safe to rerun on the normalized
+schema. Newly created funders receive the upgrade's audit timestamps.
+
+Compare all columns, constraints, indexes, functions and triggers with a fresh database
+initialized from the baseline; column order may differ after the in-place upgrade.
+Also compare the original records with the upgraded records joined through `funder_id`.
+Only after that verification, update the baseline checksum using the procedure above.
+If the removed feature migration `20260924095042` was already recorded, remove its
+successful history row in the same transaction as the verified checksum update:
+
+```sql
+DELETE FROM public._sqlx_migrations
+WHERE version = 20260924095042 AND success = true;
+```
+
+This retires the extra migration version after consolidation; it does not revert its
+schema changes. Run `make db-migrate` and `make db-migration-status` afterward. Do not
+run the old feature migration's down script: it cannot restore the inline funding data.
 
 ### Upgrade the previous date-based baseline in place
 

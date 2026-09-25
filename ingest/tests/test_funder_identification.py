@@ -34,7 +34,7 @@ def test_explicit_donor_fields_preserve_source_status_and_company_identifiers(
             field("DonorCompanyIdentifier", number),
         ]
     ).funding[0]
-    assert result.donor_status == (status or None)
+    assert result.funder_kind == (status or None)
     assert result.company_number == expected
 
 
@@ -75,7 +75,7 @@ def test_donor_groups_keep_metadata_paired_without_inheriting_outer_fields():
             ),
         ]
     )
-    assert [(e.funder, e.donor_status, e.company_number) for e in result.funding] == [
+    assert [(e.funder_name, e.funder_kind, e.company_number) for e in result.funding] == [
         ("Person", "Individual", None),
         ("Company", "Company", "00123456"),
         ("Unknown", None, None),
@@ -92,8 +92,8 @@ def test_donor_metadata_is_not_attached_to_a_different_ultimate_payer():
             money(),
         ]
     ).funding[0]
-    assert result.funder == "Another funder"
-    assert result.donor_status is result.company_number is None
+    assert result.funder_name == "Another funder"
+    assert result.funder_kind is result.company_number is None
 
 
 def test_latest_publication_supplies_metadata():
@@ -106,4 +106,4 @@ def test_latest_publication_supplies_metadata():
     older["register"]["publishedDate"] = "2023-01-01"
     older["fields"][-1]["value"] = "Individual"
     source["versions"].insert(0, older)
-    assert SourceDeclaration.model_validate(source).to_draft().funding[0].donor_status == "Company"
+    assert SourceDeclaration.model_validate(source).to_draft().funding[0].funder_kind == "Company"

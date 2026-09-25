@@ -1,5 +1,15 @@
 # Declaration ingestion
 
+Updated on 24 September 2026: funders are now stored in `funders`, shared by exact
+source name, with `funder_kind` and `company_number` on that record. Funding entries
+reference its UUID through nullable `funder_id`; unnamed payments keep a null
+reference. This supersedes the original per-entry funder storage and no-sharing
+policy below. Explicit incoming metadata updates the shared funder, missing fields
+preserve known details, and a non-company kind clears a previous company number.
+Metadata-only funder changes preserve payment UUIDs. Payment or attribution changes
+still replace the entire funding group. All changes remain atomic per MP. See
+[the current ingestion rules](../../ingest/README.md#funder-identification).
+
 Updated on 17 September 2026: declaration writes commit after each MP, and the selected
 version's nullable `registrationDate` is stored as `registration_date`. The single development
 schema baseline includes these fields; a new ingestion populates them from the source.

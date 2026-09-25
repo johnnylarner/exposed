@@ -87,28 +87,40 @@ CREATE INDEX declarations_member_idx
 COMMENT ON COLUMN exposed.declarations.registration_date IS
     'Parliament registrationDate at midnight UTC from the latest selected register version; NULL when unavailable';
 
-CREATE TABLE exposed.funding_entries (
+CREATE TABLE exposed.funders (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    source_declaration_id INTEGER NOT NULL REFERENCES exposed.declarations (source_declaration_id),
-    funder TEXT NOT NULL,
-    amount NUMERIC,
-    currency TEXT NOT NULL,
-    payment_type TEXT NOT NULL,
-    donor_status TEXT,
+    funder_name TEXT NOT NULL UNIQUE,
+    funder_kind TEXT,
     company_number TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT funding_entries_company_number_status
-        CHECK (company_number IS NULL OR donor_status IS NOT DISTINCT FROM 'Company')
+    CONSTRAINT funders_company_number_status
+        CHECK (company_number IS NULL OR funder_kind IS NOT DISTINCT FROM 'Company')
+);
+
+COMMENT ON COLUMN exposed.funders.funder_kind IS
+    'Explicit Parliament DonorStatus for the attributed donor; NULL when unavailable';
+COMMENT ON COLUMN exposed.funders.company_number IS
+    'Parliament DonorCompanyIdentifier when DonorStatus is Company; text preserves leading zeros';
+
+CREATE TABLE exposed.funding_entries (
+    id UUID PRIMARY KEY DEFAULT uuidv7(),
+    source_declaration_id INTEGER NOT NULL REFERENCES exposed.declarations (source_declaration_id),
+    funder_id UUID REFERENCES exposed.funders (id),
+    amount NUMERIC,
+    currency TEXT,
+    payment_type TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX funding_entries_declaration_idx
     ON exposed.funding_entries (source_declaration_id);
+CREATE INDEX funding_entries_funder_idx
+    ON exposed.funding_entries (funder_id);
 
-COMMENT ON COLUMN exposed.funding_entries.donor_status IS
-    'Explicit Parliament DonorStatus for the attributed donor; NULL when unavailable';
-COMMENT ON COLUMN exposed.funding_entries.company_number IS
-    'Parliament DonorCompanyIdentifier when DonorStatus is Company; text preserves leading zeros';
+COMMENT ON COLUMN exposed.funding_entries.funder_id IS
+    'Shared exact-name funder; NULL when the source does not identify a funder';
 
 CREATE FUNCTION exposed.set_updated_at()
 RETURNS TRIGGER
@@ -147,6 +159,12 @@ CREATE TRIGGER declarations_set_updated_at
 
 CREATE TRIGGER funding_entries_set_updated_at
     BEFORE UPDATE ON exposed.funding_entries
+    FOR EACH ROW
+    WHEN (OLD.* IS DISTINCT FROM NEW.*)
+    EXECUTE FUNCTION exposed.set_updated_at();
+
+CREATE TRIGGER funders_set_updated_at
+    BEFORE UPDATE ON exposed.funders
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();

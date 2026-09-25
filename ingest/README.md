@@ -68,10 +68,13 @@ are separate declarations; parent details are resolved during ingestion when nee
 | Table | Stores |
 | --- | --- |
 | `declarations` | Stable UUIDv7, unique API declaration ID, member FK, category ID and readable name, source registration date, and retrieval time. |
-| `funding_entries` | UUIDv7, declaration source ID, nullable source funder, donor status, company number, exact numeric amount, currency and payment type. |
+| `funders` | UUIDv7, unique source funder name, nullable funder kind and company number. |
+| `funding_entries` | UUIDv7, declaration source ID, nullable funder FK, exact numeric amount, currency and payment type. |
 
-A declaration can have zero or many funding rows. Names are source attributions; no shared donor
-identity is inferred. Funding is extracted from the version with the latest `register.publishedDate`.
+A declaration can have zero or many funding rows. Funders are shared by exact source name
+(case and whitespace are significant); this is a storage key, not verified identity matching.
+Missing names produce a null funder reference without inventing an unknown-funder record.
+Funding is extracted from the version with the latest `register.publishedDate`.
 `registration_date` comes from that version's `registrationDate`, independently of `fetched_at`.
 Parliament supplies a calendar date, not a creation time of day. Missing source dates stay null;
 publication dates and retrieval timestamps are not substituted.
@@ -91,13 +94,14 @@ fields or monetary fields in unsupported nesting are rejected rather than silent
 
 Each MP uses one transaction for their accepted declarations, spanning all their pages and parent
 lookups. It commits before the next MP is fetched, and logs `Committed declarations for member …`.
-Unchanged funding keeps its UUIDs,
-including when entries are reordered. Any funding change replaces the whole group, preserving
-multiplicity and the declaration UUID. Metadata-only changes update the header without replacing
-funding. Every response is reparsed, even when its JSON is unchanged.
+Unchanged funding keeps its UUIDs, including when entries are reordered. A change to a payment
+or its funder reference replaces the whole funding group, preserving multiplicity and the
+declaration UUID. Shared funder metadata changes keep funding UUIDs. Declaration metadata
+changes update the header without replacing funding. Every response is reparsed, even when
+its JSON is unchanged.
 
-A parsing failure rejects the entire declaration before any write. Its previous metadata
-and funding remain intact; a new rejected declaration creates nothing. Logs on stderr include its
+A parsing failure rejects the entire declaration before any write. Its previous declaration
+metadata and payment rows remain intact; a new rejected declaration creates nothing. Logs on stderr include its
 source ID, member/request context, field path, original offending value and reason. Valid siblings
 continue. A completed run exits **0** and prints an ordinary `status: succeeded` JSON summary with
 member and accepted declaration counts, even if individual declarations were rejected.
@@ -112,15 +116,23 @@ an empty page ends traversal. Execution remains externally controlled, without a
 
 ## Funder identification
 
-Normal declaration imports now retain `donor_status` from `DonorStatus` and
-`company_number` from `DonorCompanyIdentifier` when the status is exactly `Company`.
+Normal declaration imports retain `DonorStatus` as `funders.funder_kind` and
+`DonorCompanyIdentifier` as `funders.company_number` when the status is exactly `Company`.
 Both columns are nullable text. Company numbers retain leading zeros and letter
 prefixes; the importer does not validate them against Companies House. Blank or
-missing source values stay null, and source statuses are preserved without an enum
+missing source values stay absent, and source statuses are preserved without an enum
 or inferred classification. The donor metadata must refer to the attributed donor;
 a different ultimate payer does not inherit an intermediary's company number.
 Nested donor groups use only their own explicit fields. Payer names,
 `IsPrivateIndividual` flags and parent names do not imply a donor status.
+
+Repeated exact names reuse one funder UUID across declarations and MPs. Explicit incoming
+metadata corrects that shared record, with the last imported explicit value winning;
+omitted metadata does not erase known details. An explicit non-company kind clears an
+old company number. These fields describe the shared funder, not a per-declaration
+metadata history. Updating them does not recreate funding rows. New funders, metadata
+updates, declarations and payments all commit or roll back with the current MP.
+Unreferenced funders are retained; imports do not delete shared identities.
 
 ## Validation and typed responses
 

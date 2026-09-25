@@ -13,7 +13,7 @@ use crate::common::{search_entities, start_app};
 mod common;
 
 #[tokio::test]
-async fn shows_hsbc_duplicates() {
+async fn shows_no_hsbc_duplicates() {
     let _guard = start_app().await.unwrap();
     time::sleep(Duration::from_secs(2)).await;
 
@@ -28,7 +28,7 @@ async fn shows_hsbc_duplicates() {
             .or_insert(1);
     }
 
-    assert_eq!(duplicates.get("HSBC UK Bank plc"), Some(&5));
+    assert_eq!(duplicates.get("HSBC UK Bank plc"), Some(&1));
     assert_eq!(duplicates.get("HSBC UK Bank PLC"), Some(&1));
     assert_eq!(duplicates.get("HSBC UK (Ian Stuart, CEO)"), Some(&1));
 }

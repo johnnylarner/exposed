@@ -66,4 +66,4 @@ def test_preferred_name_preserves_ignored_malformed_fallback_compatibility():
     api = fixture.api()
     with api.client:
         (batch,) = api.declarations(1)
-        assert api.interpret(batch[0]).accept().funding[0].funder == "Ultimate payer"
+        assert api.interpret(batch[0]).accept().funding[0].funder_name == "Ultimate payer"
