@@ -1,4 +1,5 @@
 //! Composition and lifecycle for source workers, operator API, and timers.
+use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::postgres::PgPoolOptions;
 use std::{sync::Arc, time::Duration};
@@ -36,7 +37,7 @@ pub async fn serve(config: &ImportConfig, connection_string: &str) -> anyhow::Re
         .as_ref()
         .map(|name| std::env::var(name))
         .transpose()
-        .map_err(|_| anyhow::anyhow!("Operator token environment variable is missing"))?;
+        .context("Operator token environment variable is missing")?;
     anyhow::ensure!(
         token.as_ref().is_none_or(|t| !t.is_empty()),
         "Operator token is empty"
@@ -109,7 +110,7 @@ pub async fn serve(config: &ImportConfig, connection_string: &str) -> anyhow::Re
             .await;
             if let Err(error) = result {
                 if !matches!(error, ImportError::Busy) {
-                    eprintln!("Scheduled declaration refresh: {error}");
+                    eprintln!("Scheduled declaration refresh: {error:?}");
                 }
             }
         }
@@ -130,10 +131,10 @@ pub async fn serve(config: &ImportConfig, connection_string: &str) -> anyhow::Re
                 )
                 .await
                 {
-                    eprintln!("Notification policy: {error}");
+                    eprintln!("Notification policy: {error:?}");
                 }
                 if let Err(error) = deliver_pending(&store, adapter, &SystemClock).await {
-                    eprintln!("Notification queue: {error}");
+                    eprintln!("Notification queue: {error:?}");
                 }
             }
         }

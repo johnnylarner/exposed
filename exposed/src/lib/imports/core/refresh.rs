@@ -171,7 +171,7 @@ pub(crate) async fn refresh_members(
                 let history = &histories[&profile.id];
                 let is_current = current.contains_key(&profile.id);
                 let member = Member::from_history(profile, history, term, as_of, is_current)?;
-                if member.periods.is_empty() {
+                if member.periods().is_empty() {
                     result.excluded_candidates += 1;
                 } else {
                     members.push(member);
@@ -183,9 +183,9 @@ pub(crate) async fn refresh_members(
             result.changes.unchanged += changes.unchanged;
             for member in members {
                 result.members += 1;
-                result.current_commons += usize::from(member.current);
-                result.former_commons += usize::from(!member.current);
-                result.service_periods += member.periods.len();
+                result.current_commons += usize::from(member.is_current());
+                result.former_commons += usize::from(!member.is_current());
+                result.service_periods += member.periods().len();
             }
             eprintln!("Committed member batch ({} processed total)", seen.len());
         }
@@ -231,6 +231,7 @@ impl<S: DeclarationSource> EvidenceSet<'_, S> {
                         "Conflicting duplicate declaration {id}"
                     )));
                 }
+                eprintln!("Duplicate declaration {id}; identical source evidence collapsed");
             } else {
                 self.records.insert(id, evidence);
             }

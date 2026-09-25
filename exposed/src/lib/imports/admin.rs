@@ -44,28 +44,43 @@ impl Transport for RemoteTransport {
         self.0
             .send(Event::Fetch(request, tx))
             .await
-            .map_err(|_| ImportError::Source("Operator disconnected".into()))?;
+            .map_err(|e| ImportError::source_failure("Operator disconnected", e))?;
         tokio::time::timeout(Duration::from_secs(300), rx)
             .await
-            .map_err(|_| ImportError::Source("Operator source session expired".into()))?
-            .map_err(|_| ImportError::Source("Operator disconnected".into()))
+            .map_err(|e| ImportError::source_failure("Operator source session expired", e))?
+            .map_err(|e| ImportError::source_failure("Operator disconnected", e))
     }
 }
 struct Session {
     task: JoinHandle<()>,
+    exchange: Mutex<Exchange>,
+}
+struct RegisteredSession {
+    session: Arc<Session>,
+    touched: Instant,
+}
+impl RegisteredSession {
+    fn retain_unexpired(&self) -> bool {
+        if self.touched.elapsed() >= Duration::from_secs(900) {
+            self.session.task.abort();
+            return false;
+        }
+        true
+    }
+}
+struct Exchange {
     events: mpsc::Receiver<Event>,
     pending: Option<oneshot::Sender<Response>>,
     sequence: u64,
     last_submission: Option<Value>,
     message: Option<Value>,
-    touched: Instant,
 }
 impl Drop for Session {
     fn drop(&mut self) {
         self.task.abort();
     }
 }
-impl Session {
+impl Exchange {
     async fn message(&mut self) -> Value {
         if let Some(message) = &self.message {
             return message.clone();
@@ -88,7 +103,7 @@ pub(crate) struct AdminState {
     store: PostgresStore,
     config: Arc<ImportConfig>,
     token: Option<String>,
-    sessions: Arc<Mutex<HashMap<Uuid, Session>>>,
+    sessions: Arc<Mutex<HashMap<Uuid, RegisteredSession>>>,
 }
 impl AdminState {
     pub fn new(store: PostgresStore, config: Arc<ImportConfig>, token: Option<String>) -> Self {
@@ -116,7 +131,7 @@ impl AdminState {
         self.sessions
             .lock()
             .await
-            .retain(|_, session| session.touched.elapsed() < Duration::from_secs(900));
+            .retain(|_, session| session.retain_unexpired());
     }
 }
 
@@ -146,9 +161,13 @@ async fn begin(
         ));
     }
     let mut sessions = state.sessions.lock().await;
-    sessions.retain(|_, session| session.touched.elapsed() < Duration::from_secs(900));
+    sessions.retain(|_, session| session.retain_unexpired());
     if let Some(session) = sessions.get_mut(&id) {
-        return Ok(Json(session.message().await));
+        session.touched = Instant::now();
+        let session = Arc::clone(&session.session);
+        drop(sessions);
+        let message = session.exchange.lock().await.message().await;
+        return Ok(Json(message));
     }
     if sessions.len() >= 32 {
         return Err(bad(
@@ -177,20 +196,33 @@ async fn begin(
         .await;
         let message = match result {
             Ok(result) => json!({"result":result}),
-            Err(error) => json!({"error":error.to_string()}),
+            Err(error) => {
+                eprintln!("Operator import: {error:?}");
+                json!({"error":error.to_string()})
+            }
         };
         let _ = tx.send(Event::Finished(message)).await;
     });
-    let session = sessions.entry(id).or_insert(Session {
+    let session = Arc::new(Session {
         task,
-        events,
-        pending: None,
-        sequence: 0,
-        last_submission: None,
-        message: None,
-        touched: Instant::now(),
+        exchange: Mutex::new(Exchange {
+            events,
+            pending: None,
+            sequence: 0,
+            last_submission: None,
+            message: None,
+        }),
     });
-    Ok(Json(session.message().await))
+    sessions.insert(
+        id,
+        RegisteredSession {
+            session: Arc::clone(&session),
+            touched: Instant::now(),
+        },
+    );
+    drop(sessions);
+    let message = session.exchange.lock().await.message().await;
+    Ok(Json(message))
 }
 
 #[derive(Deserialize)]
@@ -213,6 +245,9 @@ async fn evidence(
         )
     })?;
     session.touched = Instant::now();
+    let session = Arc::clone(&session.session);
+    drop(sessions);
+    let mut session = session.exchange.lock().await;
     let raw = json!(body.response);
     if body.sequence.checked_add(1) == Some(session.sequence)
         && session.last_submission.as_ref() == Some(&raw)
@@ -241,7 +276,10 @@ async fn cancel(
     headers: HeaderMap,
 ) -> HttpResult {
     state.authorize(&headers)?;
-    state.sessions.lock().await.remove(&id);
+    if let Some(session) = state.sessions.lock().await.remove(&id) {
+        // The exchange may be waiting on publication. Abort without taking that lock.
+        session.session.task.abort();
+    }
     Ok(Json(json!({"status":"cancelled"})))
 }
 async fn status(State(state): State<AdminState>, headers: HeaderMap) -> HttpResult {
@@ -250,7 +288,8 @@ async fn status(State(state): State<AdminState>, headers: HeaderMap) -> HttpResu
         .store
         .refresh_state(state.config.term_start)
         .await
-        .map_err(|_| {
+        .map_err(|error| {
+            eprintln!("Import status: {error:?}");
             bad(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "Could not read refresh state",

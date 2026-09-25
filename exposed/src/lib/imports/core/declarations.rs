@@ -33,7 +33,13 @@ pub(crate) struct Draft {
 
 #[derive(Clone, Debug)]
 pub(crate) struct Declaration {
-    pub draft: Draft,
+    draft: Draft,
+}
+
+impl Declaration {
+    pub fn draft(&self) -> &Draft {
+        &self.draft
+    }
 }
 
 impl Draft {
@@ -77,28 +83,46 @@ impl Draft {
 }
 
 // Source alias decoding belongs to the adapter; attribution order belongs here.
-pub(crate) fn preferred_funder(candidates: [Result<Option<String>>; 4]) -> Result<Option<String>> {
-    for candidate in candidates {
-        if let Some(name) = candidate? {
-            return Ok(Some(normalize_funder(&name)));
+pub(crate) struct FunderCandidates {
+    pub ultimate_payer: Result<Option<String>>,
+    pub donor: Result<Option<String>>,
+    pub payer: Result<Option<String>>,
+    pub group_donor: Result<Option<String>>,
+}
+
+impl FunderCandidates {
+    fn preferred(self) -> Result<Option<String>> {
+        for candidate in [
+            self.ultimate_payer,
+            self.donor,
+            self.payer,
+            self.group_donor,
+        ] {
+            if let Some(name) = candidate? {
+                return Ok(Some(normalize_funder(&name)));
+            }
         }
+        Ok(None)
     }
-    Ok(None)
 }
 
 // Decoding errors in unused fallback names/metadata must not reject an attribution.
 pub(crate) fn funder_attribution(
-    candidates: [Result<Option<String>>; 4],
+    candidates: FunderCandidates,
     donor_status: Result<Option<String>>,
     donor_number: Result<Option<String>>,
 ) -> Result<(Option<String>, Option<String>, Option<String>)> {
-    let donor = match &candidates[1] {
-        Ok(None) => candidates[3].as_ref().ok().and_then(|name| name.as_ref()),
+    let donor = match &candidates.donor {
+        Ok(None) => candidates
+            .group_donor
+            .as_ref()
+            .ok()
+            .and_then(|name| name.as_ref()),
         Ok(Some(name)) => Some(name),
         Err(_) => None,
     }
     .map(|name| normalize_funder(name));
-    let funder = preferred_funder(candidates)?;
+    let funder = candidates.preferred()?;
     let kind = if funder == donor { donor_status? } else { None };
     let number = if kind.as_deref() == Some("Company") {
         donor_number?

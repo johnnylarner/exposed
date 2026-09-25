@@ -95,12 +95,21 @@ impl MemberProfile {
 
 #[derive(Clone, Debug)]
 pub(crate) struct Member {
-    pub profile: MemberProfile,
-    pub current: bool,
-    pub periods: Vec<ServicePeriod>,
+    profile: MemberProfile,
+    current: bool,
+    periods: Vec<ServicePeriod>,
 }
 
 impl Member {
+    pub fn profile(&self) -> &MemberProfile {
+        &self.profile
+    }
+    pub fn is_current(&self) -> bool {
+        self.current
+    }
+    pub fn periods(&self) -> &[ServicePeriod] {
+        &self.periods
+    }
     pub fn from_history(
         profile: MemberProfile,
         history: &MemberHistory,

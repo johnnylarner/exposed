@@ -296,19 +296,29 @@ async fn complete_with_rejections_advances_check_time_and_parents_are_resolved_o
 async fn conflicting_unknown_source_fields_fail_before_any_member_publication(pool: PgPool) {
     let store = PostgresStore::new(pool.clone());
     seed(&store, vec![1]).await;
-    let original = declaration(101, 1, "10");
-    let mut conflicting = original.clone();
-    conflicting["unknownFutureField"] = json!(true);
-    let mut source = Fixture::new(vec![1]);
-    source.declarations.insert(1, vec![original, conflicting]);
-    let result = refresh_declarations(
-        date("2024-07-04"),
-        date("2026-09-15"),
-        &Parliament(source),
-        &store,
-    )
-    .await;
-    assert!(matches!(result, Err(ImportError::Invalid(_))));
+    for (first, second) in [
+        (json!(false), json!(true)),
+        (json!(-0.0), json!(0.0)),
+        (
+            serde_json::from_str("1000000000000000000000000000001").unwrap(),
+            serde_json::from_str("1000000000000000000000000000002").unwrap(),
+        ),
+    ] {
+        let mut original = declaration(101, 1, "10");
+        let mut conflicting = original.clone();
+        original["unknownFutureField"] = first;
+        conflicting["unknownFutureField"] = second;
+        let mut source = Fixture::new(vec![1]);
+        source.declarations.insert(1, vec![original, conflicting]);
+        let result = refresh_declarations(
+            date("2024-07-04"),
+            date("2026-09-15"),
+            &Parliament(source),
+            &store,
+        )
+        .await;
+        assert!(matches!(result, Err(ImportError::Invalid(_))));
+    }
     let count: i64 = sqlx::query_scalar("SELECT count(*) FROM exposed.declarations")
         .fetch_one(&pool)
         .await

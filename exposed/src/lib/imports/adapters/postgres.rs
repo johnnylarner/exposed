@@ -56,7 +56,7 @@ impl ImportStore for PostgresStore {
             .bind(midnight(term)).fetch_one(&mut *tx).await.map_err(database)?;
         let mut changes = Changes::default();
         for member in members {
-            let p = &member.profile;
+            let p = member.profile();
             let previous = sqlx::query("SELECT name, party_id, party_name, latest_house, latest_membership_from, is_current_commons FROM exposed.members WHERE parliament_member_id = $1")
                 .bind(p.id).fetch_optional(&mut *tx).await.map_err(database)?;
             match previous {
@@ -68,22 +68,22 @@ impl ImportStore for PostgresStore {
                         && row.get::<i16, _>("latest_house") == p.house
                         && row.get::<Option<String>, _>("latest_membership_from")
                             == p.membership_from
-                        && row.get::<bool, _>("is_current_commons") == member.current =>
+                        && row.get::<bool, _>("is_current_commons") == member.is_current() =>
                 {
                     changes.unchanged += 1
                 }
                 Some(_) => changes.updated += 1,
             }
             let member_id: Uuid = sqlx::query_scalar("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (parliament_member_id) DO UPDATE SET name=EXCLUDED.name, party_id=EXCLUDED.party_id, party_name=EXCLUDED.party_name, latest_house=EXCLUDED.latest_house, latest_membership_from=EXCLUDED.latest_membership_from, is_current_commons=EXCLUDED.is_current_commons RETURNING id")
-                .bind(p.id).bind(&p.name).bind(p.party_id).bind(&p.party_name).bind(p.house).bind(&p.membership_from).bind(member.current)
+                .bind(p.id).bind(&p.name).bind(p.party_id).bind(&p.party_name).bind(p.house).bind(&p.membership_from).bind(member.is_current())
                 .fetch_one(&mut *tx).await.map_err(database)?;
-            for period in &member.periods {
+            for period in member.periods() {
                 sqlx::query("INSERT INTO exposed.member_terms (member_id,term_id,house,source_start_date,source_end_date,served_from,served_until) VALUES ($1,$2,1,$3,$4,$5,$4) ON CONFLICT (member_id,term_id,house,source_start_date) DO UPDATE SET source_end_date=EXCLUDED.source_end_date, served_from=EXCLUDED.served_from, served_until=EXCLUDED.served_until")
                     .bind(member_id).bind(term_id).bind(midnight(period.source_start)).bind(period.end.map(midnight)).bind(midnight(period.served_from))
                     .execute(&mut *tx).await.map_err(database)?;
             }
             let starts: Vec<_> = member
-                .periods
+                .periods()
                 .iter()
                 .map(|p| midnight(p.source_start))
                 .collect();
@@ -161,7 +161,7 @@ async fn write_declaration(
     member: Uuid,
     accepted: &Accepted,
 ) -> Result<()> {
-    let d = &accepted.declaration.draft;
+    let d = accepted.declaration.draft();
     sqlx::query("INSERT INTO exposed.declarations (source_declaration_id,member_id,category_id,category_name,registration_date,fetched_at) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (source_declaration_id) DO UPDATE SET member_id=EXCLUDED.member_id,category_id=EXCLUDED.category_id,category_name=EXCLUDED.category_name,registration_date=EXCLUDED.registration_date,fetched_at=EXCLUDED.fetched_at")
         .bind(d.id).bind(member).bind(d.category_id).bind(&d.category_name).bind(d.registration_date.map(midnight)).bind(accepted.fetched_at)
         .execute(&mut **tx).await.map_err(database)?;

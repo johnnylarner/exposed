@@ -2,6 +2,7 @@ use crate::imports::{
     config::WhatsAppConfig,
     core::{ImportError, Result, ports::Notifications},
 };
+use anyhow::Context;
 use serde_json::json;
 use std::time::Duration;
 
@@ -13,7 +14,7 @@ pub(crate) struct WhatsApp {
 impl WhatsApp {
     pub fn new(config: WhatsAppConfig) -> anyhow::Result<Self> {
         let token = std::env::var(&config.token_env)
-            .map_err(|_| anyhow::anyhow!("WhatsApp token environment variable is missing"))?;
+            .context("WhatsApp token environment variable is missing")?;
         anyhow::ensure!(!token.is_empty(), "WhatsApp token is empty");
         anyhow::ensure!(
             config.api_version.starts_with('v')
@@ -53,13 +54,11 @@ impl Notifications for WhatsApp {
             }))
             .send()
             .await
-            .map_err(|_| ImportError::Source("WhatsApp transport failed".into()))?;
-        if !response.status().is_success() {
-            return Err(ImportError::Source(format!(
-                "WhatsApp returned HTTP {}",
-                response.status().as_u16()
-            )));
-        }
+            .map_err(|e| ImportError::source_failure("WhatsApp transport failed", e))?;
+        let status = response.status();
+        response.error_for_status().map_err(|e| {
+            ImportError::source_failure(format!("WhatsApp returned HTTP {}", status.as_u16()), e)
+        })?;
         Ok(())
     }
 }
