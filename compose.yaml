@@ -1,5 +1,27 @@
 name: exposed
 services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    init: true
+    environment:
+      EXPOSED_API_ORIGIN: http://exposed:6999
+      EXPOSED_WATCH_POLL: "true"
+    ports:
+      - "127.0.0.1:5173:5173"
+    volumes:
+      - ./frontend:/app/frontend
+      - frontend_node_modules:/app/frontend/node_modules
+    depends_on:
+      exposed:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 3s
+      start_period: 20s
+      retries: 10
   exposed:
     build:
       context: ./docker
@@ -47,6 +69,7 @@ services:
       timeout: 5s
       retries: 20
 volumes:
+  frontend_node_modules:
   postgres_data:
   cargo_registry:
   cargo_git:

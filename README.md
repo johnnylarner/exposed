@@ -40,20 +40,26 @@ The schema uses a single development baseline. See the
 database or editing the baseline. See the
 [funder identification rules](ingest/README.md#funder-identification) for imported funding.
 
-## Develop the Rust app with Docker Compose
+## Develop the application with Docker Compose
 
 Initialize the database using the setup above before starting the app. SQLx checks
 queries against the live schema during compilation, so a fresh database needs
 `make db-migrate` first. Migrations remain an explicit step.
 
 ```sh
-docker compose up --build exposed
+docker compose up --build
 ```
+
+Open the Svelte frontend at **http://localhost:5173**. It searches the existing
+API as you type, shows MPs and funders together in the API's similarity order,
+and preserves the names returned by the source. Enter at least three characters;
+press `/` to focus search and Escape to clear it. A query URL such as
+`http://localhost:5173/?q=HSBC` can be shared for manual testing.
 
 The API listens at `http://localhost:6999`. For example:
 
 ```sh
-curl 'http://localhost:6999/search?term=McDonald'
+curl 'http://localhost:6999/search?term=McDonald&max_entries=10'
 ```
 
 The repository is bind-mounted into the container. `cargo watch` rebuilds and
@@ -66,8 +72,58 @@ The container uses `exposed/config/compose.yaml` and connects to `postgres:5432`
 Its `DATABASE_URL` supplies the same connection for SQLx compile-time checks.
 For running Cargo on the host, `exposed/config/dev.yaml` uses `localhost:55432`.
 
-Use `docker compose stop exposed` to stop the app and keep the caches.
+The frontend service proxies `/api/search` to `http://exposed:6999/search`.
+Its source is bind-mounted, with polling for live reload on Docker Desktop and a
+separate Linux dependency volume. Restart `frontend` after changing its package
+manifest or lockfile; dependencies are refreshed at startup. The API may take
+longer than the frontend to compile on a first run; use **Try again** if search
+is not ready yet.
+
+Use `docker compose stop frontend exposed` to stop the app and keep the caches.
 `make db-start` and `make db-stop` control only PostgreSQL.
+
+The Compose project is named `exposed`. When testing a frontend-only change in a
+worktree against an already running API, use
+`docker compose up --build -d --no-deps frontend` to avoid recreating the backend
+and database from that worktree. This serves the frontend from the worktree.
+
+### Frontend development and checks
+
+To run the frontend on the host instead of Docker, use Node.js **24+**:
+
+```sh
+cd frontend
+npm ci
+npm run dev
+```
+
+The host dev server proxies to `http://127.0.0.1:6999` by default. Override
+`EXPOSED_API_ORIGIN` when starting Vite to use another backend. This setting is
+server-side; the browser always uses the same-origin `/api/search` path.
+The frontend image is for local development. `npm run build` produces static
+assets in `frontend/dist`; a production host must also route `/api/search` to
+the Rust API.
+
+Search delay, result limits and match strictness live in
+[`frontend/src/lib/search.ts`](frontend/src/lib/search.ts), separately from the
+UI. The API caps each entity type separately, so the UI describes the returned
+results without claiming a total count or offering unsupported pagination.
+This slice displays results; entity pages and in-app feedback collection are
+future work. Feedback is gathered through manual testing.
+
+For frontend checks, install dependencies and the browser once, then run:
+
+```sh
+npm --prefix frontend ci
+cd frontend && PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium && cd ..
+make frontend-check
+```
+
+Browser tests use a controlled API to check ranking, request cancellation,
+empty/error recovery, text escaping and narrow layouts. For manual verification,
+try an MP's name, `HSBC`, a misspelling, clearing a pending query, and stopping
+the API to check retry behavior. See the
+[search design brief](docs/design/entity-search.md) for the agreed scope.
 
 ## View example declarations from the API
 
@@ -114,7 +170,9 @@ Contains Parliamentary information licensed under the
 | `make import-members` | Refresh member data |
 | `make import-declarations` | Refresh declarations for the stored member cohort |
 | `make verify` | Check data in the local Compose database |
-| `make check` | Run lint, formatting checks, type checks and all tests |
+| `make check` | Run importer lint, formatting checks, type checks and tests |
+| `make frontend-dev` | Start the Svelte frontend and API with live reload |
+| `make frontend-check` | Check, build and browser-test the frontend |
 | `make test-unit` | Run tests without PostgreSQL |
 | `make format` | Format Python files |
 | `make db-stop` | Stop local PostgreSQL while retaining data |
