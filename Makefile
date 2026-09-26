@@ -8,7 +8,7 @@ EXPOSED_TEST_ADMIN_DSN ?= postgresql://exposed:exposed_local_dev@localhost:55432
 export EXPOSED_TEST_ADMIN_DSN
 export SQLX
 
-.PHONY: db-start db-stop db-nuke db-migrate db-revert db-migration-status db-add-migration import-members import-declarations verify lint format typecheck test test-unit check
+.PHONY: db-start db-stop db-nuke db-migrate db-revert db-migration-status db-add-migration import-members import-declarations verify lint format typecheck test test-unit check frontend-dev frontend-check
 
 db-start: ## Start the local PostgreSQL database
 	docker compose up -d --wait postgres
@@ -58,4 +58,13 @@ test: ## Run all tests, including isolated PostgreSQL databases (requires db-sta
 test-unit: ## Run tests without PostgreSQL
 	cd ingest && $(VENV_PYTHON) -m pytest -q -m 'not integration'
 
-check: lint typecheck test ## Run lint, type checking and the full test suite
+check: lint typecheck test ## Run importer lint, type checking and tests
+
+frontend-dev: ## Start the Svelte frontend and API with live reload
+	docker compose up --build frontend
+
+frontend-check: ## Check and build the frontend, then run its browser tests
+	npm --prefix frontend run format:check
+	npm --prefix frontend run check
+	npm --prefix frontend run build
+	npm --prefix frontend test
