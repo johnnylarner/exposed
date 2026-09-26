@@ -1,0 +1,10 @@
+FROM node:24-alpine
+
+WORKDIR /app/frontend
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY . .
+
+EXPOSE 5173
+# Refresh the named dependency volume when the mounted lockfile changes.
+CMD ["sh", "-c", "npm ci --prefer-offline --no-audit --no-fund && exec npm run dev -- --host 0.0.0.0"]
