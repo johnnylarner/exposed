@@ -1,24 +1,35 @@
-//! Composition and lifecycle for source workers, operator API, and timers.
+//! Application composition and lifecycle for search, imports, and notifications.
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::postgres::PgPoolOptions;
 use std::{sync::Arc, time::Duration};
+use tokio::net::TcpListener;
 
-use super::{
-    adapters::{
-        parliament::{CliTransport, Parliament},
-        postgres::PostgresStore,
-        whatsapp::WhatsApp,
+use crate::{
+    config::{Config, imports::ImportConfig},
+    domain::{
+        imports::{
+            ImportError,
+            coordinator::{
+                Clock, ImportKind, deliver_pending, queue_refresh_notification, run_import,
+            },
+            ports::ImportStore,
+        },
+        services::entity_search::Service as EntitySearchService,
     },
-    admin::{self, AdminState},
-    config::ImportConfig,
-    core::{
-        ImportError,
-        coordinator::{Clock, ImportKind, deliver_pending, queue_refresh_notification, run_import},
-        ports::ImportStore,
+    inbound::http::{
+        imports::{self as admin, AdminState},
+        server::serve_exposed,
+        state::AppState,
+    },
+    outbound::{
+        ExposedDatabase,
+        parliament::{CliTransport, Parliament},
+        whatsapp::WhatsApp,
     },
 };
 
+#[derive(Clone, Copy)]
 pub(crate) struct SystemClock;
 impl Clock for SystemClock {
     fn now(&self) -> DateTime<Utc> {
@@ -26,12 +37,35 @@ impl Clock for SystemClock {
     }
 }
 
-/// Run the import operator listener and the in-process daily refresh task.
+/// Run the application with one shared database pool and optional imports.
 ///
 /// # Errors
 /// Returns a configuration, database connection, or listener error at startup.
 /// Migrations remain an explicit operator action.
-pub async fn serve(config: &ImportConfig, connection_string: &str) -> anyhow::Result<()> {
+pub async fn serve(config: &Config) -> anyhow::Result<()> {
+    let pool = PgPoolOptions::new()
+        .max_connections(10)
+        .acquire_timeout(Duration::from_secs(15))
+        .connect(&config.connection_string)
+        .await?;
+    let database = ExposedDatabase::from(pool);
+    let state = AppState {
+        entity_search_service: Arc::new(EntitySearchService::new(
+            database.clone(),
+            database.clone(),
+        )),
+    };
+    let listener = TcpListener::bind((std::net::Ipv4Addr::UNSPECIFIED, config.port)).await?;
+    let search = serve_exposed(listener, state);
+    if let Some(imports) = &config.imports {
+        tokio::try_join!(search, serve_imports(imports, database))?;
+    } else {
+        search.await?;
+    }
+    Ok(())
+}
+
+async fn serve_imports(config: &ImportConfig, store: ExposedDatabase) -> anyhow::Result<()> {
     let token = config
         .admin_token_env
         .as_ref()
@@ -55,16 +89,16 @@ pub async fn serve(config: &ImportConfig, connection_string: &str) -> anyhow::Re
         "A notification interval requires a WhatsApp adapter"
     );
     let whatsapp = config.whatsapp.clone().map(WhatsApp::new).transpose()?;
-    let pool = PgPoolOptions::new()
-        .max_connections(8)
-        .acquire_timeout(Duration::from_secs(15))
-        .connect(connection_string)
-        .await?;
-    let store = PostgresStore::new(pool);
     store.refresh_state(config.term_start).await?;
-    let config = Arc::new(config.clone());
-    let state = AdminState::new(store.clone(), config.clone(), token);
-    let listener = tokio::net::TcpListener::bind(config.admin_bind).await?;
+    let clock = SystemClock;
+    let state = AdminState::new(
+        store.clone(),
+        clock,
+        config.term_start,
+        config.notification_interval_seconds,
+        token,
+    );
+    let listener = TcpListener::bind(config.admin_bind).await?;
     let server = async {
         axum::serve(listener, admin::router(state.clone()))
             .await
@@ -83,7 +117,7 @@ pub async fn serve(config: &ImportConfig, connection_string: &str) -> anyhow::Re
                 if !store
                     .refresh_state(config.term_start)
                     .await?
-                    .due(Utc::now())
+                    .due(clock.now())
                 {
                     return Ok(());
                 }
@@ -91,7 +125,8 @@ pub async fn serve(config: &ImportConfig, connection_string: &str) -> anyhow::Re
                     config.python.clone(),
                     config.source_directory.clone(),
                 ));
-                let as_of = Utc::now()
+                let as_of = clock
+                    .now()
                     .with_timezone(&chrono_tz::Europe::London)
                     .date_naive();
                 run_import(
@@ -100,7 +135,7 @@ pub async fn serve(config: &ImportConfig, connection_string: &str) -> anyhow::Re
                     as_of,
                     &source,
                     &store,
-                    &SystemClock,
+                    &clock,
                     config.notification_interval_seconds,
                     true,
                 )
@@ -126,14 +161,14 @@ pub async fn serve(config: &ImportConfig, connection_string: &str) -> anyhow::Re
                 if let Err(error) = queue_refresh_notification(
                     config.term_start,
                     &store,
-                    &SystemClock,
+                    &clock,
                     config.notification_interval_seconds,
                 )
                 .await
                 {
                     eprintln!("Notification policy: {error:?}");
                 }
-                if let Err(error) = deliver_pending(&store, adapter, &SystemClock).await {
+                if let Err(error) = deliver_pending(&store, adapter, &clock).await {
                     eprintln!("Notification queue: {error:?}");
                 }
             }

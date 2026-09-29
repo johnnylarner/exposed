@@ -1,22 +1,28 @@
-use super::refresh::Fixture;
-use crate::imports::{
-    adapters::{parliament::Transport, postgres::PostgresStore},
-    admin::{AdminState, router},
-    config::ImportConfig,
+use super::{
+    date,
+    refresh::{FixedClock, Fixture},
+};
+use crate::{
+    inbound::http::imports::{AdminState, router},
+    outbound::{ExposedDatabase, parliament::Transport},
 };
 use serde_json::{Value, json};
 use sqlx::PgPool;
-use std::sync::Arc;
 
-fn config() -> ImportConfig {
-    serde_json::from_value(json!({"term_start":"2024-07-04","python":"unused","source_directory":"unused","admin_bind":"127.0.0.1:0","automatic_refresh":false})).unwrap()
+fn state(store: ExposedDatabase, token: Option<String>) -> AdminState<ExposedDatabase, FixedClock> {
+    AdminState::new(
+        store,
+        FixedClock(date("2026-09-15").and_hms_opt(12, 0, 0).unwrap().and_utc()),
+        date("2024-07-04"),
+        None,
+        token,
+    )
 }
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn operator_session_replays_ack_without_repeating_writes(pool: PgPool) {
-    let state = AdminState::new(
-        PostgresStore::new(pool.clone()),
-        Arc::new(config()),
+    let state = state(
+        ExposedDatabase::from(pool.clone()),
         Some("test-token".into()),
     );
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -96,7 +102,7 @@ async fn operator_session_replays_ack_without_repeating_writes(pool: PgPool) {
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn python_operator_drives_real_rust_initialization_and_safe_repeat(pool: PgPool) {
-    let state = AdminState::new(PostgresStore::new(pool.clone()), Arc::new(config()), None);
+    let state = state(ExposedDatabase::from(pool.clone()), None);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let task = tokio::spawn(async move {
@@ -132,13 +138,13 @@ async fn python_operator_drives_real_rust_initialization_and_safe_repeat(pool: P
 async fn cancelling_blocked_publication_rolls_back_current_member_and_keeps_completed_member(
     pool: PgPool,
 ) {
-    use crate::imports::{
-        adapters::parliament::{Parliament, Request},
-        core::refresh::refresh_members,
+    use crate::{
+        domain::imports::refresh::refresh_members,
+        outbound::parliament::{Parliament, Request},
     };
     use std::time::Duration;
 
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     refresh_members(
         super::date("2024-07-04"),
         super::date("2026-09-15"),
@@ -147,7 +153,7 @@ async fn cancelling_blocked_publication_rolls_back_current_member_and_keeps_comp
     )
     .await
     .unwrap();
-    let state = AdminState::new(store, Arc::new(config()), None);
+    let state = state(store, None);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
     let server = tokio::spawn(async move {

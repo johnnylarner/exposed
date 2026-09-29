@@ -19,18 +19,13 @@ use tokio::{
 };
 use uuid::Uuid;
 
-use super::{
-    adapters::{
-        parliament::{Parliament, Request, Response, Transport},
-        postgres::PostgresStore,
-    },
-    config::ImportConfig,
-    core::{
+use crate::{
+    domain::imports::{
         ImportError, Result,
-        coordinator::{ImportKind, run_import},
-        ports::ImportStore,
+        coordinator::{Clock, ImportKind, run_import},
+        ports::{ImportStore, NotificationQueue},
     },
-    runtime::SystemClock,
+    outbound::parliament::{Parliament, Request, Response, Transport},
 };
 
 enum Event {
@@ -99,17 +94,27 @@ impl Exchange {
 }
 
 #[derive(Clone)]
-pub(crate) struct AdminState {
-    store: PostgresStore,
-    config: Arc<ImportConfig>,
+pub(crate) struct AdminState<S, C> {
+    store: S,
+    clock: C,
+    term_start: NaiveDate,
+    notification_interval_seconds: Option<i64>,
     token: Option<String>,
     sessions: Arc<Mutex<HashMap<Uuid, RegisteredSession>>>,
 }
-impl AdminState {
-    pub fn new(store: PostgresStore, config: Arc<ImportConfig>, token: Option<String>) -> Self {
+impl<S, C> AdminState<S, C> {
+    pub fn new(
+        store: S,
+        clock: C,
+        term_start: NaiveDate,
+        notification_interval_seconds: Option<i64>,
+        token: Option<String>,
+    ) -> Self {
         Self {
             store,
-            config,
+            clock,
+            term_start,
+            notification_interval_seconds,
             token,
             sessions: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -146,15 +151,19 @@ struct Begin {
     term_start: Option<NaiveDate>,
 }
 
-async fn begin(
-    State(state): State<AdminState>,
+async fn begin<S, C>(
+    State(state): State<AdminState<S, C>>,
     Path(id): Path<Uuid>,
     headers: HeaderMap,
     Json(body): Json<Begin>,
-) -> HttpResult {
+) -> HttpResult
+where
+    S: ImportStore + NotificationQueue + Clone + 'static,
+    C: Clock + Clone + 'static,
+{
     state.authorize(&headers)?;
-    let term = body.term_start.unwrap_or(state.config.term_start);
-    if term != state.config.term_start {
+    let term = body.term_start.unwrap_or(state.term_start);
+    if term != state.term_start {
         return Err(bad(
             StatusCode::UNPROCESSABLE_ENTITY,
             "Term differs from the Rust application configuration",
@@ -177,21 +186,16 @@ async fn begin(
     }
     let (tx, events) = mpsc::channel(1);
     let store = state.store.clone();
-    let interval = state.config.notification_interval_seconds;
+    let clock = state.clock.clone();
+    let interval = state.notification_interval_seconds;
     let task = tokio::spawn(async move {
         let source = Parliament(RemoteTransport(tx.clone()));
-        let as_of = chrono::Utc::now()
+        let as_of = clock
+            .now()
             .with_timezone(&chrono_tz::Europe::London)
             .date_naive();
         let result = run_import(
-            body.kind,
-            term,
-            as_of,
-            &source,
-            &store,
-            &SystemClock,
-            interval,
-            false,
+            body.kind, term, as_of, &source, &store, &clock, interval, false,
         )
         .await;
         let message = match result {
@@ -230,8 +234,8 @@ struct Submission {
     sequence: u64,
     response: Response,
 }
-async fn evidence(
-    State(state): State<AdminState>,
+async fn evidence<S, C>(
+    State(state): State<AdminState<S, C>>,
     Path(id): Path<Uuid>,
     headers: HeaderMap,
     Json(body): Json<Submission>,
@@ -270,8 +274,8 @@ async fn evidence(
     Ok(Json(session.message().await))
 }
 
-async fn cancel(
-    State(state): State<AdminState>,
+async fn cancel<S, C>(
+    State(state): State<AdminState<S, C>>,
     Path(id): Path<Uuid>,
     headers: HeaderMap,
 ) -> HttpResult {
@@ -282,11 +286,14 @@ async fn cancel(
     }
     Ok(Json(json!({"status":"cancelled"})))
 }
-async fn status(State(state): State<AdminState>, headers: HeaderMap) -> HttpResult {
+async fn status<S: ImportStore, C>(
+    State(state): State<AdminState<S, C>>,
+    headers: HeaderMap,
+) -> HttpResult {
     state.authorize(&headers)?;
     let refresh = state
         .store
-        .refresh_state(state.config.term_start)
+        .refresh_state(state.term_start)
         .await
         .map_err(|error| {
             eprintln!("Import status: {error:?}");
@@ -298,11 +305,15 @@ async fn status(State(state): State<AdminState>, headers: HeaderMap) -> HttpResu
     Ok(Json(json!(refresh)))
 }
 
-pub(crate) fn router(state: AdminState) -> Router {
+pub(crate) fn router<S, C>(state: AdminState<S, C>) -> Router
+where
+    S: ImportStore + NotificationQueue + Clone + 'static,
+    C: Clock + Clone + 'static,
+{
     Router::new()
-        .route("/imports/status", get(status))
-        .route("/imports/{id}", post(begin).delete(cancel))
-        .route("/imports/{id}/evidence", post(evidence))
+        .route("/imports/status", get(status::<S, C>))
+        .route("/imports/{id}", post(begin::<S, C>).delete(cancel::<S, C>))
+        .route("/imports/{id}/evidence", post(evidence::<S, C>))
         .layer(DefaultBodyLimit::max(32 * 1024 * 1024))
         .with_state(state)
 }

@@ -1,9 +1,11 @@
 use chrono::{DateTime, NaiveDate, Utc};
-use sqlx::{PgPool, Postgres, Row, Transaction, pool::PoolConnection};
+use sqlx::{Postgres, Row, Transaction, pool::PoolConnection};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
-use crate::imports::core::{
+use super::ExposedDatabase;
+
+use crate::domain::imports::{
     ImportError, Result,
     declarations::{Accepted, Funding, Payment, merge_funder_metadata, same_payments},
     members::{Member, validate_configured_term},
@@ -18,20 +20,13 @@ fn midnight(date: NaiveDate) -> DateTime<Utc> {
     date.and_time(chrono::NaiveTime::MIN).and_utc()
 }
 
-#[derive(Clone)]
-pub(crate) struct PostgresStore {
-    pool: PgPool,
-}
-impl PostgresStore {
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
-    }
-}
-
-impl ImportStore for PostgresStore {
+impl ImportStore for ExposedDatabase {
     type Lease = PoolConnection<Postgres>;
     async fn acquire(&self) -> Result<Self::Lease> {
         let mut connection = self.pool.acquire().await.map_err(database)?;
+        // Cancellation can happen after PostgreSQL locks but before SQLx sees its reply.
+        // Mark the connection before that await so a session lock never returns to the pool.
+        connection.close_on_drop();
         let acquired: bool = sqlx::query_scalar("SELECT pg_try_advisory_lock(20260925, 1)")
             .fetch_one(&mut *connection)
             .await
@@ -39,8 +34,6 @@ impl ImportStore for PostgresStore {
         if !acquired {
             return Err(ImportError::Busy);
         }
-        // Session locks must never be returned to the pool. Closing also handles cancellation.
-        connection.close_on_drop();
         Ok(connection)
     }
 
@@ -200,7 +193,7 @@ async fn write_declaration(
     Ok(())
 }
 
-impl NotificationQueue for PostgresStore {
+impl NotificationQueue for ExposedDatabase {
     async fn enqueue(&self, key: &str, message: &str) -> Result<()> {
         sqlx::query("INSERT INTO exposed.import_notifications (event_key,message) VALUES ($1,$2) ON CONFLICT (event_key) DO NOTHING")
             .bind(key).bind(message).execute(&self.pool).await.map_err(database)?;

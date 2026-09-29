@@ -1,10 +1,10 @@
 use super::date;
-use crate::imports::{
-    adapters::postgres::PostgresStore,
-    core::{
+use crate::{
+    domain::imports::{
         members::{HouseMembership, Member, MemberHistory, MemberProfile},
         ports::ImportStore,
     },
+    outbound::ExposedDatabase,
 };
 use chrono::Utc;
 use sqlx::{PgPool, Row};
@@ -36,7 +36,7 @@ fn member(id: i32) -> Member {
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn member_batches_preserve_ids_and_rollback_whole_failed_batch(pool: PgPool) {
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     let first = member(1);
     let changes = store
         .member_batch(date("2024-07-04"), &[first.clone()])
@@ -85,8 +85,10 @@ async fn member_batches_preserve_ids_and_rollback_whole_failed_batch(pool: PgPoo
 async fn shared_metadata_changes_keep_unchanged_funding_ids_and_duplicate_multiplicity(
     pool: PgPool,
 ) {
-    use crate::imports::{adapters::declarations::interpret, core::declarations::Accepted};
-    let store = PostgresStore::new(pool.clone());
+    use crate::{
+        domain::imports::declarations::Accepted, outbound::parliament::declarations::interpret,
+    };
+    let store = ExposedDatabase::from(pool.clone());
     store
         .member_batch(date("2024-07-04"), &[member(1)])
         .await
@@ -169,8 +171,10 @@ async fn shared_metadata_changes_keep_unchanged_funding_ids_and_duplicate_multip
 async fn declaration_database_failure_rolls_back_headers_payments_and_shared_funder_changes(
     pool: PgPool,
 ) {
-    use crate::imports::{adapters::declarations::interpret, core::declarations::Accepted};
-    let store = PostgresStore::new(pool.clone());
+    use crate::{
+        domain::imports::declarations::Accepted, outbound::parliament::declarations::interpret,
+    };
+    let store = ExposedDatabase::from(pool.clone());
     store
         .member_batch(date("2024-07-04"), &[member(1)])
         .await
@@ -205,7 +209,7 @@ async fn declaration_database_failure_rolls_back_headers_payments_and_shared_fun
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn baseline_is_reversible_and_additive_upgrade_preserves_domain_records(pool: PgPool) {
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     store
         .member_batch(date("2024-07-04"), &[member(1)])
         .await

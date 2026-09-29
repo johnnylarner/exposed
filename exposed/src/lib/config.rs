@@ -3,6 +3,9 @@ use thiserror::Error;
 
 use serde::Deserialize;
 
+/// Configuration of imports and optional WhatsApp delivery.
+pub mod imports;
+
 #[derive(Deserialize)]
 /// Config for the exposed application
 pub struct Config {
@@ -11,7 +14,7 @@ pub struct Config {
     /// Port for server to listen on
     pub port: u16,
     /// Optional import runtime; omitted configurations continue to serve search only.
-    pub imports: Option<crate::imports::config::ImportConfig>,
+    pub imports: Option<imports::ImportConfig>,
 }
 
 impl TryFrom<&PathBuf> for Config {

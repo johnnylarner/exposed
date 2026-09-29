@@ -1,5 +1,5 @@
 //! Exercise real NDJSON pipes and the production Python worker loop.
-use crate::imports::adapters::parliament::{CliTransport, Request, Transport};
+use crate::outbound::parliament::{CliTransport, Request, Transport};
 use std::os::unix::fs::PermissionsExt;
 
 #[tokio::test]

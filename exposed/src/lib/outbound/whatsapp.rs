@@ -1,6 +1,6 @@
-use crate::imports::{
-    config::WhatsAppConfig,
-    core::{ImportError, Result, ports::Notifications},
+use crate::{
+    config::imports::WhatsAppConfig,
+    domain::imports::{ImportError, Result, ports::Notifications},
 };
 use anyhow::Context;
 use serde_json::json;

@@ -1,3 +1,5 @@
+//! Import values, rules, use cases, and the ports they require.
+
 pub(crate) mod members;
 
 use thiserror::Error;

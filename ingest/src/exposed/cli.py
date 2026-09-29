@@ -61,13 +61,19 @@ def main(argv: list[str] | None = None) -> int:
             except ValueError:
                 parser.error("--term-start/PARLIAMENT_TERM_START must be YYYY-MM-DD")
         app_url = args.app_url or os.environ.get("EXPOSED_APP_URL", "http://127.0.0.1:7000")
-        parsed_url = urlsplit(app_url)
-        if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
-            parser.error("--app-url/EXPOSED_APP_URL must be an HTTP or HTTPS URL")
         headers = {}
         if token := os.environ.get("EXPOSED_IMPORT_TOKEN"):
             headers["Authorization"] = f"Bearer {token}"
-        with httpx.Client(base_url=app_url, headers=headers, timeout=330) as app:
+        try:
+            parsed_url = urlsplit(app_url)
+            if parsed_url.scheme not in {"http", "https"} or not parsed_url.hostname:
+                raise ValueError("expected an HTTP or HTTPS URL with a hostname")
+            # urlsplit validates the port only when this property is accessed.
+            _ = parsed_url.port
+            app = httpx.Client(base_url=app_url, headers=headers, timeout=330)
+        except (ValueError, httpx.InvalidURL) as exc:
+            parser.error(f"--app-url/EXPOSED_APP_URL is invalid: {exc}")
+        with app:
             try:
                 kind = {
                     "import-members": "members",

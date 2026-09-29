@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Parser;
-use exposed::{config::Config, inbound::http::server::serve_exposed};
+use exposed::{application, config::Config};
 
 #[derive(Parser)]
 struct Cli {
@@ -14,19 +14,8 @@ async fn main() -> anyhow::Result<()> {
 
     let config = Config::try_from(&args.config)?;
 
-    let services = async {
-        if let Some(imports) = &config.imports {
-            tokio::try_join!(
-                serve_exposed(&config),
-                exposed::imports::serve(imports, &config.connection_string)
-            )?;
-        } else {
-            serve_exposed(&config).await?;
-        }
-        Ok(())
-    };
     tokio::select! {
-        result = services => result,
+        result = application::serve(&config) => result,
         signal = tokio::signal::ctrl_c() => { signal?; Ok(()) }
     }
 }

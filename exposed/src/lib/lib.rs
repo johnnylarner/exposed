@@ -22,5 +22,8 @@ pub mod outbound;
 /// Contains the configuration parameters for this project
 pub mod config;
 
-/// Importing and refreshing Parliament evidence.
-pub mod imports;
+/// Application composition and lifecycle.
+pub mod application;
+
+#[cfg(test)]
+mod tests;

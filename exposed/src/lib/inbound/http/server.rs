@@ -1,28 +1,17 @@
-use std::sync::Arc;
-
 use crate::{
-    config::Config,
-    domain::services::entity_search::Service as EntitySearchService,
+    domain::services::entity_search::EntitySearchService,
     inbound::http::{routes::routes, state::AppState},
-    outbound::ExposedDatabase,
 };
+use tokio::net::TcpListener;
 
 /// Starts an `exposed` HTTP server
-pub async fn serve_exposed(config: &Config) -> anyhow::Result<()> {
-    let db = ExposedDatabase::new(&config.connection_string).await;
-    let service = EntitySearchService::new(db.clone(), db);
-
-    let state = AppState {
-        entity_search_service: Arc::new(service),
-    };
+pub async fn serve_exposed<E: EntitySearchService>(
+    listener: TcpListener,
+    state: AppState<E>,
+) -> anyhow::Result<()> {
     let router = routes().with_state(state);
 
-    let port = config.port;
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
-        .await
-        .unwrap();
-
-    let _ = axum::serve(listener, router).await?;
+    axum::serve(listener, router).await?;
 
     Ok(())
 }

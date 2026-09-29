@@ -1,14 +1,14 @@
 use super::date;
-use crate::imports::{
-    adapters::{
-        parliament::{Parliament, Request, Response, Transport},
-        postgres::PostgresStore,
-    },
-    core::{
+use crate::{
+    domain::imports::{
         ImportError, Result,
         coordinator::{Clock, ImportKind, run_import},
         ports::ImportStore,
         refresh::{refresh_declarations, refresh_members},
+    },
+    outbound::{
+        ExposedDatabase,
+        parliament::{Parliament, Request, Response, Transport},
     },
 };
 use chrono::{Duration, Utc};
@@ -72,7 +72,7 @@ impl Transport for Fixture {
     }
 }
 
-async fn seed(store: &PostgresStore, members: Vec<i32>) {
+async fn seed(store: &ExposedDatabase, members: Vec<i32>) {
     refresh_members(
         date("2024-07-04"),
         date("2026-09-15"),
@@ -85,7 +85,7 @@ async fn seed(store: &PostgresStore, members: Vec<i32>) {
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn next_member_page_is_not_fetched_until_previous_batch_is_committed(pool: PgPool) {
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     let mut source = Fixture::new(vec![1, 2, 3]);
     source.visible_before_next_page = Some(pool);
     let result = refresh_members(
@@ -101,7 +101,7 @@ async fn next_member_page_is_not_fetched_until_previous_batch_is_committed(pool:
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn late_source_failure_retains_completed_member_but_no_partial_current_member(pool: PgPool) {
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     seed(&store, vec![1, 2]).await;
     let mut source = Fixture::new(vec![1, 2]);
     source
@@ -136,7 +136,7 @@ async fn late_source_failure_retains_completed_member_but_no_partial_current_mem
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn rejected_update_retains_funding_and_accepted_siblings_commit(pool: PgPool) {
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     seed(&store, vec![1]).await;
     let mut source = Fixture::new(vec![1]);
     source.declarations.insert(
@@ -183,7 +183,8 @@ async fn rejected_update_retains_funding_and_accepted_siblings_commit(pool: PgPo
     assert_eq!(rows[1].get::<String, _>("amount"), "30");
 }
 
-struct FixedClock(chrono::DateTime<Utc>);
+#[derive(Clone)]
+pub(super) struct FixedClock(pub chrono::DateTime<Utc>);
 impl Clock for FixedClock {
     fn now(&self) -> chrono::DateTime<Utc> {
         self.0
@@ -192,7 +193,7 @@ impl Clock for FixedClock {
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn failed_refresh_does_not_advance_freshness_and_restart_retains_retry_time(pool: PgPool) {
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     seed(&store, vec![1]).await;
     let now = date("2026-09-15")
         .and_time(chrono::NaiveTime::MIN)
@@ -227,7 +228,7 @@ async fn failed_refresh_does_not_advance_freshness_and_restart_retains_retry_tim
         .await
         .is_err()
     );
-    let restarted = PostgresStore::new(pool);
+    let restarted = ExposedDatabase::from(pool);
     let state = restarted.refresh_state(date("2024-07-04")).await.unwrap();
     assert_eq!(state.last_completed, Some(now));
     assert_eq!(state.next_attempt, Some(later + Duration::minutes(5)));
@@ -237,8 +238,8 @@ async fn failed_refresh_does_not_advance_freshness_and_restart_retains_retry_tim
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn single_import_guard_survives_multiple_application_instances(pool: PgPool) {
-    let store = PostgresStore::new(pool.clone());
-    let second = PostgresStore::new(pool);
+    let store = ExposedDatabase::from(pool.clone());
+    let second = ExposedDatabase::from(pool);
     let lease = store.acquire().await.unwrap();
     assert!(matches!(second.acquire().await, Err(ImportError::Busy)));
     drop(lease);
@@ -257,7 +258,7 @@ async fn single_import_guard_survives_multiple_application_instances(pool: PgPoo
 async fn complete_with_rejections_advances_check_time_and_parents_are_resolved_only_when_needed(
     pool: PgPool,
 ) {
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     seed(&store, vec![1]).await;
     let mut child = declaration(101, 1, "12.50");
     child["parentInterestId"] = json!(500);
@@ -294,7 +295,7 @@ async fn complete_with_rejections_advances_check_time_and_parents_are_resolved_o
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn conflicting_unknown_source_fields_fail_before_any_member_publication(pool: PgPool) {
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     seed(&store, vec![1]).await;
     for (first, second) in [
         (json!(false), json!(true)),
@@ -334,7 +335,7 @@ async fn absent_cohort_fails_before_any_source_request(pool: PgPool) {
             date("2024-07-04"),
             date("2026-09-15"),
             &source,
-            &PostgresStore::new(pool)
+            &ExposedDatabase::from(pool)
         )
         .await
         .is_err()

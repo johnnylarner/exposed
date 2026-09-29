@@ -4,4 +4,7 @@ mod funder;
 mod parliament_member;
 mod postgres;
 
+pub(crate) mod parliament;
+pub(crate) mod whatsapp;
+
 pub use postgres::ExposedDatabase;

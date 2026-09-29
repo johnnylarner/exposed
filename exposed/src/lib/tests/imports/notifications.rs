@@ -1,12 +1,12 @@
 use super::date;
-use crate::imports::{
-    adapters::postgres::PostgresStore,
-    core::{
+use crate::{
+    domain::imports::{
         ImportError, Result,
         coordinator::{Clock, deliver_pending, queue_refresh_notification},
         ports::{ImportStore, NotificationQueue, Notifications},
         refresh::RefreshState,
     },
+    outbound::ExposedDatabase,
 };
 use chrono::{DateTime, Duration, Utc};
 use sqlx::PgPool;
@@ -30,7 +30,7 @@ impl Notifications for Delivery {
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn notifications_use_app_frequency_and_retry_without_changing_import_outcome(pool: PgPool) {
-    let store = PostgresStore::new(pool.clone());
+    let store = ExposedDatabase::from(pool.clone());
     let now = Utc::now() + Duration::seconds(1);
     let mut state = RefreshState::default();
     state.completed(now, now, 0, vec![]);

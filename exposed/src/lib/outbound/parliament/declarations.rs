@@ -5,7 +5,7 @@ use chrono::{DateTime, NaiveDate, NaiveDateTime};
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::imports::core::{
+use crate::domain::imports::{
     ImportError, Result,
     declarations::{Draft, FunderCandidates, Funding, funder_attribution, latest_version},
 };

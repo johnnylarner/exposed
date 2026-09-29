@@ -9,13 +9,15 @@ use tokio::{
     sync::Mutex,
 };
 
-use super::declarations::{interpret, source_date};
-use crate::imports::core::{
+pub(crate) mod declarations;
+
+use crate::domain::imports::{
     ImportError, Result,
     declarations::{Draft, Evidence},
     members::{HouseMembership, MemberHistory, MemberProfile},
     ports::{DeclarationSource, MemberSource, Page},
 };
+use declarations::{interpret, source_date};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "operation", rename_all = "kebab-case")]
