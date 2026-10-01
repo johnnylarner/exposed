@@ -8,7 +8,8 @@ described below remain available with their existing behavior.
 
 | Boundary | Owner |
 | --- | --- |
-| CLI and operation-specific configuration | `exposed/src/bin/main.rs`, `config.rs` |
+| CLI parsing, service construction and process output | `exposed/src/lib/inbound/cli.rs` |
+| Operation-specific configuration | `exposed/src/lib/config.rs` |
 | Capture identity, raw observations and Commons service rules | `domain/models/member_ingestion.rs` |
 | Typed requests and completed outcomes | `domain/models/entity_ingestion.rs` |
 | Acquisition and offline-load orchestration | `domain/services/entity_ingestion.rs` |
@@ -17,6 +18,10 @@ described below remain available with their existing behavior.
 | Manifest checks, staging and atomic publication | `outbound/file_system.rs` |
 | Schema-v1 Parquet encoding and decoding | `outbound/member_parquet.rs` |
 | Transactional profile and service reconciliation | `outbound/member_postgres.rs` |
+
+The binary starts the Tokio runtime and calls the CLI inbound adapter. The CLI
+adapter constructs member services, just as the HTTP adapter constructs search
+services.
 
 Fetch has source and capture-storage capabilities. Load has capture-storage and
 database-writing capabilities. Their public service interface accepts the typed
