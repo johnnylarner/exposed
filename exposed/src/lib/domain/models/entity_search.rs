@@ -1,3 +1,5 @@
+//! Contains search entity models
+
 use thiserror::Error;
 
 use crate::domain::models::{funder::Funder as FunderDetails, parliament_member::ParliamentMember};

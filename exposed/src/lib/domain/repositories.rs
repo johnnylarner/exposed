@@ -10,4 +10,4 @@ pub mod parliament_member_repository;
 pub mod parliament_api;
 
 /// Store for cleaning parliament API data;
-pub mod entity_search_pipline;
+pub mod entity_ingestion_pipline;

@@ -2,4 +2,4 @@
 
 pub mod entity_search;
 
-pub mod entity_search_ingestion;
+pub mod entity_ingestion;

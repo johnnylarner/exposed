@@ -1,8 +1,7 @@
 use thiserror::Error;
 
-/// Set of methods for operating on data in the entity
-/// search pipeline
-pub trait EntitySearchPipeline: Clone + Send + Sync + 'static {
+/// Set of I/O methods for data in the entity search pipeline
+pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
     /// Reads raw data persisted from the parliament API    
     fn read_raw_data(&self) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
     /// Reads cleaned data
