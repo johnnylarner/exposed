@@ -2,7 +2,7 @@
 
 use strum::{AsRefStr, EnumString};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// Funder of MP declarations
 pub struct Funder {
     name: String,
@@ -10,23 +10,26 @@ pub struct Funder {
 }
 
 impl Funder {
+    #[must_use]
     /// Creates a new instance
-    pub fn new(name: String, funder_kind: FunderKind) -> Self {
+    pub const fn new(name: String, funder_kind: FunderKind) -> Self {
         Self { name, funder_kind }
     }
 
+    #[must_use]
     /// Gets funder name
     pub fn name(&self) -> &str {
         &self.name
     }
 
+    #[must_use]
     /// Gets legal person
     pub fn kind(&self) -> &str {
         self.funder_kind.as_ref()
     }
 }
 
-#[derive(Clone, Debug, AsRefStr, EnumString, PartialEq)]
+#[derive(Clone, Debug, AsRefStr, EnumString, PartialEq, Eq)]
 /// All possible funder kinds
 #[allow(missing_docs)] // Self explanatory
 pub enum FunderKind {

@@ -1,6 +1,5 @@
 #![deny(
     clippy::all,
-    clippy::restriction,
     clippy::pedantic,
     clippy::nursery,
     missing_docs,

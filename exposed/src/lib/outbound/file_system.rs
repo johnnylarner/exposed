@@ -29,9 +29,9 @@ impl Default for FsSchema {
 }
 
 impl ExposedDataPipeline {
-    /// Creates a new instance of [ExposedDatabase]
-    pub async fn new(root: PathBuf, key: DateTime<Utc>) -> Self {
-        let root_abs = path::absolute(&root).expect("valid root path must be provided");
+    /// Creates a new instance of [`ExposedDataPipeline`]
+    pub fn new_with_key(root: &PathBuf, key: DateTime<Utc>) -> Self {
+        let root_abs = path::absolute(root).expect("valid root path must be provided");
         Self {
             root: root_abs,
             key,

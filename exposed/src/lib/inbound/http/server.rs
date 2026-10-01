@@ -8,6 +8,9 @@ use crate::{
 };
 
 /// Starts an `exposed` HTTP server
+///
+/// # Errors
+/// - When the TCP listener cannot attach
 pub async fn serve_exposed(config: &Config) -> anyhow::Result<()> {
     let db = ExposedDatabase::new(&config.connection_string).await;
     let service = EntitySearchService::new(db.clone(), db);
@@ -18,11 +21,9 @@ pub async fn serve_exposed(config: &Config) -> anyhow::Result<()> {
     let router = routes().with_state(state);
 
     let port = config.port;
-    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}"))
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{port}")).await?;
 
-    let _ = axum::serve(listener, router).await?;
+    axum::serve(listener, router).await?;
 
     Ok(())
 }

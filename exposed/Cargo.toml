@@ -2,6 +2,13 @@
 name = "exposed"
 version = "0.1.0"
 edition = "2024"
+readme = "README.md"
+description = "Application that makes UK parliament data easy to search"
+license.workspace = true 
+categories.workspace = true 
+keywords.workspace = true 
+repository.workspace = true 
+
 
 [lib]
 path = "src/lib/lib.rs"

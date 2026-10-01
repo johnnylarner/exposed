@@ -6,7 +6,7 @@ const MAX_STRICTNESS: f32 = 1_f32;
 const MIN_STRICTNESS: f32 = 0_f32;
 const MIN_ENTRIES: u8 = 1;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// Search entity kind
 pub enum Entity {
     /// Company entity
@@ -16,6 +16,7 @@ pub enum Entity {
 }
 
 impl Entity {
+    #[must_use]
     /// Entity name
     pub fn name(&self) -> &str {
         match self {
@@ -24,14 +25,16 @@ impl Entity {
         }
     }
 
+    #[must_use]
     /// Entity kind
-    pub fn kind(&self) -> &str {
+    pub const fn kind(&self) -> &str {
         match self {
             Self::Funder(_) => "Funder",
             Self::ParliamentMember(_) => "MP",
         }
     }
 
+    #[must_use]
     /// Funder kind
     pub fn funder_kind(&self) -> Option<&str> {
         match self {
@@ -53,7 +56,7 @@ impl From<&FunderDetails> for Entity {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// Search entity name
 pub struct EntityName(String);
 
@@ -66,33 +69,46 @@ pub struct EntitySearchRequest {
 }
 
 impl EntitySearchRequest {
+    #[must_use]
     /// Search term
-    pub fn term(&self) -> &str {
+    pub const fn term(&self) -> &str {
         self.term.as_str()
     }
 
+    #[must_use]
     /// Search strictness
-    pub fn strictness(&self) -> f32 {
+    pub const fn strictness(&self) -> f32 {
         self.strictness
     }
 
+    #[must_use]
     /// Max result set
-    pub fn max_entries(&self) -> u8 {
+    pub const fn max_entries(&self) -> u8 {
         self.max_entries
     }
 }
 
 impl EntitySearchRequest {
-    /// Creates new instance with [MAX_STRICTNESS]
+    /// Creates new instance with [`MAX_STRICTNESS`]
+    ///
+    /// # Errors
+    /// - See [`Self::new_with_strictness`]
     pub fn new_strict(term: String, max_entries: u8) -> Result<Self, EntitySearchError> {
         Self::new_with_strictness(term, max_entries, MAX_STRICTNESS)
     }
     /// Creates new instance with variable strictness
+    ///
+    /// # Errors
+    /// - Term too short
+    /// - Too few entries
+    /// - Invalid strictness
     pub fn new_with_strictness(
         term: String,
         max_entries: u8,
         strictness: f32,
     ) -> Result<Self, EntitySearchError> {
+        // It will be a u8
+        #[allow(clippy::cast_possible_truncation)]
         if term.trim().len() < 3 {
             return Err(EntitySearchError::InvalidTerm(term.trim().len() as u8));
         }
@@ -104,8 +120,8 @@ impl EntitySearchRequest {
         }
         Ok(Self {
             term,
-            max_entries,
             strictness,
+            max_entries,
         })
     }
 }
