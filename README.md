@@ -40,6 +40,71 @@ The schema uses a single development baseline. See the
 database or editing the baseline. See the
 [funder identification rules](ingest/README.md#funder-identification) for imported funding.
 
+## Rust member capture and loading
+
+Members can also be acquired and loaded using Rust, independently of the Python
+toolchain. Build the executable once; the existing server SQLx macros need the
+initialized development database at compile time:
+
+```sh
+DATABASE_URL='postgresql://exposed:exposed_local_dev@localhost:55432/exposed?sslmode=disable' cargo build --locked
+target/debug/exposed data fetch members exposed/config/members.yaml
+target/debug/exposed data load members exposed/config/members.yaml CAPTURE_UUIDV7
+```
+
+Replace `CAPTURE_UUIDV7` with the `capture_id` printed by Fetch. Both commands
+print a JSON success summary to stdout and progress/errors to stderr. Fetch
+reports raw dataset counts; Load reports inserted, updated, unchanged,
+current/former, excluded-candidate and service-period counts after commit.
+
+Edit [members.yaml](exposed/config/members.yaml) for your environment:
+
+| Setting | Fetch | Load |
+| --- | --- | --- |
+| `data_root` | Required; destination for captures | Required; location of saved captures |
+| `term_start` | Required calendar date, on or before today in Europe/London | Ignored; read from the selected capture |
+| `connection_string` | Unused; may be omitted | Required PostgreSQL connection string |
+| `members_api_url` | Optional Members API origin | Unused; no Parliament requests |
+
+Paths are relative to the command's working directory. Fetch needs no database
+connection at runtime. Each attempt receives a UUIDv7; a completed capture appears
+at `data_root/raw/members/<capture_id>/` only after every file has been finalized
+and checked. Subsequent fetches retain previous captures. Interrupted staging
+directories have names beginning `.staging-` and cannot be loaded.
+
+Schema version 1 contains `manifest.json` and three typed Parquet files:
+
+| Dataset | Columns |
+| --- | --- |
+| `profiles.parquet` | `parliament_member_id` (int32), `name` (string), nullable `party_id` (int32), nullable `party_name` (string), `latest_house` (int16), nullable `latest_membership_from` (string) |
+| `current_commons.parquet` | `parliament_member_id` (int32) |
+| `house_memberships.parquet` | `parliament_member_id` (int32), `house` (int16), `source_start_date` (date), nullable `source_end_date` (date) |
+
+The manifest records the capture identity, schema version, dataset names/counts,
+term start, fixed London observation date, and UTC start/completion timestamps.
+Source strings, calendar dates, missing optional values, and repeated history
+periods are retained. Load applies Commons service rules and validates required
+database fields before writing anything.
+
+Load commits the complete refresh in one PostgreSQL transaction. Repeat loads
+preserve member and unchanged service UUIDs; corrected ends retain service UUIDs,
+and corrected starts replace their intervals. Members absent from the selected
+capture, declarations, and any stored term end are preserved. Explicitly selecting
+an older capture is supported. A different stored Parliament start fails the load.
+Loading requires the existing baseline; it does not apply schema migrations.
+
+The single member integration test runs the executable against a local HTTP
+fixture, real Parquet files, and a temporary PostgreSQL database. The database
+user must be able to create databases; the test cleans up after success or failure:
+
+```sh
+DATABASE_URL='postgresql://exposed:exposed_local_dev@localhost:55432/exposed?sslmode=disable' cargo test --test member_ingestion
+```
+
+`EXPOSED_TEST_ADMIN_DSN` can select a different test server. `cargo test --workspace`
+also runs the existing search integration test, which expects imported development
+data. The Python member and declaration commands remain available.
+
 ## Develop the application with Docker Compose
 
 Initialize the database using the setup above before starting the app. SQLx checks

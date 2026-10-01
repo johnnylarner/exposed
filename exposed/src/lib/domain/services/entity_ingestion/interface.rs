@@ -1,10 +1,12 @@
-use crate::domain::models::entity_ingestion::{EntityIngestionError, EntityIngestionRequest};
+use crate::domain::models::entity_ingestion::{
+    EntityIngestionError, EntityIngestionOutcome, EntityIngestionRequest,
+};
 
-/// Prepares UK Parliament API data for storage
+/// Runs one typed ingestion operation with only its required capabilities.
 pub trait EntitySearchIngestionService: Clone + Send + Sync + 'static {
-    /// Runs entity ingestion
+    /// Return a completed capture or committed database summary.
     fn run_ingestion(
         &self,
         req: &EntityIngestionRequest,
-    ) -> impl Future<Output = Result<(), EntityIngestionError>> + Send;
+    ) -> impl Future<Output = Result<EntityIngestionOutcome, EntityIngestionError>> + Send;
 }

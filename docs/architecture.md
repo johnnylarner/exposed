@@ -1,5 +1,48 @@
 # Ingestion architecture
 
+## Rust member capture and loading
+
+The Rust member workflow implements
+[`rust-member-ingestion.md`](specs/rust-member-ingestion.md). The Python workflows
+described below remain available with their existing behavior.
+
+| Boundary | Owner |
+| --- | --- |
+| CLI and operation-specific configuration | `exposed/src/bin/main.rs`, `config.rs` |
+| Capture identity, raw observations and Commons service rules | `domain/models/member_ingestion.rs` |
+| Typed requests and completed outcomes | `domain/models/entity_ingestion.rs` |
+| Acquisition and offline-load orchestration | `domain/services/entity_ingestion.rs` |
+| Source, capture storage and atomic publication contracts | `domain/repositories/{parliament_api,entity_ingestion_pipline,member_writer}.rs` |
+| Members API pagination, retries and source decoding | `outbound/parliament_api.rs` |
+| Manifest checks, staging and atomic publication | `outbound/file_system.rs` |
+| Schema-v1 Parquet encoding and decoding | `outbound/member_parquet.rs` |
+| Transactional profile and service reconciliation | `outbound/member_postgres.rs` |
+
+Fetch has source and capture-storage capabilities. Load has capture-storage and
+database-writing capabilities. Their public service interface accepts the typed
+member stage, so neither operation constructs the other's external dependency.
+The inbound adapter captures the clock once; domain rules use the saved term and
+observation date and have no HTTP, SQL, filesystem or clock dependencies.
+
+Fetch validates duplicate profiles within each search stream, exact history
+identity coverage, and current-ID coverage before staging three Parquet datasets.
+It follows the Members API's documented search limit of 20, advances by actual
+returned counts, and re-reads each page's total. The historical query filters on
+Commons membership within the term, retaining candidates whose latest House is
+Lords. Current-search profile fields are used for duplicate detection; historical
+candidate profiles supply the fields persisted into PostgreSQL.
+
+Load validates and interprets the entire capture before the writer begins its
+transaction. The writer checks the configured Parliament, upserts by Parliament
+ID, reconciles service intervals, and commits once. Existing domain UUIDs,
+declarations, absent members and stored term ends survive repeat or older loads.
+
+`exposed/tests/member_ingestion.rs` is the one feature integration test. It runs the
+real executable with a local Parliament HTTP fixture, inspects Parquet contents,
+stops Parliament before loading, verifies repeat-load identities and corrections,
+forces a database failure after an earlier write to prove rollback, and verifies
+that a later-page fetch failure preserves earlier completed captures.
+
 ## Migration inventory
 
 The application refreshes one configured Parliament. This migration preserves the

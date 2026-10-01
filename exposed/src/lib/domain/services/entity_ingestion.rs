@@ -1,108 +1,183 @@
-//! Service for ingesting entity search data
-//!
-
+//! Acquisition and offline loading, with separate infrastructure capabilities.
 use crate::domain::{
-    models::entity_ingestion::{
-        DeclarationIngestionStage, EntityIngestionError, EntityIngestionRequest,
-        EntityIngestionTarget,
+    models::{
+        entity_ingestion::{
+            EntityIngestionError, EntityIngestionOutcome, EntityIngestionRequest,
+            EntityIngestionTarget, MemberIngestionStage,
+        },
+        member_ingestion::{
+            CaptureContext, CaptureId, MemberCapture, MemberObservations, MemberProfile, invalid,
+        },
     },
     repositories::{
-        entity_ingestion_pipline::EntityIngestionStorage, parliament_api::ParliamentApi,
+        entity_ingestion_pipline::EntityIngestionStorage, member_writer::MemberWriter,
+        parliament_api::ParliamentApi,
     },
-    services::entity_ingestion::interface::EntitySearchIngestionService,
 };
+use chrono::{DateTime, NaiveDate, Utc};
+use interface::EntitySearchIngestionService;
+use std::collections::{BTreeMap, BTreeSet};
 
-mod interface;
+/// Public service boundary used by inbound adapters.
+pub mod interface;
 
-/// Allows users to search the databse using free text.
+/// Capture orchestration. It has no database capability.
 #[derive(Clone)]
-pub struct Service<PS, PA> {
-    pipeline_storage: PS,
-    parliament_api: PA,
+pub struct FetchService<S, P> {
+    storage: S,
+    source: P,
+    started_at: DateTime<Utc>,
+    observation_date: NaiveDate,
 }
-
-impl<PS, PA> Service<PS, PA> {
-    /// Creates a new instance
-    pub const fn new(pipeline_storage: PS, parliament_api: PA) -> Self {
+impl<S, P> FetchService<S, P> {
+    /// Supply source/storage adapters and one fixed observation context.
+    #[must_use]
+    pub const fn new(
+        storage: S,
+        source: P,
+        started_at: DateTime<Utc>,
+        observation_date: NaiveDate,
+    ) -> Self {
         Self {
-            pipeline_storage,
-            parliament_api,
+            storage,
+            source,
+            started_at,
+            observation_date,
         }
     }
 }
-
-impl<PS, PA> EntitySearchIngestionService for Service<PS, PA>
-where
-    PS: EntityIngestionStorage,
-    PA: ParliamentApi,
+impl<S: EntityIngestionStorage, P: ParliamentApi> EntitySearchIngestionService
+    for FetchService<S, P>
 {
-    /// Returns text search results for MPs and Funder entities.
-    ///
-    /// This function expects the repositories to return their results
-    /// in order where a higher score means a higher similarity.
     async fn run_ingestion(
         &self,
         req: &EntityIngestionRequest,
-    ) -> Result<(), EntityIngestionError> {
-        match req.target() {
-            EntityIngestionTarget::Members => self.ingest_members().await,
-            EntityIngestionTarget::Declaration(stage) => match stage {
-                DeclarationIngestionStage::Import => self.ingest_declarations().await,
-                DeclarationIngestionStage::Clean => self.clean_funders().await,
-                DeclarationIngestionStage::Resolve => self.resolve_funders().await,
+    ) -> Result<EntityIngestionOutcome, EntityIngestionError> {
+        let capture_id = CaptureId::new();
+        let EntityIngestionTarget::Members(MemberIngestionStage::Fetch { term_start }) =
+            req.target()
+        else {
+            return Err(EntityIngestionError::InvalidStage(
+                "this service supports member Fetch".into(),
+            ));
+        };
+        if *term_start > self.observation_date {
+            return Err(invalid("term start is after observation date"));
+        }
+        eprintln!("Capture {capture_id}: fetching current Commons observations");
+        let current_commons = unique_profiles(self.source.current_commons().await?)?
+            .into_keys()
+            .collect();
+        eprintln!(
+            "Capture {capture_id}: fetching historical Commons candidates since {term_start}"
+        );
+        let profiles = unique_profiles(
+            self.source
+                .commons_candidates(*term_start, self.observation_date)
+                .await?,
+        )?;
+        let ids: Vec<_> = profiles.keys().copied().collect();
+        let mut histories = Vec::new();
+        for batch in ids.chunks(100) {
+            let returned = self.source.member_histories(batch).await?;
+            let returned_ids: BTreeSet<_> =
+                returned.iter().map(|h| h.parliament_member_id).collect();
+            if returned_ids.len() != returned.len()
+                || returned_ids != batch.iter().copied().collect()
+            {
+                return Err(invalid(format!(
+                    "history response must match requested member IDs exactly: {batch:?}; returned {returned_ids:?}"
+                )));
+            }
+            histories.extend(returned);
+        }
+        histories.sort_by_key(|history| history.parliament_member_id);
+        let observations = MemberObservations {
+            profiles: profiles.into_values().collect(),
+            current_commons,
+            histories,
+        };
+        observations.validate()?;
+        let counts = observations.counts();
+        let capture = MemberCapture {
+            context: CaptureContext {
+                capture_id,
+                term_start: *term_start,
+                observation_date: self.observation_date,
+                started_at: self.started_at,
             },
+            observations,
+        };
+        let capture_id = self.storage.write_member_capture(capture).await?;
+        Ok(EntityIngestionOutcome::Fetch { capture_id, counts })
+    }
+}
+
+/// Offline loading. Source access is absent from its contract.
+#[derive(Clone)]
+pub struct LoadService<S, W> {
+    storage: S,
+    writer: W,
+}
+impl<S, W> LoadService<S, W> {
+    /// Supply completed-capture storage and an atomic member writer.
+    #[must_use]
+    pub const fn new(storage: S, writer: W) -> Self {
+        Self { storage, writer }
+    }
+}
+impl<S: EntityIngestionStorage, W: MemberWriter> EntitySearchIngestionService
+    for LoadService<S, W>
+{
+    async fn run_ingestion(
+        &self,
+        req: &EntityIngestionRequest,
+    ) -> Result<EntityIngestionOutcome, EntityIngestionError> {
+        let EntityIngestionTarget::Members(MemberIngestionStage::Load { capture_id }) =
+            req.target()
+        else {
+            return Err(EntityIngestionError::InvalidStage(
+                "this service supports member Load".into(),
+            ));
+        };
+        eprintln!("Capture {capture_id}: validating offline member data");
+        let capture = self.storage.read_member_capture(*capture_id).await?;
+        let refresh = capture.prepare_refresh()?;
+        eprintln!(
+            "Capture {capture_id}: loading {} eligible members",
+            refresh.members.len()
+        );
+        let summary = self.writer.refresh_members(&refresh).await?;
+        Ok(EntityIngestionOutcome::Load {
+            capture_id: *capture_id,
+            term_start: capture.context.term_start,
+            observation_date: capture.context.observation_date,
+            summary,
+        })
+    }
+}
+
+fn unique_profiles(
+    profiles: Vec<MemberProfile>,
+) -> Result<BTreeMap<i32, MemberProfile>, EntityIngestionError> {
+    let mut unique = BTreeMap::new();
+    for profile in profiles {
+        let id = profile.parliament_member_id;
+        if id <= 0 {
+            return Err(invalid(format!(
+                "member {id}: source identity must be positive"
+            )));
+        }
+        if let Some(previous) = unique.get(&id) {
+            if previous != &profile {
+                return Err(invalid(format!(
+                    "member {id}: conflicting duplicate profile"
+                )));
+            }
+            eprintln!("Member {id}: identical repeated profile collapsed");
+        } else {
+            unique.insert(id, profile);
         }
     }
-}
-
-impl<PS, PA> Service<PS, PA>
-where
-    PA: ParliamentApi,
-{
-    async fn fetch_members(&self) -> Result<(), EntityIngestionError> {
-        self.parliament_api.get_sitting_members().await?;
-        Ok(())
-    }
-
-    async fn fetch_declarations(&self) -> Result<(), EntityIngestionError> {
-        self.parliament_api
-            .get_declarations_for_sitting_members()
-            .await?;
-        Ok(())
-    }
-}
-
-impl<PS, PA> Service<PS, PA>
-where
-    PS: EntityIngestionStorage,
-    PA: ParliamentApi,
-{
-    async fn ingest_members(&self) -> Result<(), EntityIngestionError> {
-        self.fetch_members().await?;
-        self.pipeline_storage.write_raw_data().await?;
-        Ok(())
-    }
-
-    async fn ingest_declarations(&self) -> Result<(), EntityIngestionError> {
-        self.fetch_declarations().await?;
-        self.pipeline_storage.write_raw_data().await?;
-        Ok(())
-    }
-}
-
-impl<PS, PA> Service<PS, PA>
-where
-    PS: EntityIngestionStorage,
-{
-    async fn clean_funders(&self) -> Result<(), EntityIngestionError> {
-        self.pipeline_storage.read_raw_data().await?;
-        self.pipeline_storage.write_cleaned_data().await?;
-        Ok(())
-    }
-
-    async fn resolve_funders(&self) -> Result<(), EntityIngestionError> {
-        self.pipeline_storage.read_cleaned_data().await?;
-        self.pipeline_storage.write_resolved_data().await?;
-        Ok(())
-    }
+    Ok(unique)
 }

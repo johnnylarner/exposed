@@ -1,19 +1,28 @@
+//! Source observations needed to reproduce a configured Commons cohort.
+use crate::domain::models::member_ingestion::{MemberHistory, MemberProfile};
+use chrono::NaiveDate;
 use thiserror::Error;
 
-/// Allows users to interact with the UK Parliament API.
+/// Parliament source capability, used only by Fetch.
 pub trait ParliamentApi: Clone + Send + Sync + 'static {
-    /// Returns members sitting in the current parliament
-    fn get_sitting_members(&self) -> impl Future<Output = Result<(), ParliamentApiError>> + Send;
-    /// Returns declarations for sitting members
-    fn get_declarations_for_sitting_members(
+    /// Current Commons profiles, retaining repeats for comparison within this stream.
+    fn current_commons(
         &self,
-    ) -> impl Future<Output = Result<(), ParliamentApiError>> + Send;
+    ) -> impl Future<Output = Result<Vec<MemberProfile>, ParliamentApiError>> + Send;
+    /// Historical candidates without filtering on their latest House or current status.
+    fn commons_candidates(
+        &self,
+        term_start: NaiveDate,
+        observation_date: NaiveDate,
+    ) -> impl Future<Output = Result<Vec<MemberProfile>, ParliamentApiError>> + Send;
+    /// Histories for the requested IDs, retaining returned identities and duplicates.
+    fn member_histories(
+        &self,
+        member_ids: &[i32],
+    ) -> impl Future<Output = Result<Vec<MemberHistory>, ParliamentApiError>> + Send;
 }
 
-/// Errors that can occur when interacting with the repo
+/// Source failure with request and field context.
 #[derive(Error, Debug)]
-pub enum ParliamentApiError {
-    /// Generic error from the database
-    #[error("unable to get API results due to {0}")]
-    ApiError(String),
-}
+#[error("{0}")]
+pub struct ParliamentApiError(pub String);

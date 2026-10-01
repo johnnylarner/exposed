@@ -1,10 +1,4 @@
-#![deny(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    missing_docs,
-    warnings
-)]
+#![deny(clippy::all, clippy::pedantic, clippy::nursery, missing_docs, warnings)]
 
 //! The exposed project serves declaration data from MPs in the UK parliament.
 

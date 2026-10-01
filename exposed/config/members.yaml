@@ -1,0 +1,7 @@
+# Paths are relative to the working directory, not this configuration file.
+data_root: ./data
+term_start: '2024-07-04'
+# Only Load uses PostgreSQL. Fetch works with this setting omitted.
+connection_string: postgresql://exposed:exposed_local_dev@localhost:55432/exposed?sslmode=disable
+# Optional; defaults to Parliament. Can point to a local HTTP fixture server.
+members_api_url: https://members-api.parliament.uk

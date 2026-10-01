@@ -11,3 +11,4 @@ pub mod parliament_api;
 
 /// Store for cleaning parliament API data;
 pub mod entity_ingestion_pipline;
+pub mod member_writer;
