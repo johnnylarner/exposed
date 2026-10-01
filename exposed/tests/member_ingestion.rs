@@ -1,6 +1,7 @@
 //! One executable workflow against real HTTP, Parquet and PostgreSQL boundaries.
 
 use arrow_array::{Array, Date32Array, Int16Array, Int32Array, RecordBatch, StringArray};
+use arrow_schema::Schema;
 use axum::{
     Json, Router,
     extract::{RawQuery, State},
@@ -9,7 +10,7 @@ use axum::{
     routing::get,
 };
 use chrono::{DateTime, NaiveDate, Utc};
-use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
+use parquet::arrow::{ArrowWriter, arrow_reader::ParquetRecordBatchReaderBuilder};
 use serde_json::{Value, json};
 use sqlx::{ConnectOptions, PgPool, postgres::PgConnectOptions};
 use std::{
@@ -17,6 +18,7 @@ use std::{
     fs::{self, File},
     path::{Path, PathBuf},
     process::Output,
+    sync::Arc,
     time::Duration,
 };
 use tokio::{net::TcpListener, process::Command, task::JoinHandle};
@@ -27,6 +29,11 @@ enum Fixture {
     Original,
     Corrected,
     SourceFailure,
+    MissingParty,
+    MissingPartyId,
+    MissingPartyName,
+    InvalidPartyName,
+    InvalidProfile,
 }
 
 struct FixtureServer {
@@ -55,16 +62,28 @@ impl FixtureServer {
     }
 }
 fn profile(id: i32, mode: Fixture, current_search: bool) -> Value {
-    let name = if current_search {
+    let name = if id == 2 && mode == Fixture::InvalidProfile {
+        String::new()
+    } else if current_search {
         format!("Current search profile {id}")
     } else if id == 1 && mode == Fixture::Corrected {
         "Corrected Member".into()
     } else {
         format!("Historical Member {id}")
     };
+    let mut party = json!({"id": 15, "name": if id == 2 && mode == Fixture::Corrected { "Corrected Party" } else { "Party" }});
+    if id == 2 {
+        match mode {
+            Fixture::MissingParty => party = Value::Null,
+            Fixture::MissingPartyId => party["id"] = Value::Null,
+            Fixture::MissingPartyName => party["name"] = Value::Null,
+            Fixture::InvalidPartyName => party["name"] = json!(42),
+            _ => {}
+        }
+    }
     json!({"value": {"id": id, "nameDisplayAs": name,
-        "latestParty": if id == 4 { Value::Null } else { json!({"id": 15, "name": if id == 2 && mode == Fixture::Corrected { "Corrected Party" } else { "Party" }}) },
-        "latestHouseMembership": {"house": if matches!(id, 2 | 4) { 2 } else { 1 }, "membershipFrom": if id == 4 { Value::Null } else { json!(" Source location ") }}
+        "latestParty": party,
+        "latestHouseMembership": {"house": if matches!(id, 2 | 4) { 2 } else { 1 }, "membershipFrom": " Source location "}
     }})
 }
 async fn search(State(mode): State<Fixture>, RawQuery(query): RawQuery) -> Response {
@@ -184,9 +203,11 @@ fn success(output: &Output) -> Value {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    let summary: Value = serde_json::from_slice(&output.stdout).unwrap();
-    assert_eq!(summary["status"], "succeeded");
-    summary
+    let outcome: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(outcome["status"], "succeeded");
+    assert!(outcome.get("summary").is_none());
+    assert!(outcome.get("counts").is_none());
+    outcome
 }
 fn write_fetch_config(root: &Path, server: &FixtureServer) -> PathBuf {
     let config = root.join("fetch.yaml");
@@ -217,6 +238,12 @@ fn column<'a, T: Array + 'static>(batch: &'a RecordBatch, name: &str) -> &'a T {
         .as_any()
         .downcast_ref()
         .unwrap()
+}
+fn write_parquet(path: &Path, batch: &RecordBatch) {
+    let mut writer =
+        ArrowWriter::try_new(File::create(path).unwrap(), batch.schema(), None).unwrap();
+    writer.write(batch).unwrap();
+    writer.close().unwrap();
 }
 fn capture_files(path: &Path) -> BTreeMap<String, Vec<u8>> {
     fs::read_dir(path)
@@ -298,16 +325,16 @@ async fn member_workflow(pool: &PgPool) {
     let fetched = success(&command(&config, "fetch", None).await);
     let id = fetched["capture_id"].as_str().unwrap();
     assert_eq!(Uuid::parse_str(id).unwrap().get_version_num(), 7);
-    assert_eq!(
-        fetched["counts"],
-        json!({"profiles": 5, "current_commons": 2, "house_memberships": 9})
-    );
     let path = root.path().join("raw/members").join(id);
     let original_files = capture_files(&path);
     assert_eq!(original_files.len(), 4);
     let manifest: Value = serde_json::from_slice(&original_files["manifest.json"]).unwrap();
     assert_eq!(manifest["capture_id"], id);
     assert_eq!(manifest["schema_version"], 1);
+    assert_eq!(
+        manifest["counts"],
+        json!({"profiles": 5, "current_commons": 2, "house_memberships": 9})
+    );
     assert_eq!(manifest["term_start"], "2024-07-04");
     let started: DateTime<Utc> = serde_json::from_value(manifest["started_at"].clone()).unwrap();
     let completed: DateTime<Utc> =
@@ -335,9 +362,18 @@ async fn member_workflow(pool: &PgPool) {
         "Historical Member 1"
     );
     assert_eq!(column::<Int16Array>(&profiles, "latest_house").value(1), 2);
-    assert!(column::<Int32Array>(&profiles, "party_id").is_null(3));
-    assert!(column::<StringArray>(&profiles, "party_name").is_null(3));
-    assert!(column::<StringArray>(&profiles, "latest_membership_from").is_null(3));
+    assert_eq!(column::<Int32Array>(&profiles, "party_id").value(3), 15);
+    assert_eq!(
+        column::<StringArray>(&profiles, "party_name").value(3),
+        "Party"
+    );
+    assert!(
+        profiles
+            .schema()
+            .fields()
+            .iter()
+            .all(|field| !field.is_nullable())
+    );
     assert_eq!(
         column::<StringArray>(&profiles, "latest_membership_from").value(0),
         " Source location "
@@ -398,11 +434,9 @@ async fn member_workflow(pool: &PgPool) {
     assert_eq!(loaded["capture_id"], id);
     assert_eq!(loaded["observation_date"], manifest["observation_date"]);
     assert_eq!(loaded["term_start"], "2024-07-04");
-    assert_eq!(
-        loaded["summary"],
-        json!({"members": 4, "current_commons": 2, "former_commons": 2, "inserted": 4, "updated": 0, "unchanged": 0, "service_periods": 5, "excluded_candidates": 1})
-    );
     let first = database_state(pool).await;
+    assert_eq!(first["members"].as_array().unwrap().len(), 4);
+    assert_eq!(first["services"].as_array().unwrap().len(), 5);
     assert_eq!(first["terms"][0]["term_start"], "2024-07-04T00:00:00+00:00");
     assert_eq!(member(&first, 2)["latest_house"], 2);
     assert_eq!(member(&first, 2)["is_current_commons"], false);
@@ -446,8 +480,60 @@ async fn member_workflow(pool: &PgPool) {
     sqlx::query("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at) SELECT 123, id, 1, 'Employment', now() FROM exposed.members WHERE parliament_member_id = 1").execute(pool).await.unwrap();
     let before_repeat = database_state(pool).await;
     let repeated = success(&command(&load_config, "load", Some(id)).await);
-    assert_eq!(repeated["summary"]["unchanged"], 4);
-    assert_eq!(repeated["summary"]["inserted"], 0);
+    assert_eq!(repeated["capture_id"], id);
+    assert_eq!(database_state(pool).await, before_repeat);
+
+    // Earlier schema-v1 metadata stays readable, but absent party values fail Load.
+    let legacy_root = tempfile::tempdir().unwrap();
+    let legacy_path = legacy_root.path().join("raw/members").join(id);
+    fs::create_dir_all(&legacy_path).unwrap();
+    for (name, bytes) in &original_files {
+        fs::write(legacy_path.join(name), bytes).unwrap();
+    }
+    let legacy_schema = Arc::new(Schema::new(
+        profiles
+            .schema()
+            .fields()
+            .iter()
+            .map(|field| {
+                field.as_ref().clone().with_nullable(matches!(
+                    field.name().as_str(),
+                    "party_id" | "party_name" | "latest_membership_from"
+                ))
+            })
+            .collect::<Vec<_>>(),
+    ));
+    let legacy_profiles =
+        RecordBatch::try_new(legacy_schema.clone(), profiles.columns().to_vec()).unwrap();
+    write_parquet(&legacy_path.join("profiles.parquet"), &legacy_profiles);
+    let legacy_config = legacy_root.path().join("load.yaml");
+    fs::write(
+        &legacy_config,
+        format!(
+            "data_root: {}\nconnection_string: {connection_string}\n",
+            legacy_root.path().display()
+        ),
+    )
+    .unwrap();
+    success(&command(&legacy_config, "load", Some(id)).await);
+    assert_eq!(database_state(pool).await, before_repeat);
+
+    let mut invalid_columns = legacy_profiles.columns().to_vec();
+    invalid_columns[2] = Arc::new(Int32Array::from(vec![
+        Some(15),
+        None,
+        Some(15),
+        Some(15),
+        Some(15),
+    ]));
+    let invalid_profiles = RecordBatch::try_new(legacy_schema, invalid_columns).unwrap();
+    write_parquet(&legacy_path.join("profiles.parquet"), &invalid_profiles);
+    let invalid_load = command(&legacy_config, "load", Some(id)).await;
+    assert!(!invalid_load.status.success());
+    assert!(invalid_load.stdout.is_empty());
+    assert!(
+        String::from_utf8_lossy(&invalid_load.stderr).contains("member 2: party_id is required")
+    );
     assert_eq!(database_state(pool).await, before_repeat);
 
     // 5. A later capture corrects profiles, an end date, and a re-entry start.
@@ -479,10 +565,7 @@ async fn member_workflow(pool: &PgPool) {
     assert_eq!(database_state(pool).await, before_repeat);
     sqlx::raw_sql("DROP TRIGGER reject_fixture_member ON exposed.members; DROP FUNCTION exposed.reject_fixture_member();").execute(pool).await.unwrap();
     let corrected_load = success(&command(&load_config, "load", Some(corrected_id)).await);
-    assert_eq!(
-        corrected_load["summary"],
-        json!({"members": 3, "current_commons": 2, "former_commons": 1, "inserted": 0, "updated": 2, "unchanged": 1, "service_periods": 4, "excluded_candidates": 1})
-    );
+    assert_eq!(corrected_load["capture_id"], corrected_id);
     let after_correction = database_state(pool).await;
     assert_eq!(member(&after_correction, 1)["name"], "Corrected Member");
     assert_eq!(
@@ -524,18 +607,36 @@ async fn member_workflow(pool: &PgPool) {
 
     // Explicit older captures remain loadable; the filesystem does not choose.
     let older = success(&command(&load_config, "load", Some(id)).await);
-    assert_eq!(older["summary"]["updated"], 2);
+    assert_eq!(older["capture_id"], id);
     let after_older = database_state(pool).await;
     assert_eq!(member(&after_older, 1)["name"], "Historical Member 1");
     assert_eq!(member(&after_older, 1)["id"], member(&first, 1)["id"]);
     assert_eq!(after_older["declarations"], before_repeat["declarations"]);
 
-    // 6. A later-page source failure exposes no new completed or staging data.
+    // 6. Invalid profiles and later-page failures expose no completed or staging data.
     let completed_before: BTreeSet<_> = fs::read_dir(root.path().join("raw/members"))
         .unwrap()
         .map(|entry| entry.unwrap().file_name())
         .collect();
     let corrected_files = capture_files(&root.path().join("raw/members").join(corrected_id));
+    for (mode, field) in [
+        (Fixture::MissingParty, "latestParty"),
+        (Fixture::MissingPartyId, "latestParty.id"),
+        (Fixture::MissingPartyName, "latestParty.name"),
+        (Fixture::InvalidPartyName, "latestParty.name"),
+        (Fixture::InvalidProfile, "invalid name"),
+    ] {
+        let invalid_profile_server = FixtureServer::start(mode).await;
+        let invalid_config = write_fetch_config(root.path(), &invalid_profile_server);
+        let invalid_fetch = command(&invalid_config, "fetch", None).await;
+        assert!(!invalid_fetch.status.success());
+        assert!(invalid_fetch.stdout.is_empty());
+        let error = String::from_utf8_lossy(&invalid_fetch.stderr);
+        assert!(error.contains("member 2"), "{error}");
+        assert!(error.contains("/api/Members/Search"), "{error}");
+        assert!(error.contains(field), "{error}");
+    }
+
     let failing_server = FixtureServer::start(Fixture::SourceFailure).await;
     let config = write_fetch_config(root.path(), &failing_server);
     let failed = command(&config, "fetch", None).await;

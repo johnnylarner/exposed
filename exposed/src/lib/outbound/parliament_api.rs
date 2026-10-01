@@ -1,12 +1,13 @@
 //! Sequential Members API requests, typed decoding and bounded retries.
 use crate::domain::{
-    models::member_ingestion::{HouseMembership, MemberHistory, MemberProfile},
-    repositories::parliament_api::{ParliamentApi, ParliamentApiError},
+    models::parliament_member::ParliamentMember,
+    repositories::parliament_api::{
+        HouseMembership, MemberHistory, ParliamentApi, ParliamentApiError,
+    },
 };
 use chrono::{DateTime, NaiveDate, NaiveDateTime};
 use reqwest::{Client, StatusCode, Url};
 use serde::{Deserialize, de::DeserializeOwned};
-use serde_json::Value;
 use std::{
     fmt::Display,
     time::{Duration, SystemTime},
@@ -42,11 +43,11 @@ impl MembersApi {
         Ok(Self { client, base_url })
     }
 
-    async fn get(
+    async fn get<T: DeserializeOwned>(
         &self,
         path: &str,
         params: &[(&str, String)],
-    ) -> Result<Vec<u8>, ParliamentApiError> {
+    ) -> Result<T, ParliamentApiError> {
         let mut url = self.base_url.join(path).map_err(failure)?;
         url.query_pairs_mut()
             .extend_pairs(params.iter().map(|(key, value)| (*key, value.as_str())));
@@ -60,7 +61,18 @@ impl MembersApi {
                     let status = response.status();
                     if status == StatusCode::OK {
                         match response.bytes().await {
-                            Ok(bytes) => return Ok(bytes.to_vec()),
+                            Ok(bytes) => {
+                                let mut deserializer = serde_json::Deserializer::from_slice(&bytes);
+                                let result = serde_path_to_error::deserialize(&mut deserializer)
+                                    .map_err(|error| {
+                                        let member = decoding_member_context(&bytes, error.path());
+                                        failure(format!("{context}{member}: {error}"))
+                                    })?;
+                                deserializer
+                                    .end()
+                                    .map_err(|error| failure(format!("{context}: {error}")))?;
+                                return Ok(result);
+                            }
                             Err(error) => format!("response transport failure: {error}"),
                         }
                     } else {
@@ -91,15 +103,14 @@ impl MembersApi {
     async fn search(
         &self,
         filters: Vec<(&str, String)>,
-    ) -> Result<Vec<MemberProfile>, ParliamentApiError> {
+    ) -> Result<Vec<ParliamentMember>, ParliamentApiError> {
         let mut profiles = Vec::new();
         let mut offset = 0;
         loop {
             let mut params = filters.clone();
             params.extend([("skip", offset.to_string()), ("take", "20".to_owned())]);
-            let bytes = self.get("/api/Members/Search", &params).await?;
+            let page: SearchPage = self.get("/api/Members/Search", &params).await?;
             let context = format!("/api/Members/Search {params:?}");
-            let page: SearchPage = decode(&bytes, &context)?;
             if page.skip != offset {
                 return Err(failure(format!(
                     "{context}: response skip {} does not match request {offset}",
@@ -115,16 +126,18 @@ impl MembersApi {
             offset = offset
                 .checked_add(page.items.len())
                 .ok_or_else(|| failure("search pagination overflow"))?;
-            for value in page.items {
-                let item: Item<Profile> = decode_item(value, &context)?;
-                profiles.push(MemberProfile {
-                    parliament_member_id: item.value.id,
-                    name: item.value.name_display_as,
-                    party_id: item.value.latest_party.as_ref().and_then(|p| p.id),
-                    party_name: item.value.latest_party.and_then(|p| p.name),
-                    latest_house: item.value.latest_house_membership.house,
-                    latest_membership_from: item.value.latest_house_membership.membership_from,
-                });
+            for item in page.items {
+                profiles.push(
+                    ParliamentMember::new(
+                        item.value.name_display_as,
+                        item.value.id,
+                        item.value.latest_party.id,
+                        item.value.latest_party.name,
+                        item.value.latest_house_membership.house,
+                        item.value.latest_house_membership.membership_from,
+                    )
+                    .map_err(|error| failure(format!("{context}: {error}")))?,
+                );
             }
             if offset >= page.total_results {
                 return Ok(profiles);
@@ -134,7 +147,7 @@ impl MembersApi {
 }
 
 impl ParliamentApi for MembersApi {
-    async fn current_commons(&self) -> Result<Vec<MemberProfile>, ParliamentApiError> {
+    async fn current_commons(&self) -> Result<Vec<ParliamentMember>, ParliamentApiError> {
         self.search(vec![
             ("House", "1".into()),
             ("IsCurrentMember", "true".into()),
@@ -145,7 +158,7 @@ impl ParliamentApi for MembersApi {
         &self,
         term_start: NaiveDate,
         observation_date: NaiveDate,
-    ) -> Result<Vec<MemberProfile>, ParliamentApiError> {
+    ) -> Result<Vec<ParliamentMember>, ParliamentApiError> {
         self.search(vec![
             (
                 "MembershipInDateRange.WasMemberOnOrAfter",
@@ -170,26 +183,28 @@ impl ParliamentApi for MembersApi {
             .iter()
             .map(|id| ("ids", id.to_string()))
             .collect();
-        let bytes = self.get("/api/Members/History", &params).await?;
-        let context = format!("/api/Members/History {member_ids:?}");
-        let values: Vec<Value> = decode(&bytes, &context)?;
-        values
+        let items: Vec<Item<History>> = self.get("/api/Members/History", &params).await?;
+        items
             .into_iter()
-            .map(|value| {
-                let item: Item<History> = decode_item(value, &context)?;
-                Ok(MemberHistory {
-                    parliament_member_id: item.value.id,
-                    house_memberships: item
-                        .value
-                        .house_membership_history
-                        .into_iter()
-                        .map(|period| HouseMembership {
-                            house: period.house,
-                            start_date: period.start_date.0,
-                            end_date: period.end_date.map(|d| d.0),
+            .map(|item| {
+                let id = item.value.id;
+                let periods = item
+                    .value
+                    .house_membership_history
+                    .into_iter()
+                    .map(|period| {
+                        HouseMembership::new(
+                            period.house,
+                            period.start_date.0,
+                            period.end_date.map(|date| date.0),
+                        )
+                        .map_err(|error| {
+                            failure(format!("/api/Members/History, member {id}: {error}"))
                         })
-                        .collect(),
-                })
+                    })
+                    .collect::<Result<Vec<_>, _>>()?;
+                MemberHistory::new(id, periods)
+                    .map_err(|error| failure(format!("/api/Members/History: {error}")))
             })
             .collect()
     }
@@ -198,22 +213,25 @@ impl ParliamentApi for MembersApi {
 fn failure(message: impl Display) -> ParliamentApiError {
     ParliamentApiError(message.to_string())
 }
-fn decode<T: DeserializeOwned>(bytes: &[u8], context: &str) -> Result<T, ParliamentApiError> {
-    let mut deserializer = serde_json::Deserializer::from_slice(bytes);
-    let result = serde_path_to_error::deserialize(&mut deserializer)
-        .map_err(|error| failure(format!("{context}: {error}")))?;
-    deserializer
-        .end()
-        .map_err(|error| failure(format!("{context}: {error}")))?;
-    Ok(result)
+
+// Decode raw JSON only on failure to recover the affected member's identity.
+// The normal response path deserializes directly into typed API values.
+fn decoding_member_context(bytes: &[u8], path: &serde_path_to_error::Path) -> String {
+    let Some(index) = path.iter().find_map(|segment| match segment {
+        serde_path_to_error::Segment::Seq { index } => Some(*index),
+        _ => None,
+    }) else {
+        return String::new();
+    };
+    let Ok(response) = serde_json::from_slice::<serde_json::Value>(bytes) else {
+        return String::new();
+    };
+    // Search wraps items in an object; History returns the item array directly.
+    response.get("items").unwrap_or(&response)[index]["value"]["id"]
+        .as_i64()
+        .map_or_else(String::new, |id| format!(", member {id}"))
 }
-fn decode_item<T: DeserializeOwned>(value: Value, context: &str) -> Result<T, ParliamentApiError> {
-    let id = value
-        .pointer("/value/id")
-        .map_or_else(|| "unknown".into(), Value::to_string);
-    serde_path_to_error::deserialize(value)
-        .map_err(|error| failure(format!("{context}, member {id}: {error}")))
-}
+
 fn retry_delay(header: &str) -> Option<Duration> {
     if let Ok(seconds) = header.parse::<f64>() {
         return seconds
@@ -234,7 +252,7 @@ struct Item<T> {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SearchPage {
-    items: Vec<Value>,
+    items: Vec<Item<Profile>>,
     total_results: usize,
     skip: usize,
 }
@@ -243,19 +261,19 @@ struct SearchPage {
 struct Profile {
     id: i32,
     name_display_as: String,
-    latest_party: Option<Party>,
+    latest_party: Party,
     latest_house_membership: LatestMembership,
 }
 #[derive(Deserialize)]
 struct Party {
-    id: Option<i32>,
-    name: Option<String>,
+    id: i32,
+    name: String,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct LatestMembership {
     house: i16,
-    membership_from: Option<String>,
+    membership_from: String,
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]

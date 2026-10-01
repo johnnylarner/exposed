@@ -1,12 +1,17 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    entity_search::EntitySearchRequest, parliament_member::ParliamentMember,
-    search_similarity::SearchSimilarity,
+    entity_search::EntitySearchRequest, member_ingestion::MemberRefresh,
+    parliament_member::ParliamentMember, search_similarity::SearchSimilarity,
 };
 
-/// Allows users to search the databse using free text.
+/// Search and atomically refresh Parliament members.
 pub trait ParliamentMemberRepo: Clone + Send + Sync + 'static {
+    /// Reconcile an accepted cohort in one transaction, preserving existing identities.
+    fn refresh_members(
+        &self,
+        refresh: &MemberRefresh,
+    ) -> impl Future<Output = Result<(), ParliamentMemberRepoError>> + Send;
     /// Returns entities based on free text search
     fn get_members_by_text_search_score(
         &self,
@@ -20,6 +25,6 @@ pub trait ParliamentMemberRepo: Clone + Send + Sync + 'static {
 #[derive(Error, Debug)]
 pub enum ParliamentMemberRepoError {
     /// Generic error from the database
-    #[error("unable to get search results due to {0}")]
+    #[error("member database operation failed: {0}")]
     DatabaseError(String),
 }

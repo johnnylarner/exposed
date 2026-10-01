@@ -10,18 +10,30 @@ described below remain available with their existing behavior.
 | --- | --- |
 | CLI parsing, service construction and process output | `exposed/src/lib/inbound/cli.rs` |
 | Operation-specific configuration | `exposed/src/lib/config.rs` |
-| Capture identity, raw observations and Commons service rules | `domain/models/member_ingestion.rs` |
+| Canonical member shared by capture, loading and search | `domain/models/parliament_member.rs` |
+| Capture identity, complete observations and Commons service rules | `domain/models/member_ingestion.rs` |
 | Typed requests and completed outcomes | `domain/models/entity_ingestion.rs` |
 | Acquisition and offline-load orchestration | `domain/services/entity_ingestion.rs` |
-| Source, capture storage and atomic publication contracts | `domain/repositories/{parliament_api,entity_ingestion_pipline,member_writer}.rs` |
+| Source histories and acquisition contract | `domain/repositories/parliament_api.rs` |
+| Capture storage contract | `domain/repositories/entity_ingestion_pipline.rs` |
+| Member search and atomic refresh contract | `domain/repositories/parliament_member_repository.rs` |
 | Members API pagination, retries and source decoding | `outbound/parliament_api.rs` |
 | Manifest checks, staging and atomic publication | `outbound/file_system.rs` |
 | Schema-v1 Parquet encoding and decoding | `outbound/member_parquet.rs` |
-| Transactional profile and service reconciliation | `outbound/member_postgres.rs` |
+| Member search and transactional service reconciliation | `outbound/parliament_member.rs`, using `ExposedDatabase` in `outbound/postgres.rs` |
 
 The binary starts the Tokio runtime and calls the CLI inbound adapter. The CLI
 adapter constructs member services, just as the HTTP adapter constructs search
-services.
+services. Operation-specific configuration follows the existing `TryFrom<&PathBuf>`
+pattern. Completed outcomes carry the capture identity and saved Load dates;
+they contain no count summaries.
+
+`ParliamentMember` requires party and membership fields, validates its inputs in
+the constructor and exposes fields through methods. The API, Parquet and database
+adapters all use this model. Missing profile fields fail Fetch. Complete capture
+and service values enforce their invariants during construction; Load derives
+current status and Commons service before accessing PostgreSQL. Dataset row counts
+remain local to the filesystem manifest for completeness checks.
 
 Fetch has source and capture-storage capabilities. Load has capture-storage and
 database-writing capabilities. Their public service interface accepts the typed
@@ -37,8 +49,9 @@ Commons membership within the term, retaining candidates whose latest House is
 Lords. Current-search profile fields are used for duplicate detection; historical
 candidate profiles supply the fields persisted into PostgreSQL.
 
-Load validates and interprets the entire capture before the writer begins its
-transaction. The writer checks the configured Parliament, upserts by Parliament
+Load validates and interprets the entire capture before `ExposedDatabase` begins
+its transaction through the existing `ParliamentMemberRepo`. The database adapter
+checks the configured Parliament, upserts by Parliament
 ID, reconciles service intervals, and commits once. Existing domain UUIDs,
 declarations, absent members and stored term ends survive repeat or older loads.
 
@@ -46,7 +59,8 @@ declarations, absent members and stored term ends survive repeat or older loads.
 real executable with a local Parliament HTTP fixture, inspects Parquet contents,
 stops Parliament before loading, verifies repeat-load identities and corrections,
 forces a database failure after an earlier write to prove rollback, and verifies
-that a later-page fetch failure preserves earlier completed captures.
+that missing required party data fails Fetch and failed fetches preserve
+earlier completed captures.
 
 ## Migration inventory
 

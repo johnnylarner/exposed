@@ -53,9 +53,9 @@ target/debug/exposed data load members exposed/config/members.yaml CAPTURE_UUIDV
 ```
 
 Replace `CAPTURE_UUIDV7` with the `capture_id` printed by Fetch. Both commands
-print a JSON success summary to stdout and progress/errors to stderr. Fetch
-reports raw dataset counts; Load reports inserted, updated, unchanged,
-current/former, excluded-candidate and service-period counts after commit.
+print a JSON outcome containing the operation, status and capture ID to stdout,
+with progress/errors on stderr. Load also returns the capture's term start and
+observation date after commit. Neither command reports count summaries.
 
 Edit [members.yaml](exposed/config/members.yaml) for your environment:
 
@@ -76,15 +76,18 @@ Schema version 1 contains `manifest.json` and three typed Parquet files:
 
 | Dataset | Columns |
 | --- | --- |
-| `profiles.parquet` | `parliament_member_id` (int32), `name` (string), nullable `party_id` (int32), nullable `party_name` (string), `latest_house` (int16), nullable `latest_membership_from` (string) |
+| `profiles.parquet` | `parliament_member_id` (int32), `name` (string), `party_id` (int32), `party_name` (string), `latest_house` (int16), `latest_membership_from` (string) |
 | `current_commons.parquet` | `parliament_member_id` (int32) |
 | `house_memberships.parquet` | `parliament_member_id` (int32), `house` (int16), `source_start_date` (date), nullable `source_end_date` (date) |
 
 The manifest records the capture identity, schema version, dataset names/counts,
 term start, fixed London observation date, and UTC start/completion timestamps.
-Source strings, calendar dates, missing optional values, and repeated history
-periods are retained. Load applies Commons service rules and validates required
-database fields before writing anything.
+Source strings, calendar dates, open-ended service and repeated history periods
+are retained. Every captured profile is a validated member with required party ID,
+party name and membership location. Missing or invalid fields fail Fetch before
+a capture is published. Load applies Commons service rules before writing anything.
+Earlier schema-v1 files with nullable profile-column metadata remain readable
+when all required values are present.
 
 Load commits the complete refresh in one PostgreSQL transaction. Repeat loads
 preserve member and unchanged service UUIDs; corrected ends retain service UUIDs,

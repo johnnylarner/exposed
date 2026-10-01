@@ -1,8 +1,9 @@
-//! Schema-v1 Parquet translation. Domain rules are applied only after reading.
-use crate::domain::models::member_ingestion::{
-    HouseMembership, MemberHistory, MemberObservations, MemberProfile,
+//! Schema-v1 Parquet translation into valid source observations.
+use crate::domain::{
+    models::{member_ingestion::MemberObservations, parliament_member::ParliamentMember},
+    repositories::parliament_api::{HouseMembership, MemberHistory},
 };
-use anyhow::{Context, ensure};
+use anyhow::{Context, bail, ensure};
 use arrow_array::{Array, ArrayRef, Date32Array, Int16Array, Int32Array, RecordBatch, StringArray};
 use arrow_schema::{DataType, Field, Schema, SchemaRef};
 use chrono::NaiveDate;
@@ -17,10 +18,10 @@ fn profiles_schema() -> SchemaRef {
     Arc::new(Schema::new(vec![
         Field::new("parliament_member_id", DataType::Int32, false),
         Field::new("name", DataType::Utf8, false),
-        Field::new("party_id", DataType::Int32, true),
-        Field::new("party_name", DataType::Utf8, true),
+        Field::new("party_id", DataType::Int32, false),
+        Field::new("party_name", DataType::Utf8, false),
         Field::new("latest_house", DataType::Int16, false),
-        Field::new("latest_membership_from", DataType::Utf8, true),
+        Field::new("latest_membership_from", DataType::Utf8, false),
     ]))
 }
 fn current_schema() -> SchemaRef {
@@ -40,41 +41,47 @@ fn memberships_schema() -> SchemaRef {
 }
 
 pub(super) fn write(path: &Path, data: &MemberObservations) -> anyhow::Result<()> {
-    let profiles = &data.profiles;
+    let profiles = data.profiles();
     write_batch(
         &path.join("profiles.parquet"),
         profiles_schema(),
         vec![
             Arc::new(Int32Array::from_iter_values(
-                profiles.iter().map(|p| p.parliament_member_id),
+                profiles.iter().map(ParliamentMember::parliament_member_id),
             )),
             Arc::new(StringArray::from_iter_values(
-                profiles.iter().map(|p| &p.name),
+                profiles.iter().map(ParliamentMember::name),
             )),
-            Arc::new(Int32Array::from_iter(profiles.iter().map(|p| p.party_id))),
-            Arc::new(StringArray::from_iter(
-                profiles.iter().map(|p| p.party_name.as_deref()),
+            Arc::new(Int32Array::from_iter_values(
+                profiles.iter().map(ParliamentMember::party_id),
+            )),
+            Arc::new(StringArray::from_iter_values(
+                profiles.iter().map(ParliamentMember::party_name),
             )),
             Arc::new(Int16Array::from_iter_values(
-                profiles.iter().map(|p| p.latest_house),
+                profiles.iter().map(ParliamentMember::latest_house),
             )),
-            Arc::new(StringArray::from_iter(
-                profiles.iter().map(|p| p.latest_membership_from.as_deref()),
+            Arc::new(StringArray::from_iter_values(
+                profiles
+                    .iter()
+                    .map(ParliamentMember::latest_membership_from),
             )),
         ],
     )?;
     write_batch(
         &path.join("current_commons.parquet"),
         current_schema(),
-        vec![Arc::new(Int32Array::from(data.current_commons.clone()))],
+        vec![Arc::new(Int32Array::from(
+            data.current_commons().iter().copied().collect::<Vec<_>>(),
+        ))],
     )?;
     let rows: Vec<_> = data
-        .histories
-        .iter()
+        .histories()
+        .values()
         .flat_map(|h| {
-            h.house_memberships
+            h.house_memberships()
                 .iter()
-                .map(move |m| (h.parliament_member_id, m))
+                .map(move |m| (h.parliament_member_id(), m))
         })
         .collect();
     write_batch(
@@ -83,14 +90,14 @@ pub(super) fn write(path: &Path, data: &MemberObservations) -> anyhow::Result<()
         vec![
             Arc::new(Int32Array::from_iter_values(rows.iter().map(|(id, _)| *id))),
             Arc::new(Int16Array::from_iter_values(
-                rows.iter().map(|(_, m)| m.house),
+                rows.iter().map(|(_, m)| m.house()),
             )),
             Arc::new(Date32Array::from_iter_values(
-                rows.iter().map(|(_, m)| m.start_date.to_epoch_days()),
+                rows.iter().map(|(_, m)| m.start_date().to_epoch_days()),
             )),
             Arc::new(Date32Array::from_iter(
                 rows.iter()
-                    .map(|(_, m)| m.end_date.map(|d| d.to_epoch_days())),
+                    .map(|(_, m)| m.end_date().map(|d| d.to_epoch_days())),
             )),
         ],
     )?;
@@ -119,15 +126,14 @@ pub(super) fn read(path: &Path) -> anyhow::Result<MemberObservations> {
         let houses: &Int16Array = column(&batch, 4)?;
         let locations: &StringArray = column(&batch, 5)?;
         for row in 0..batch.num_rows() {
-            profiles.push(MemberProfile {
-                parliament_member_id: ids.value(row),
-                name: names.value(row).into(),
-                party_id: (!parties.is_null(row)).then(|| parties.value(row)),
-                party_name: (!party_names.is_null(row)).then(|| party_names.value(row).into()),
-                latest_house: houses.value(row),
-                latest_membership_from: (!locations.is_null(row))
-                    .then(|| locations.value(row).into()),
-            });
+            profiles.push(ParliamentMember::new(
+                names.value(row).into(),
+                ids.value(row),
+                parties.value(row),
+                party_names.value(row).into(),
+                houses.value(row),
+                locations.value(row).into(),
+            )?);
         }
     }
     let mut current_commons = Vec::new();
@@ -150,44 +156,61 @@ pub(super) fn read(path: &Path) -> anyhow::Result<MemberObservations> {
                 NaiveDate::from_epoch_days(value)
                     .with_context(|| format!("member {id}: invalid source calendar date"))
             };
-            histories.entry(id).or_default().push(HouseMembership {
-                house: houses.value(row),
-                start_date: date(starts.value(row))?,
-                end_date: if ends.is_null(row) {
-                    None
-                } else {
-                    Some(date(ends.value(row))?)
-                },
-            });
+            histories.entry(id).or_default().push(
+                HouseMembership::new(
+                    houses.value(row),
+                    date(starts.value(row))?,
+                    if ends.is_null(row) {
+                        None
+                    } else {
+                        Some(date(ends.value(row))?)
+                    },
+                )
+                .with_context(|| format!("member {id}: invalid house membership"))?,
+            );
         }
     }
-    Ok(MemberObservations {
+    let histories = histories
+        .into_iter()
+        .map(|(id, periods)| MemberHistory::new(id, periods))
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(MemberObservations::new(
         profiles,
         current_commons,
-        histories: histories
-            .into_iter()
-            .map(|(parliament_member_id, house_memberships)| MemberHistory {
-                parliament_member_id,
-                house_memberships,
-            })
-            .collect(),
-    })
+        histories,
+    )?)
 }
+
 fn read_batches(path: &Path, schema: &SchemaRef) -> anyhow::Result<Vec<RecordBatch>> {
     let result = (|| {
         let builder = ParquetRecordBatchReaderBuilder::try_new(File::open(path)?)?;
+        // Earlier schema-v1 captures marked profile columns nullable. Accept
+        // their metadata, but require every now-required value below.
+        let fields = builder.schema().fields();
         ensure!(
-            builder.schema().fields() == schema.fields(),
-            "Parquet types, fields or nullability do not match schema v1"
+            fields.len() == schema.fields().len()
+                && fields
+                    .iter()
+                    .zip(schema.fields())
+                    .all(|(actual, expected)| {
+                        actual.name() == expected.name()
+                            && actual.data_type() == expected.data_type()
+                    }),
+            "Parquet types or fields do not match schema v1"
         );
         let batches = builder.build()?.collect::<Result<Vec<_>, _>>()?;
         for batch in &batches {
             for (field, column) in schema.fields().iter().zip(batch.columns()) {
-                ensure!(
-                    field.is_nullable() || column.null_count() == 0,
-                    "required column {} contains nulls",
-                    field.name()
-                );
+                if !field.is_nullable()
+                    && let Some(row) = (0..column.len()).find(|&row| column.is_null(row))
+                {
+                    let member = batch
+                        .column_by_name("parliament_member_id")
+                        .and_then(|ids| ids.as_any().downcast_ref::<Int32Array>())
+                        .and_then(|ids| (!ids.is_null(row)).then(|| ids.value(row)))
+                        .map_or_else(|| format!("row {}", row + 1), |id| format!("member {id}"));
+                    bail!("{member}: {} is required", field.name());
+                }
             }
         }
         Ok(batches)

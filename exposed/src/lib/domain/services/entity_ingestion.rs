@@ -6,12 +6,14 @@ use crate::domain::{
             EntityIngestionTarget, MemberIngestionStage,
         },
         member_ingestion::{
-            CaptureContext, CaptureId, MemberCapture, MemberObservations, MemberProfile, invalid,
+            CaptureContext, CaptureId, MemberCapture, MemberObservations, MemberRefresh, invalid,
         },
+        parliament_member::ParliamentMember,
     },
     repositories::{
-        entity_ingestion_pipline::EntityIngestionStorage, member_writer::MemberWriter,
-        parliament_api::ParliamentApi,
+        entity_ingestion_pipline::EntityIngestionStorage,
+        parliament_api::{MemberHistory, ParliamentApi},
+        parliament_member_repository::ParliamentMemberRepo,
     },
 };
 use chrono::{DateTime, NaiveDate, Utc};
@@ -61,9 +63,12 @@ impl<S: EntityIngestionStorage, P: ParliamentApi> EntitySearchIngestionService
                 "this service supports member Fetch".into(),
             ));
         };
-        if *term_start > self.observation_date {
-            return Err(invalid("term start is after observation date"));
-        }
+        let context = CaptureContext::new(
+            capture_id,
+            *term_start,
+            self.observation_date,
+            self.started_at,
+        )?;
         eprintln!("Capture {capture_id}: fetching current Commons observations");
         let current_commons = unique_profiles(self.source.current_commons().await?)?
             .into_keys()
@@ -80,8 +85,10 @@ impl<S: EntityIngestionStorage, P: ParliamentApi> EntitySearchIngestionService
         let mut histories = Vec::new();
         for batch in ids.chunks(100) {
             let returned = self.source.member_histories(batch).await?;
-            let returned_ids: BTreeSet<_> =
-                returned.iter().map(|h| h.parliament_member_id).collect();
+            let returned_ids: BTreeSet<_> = returned
+                .iter()
+                .map(MemberHistory::parliament_member_id)
+                .collect();
             if returned_ids.len() != returned.len()
                 || returned_ids != batch.iter().copied().collect()
             {
@@ -91,25 +98,11 @@ impl<S: EntityIngestionStorage, P: ParliamentApi> EntitySearchIngestionService
             }
             histories.extend(returned);
         }
-        histories.sort_by_key(|history| history.parliament_member_id);
-        let observations = MemberObservations {
-            profiles: profiles.into_values().collect(),
-            current_commons,
-            histories,
-        };
-        observations.validate()?;
-        let counts = observations.counts();
-        let capture = MemberCapture {
-            context: CaptureContext {
-                capture_id,
-                term_start: *term_start,
-                observation_date: self.observation_date,
-                started_at: self.started_at,
-            },
-            observations,
-        };
+        let observations =
+            MemberObservations::new(profiles.into_values().collect(), current_commons, histories)?;
+        let capture = MemberCapture::new(context, observations);
         let capture_id = self.storage.write_member_capture(capture).await?;
-        Ok(EntityIngestionOutcome::Fetch { capture_id, counts })
+        Ok(EntityIngestionOutcome::Fetch { capture_id })
     }
 }
 
@@ -126,7 +119,7 @@ impl<S, W> LoadService<S, W> {
         Self { storage, writer }
     }
 }
-impl<S: EntityIngestionStorage, W: MemberWriter> EntitySearchIngestionService
+impl<S: EntityIngestionStorage, W: ParliamentMemberRepo> EntitySearchIngestionService
     for LoadService<S, W>
 {
     async fn run_ingestion(
@@ -142,32 +135,23 @@ impl<S: EntityIngestionStorage, W: MemberWriter> EntitySearchIngestionService
         };
         eprintln!("Capture {capture_id}: validating offline member data");
         let capture = self.storage.read_member_capture(*capture_id).await?;
-        let refresh = capture.prepare_refresh()?;
-        eprintln!(
-            "Capture {capture_id}: loading {} eligible members",
-            refresh.members.len()
-        );
-        let summary = self.writer.refresh_members(&refresh).await?;
+        let refresh = MemberRefresh::from_capture(&capture)?;
+        eprintln!("Capture {capture_id}: loading validated Commons service");
+        self.writer.refresh_members(&refresh).await?;
         Ok(EntityIngestionOutcome::Load {
             capture_id: *capture_id,
-            term_start: capture.context.term_start,
-            observation_date: capture.context.observation_date,
-            summary,
+            term_start: capture.context().term_start(),
+            observation_date: capture.context().observation_date(),
         })
     }
 }
 
 fn unique_profiles(
-    profiles: Vec<MemberProfile>,
-) -> Result<BTreeMap<i32, MemberProfile>, EntityIngestionError> {
+    profiles: Vec<ParliamentMember>,
+) -> Result<BTreeMap<i32, ParliamentMember>, EntityIngestionError> {
     let mut unique = BTreeMap::new();
     for profile in profiles {
-        let id = profile.parliament_member_id;
-        if id <= 0 {
-            return Err(invalid(format!(
-                "member {id}: source identity must be positive"
-            )));
-        }
+        let id = profile.parliament_member_id();
         if let Some(previous) = unique.get(&id) {
             if previous != &profile {
                 return Err(invalid(format!(

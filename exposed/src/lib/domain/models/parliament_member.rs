@@ -1,85 +1,98 @@
-//! Representatives of the public in parliament.
+//! Validated members used by both search and member ingestion.
+use thiserror::Error;
 
-/// Member of Parliament
+/// Member of Parliament with a complete, valid source profile.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParliamentMember {
-    name: ParliamentMemberName,
-    _member_id: MemberId,
-    _party_name: PartyName,
-    _constituency: Constituency,
+    name: String,
+    member_id: i32,
+    party_id: i32,
+    party_name: String,
+    latest_house: i16,
+    latest_membership_from: String,
 }
 
 impl ParliamentMember {
-    #[must_use]
-    /// Creates a new Member of Parliament
-    pub const fn new(
+    /// Create a member with all required profile fields.
+    ///
+    /// # Errors
+    /// Rejects invalid identities, blank profile fields, or an unknown House.
+    pub fn new(
         name: String,
-        member_id: usize,
+        parliament_member_id: i32,
+        party_id: i32,
         party_name: String,
-        constituency: String,
-    ) -> Self {
-        Self {
-            name: ParliamentMemberName::new(name),
-            _member_id: MemberId::new(member_id),
-            _party_name: PartyName::new(party_name),
-            _constituency: Constituency::new(constituency),
+        latest_house: i16,
+        latest_membership_from: String,
+    ) -> Result<Self, ParliamentMemberError> {
+        for (valid, field) in [
+            (parliament_member_id > 0, "parliament_member_id"),
+            (!name.trim().is_empty(), "name"),
+            (party_id > 0, "party_id"),
+            (!party_name.trim().is_empty(), "party_name"),
+            (matches!(latest_house, 1 | 2), "latest_house"),
+            (
+                !latest_membership_from.trim().is_empty(),
+                "latest_membership_from",
+            ),
+        ] {
+            if !valid {
+                return Err(ParliamentMemberError::InvalidField {
+                    member_id: parliament_member_id,
+                    field,
+                });
+            }
         }
+        Ok(Self {
+            name,
+            member_id: parliament_member_id,
+            party_id,
+            party_name,
+            latest_house,
+            latest_membership_from,
+        })
     }
-
+    /// Member's source display name.
     #[must_use]
-    /// Member's name
     pub fn name(&self) -> &str {
-        &self.name.0
+        &self.name
+    }
+    /// Parliament's numeric member identity.
+    #[must_use]
+    pub const fn parliament_member_id(&self) -> i32 {
+        self.member_id
+    }
+    /// Required latest party identity.
+    #[must_use]
+    pub const fn party_id(&self) -> i32 {
+        self.party_id
+    }
+    /// Required latest party name.
+    #[must_use]
+    pub fn party_name(&self) -> &str {
+        &self.party_name
+    }
+    /// Latest House from the member profile.
+    #[must_use]
+    pub const fn latest_house(&self) -> i16 {
+        self.latest_house
+    }
+    /// Required latest membership location.
+    #[must_use]
+    pub fn latest_membership_from(&self) -> &str {
+        &self.latest_membership_from
     }
 }
 
-/// Member name
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParliamentMemberName(String);
-
-impl ParliamentMemberName {
-    #[must_use]
-    /// Creates member name
-    pub const fn new(name: String) -> Self {
-        Self(name)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-/// Party name
-#[allow(dead_code)]
-pub struct PartyName(String);
-
-impl PartyName {
-    #[must_use]
-    /// Create party name
-    pub const fn new(name: String) -> Self {
-        Self(name)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-/// Member constituency
-#[allow(dead_code)]
-pub struct Constituency(String);
-
-impl Constituency {
-    #[must_use]
-    /// Creates member constituency
-    pub const fn new(name: String) -> Self {
-        Self(name)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-/// Member parliament API ID
-#[allow(dead_code)]
-pub struct MemberId(usize);
-
-impl MemberId {
-    #[must_use]
-    /// Creates member parliament API ID
-    pub const fn new(id: usize) -> Self {
-        Self(id)
-    }
+/// A member profile cannot be represented by a valid domain member.
+#[derive(Error, Debug)]
+pub enum ParliamentMemberError {
+    /// A required member profile value is invalid.
+    #[error("member {member_id}: invalid {field}")]
+    InvalidField {
+        /// Parliament's numeric member identity.
+        member_id: i32,
+        /// Invalid source field.
+        field: &'static str,
+    },
 }

@@ -63,12 +63,20 @@ fn members_api_url() -> String {
     "https://members-api.parliament.uk".into()
 }
 
-/// Parse only the configuration needed by the selected data command.
-///
-/// # Errors
-/// Returns errors for unreadable files or missing/invalid operation settings.
-pub fn read_data_config<T: serde::de::DeserializeOwned>(
-    path: &std::path::Path,
-) -> Result<T, ConfigError> {
-    Ok(rust_yaml::from_str(&read_to_string(path)?)?)
+impl TryFrom<&PathBuf> for MemberFetchConfig {
+    type Error = ConfigError;
+    fn try_from(value: &PathBuf) -> Result<Self, Self::Error> {
+        let raw = read_to_string(value)?;
+        let config = rust_yaml::from_str(&raw)?;
+        Ok(config)
+    }
+}
+
+impl TryFrom<&PathBuf> for MemberLoadConfig {
+    type Error = ConfigError;
+    fn try_from(value: &PathBuf) -> Result<Self, Self::Error> {
+        let raw = read_to_string(value)?;
+        let config = rust_yaml::from_str(&raw)?;
+        Ok(config)
+    }
 }

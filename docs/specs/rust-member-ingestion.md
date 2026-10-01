@@ -37,7 +37,7 @@ A failed fetch exposes no completed capture. A failed load commits no database c
 21. As a maintainer, I want identical repeated member profiles collapsed and conflicting repeats rejected, so that source duplication does not create ambiguous records.
 22. As a maintainer, I want every requested member history accounted for exactly once, so that missing or mismatched histories cannot silently alter the cohort.
 23. As an operator, I want bounded retries and useful source diagnostics, so that transient API failures are handled and persistent failures can be investigated.
-24. As a maintainer, I want absent optional source values retained as absent in raw data, so that ingestion does not invent party or membership-location information.
+24. As a maintainer, I want absent required member fields rejected during acquisition, so that ingestion never invents party or membership-location information.
 25. As an operator, I want required database fields validated before writes, so that an invalid member produces a clear failure without partial database changes.
 26. As a reader, I want source calendar dates interpreted consistently, so that loading on another day or in another timezone does not alter service dates.
 27. As a reader, I want service periods clipped to the configured term using the existing rules, so that earlier service is not counted as service in the new term.
@@ -55,7 +55,7 @@ A failed fetch exposes no completed capture. A failed load commits no database c
 39. As an operator, I want repeated loading of the same capture to be safe, so that retries do not create duplicate members or service periods.
 40. As an operator, I want to load an explicitly selected older capture, so that internal workflows can deliberately reapply saved data.
 41. As an operator, I want load to use the capture's term and observation date, so that changing local configuration cannot reinterpret the saved cohort silently.
-42. As an operator, I want capture identity, counts, and load outcomes reported, so that I can identify the input used and understand the result.
+42. As an operator, I want capture identity and load outcomes reported, so that I can identify the input used and whether the operation succeeded.
 43. As a maintainer, I want member fetch and load represented by typed service requests, so that their different inputs cannot be confused.
 44. As a maintainer, I want source and storage ports to exchange typed records, so that the workflow does not rely on hidden shared state between adapters.
 45. As a maintainer, I want the CLI to follow the existing verb-first data-command structure, so that the new operations fit the Rust application.
@@ -70,23 +70,24 @@ A failed fetch exposes no completed capture. A failed load commits no database c
 - Extend the existing Rust application and its ingestion service. This increment implements only member fetching and loading; it does not implement declaration stages.
 - Preserve the separation between domain values and rules, ingestion orchestration, outbound source and storage adapters, and inbound CLI composition.
 - The CLI parses arguments and configuration, constructs the required adapters, and submits a typed request. The service owns the workflow and returns a typed outcome.
+- Use one canonical `ParliamentMember` domain model for capture, loading and search. Its party fields are required, its fields are private and exposed through methods, and its constructor rejects invalid values. Other domain values must also enforce their invariants at construction rather than through later validation calls.
 - Retain EntityIngestionRequest and EntityIngestionTarget. The Members target gains a MemberIngestionStage with Fetch and Load operations. Fetch carries the configured term start. Load carries a CaptureId that validates a UUIDv7.
 - Rename the member-source capability to describe the configured term cohort rather than only sitting members. Its contract must support current Commons observations, historical candidates, and membership histories.
-- Replace unit-only source and storage contracts with typed inputs and outputs. A successful fetch outcome includes the finalized capture ID; a successful load outcome includes that ID and a member-import summary.
-- Add the PostgreSQL member-writing capability needed for Load. Make the ingestion service interface accessible to the CLI. Infrastructure construction must not cause a database connection during Fetch or Parliament requests during Load.
+- Replace unit-only source and storage contracts with typed inputs and outputs. A successful fetch outcome includes the finalized capture ID; a successful load outcome includes that ID and the saved term start and observation date. Do not return count summaries.
+- Add the member refresh operation to the existing `ParliamentMemberRepo`, implemented by `ExposedDatabase`. Make the ingestion service interface accessible to the CLI. Infrastructure construction must not cause a database connection during Fetch or Parliament requests during Load.
 
 ### CLI and configuration
 
 | Operation | Command hierarchy | Positional inputs | Result |
 | --- | --- | --- | --- |
-| Fetch | exposed, data, fetch, members | Configuration file | Completed capture UUIDv7 and capture counts |
-| Load | exposed, data, load, members | Configuration file, then capture ID | Capture ID and member-import summary |
+| Fetch | exposed, data, fetch, members | Configuration file | Completed capture UUIDv7 |
+| Load | exposed, data, load, members | Configuration file, then capture ID | Capture ID, saved term start and observation date |
 
 - Use Load for the Parquet-to-PostgreSQL operation. The existing declaration operation named Import already means acquisition into raw storage.
 - Configuration supplies a local data root and the Parliament term start for Fetch. Load uses the data root and the PostgreSQL connection configuration, then reads the term start and observation date from the selected capture.
-- Validate the settings required by the selected operation. Preserve existing server configuration and behavior.
+- Validate the settings required by the selected operation using the existing `TryFrom<&PathBuf>` configuration pattern. Preserve existing server configuration and behavior.
 - Capture one Europe/London observation date at the beginning of Fetch. Reject a term start after that date. Loading later must not recompute the observation date from the current clock.
-- Use the existing operational conventions for useful errors, progress logging, and machine-readable success summaries. Include the capture ID in both success paths. Only report success after capture finalization or transaction commit, respectively.
+- Use the existing operational conventions for useful errors, progress logging, and machine-readable outcomes without count summaries. Include the capture ID in both success paths. Only report success after capture finalization or transaction commit, respectively.
 - The initial Load command requires an explicit CaptureId. An implicit latest input and a convenience latest flag are outside this increment.
 
 ### Source acquisition
@@ -107,7 +108,7 @@ The first format is an explicit translation of the source information consumed b
 
 | Dataset | Row meaning | Required captured information |
 | --- | --- | --- |
-| Member profiles | One distinct historical candidate | Parliament member ID, display name, party ID and name when supplied, latest House, and latest membership location when supplied |
+| Member profiles | One distinct historical candidate | Parliament member ID, display name, party ID and name, latest House, and latest membership location; all required |
 | Current Commons observations | One distinct current Commons member | Parliament member ID |
 | House memberships | One returned membership period for a candidate | Parliament member ID, House, source start date, and nullable source end date |
 
@@ -116,7 +117,7 @@ The first format is an explicit translation of the source information consumed b
 - Source date values retain their calendar date without timezone conversion, matching the existing importer. Store capture timestamps as UTC instants and the observation date as a calendar date.
 - A manifest records the capture UUID, format/schema version, term start, observation date, capture start and completion timestamps, and the datasets and counts required to read and check that capture.
 - Keep identifiers as source identities in raw data. PostgreSQL UUIDs and derived term-service rows are produced or reconciled during Load.
-- Missing party or membership-location values may be represented as absent in raw data. Required PostgreSQL values must be validated before any database writes; never substitute invented defaults.
+- Missing party or membership-location values fail Fetch before a capture is finalized; never substitute invented defaults. Readers can accept earlier schema-v1 files with nullable profile-column metadata only when all required values are present.
 - Readers must reject missing datasets, incomplete captures, mismatched capture identity, and unsupported schema versions with useful errors.
 - Future schema changes may add fields deliberately. Earlier captures cannot recover values that their schema did not store; automatic enrichment or rewriting of older captures is outside scope.
 
@@ -151,7 +152,7 @@ The first format is an explicit translation of the source information consumed b
 - Leave previously stored members absent from the selected capture untouched. Preserve declarations and their member foreign keys; loading an older capture is an update of represented members, not a complete historical restoration of the database.
 - Repeated loading of an unchanged capture must not duplicate members or service periods or change their identities.
 - Permit loading any explicitly selected completed capture, including one older than a previous load. Do not introduce anti-downgrade checks, special approval flags, or persistent last-import bookkeeping.
-- Return inserted, updated, unchanged, current/former member, excluded-candidate, and service-period counts consistent with the existing member summary. Keep failed loads distinct from successful committed summaries.
+- Report success only after committing the load. Do not calculate or return member-import count summaries.
 - Execution remains externally controlled. Application scheduling and coordination of concurrent loads are outside this increment.
 
 ## Testing Decisions
@@ -189,7 +190,8 @@ Use the existing Python member integration scenarios as behavioral prior art and
 ## Further Notes
 
 - Implementation starts from the Rust ingestion scaffolding on feature branch feat/add-rust-cli-ingestion, reviewed at commit ef10839ca90605c3c55fd2c3489b060405579be0.
-- The existing Python member behavior is the reference for cohort selection, source interpretation, identity preservation, and service reconciliation. Two changes are deliberate: source acquisition becomes a saved complete capture, and database publication becomes atomic across the whole member load.
+- [PR #13 review](https://github.com/johnnylarner/exposed/pull/13) refines the model, adapter and configuration conventions above. The review follow-up removes count summaries entirely; manifest row counts remain part of capture completeness validation.
+- The existing Python member behavior is the reference for cohort selection, source interpretation, identity preservation, and service reconciliation. Source acquisition becomes a saved complete capture, database publication becomes atomic across the whole member load, and the reviewed model conventions reject incomplete member profiles during Fetch.
 - A completed capture records observations obtained during a run. The inspected Parliament API contract does not guarantee a transactional snapshot across those requests; retain the existing consistency checks.
 - Keep the repository's dedicated-worktree and linear-history practices. If implementation unexpectedly requires a database schema change, follow the repository's single reversible development-baseline policy and verify any live schema before reconciling migration metadata.
 - API reference: [Parliament Members OpenAPI](https://members-api.parliament.uk/swagger/v1/swagger.json). Storage reference: [Apache Parquet file format](https://parquet.apache.org/docs/file-format/).

@@ -112,40 +112,25 @@ mod merge_scores {
         services::entity_search::merge_scores,
     };
 
+    fn member(name: &str) -> ParliamentMember {
+        ParliamentMember::new(name.into(), 1, 1, "Party".into(), 1, "Somewhere".into()).unwrap()
+    }
+
     #[test]
     fn works_for_only_mps() {
         let funders = Vec::new();
         let mps = vec![
-            (
-                ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
-                SearchSimilarity::from(1_f32),
-            ),
-            (
-                ParliamentMember::new("hades".into(), 1, String::new(), String::new()),
-                SearchSimilarity::from(2_f32),
-            ),
+            (member("johnny larner"), SearchSimilarity::from(1_f32)),
+            (member("hades"), SearchSimilarity::from(2_f32)),
         ];
 
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(
             ranked.first().unwrap(),
-            &Entity::from(&ParliamentMember::new(
-                "johnny larner".into(),
-                1,
-                String::new(),
-                String::new(),
-            ))
+            &Entity::from(&member("johnny larner"))
         );
 
-        assert_eq!(
-            ranked.get(1).unwrap(),
-            &Entity::from(&ParliamentMember::new(
-                "hades".into(),
-                1,
-                String::new(),
-                String::new(),
-            ))
-        );
+        assert_eq!(ranked.get(1).unwrap(), &Entity::from(&member("hades")));
     }
 
     #[test]
@@ -161,40 +146,21 @@ mod merge_scores {
             ),
         ];
         let mps = vec![
-            (
-                ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
-                SearchSimilarity::from(4_f32),
-            ),
-            (
-                ParliamentMember::new("hades".into(), 1, String::new(), String::new()),
-                SearchSimilarity::from(3_f32),
-            ),
+            (member("johnny larner"), SearchSimilarity::from(4_f32)),
+            (member("hades"), SearchSimilarity::from(3_f32)),
         ];
 
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(ranked.len(), 4);
         assert_eq!(
             ranked.first().unwrap(),
-            &Entity::from(&ParliamentMember::new(
-                "johnny larner".into(),
-                1,
-                String::new(),
-                String::new(),
-            ))
+            &Entity::from(&member("johnny larner"))
         );
         assert_eq!(
             ranked.get(1).unwrap(),
             &Entity::from(&Funder::new("heavenly ltd".into(), FunderKind::Company),)
         );
-        assert_eq!(
-            ranked.get(2).unwrap(),
-            &Entity::from(&ParliamentMember::new(
-                "hades".into(),
-                1,
-                String::new(),
-                String::new(),
-            ))
-        );
+        assert_eq!(ranked.get(2).unwrap(), &Entity::from(&member("hades")));
         assert_eq!(
             ranked.get(3).unwrap(),
             &Entity::from(&Funder::new("canna ltd".into(), FunderKind::Company),)
@@ -213,21 +179,13 @@ mod merge_scores {
                 SearchSimilarity::from(2_f32),
             ),
         ];
-        let mps = vec![(
-            ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
-            SearchSimilarity::from(4_f32),
-        )];
+        let mps = vec![(member("johnny larner"), SearchSimilarity::from(4_f32))];
 
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(ranked.len(), 3);
         assert_eq!(
             ranked.first().unwrap(),
-            &Entity::from(&ParliamentMember::new(
-                "johnny larner".into(),
-                1,
-                String::new(),
-                String::new(),
-            ))
+            &Entity::from(&member("johnny larner"))
         );
         assert_eq!(
             ranked.get(1).unwrap(),
@@ -246,35 +204,16 @@ mod merge_scores {
             SearchSimilarity::from(2_f32),
         )];
         let mps = vec![
-            (
-                ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
-                SearchSimilarity::from(4_f32),
-            ),
-            (
-                ParliamentMember::new("hades".into(), 1, String::new(), String::new()),
-                SearchSimilarity::from(2_f32),
-            ),
+            (member("johnny larner"), SearchSimilarity::from(4_f32)),
+            (member("hades"), SearchSimilarity::from(2_f32)),
         ];
 
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(
             ranked.first().unwrap(),
-            &Entity::from(&ParliamentMember::new(
-                "johnny larner".into(),
-                1,
-                String::new(),
-                String::new(),
-            ))
+            &Entity::from(&member("johnny larner"))
         );
-        assert_eq!(
-            ranked.get(1).unwrap(),
-            &Entity::from(&ParliamentMember::new(
-                "hades".into(),
-                1,
-                String::new(),
-                String::new(),
-            ))
-        );
+        assert_eq!(ranked.get(1).unwrap(), &Entity::from(&member("hades")));
         assert_eq!(
             ranked.get(2).unwrap(),
             &Entity::from(&Funder::new("canna ltd".into(), FunderKind::Company,))

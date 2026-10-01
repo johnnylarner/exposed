@@ -4,7 +4,7 @@ use crate::domain::models::entity_ingestion::{
 
 /// Runs one typed ingestion operation with only its required capabilities.
 pub trait EntitySearchIngestionService: Clone + Send + Sync + 'static {
-    /// Return a completed capture or committed database summary.
+    /// Return a completed capture or committed load identity.
     fn run_ingestion(
         &self,
         req: &EntityIngestionRequest,

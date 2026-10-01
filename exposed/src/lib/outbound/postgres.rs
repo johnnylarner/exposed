@@ -1,6 +1,10 @@
 //! General purpose postgres client
 
-use sqlx::PgPool;
+use sqlx::{
+    PgPool,
+    postgres::{PgConnectOptions, PgPoolOptions},
+};
+use std::{str::FromStr, time::Duration};
 
 /// Postgres client that wraps [`sqlx::Pool`]
 #[derive(Clone)]
@@ -9,6 +13,23 @@ pub struct ExposedDatabase {
 }
 
 impl ExposedDatabase {
+    /// Configure the shared database adapter without opening a connection.
+    ///
+    /// # Errors
+    /// Rejects an empty or invalid PostgreSQL connection string.
+    pub fn new_lazy(conn_str: &str) -> Result<Self, sqlx::Error> {
+        if conn_str.trim().is_empty() {
+            return Err(sqlx::Error::Configuration(
+                "connection_string must not be empty".into(),
+            ));
+        }
+        let options = PgConnectOptions::from_str(conn_str)?.application_name("exposed");
+        let pool = PgPoolOptions::new()
+            .acquire_timeout(Duration::from_secs(10))
+            .connect_lazy_with(options);
+        Ok(Self { pool })
+    }
+
     /// Creates a new instance of [`ExposedDatabase`]
     ///
     /// # Panics

@@ -1,9 +1,9 @@
 //! Typed requests and outcomes for independent ingestion operations.
 
-use super::member_ingestion::{CaptureCounts, CaptureId, MemberImportSummary};
+use super::member_ingestion::CaptureId;
 use crate::domain::repositories::{
-    entity_ingestion_pipline::EntitySearchPipelineError, member_writer::MemberWriteError,
-    parliament_api::ParliamentApiError,
+    entity_ingestion_pipline::EntitySearchPipelineError, parliament_api::ParliamentApiError,
+    parliament_member_repository::ParliamentMemberRepoError,
 };
 use chrono::NaiveDate;
 use serde::Serialize;
@@ -85,8 +85,6 @@ pub enum EntityIngestionOutcome {
     Fetch {
         /// Completed capture identity.
         capture_id: CaptureId,
-        /// Raw dataset row counts.
-        counts: CaptureCounts,
     },
     /// Committed database refresh.
     Load {
@@ -96,8 +94,6 @@ pub enum EntityIngestionOutcome {
         term_start: NaiveDate,
         /// Captured observation date.
         observation_date: NaiveDate,
-        /// Committed member outcomes.
-        summary: MemberImportSummary,
     },
 }
 
@@ -115,7 +111,7 @@ pub enum EntityIngestionError {
     IoError(#[from] EntitySearchPipelineError),
     /// Atomic database refresh failed.
     #[error("member load: {0}")]
-    DatabaseError(#[from] MemberWriteError),
+    DatabaseError(#[from] ParliamentMemberRepoError),
     /// Invalid or unavailable stage.
     #[error("unsupported ingestion stage: {0}")]
     InvalidStage(String),

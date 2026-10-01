@@ -1,7 +1,7 @@
 //! Command-line inbound adapter, including configuration and service construction.
 
 use crate::{
-    config::{Config, MemberFetchConfig, MemberLoadConfig, read_data_config},
+    config::{Config, MemberFetchConfig, MemberLoadConfig},
     domain::{
         models::{
             entity_ingestion::{
@@ -14,7 +14,7 @@ use crate::{
         },
     },
     inbound::http::server::serve_exposed,
-    outbound::{ExposedDataPipeline, MemberDatabase, MembersApi},
+    outbound::{ExposedDataPipeline, ExposedDatabase, MembersApi},
 };
 use anyhow::{Context, ensure};
 use chrono::Utc;
@@ -99,7 +99,7 @@ async fn dispatch(args: Cli) -> anyhow::Result<()> {
             let observation_date = started_at
                 .with_timezone(&chrono_tz::Europe::London)
                 .date_naive();
-            let config: MemberFetchConfig = read_data_config(&config)
+            let config = MemberFetchConfig::try_from(&config)
                 .context(InvalidConfiguration("invalid member Fetch configuration"))?;
             ensure!(
                 !config.data_root.as_os_str().is_empty(),
@@ -122,14 +122,14 @@ async fn dispatch(args: Cli) -> anyhow::Result<()> {
                     target: LoadTarget::Members { config, capture_id },
                 },
         }) => {
-            let config: MemberLoadConfig = read_data_config(&config)
+            let config = MemberLoadConfig::try_from(&config)
                 .context(InvalidConfiguration("invalid member Load configuration"))?;
             ensure!(
                 !config.data_root.as_os_str().is_empty(),
                 InvalidConfiguration("data_root must not be empty")
             );
             let storage = ExposedDataPipeline::new(config.data_root);
-            let database = MemberDatabase::new(&config.connection_string).context(
+            let database = ExposedDatabase::new_lazy(&config.connection_string).context(
                 InvalidConfiguration("invalid member database configuration"),
             )?;
             LoadService::new(storage, database)
@@ -142,9 +142,9 @@ async fn dispatch(args: Cli) -> anyhow::Result<()> {
             anyhow::bail!("declaration cleaning and resolution are not implemented")
         }
     };
-    let mut summary = serde_json::to_value(outcome)?;
-    summary["status"] = "succeeded".into();
-    println!("{}", serde_json::to_string(&summary)?);
+    let mut outcome = serde_json::to_value(outcome)?;
+    outcome["status"] = "succeeded".into();
+    println!("{}", serde_json::to_string(&outcome)?);
     Ok(())
 }
 
