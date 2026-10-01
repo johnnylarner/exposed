@@ -3,7 +3,6 @@
     clippy::restriction,
     clippy::pedantic,
     clippy::nursery,
-    clippy::cargo,
     missing_docs,
     warnings
 )]

@@ -1,3 +1,7 @@
 [workspace]
 members = ["exposed"]
 resolver = "3"
+
+[workspace.lints.clippy]
+cargo = { level = "deny", priority = -1 }
+multiple_crate_versions = "allow"

@@ -6,6 +6,9 @@ edition = "2024"
 [lib]
 path = "src/lib/lib.rs"
 
+[lints]
+workspace = true
+
 [[bin]]
 name = "exposed"
 path = "src/bin/main.rs"
