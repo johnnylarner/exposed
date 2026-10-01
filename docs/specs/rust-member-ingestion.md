@@ -59,7 +59,7 @@ A failed fetch exposes no completed capture. A failed load commits no database c
 43. As a maintainer, I want member fetch and load represented by typed service requests, so that their different inputs cannot be confused.
 44. As a maintainer, I want source and storage ports to exchange typed records, so that the workflow does not rely on hidden shared state between adapters.
 45. As a maintainer, I want the CLI to follow the existing verb-first data-command structure, so that the new operations fit the Rust application.
-46. As a maintainer, I want deterministic verification without the live Parliament service, so that failures reflect implementation changes rather than changing upstream data.
+46. As a maintainer, I want one integration test that runs the real application through capture and loading, so that verification demonstrates that the complete workflow works.
 47. As a maintainer, I want real Parquet compatibility and PostgreSQL persistence guarantees verified, so that successful orchestration also produces usable files and database records.
 48. As an operator, I want existing server and declaration behavior preserved, so that this member-only increment can be delivered independently.
 
@@ -156,31 +156,24 @@ The first format is an explicit translation of the source information consumed b
 
 ## Testing Decisions
 
-### Test organization
+### Single integration test
 
-- End-to-end CLI tests are the primary seam, as selected by the user. Invoke the built Rust executable with real arguments and configuration, and assert its observable outputs and effects.
-- Fetch tests use a local HTTP fixture server that implements the relevant Parliament responses and a temporary data root. Exercise the production HTTP and Parquet adapters through the CLI.
-- Load tests invoke the separate command with the capture ID returned by Fetch and an isolated PostgreSQL database initialized from the real development baseline. Stop the fixture server before loading to prove that the operation is independent of Parliament.
-- Inspect exit status, stdout and stderr, finalized files, and committed database state. Verify capture failures and database rollback through these same outward effects.
-- Prefer this single application entry point over separate mocked service and adapter suites. Add a focused lower-level test only when an important behavior cannot reasonably be exercised through the CLI; do not duplicate the same acceptance coverage at every layer.
-- Use a real Parquet reader and the real PostgreSQL adapter in the acceptance path. Synthetic HTTP fixtures provide repeatable upstream behavior without replacing production parsing or persistence.
+- Add exactly one integration test for this feature. Run the built Rust executable with real arguments and configuration through the member Fetch and Load commands.
+- Use the production CLI, service, HTTP client, source decoding, domain rules, Parquet reader and writer, filesystem storage, PostgreSQL adapter, and transaction handling. Do not mock application components or add mocked unit-test or separate adapter-test suites for this feature.
+- Use a temporary data root and an isolated temporary PostgreSQL database initialized from the real development baseline. Clean up these resources after the test.
+- The only substituted external dependency is Parliament: a local HTTP fixture server supplies deterministic responses. The production HTTP client makes real requests to that server. No live Parliament access is required.
+- Keep the test as one readable workflow with sequential phases. Assert returned IDs, command outcomes, actual file contents, and committed database state. Do not assert private helper structure or mocked call sequences.
 
-### Behavioral acceptance cases
+### Workflow and assertions
 
-- Test observable outcomes: returned capture IDs, readable dataset contents, whether a capture is visible as completed, committed database records and identities, summaries, and errors. Avoid assertions about private helper structure or mock call sequences that do not establish behavior.
-- Use deterministic synthetic Parliament responses. Automated acceptance checks do not depend on the changing live Parliament API.
-- Verify the full-term query, current-status observation, multiple pages, changing totals, premature empty pages, retries, exhausted failures, identical duplicates, conflicting duplicates, and exact history coverage.
-- Include current MPs, former MPs, a former MP now in the Lords, departures and re-entry, source periods crossing the term boundary, and service ending on election day.
-- Open generated files with a real Parquet reader and check the agreed schema and expected values, including nulls and dates. Verify that the snapshot contains enough information to load with Parliament access unavailable.
-- Verify UUIDv7 capture identity, distinct captures for repeated fetches, immutable completed outputs, explicit-ID lookup, manifest agreement, unsupported schema rejection, and completed-only latest ordering.
-- Exercise failure during acquisition and file finalization. No completed capture may be exposed, and an existing completed capture must remain usable.
-- Verify that Load uses the recorded term and observation date even if the machine's date or local fetch configuration has changed.
-- Verify required-field and service validation before database writes, including the existing mismatch between nullable source metadata and required PostgreSQL columns.
-- Against an isolated PostgreSQL database initialized with the real baseline, verify initial loading, stable member and service UUIDs on repetition, profile changes, corrected starts and ends, absence retention, preservation of term end, and existing declaration references.
-- Force a late write failure after earlier members have been written inside the transaction. Verify that the entire load rolls back. Existing Python expectations that earlier batches survive must be replaced for this new Rust workflow.
-- Verify changed-term rejection, an empty eligible cohort, and deliberate loading of an older completed capture without an anti-downgrade guard.
-- Check command routing, required capture-ID handling, error reporting, and successful outcomes. Verify that existing server behavior remains usable.
-- Use the existing Python member-source, domain, refresh, storage, and CLI characterization tests as behavioral prior art. The Rust codebase already uses SQLx-backed database tests; follow its database test conventions while keeping application data isolated.
+1. Start the fixture server with a small paginated cohort containing current and former MPs and representative membership histories. Create the temporary data root and database, then invoke Fetch through the real CLI.
+2. Verify that Fetch succeeds with a UUIDv7 capture ID, that the manifest and all three datasets are complete, and that a real Parquet reader sees the expected source values. Verify that fetching has not changed the database.
+3. Stop the fixture server and invoke Load with that exact capture ID. Check the resulting term, member profiles, current/former status, and derived service periods in PostgreSQL. This establishes that loading uses captured data without Parliament access.
+4. Load the same capture again. Compare database rows and UUIDs to establish that repeated loading does not create duplicates or change member and service identities.
+5. Obtain a second capture with a profile or service correction. Arrange a real database rejection after earlier writes within the load transaction and verify that the failed load leaves the previous database state intact. Remove the test-only database rejection, load successfully, and check the correction and preserved identities. The first completed capture remains unchanged.
+6. Make a subsequent Fetch encounter a source failure after receiving some data. Verify the failed command exposes no new completed capture and preserves the earlier captures. These failure phases belong to the same integration test.
+
+Use the existing Python member integration scenarios as behavioral prior art and the existing SQLx-backed tests as examples of isolated database setup. Existing member and service rules remain implementation requirements; this task does not require a separate test case for every rule.
 
 ## Out of Scope
 
