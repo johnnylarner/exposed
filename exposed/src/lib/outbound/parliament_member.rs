@@ -46,7 +46,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
         .map(|r| {
             let member = ParliamentMember::new(
                 r.name,
-                r.parliament_member_id as usize,
+                r.parliament_member_id as u32,
                 r.party_name,
                 r.constituency,
             );

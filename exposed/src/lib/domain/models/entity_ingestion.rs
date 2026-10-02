@@ -1,7 +1,7 @@
 //! Contains entity ingestion models
 
-use std::str::FromStr;
-
+// use std::str::FromStr;
+//
 use strum::EnumString;
 use thiserror::Error;
 
@@ -12,48 +12,61 @@ use crate::domain::repositories::{
 /// Data required to search entities
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EntityIngestionRequest {
-    target: EntityIngestionTarget,
+    // target: EntityIngestionTarget,
 }
-
-impl EntityIngestionRequest {
-    pub fn new_members_request() -> Self {
-        Self {
-            target: EntityIngestionTarget::Members,
-        }
-    }
-    pub fn new_declaration_request(stage: &str) -> Result<Self, EntityIngestionError> {
-        let stage = DeclarationIngestionStage::from_str(stage)
-            .map_err(|_| EntityIngestionError::InvalidStage(stage.to_string()))?;
-
-        Ok(Self {
-            target: EntityIngestionTarget::Declaration(stage),
-        })
-    }
-
-    pub fn target(&self) -> &EntityIngestionTarget {
-        &self.target
-    }
-}
-
-/// Ingestion targets
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum EntityIngestionTarget {
-    /// MPs
-    Members,
-    /// Declarations, funders, funding entries
-    Declaration(DeclarationIngestionStage),
-}
-
-/// From what stage to run the declaration pipeline
+//
+//
+// impl EntityIngestionRequest {
+//     pub fn new_members_request(stage: &str) -> Result<Self, EntityIngestionError> {
+//         let stage = MemberIngestionStage::from_str(stage)
+//             .map_err(|_| EntityIngestionError::InvalidStage(stage.to_string()))?;
+//         Ok(Self {
+//             target: EntityIngestionTarget::Members(stage),
+//         })
+//     }
+//     pub fn new_declaration_request(stage: &str) -> Result<Self, EntityIngestionError> {
+//         let stage = DeclarationIngestionStage::from_str(stage)
+//             .map_err(|_| EntityIngestionError::InvalidStage(stage.to_string()))?;
+//
+//         Ok(Self {
+//             target: EntityIngestionTarget::Declaration(stage),
+//         })
+//     }
+//
+//     pub fn target(&self) -> &EntityIngestionTarget {
+//         &self.target
+//     }
+// }
+//
+// /// Ingestion targets
+// #[derive(Clone, Debug, PartialEq, Eq)]
+// pub enum EntityIngestionTarget {
+//     /// MPs
+//     Members(MemberIngestionStage),
+//     /// Declarations, funders, funding entries
+//     Declaration(DeclarationIngestionStage),
+// }
+//
+/// From what stage to run in the Member pipeline
 #[derive(Clone, Debug, PartialEq, Eq, EnumString)]
 #[allow(missing_docs)]
 #[strum(ascii_case_insensitive)]
-pub enum DeclarationIngestionStage {
-    Import,
-    Clean,
-    Resolve,
+pub enum MemberIngestionStage {
+    Fetch,
+    // Load,
 }
-
+//
+// /// From what stage to run the declaration pipeline
+// #[derive(Clone, Debug, PartialEq, Eq, EnumString)]
+// #[allow(missing_docs)]
+// #[strum(ascii_case_insensitive)]
+// pub enum DeclarationIngestionStage {
+//     Fetch,
+//     Clean,
+//     Resolve,
+//     Load,
+// }
+//
 /// Errors related to entity search
 #[derive(Error, Debug)]
 pub enum EntityIngestionError {

@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
-    config::Config,
     domain::services::entity_search::Service as EntitySearchService,
-    inbound::http::{routes::routes, state::AppState},
+    inbound::http::{config::ServerConfig, routes::routes, state::AppState},
     outbound::ExposedDatabase,
 };
 
@@ -11,7 +10,7 @@ use crate::{
 ///
 /// # Errors
 /// - When the TCP listener cannot attach
-pub async fn serve_exposed(config: &Config) -> anyhow::Result<()> {
+pub async fn serve_exposed(config: &ServerConfig) -> anyhow::Result<()> {
     let db = ExposedDatabase::new(&config.connection_string).await;
     let service = EntitySearchService::new(db.clone(), db);
 

@@ -1,9 +1,9 @@
 use crate::domain::models::entity_ingestion::{EntityIngestionError, EntityIngestionRequest};
 
-/// Prepares UK Parliament API data for storage
-pub trait EntitySearchIngestionService: Clone + Send + Sync + 'static {
-    /// Runs entity ingestion
-    fn run_ingestion(
+/// Retrieves raw data
+pub trait EntityFetcherService: Clone + 'static {
+    /// Fetches members from the UK Parliament API
+    fn fetch_members(
         &self,
         req: &EntityIngestionRequest,
     ) -> impl Future<Output = Result<(), EntityIngestionError>> + Send;

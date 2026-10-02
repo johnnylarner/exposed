@@ -39,7 +39,7 @@ services:
       - --watch
       - Cargo.lock
       - --exec
-      - run --package exposed --bin exposed -- server exposed/config/compose.yaml
+      - run --package exposed --bin exposed -- server exposed/config/server-compose.yaml
     environment:
       DATABASE_URL: postgresql://exposed:exposed_local_dev@postgres:5432/exposed?sslmode=disable
       RUST_BACKTRACE: "1"

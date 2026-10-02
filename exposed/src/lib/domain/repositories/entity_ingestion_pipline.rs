@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::domain::models::parliament_member::ParliamentMember;
+
 /// Set of I/O methods for data in the entity search pipeline
 pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
     /// Reads raw data persisted from the parliament API    
@@ -13,7 +15,10 @@ pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
         &self,
     ) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
     /// Writes raw data pulled from the parliament API
-    fn write_raw_data(&self) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
+    fn write_raw_members(
+        &self,
+        members: &[ParliamentMember],
+    ) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
     /// Writes cleaned data pulled from the parliament API
     fn write_cleaned_data(
         &self,
@@ -27,6 +32,9 @@ pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
 /// Errors that can occur when interacting with the repo
 #[derive(Error, Debug)]
 pub enum EntitySearchPipelineError {
+    /// Generic error when something unexpected goes wrong
+    #[error("unexpected error occured: {0}")]
+    Unexpected(String),
     /// Error when reading pipeline results
     #[error("unable to read pipeline data due to {0}")]
     ReadError(String),
