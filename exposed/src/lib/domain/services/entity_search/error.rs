@@ -10,9 +10,7 @@ use crate::domain::{
 impl From<ParliamentMemberRepoError> for EntitySearchError {
     fn from(value: ParliamentMemberRepoError) -> Self {
         match value {
-            ParliamentMemberRepoError::DatabaseError(err) => {
-                EntitySearchError::UnexpectedError(err)
-            }
+            ParliamentMemberRepoError::DatabaseError(err) => Self::UnexpectedError(err),
         }
     }
 }
@@ -20,7 +18,7 @@ impl From<ParliamentMemberRepoError> for EntitySearchError {
 impl From<FunderRepoError> for EntitySearchError {
     fn from(value: FunderRepoError) -> Self {
         match value {
-            FunderRepoError::DatabaseError(err) => EntitySearchError::UnexpectedError(err),
+            FunderRepoError::DatabaseError(err) => Self::UnexpectedError(err),
         }
     }
 }

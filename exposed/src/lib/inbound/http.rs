@@ -1,5 +1,7 @@
 //! HTTP inbound adapter
 
+/// Config
+pub mod config;
 /// HTTP errors
 pub mod error;
 /// Handler code

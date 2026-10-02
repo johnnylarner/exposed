@@ -39,13 +39,13 @@ impl FunderRepo for ExposedDatabase {
         .map_err(|e| FunderRepoError::DatabaseError(e.to_string()))?
         .into_iter()
         .take_while(|r| {
-            r.rank.unwrap_or((req.max_entries() + 1) as i64) <= req.max_entries() as i64
+            r.rank.unwrap_or_else(|| i64::from(req.max_entries() + 1))
+                <= i64::from(req.max_entries())
         })
         .map(|r| {
-            let kind = match &r.kind {
-                Some(kind) => FunderKind::from_str(kind).unwrap(),
-                None => FunderKind::NotSpecified,
-            };
+            let kind = r.kind.map_or(FunderKind::NotSpecified, |ref kind| {
+                FunderKind::from_str(kind).unwrap()
+            });
             let funder = Funder::new(r.name, kind);
             let score = SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32));
             Ok((funder, score))

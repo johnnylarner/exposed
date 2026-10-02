@@ -1,12 +1,4 @@
-#![deny(
-    clippy::all,
-    clippy::restriction,
-    clippy::pedantic,
-    clippy::nursery,
-    clippy::cargo,
-    missing_docs,
-    warnings
-)]
+#![deny(clippy::all, clippy::pedantic, clippy::nursery, missing_docs, warnings)]
 
 //! The exposed project serves declaration data from MPs in the UK parliament.
 
@@ -18,6 +10,3 @@ pub mod inbound;
 
 /// Contains the outbound adapters for the project
 pub mod outbound;
-
-/// Contains the configuration parameters for this project
-pub mod config;

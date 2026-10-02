@@ -2,14 +2,18 @@
 
 use sqlx::PgPool;
 
-/// Postgres client that wraps [sqlx::Pool]
+/// Postgres client that wraps [`sqlx::Pool`]
 #[derive(Clone)]
 pub struct ExposedDatabase {
     pool: PgPool,
 }
 
 impl ExposedDatabase {
-    /// Creates a new instance of [ExposedDatabase]
+    /// Creates a new instance of [`ExposedDatabase`]
+    ///
+    /// # Panics
+    /// Invalid connection string
+    #[must_use]
     pub async fn new(conn_str: &str) -> Self {
         let pool = PgPool::connect(conn_str).await.unwrap();
 
@@ -17,7 +21,8 @@ impl ExposedDatabase {
     }
 
     /// Get a reference to the underlying pool
-    pub fn pool(&self) -> &PgPool {
+    #[must_use]
+    pub const fn pool(&self) -> &PgPool {
         &self.pool
     }
 }

@@ -61,9 +61,9 @@ impl From<&Entity> for SearchEntity {
 impl From<EntitySearchError> for ApiError {
     fn from(value: EntitySearchError) -> Self {
         match value {
-            EntitySearchError::InvalidTerm(_) => Self::UnprocessibleEntity(value.to_string()),
-            EntitySearchError::InvalidStrictness(_) => Self::UnprocessibleEntity(value.to_string()),
-            EntitySearchError::TooFewEntries => Self::UnprocessibleEntity(value.to_string()),
+            EntitySearchError::InvalidTerm(_)
+            | EntitySearchError::InvalidStrictness(_)
+            | EntitySearchError::TooFewEntries => Self::UnprocessibleEntity(value.to_string()),
             EntitySearchError::UnexpectedError(_) => Self::InternalServerError,
         }
     }

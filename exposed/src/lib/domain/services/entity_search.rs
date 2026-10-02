@@ -22,7 +22,7 @@ pub struct Service<P, F> {
 
 impl<P, F> Service<P, F> {
     /// Creates a new instance
-    pub fn new(mp_repo: P, funder_repo: F) -> Self {
+    pub const fn new(mp_repo: P, funder_repo: F) -> Self {
         Self {
             mp_repo,
             funder_repo,
@@ -43,10 +43,10 @@ where
         &self,
         req: &EntitySearchRequest,
     ) -> Result<Vec<Entity>, EntitySearchError> {
-        let mps = self.mp_repo.get_members_by_text_search_score(&req).await?;
+        let mps = self.mp_repo.get_members_by_text_search_score(req).await?;
         let funders = self
             .funder_repo
-            .get_funders_by_text_search_score(&req)
+            .get_funders_by_text_search_score(req)
             .await?;
 
         let scored = merge_scores(&mps, &funders);
@@ -84,15 +84,15 @@ fn merge_scores(
                 scores.push(Entity::from(&fund.0));
                 r += 1;
             }
-        };
+        }
     }
     if l < mps.len() {
-        for mp in mps[l..].iter() {
+        for mp in &mps[l..] {
             scores.push(Entity::from(&mp.0));
         }
     }
     if r < funders.len() {
-        for fund in funders[r..].iter() {
+        for fund in &funders[r..] {
             scores.push(Entity::from(&fund.0));
         }
     }
@@ -117,23 +117,23 @@ mod merge_scores {
         let funders = Vec::new();
         let mps = vec![
             (
-                ParliamentMember::new("johnny larner".into(), 1, "".into(), "".into()),
+                ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
                 SearchSimilarity::from(1_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 1, "".into(), "".into()),
+                ParliamentMember::new("hades".into(), 1, String::new(), String::new()),
                 SearchSimilarity::from(2_f32),
             ),
         ];
 
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(
-            ranked.get(0).unwrap(),
+            ranked.first().unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "johnny larner".into(),
                 1,
-                "".into(),
-                "".into(),
+                String::new(),
+                String::new(),
             ))
         );
 
@@ -142,8 +142,8 @@ mod merge_scores {
             &Entity::from(&ParliamentMember::new(
                 "hades".into(),
                 1,
-                "".into(),
-                "".into(),
+                String::new(),
+                String::new(),
             ))
         );
     }
@@ -162,11 +162,11 @@ mod merge_scores {
         ];
         let mps = vec![
             (
-                ParliamentMember::new("johnny larner".into(), 1, "".into(), "".into()),
+                ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 1, "".into(), "".into()),
+                ParliamentMember::new("hades".into(), 1, String::new(), String::new()),
                 SearchSimilarity::from(3_f32),
             ),
         ];
@@ -174,12 +174,12 @@ mod merge_scores {
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(ranked.len(), 4);
         assert_eq!(
-            ranked.get(0).unwrap(),
+            ranked.first().unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "johnny larner".into(),
                 1,
-                "".into(),
-                "".into(),
+                String::new(),
+                String::new(),
             ))
         );
         assert_eq!(
@@ -191,8 +191,8 @@ mod merge_scores {
             &Entity::from(&ParliamentMember::new(
                 "hades".into(),
                 1,
-                "".into(),
-                "".into(),
+                String::new(),
+                String::new(),
             ))
         );
         assert_eq!(
@@ -214,19 +214,19 @@ mod merge_scores {
             ),
         ];
         let mps = vec![(
-            ParliamentMember::new("johnny larner".into(), 1, "".into(), "".into()),
+            ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
             SearchSimilarity::from(4_f32),
         )];
 
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(ranked.len(), 3);
         assert_eq!(
-            ranked.get(0).unwrap(),
+            ranked.first().unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "johnny larner".into(),
                 1,
-                "".into(),
-                "".into(),
+                String::new(),
+                String::new(),
             ))
         );
         assert_eq!(
@@ -247,23 +247,23 @@ mod merge_scores {
         )];
         let mps = vec![
             (
-                ParliamentMember::new("johnny larner".into(), 1, "".into(), "".into()),
+                ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 1, "".into(), "".into()),
+                ParliamentMember::new("hades".into(), 1, String::new(), String::new()),
                 SearchSimilarity::from(2_f32),
             ),
         ];
 
         let ranked = merge_scores(&mps, &funders);
         assert_eq!(
-            ranked.get(0).unwrap(),
+            ranked.first().unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "johnny larner".into(),
                 1,
-                "".into(),
-                "".into(),
+                String::new(),
+                String::new(),
             ))
         );
         assert_eq!(
@@ -271,8 +271,8 @@ mod merge_scores {
             &Entity::from(&ParliamentMember::new(
                 "hades".into(),
                 1,
-                "".into(),
-                "".into(),
+                String::new(),
+                String::new(),
             ))
         );
         assert_eq!(

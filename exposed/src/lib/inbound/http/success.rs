@@ -13,7 +13,7 @@ pub struct ApiSuccess<S: Serialize> {
 
 impl<S: Serialize> ApiSuccess<S> {
     /// Creates new instance
-    pub fn new(code: StatusCode, response: S) -> Self {
+    pub const fn new(code: StatusCode, response: S) -> Self {
         Self { code, response }
     }
 }

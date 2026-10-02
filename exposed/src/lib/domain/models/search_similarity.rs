@@ -5,8 +5,9 @@
 pub struct SearchSimilarity(f32);
 
 impl SearchSimilarity {
+    #[must_use]
     /// Trigram similarity score value
-    pub fn value(&self) -> f32 {
+    pub const fn value(&self) -> f32 {
         self.0
     }
 }
