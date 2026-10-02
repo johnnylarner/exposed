@@ -5,7 +5,6 @@
 
 use std::{collections::HashMap, path::PathBuf, time::Duration};
 
-use chrono::Local;
 use exposed::{
     domain::{
         models::entity_search::EntitySearchRequest,
@@ -49,10 +48,12 @@ async fn parliament_api_parses_all_sitting_members() {
     let members = api.get_sitting_members().await.unwrap();
     assert_eq!(members.len(), 649);
 
-    let key = Local::now().into();
     let tmp = tempfile::tempdir().unwrap();
     let buf = PathBuf::from(tmp.path());
-    let fs = ExposedDataPipeline::new_with_key(&buf, key).unwrap();
+    let fs = ExposedDataPipeline::new(&buf).unwrap();
 
     fs.write_raw_members(&members).await.unwrap();
+    let stored_members = fs.read_raw_members().await.unwrap();
+
+    assert_eq!(members.len(), stored_members.len());
 }

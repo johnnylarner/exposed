@@ -2,7 +2,6 @@
 
 use std::{path::PathBuf, str::FromStr};
 
-use chrono::Local;
 use clap::{Args, Subcommand};
 
 use crate::{
@@ -45,11 +44,12 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                 MemberIngestionStage::Fetch => {
                     let config = FetcherConfig::try_from(&config)?;
                     let api = ParliamentApiClient::new(config.batch_size)?;
-                    let fs = ExposedDataPipeline::new_with_key(&config.key, Local::now().into())?;
+                    let fs = ExposedDataPipeline::new(&config.key)?;
                     let service = Service::new(fs, api);
 
                     let req = EntityIngestionRequest {};
-                    service.fetch_members(&req).await?;
+                    let ingestion_key = service.fetch_members(&req).await?.to_string();
+                    print!("{ingestion_key}");
                 }
             }
         }

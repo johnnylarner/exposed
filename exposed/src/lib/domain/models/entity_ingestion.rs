@@ -1,9 +1,12 @@
 //! Contains entity ingestion models
 
+use std::fmt::Display;
+
 // use std::str::FromStr;
 //
 use strum::EnumString;
 use thiserror::Error;
+use uuid::Uuid;
 
 use crate::domain::repositories::{
     entity_ingestion_pipline::EntitySearchPipelineError, parliament_api::ParliamentApiError,
@@ -11,42 +14,26 @@ use crate::domain::repositories::{
 
 /// Data required to search entities
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct EntityIngestionRequest {
-    // target: EntityIngestionTarget,
+pub struct EntityIngestionRequest;
+
+/// Key used for ingestion
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IngestionKey(Uuid);
+
+impl Display for IngestionKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.0.to_string().as_str())
+    }
 }
-//
-//
-// impl EntityIngestionRequest {
-//     pub fn new_members_request(stage: &str) -> Result<Self, EntityIngestionError> {
-//         let stage = MemberIngestionStage::from_str(stage)
-//             .map_err(|_| EntityIngestionError::InvalidStage(stage.to_string()))?;
-//         Ok(Self {
-//             target: EntityIngestionTarget::Members(stage),
-//         })
-//     }
-//     pub fn new_declaration_request(stage: &str) -> Result<Self, EntityIngestionError> {
-//         let stage = DeclarationIngestionStage::from_str(stage)
-//             .map_err(|_| EntityIngestionError::InvalidStage(stage.to_string()))?;
-//
-//         Ok(Self {
-//             target: EntityIngestionTarget::Declaration(stage),
-//         })
-//     }
-//
-//     pub fn target(&self) -> &EntityIngestionTarget {
-//         &self.target
-//     }
-// }
-//
-// /// Ingestion targets
-// #[derive(Clone, Debug, PartialEq, Eq)]
-// pub enum EntityIngestionTarget {
-//     /// MPs
-//     Members(MemberIngestionStage),
-//     /// Declarations, funders, funding entries
-//     Declaration(DeclarationIngestionStage),
-// }
-//
+
+impl IngestionKey {
+    /// Creates a new key
+    #[must_use]
+    pub const fn new(uuid: Uuid) -> Self {
+        Self(uuid)
+    }
+}
+
 /// From what stage to run in the Member pipeline
 #[derive(Clone, Debug, PartialEq, Eq, EnumString)]
 #[allow(missing_docs)]

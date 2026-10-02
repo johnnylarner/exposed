@@ -2,7 +2,7 @@
 //!
 
 use crate::domain::{
-    models::entity_ingestion::{EntityIngestionError, EntityIngestionRequest},
+    models::entity_ingestion::{EntityIngestionError, EntityIngestionRequest, IngestionKey},
     repositories::{
         entity_ingestion_pipline::EntityIngestionStorage, parliament_api::ParliamentApi,
     },
@@ -37,9 +37,9 @@ where
     async fn fetch_members(
         &self,
         _req: &EntityIngestionRequest,
-    ) -> Result<(), EntityIngestionError> {
+    ) -> Result<IngestionKey, EntityIngestionError> {
         let members = self.parliament_api.get_sitting_members().await?;
         self.pipeline_storage.write_raw_members(&members).await?;
-        Ok(())
+        Ok(self.pipeline_storage.ingestion_key())
     }
 }
