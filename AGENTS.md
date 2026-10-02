@@ -1,3 +1,30 @@
+# Project summary and structure
+
+The goal of this project is to make declaration data easy to search, browse and interpret.
+
+- `exposed/` contains the rust application and CLI code that powers the project.
+- `frontend/` contains a simple Svelte application
+- `ingest/` contains the legacy Python scripts used to bootstrap this project.
+
+## Exposed coding policy
+
+- Follow with strict detail to the existing style of the application. This includes:
+  - Type driven design
+  - Domain modelling and parse-not-validate
+  - Consistent error handling
+  - Service layer abstractions
+
+- Use type driven development, $code-base-design and $hexagonal-architecture always.
+
+## Frontend coding policy
+
+- The frontend is largely in a prototype stage so changes can be made freely without much guidance.
+
+
+## Ingest coding policy
+
+- When porting code from this project, do not replicate the style. Use it as an end to end guide for functionality.
+
 ## Worktree policy
 
 - For read-only tasks (investigating, reading, summarizing, or describing code),
@@ -18,7 +45,7 @@
 - Never commit directly on `main`.
 - When reporting completed and committed work, include a runnable command comparing
   `main` with the latest commit on the work branch:
-  `git -C <worktree-path> diff main <latest-commit-sha>`.
+  `git -C <worktree-path> diff <source-branch> <latest-commit-sha>`.
   Resolve the commit SHA after committing the work. Put the command in its own
   fenced `sh` code block with the copy-to-clipboard control.
 - Keep Git history linear. Rebase feature branches onto the target branch and
