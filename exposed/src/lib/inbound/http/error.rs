@@ -18,7 +18,7 @@ pub enum ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let code = match self {
-            ApiError::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
             Self::UnprocessibleEntity(_) => StatusCode::UNPROCESSABLE_ENTITY,
         };
         (code, self.to_string()).into_response()

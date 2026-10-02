@@ -5,3 +5,9 @@ pub mod funder_repository;
 
 /// Access data about MPs
 pub mod parliament_member_repository;
+
+/// Pubilc API for UK Parliament  
+pub mod parliament_api;
+
+/// Store for cleaning parliament API data;
+pub mod entity_ingestion_pipline;

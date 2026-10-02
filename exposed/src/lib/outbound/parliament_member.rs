@@ -14,6 +14,7 @@ use crate::{
 };
 
 impl ParliamentMemberRepo for ExposedDatabase {
+    #[allow(clippy::cast_sign_loss)]
     async fn get_members_by_text_search_score(
         &self,
         req: &EntitySearchRequest,
@@ -39,12 +40,13 @@ impl ParliamentMemberRepo for ExposedDatabase {
         .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?
         .into_iter()
         .take_while(|r| {
-            r.rank.unwrap_or((req.max_entries() + 1) as i64) <= req.max_entries() as i64
+            r.rank.unwrap_or_else(|| i64::from(req.max_entries() + 1))
+                <= i64::from(req.max_entries())
         })
         .map(|r| {
             let member = ParliamentMember::new(
                 r.name,
-                r.parliament_member_id as usize,
+                r.parliament_member_id as u32,
                 r.party_name,
                 r.constituency,
             );
