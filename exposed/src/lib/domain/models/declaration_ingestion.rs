@@ -10,12 +10,12 @@ use super::entity_ingestion::{EntityIngestionError, IngestionKey};
 
 /// An existing database member and their Parliament identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct StoredMember {
+pub struct MemberAsId {
     member_id: Uuid,
     parliament_member_id: NonZeroU32,
 }
 
-impl StoredMember {
+impl MemberAsId {
     /// Associates a non-nil database UUID with a positive Parliament ID.
     ///
     /// # Errors
@@ -270,7 +270,7 @@ impl CapturedFundingEntry {
 /// Counts for a member whose declaration file was successfully finalized.
 #[derive(Clone, Debug)]
 pub struct DeclarationMemberOutput {
-    member: StoredMember,
+    member: MemberAsId,
     declaration_count: usize,
     funding_entry_count: usize,
 }
@@ -279,7 +279,7 @@ impl DeclarationMemberOutput {
     /// Records a completed member, including an empty result.
     #[must_use]
     pub const fn new(
-        member: StoredMember,
+        member: MemberAsId,
         declaration_count: usize,
         funding_entry_count: usize,
     ) -> Self {
@@ -292,7 +292,7 @@ impl DeclarationMemberOutput {
 
     /// Member captured by this output.
     #[must_use]
-    pub const fn member(&self) -> StoredMember {
+    pub const fn member(&self) -> MemberAsId {
         self.member
     }
 

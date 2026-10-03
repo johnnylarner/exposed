@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    declaration_ingestion::{CapturedDeclaration, DeclarationMemberOutput, StoredMember},
+    declaration_ingestion::{CapturedDeclaration, DeclarationMemberOutput, MemberAsId},
     entity_ingestion::IngestionKey,
     parliament_member::ParliamentMember,
 };
@@ -18,7 +18,7 @@ pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
     /// Empty input produces a valid empty dataset partition. Call after `begin_declarations`.
     fn write_raw_declarations(
         &self,
-        member: StoredMember,
+        member: MemberAsId,
         declarations: &[CapturedDeclaration],
     ) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
 

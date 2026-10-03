@@ -15,7 +15,7 @@ use crate::domain::{
     models::{
         declaration_ingestion::{
             CapturedDeclaration, CapturedFundingEntry, DeclarationId, DeclarationMemberOutput,
-            StoredMember,
+            MemberAsId,
         },
         entity_ingestion::IngestionKey,
     },
@@ -28,7 +28,7 @@ async fn publishes_empty_member_partitions_and_completion_counts() -> anyhow::Re
     let key = IngestionKey::default();
     let storage =
         ExposedDataPipeline::new_with_ingestion_key(&tmp.path().to_path_buf(), key.clone())?;
-    let member = StoredMember::new(Uuid::from_u128(1), 512)?;
+    let member = MemberAsId::new(Uuid::from_u128(1), 512)?;
     let directory = storage.declarations_path();
 
     storage.begin_declarations().await?;
@@ -82,7 +82,7 @@ async fn protects_existing_partitions_and_completed_or_incomplete_runs() -> anyh
         &tmp.path().to_path_buf(),
         IngestionKey::default(),
     )?;
-    let member = StoredMember::new(Uuid::from_u128(1), 512)?;
+    let member = MemberAsId::new(Uuid::from_u128(1), 512)?;
     let directory = storage.declarations_path();
     let manifest_path = directory.join("manifest.json");
     let partition_path = directory.join(member_filename(member));
@@ -125,8 +125,8 @@ async fn saves_one_record_per_mp_with_nested_funding_entries() -> anyhow::Result
         IngestionKey::default(),
     )?;
     let members = [
-        StoredMember::new(Uuid::from_u128(1), 4613)?,
-        StoredMember::new(Uuid::from_u128(2), 5030)?,
+        MemberAsId::new(Uuid::from_u128(1), 4613)?,
+        MemberAsId::new(Uuid::from_u128(2), 5030)?,
     ];
     let funding =
         [("First donor", "2000.00"), ("Second donor", "3000.00")].map(|(name, amount)| {

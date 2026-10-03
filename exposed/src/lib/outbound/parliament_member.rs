@@ -3,7 +3,7 @@
 use crate::{
     domain::{
         models::{
-            declaration_ingestion::StoredMember, entity_search::EntitySearchRequest,
+            declaration_ingestion::MemberAsId, entity_search::EntitySearchRequest,
             parliament_member::ParliamentMember, search_similarity::SearchSimilarity,
         },
         repositories::parliament_member_repository::{
@@ -14,9 +14,13 @@ use crate::{
 };
 
 impl ParliamentMemberRepo for ExposedDatabase {
-    async fn get_stored_members(&self) -> Result<Vec<StoredMember>, ParliamentMemberRepoError> {
+    async fn get_stored_member_ids(&self) -> Result<Vec<MemberAsId>, ParliamentMemberRepoError> {
         sqlx::query!(
-            "SELECT id, parliament_member_id FROM exposed.members ORDER BY parliament_member_id, id"
+            "
+            SELECT id, parliament_member_id
+            FROM exposed.members
+            ORDER BY parliament_member_id, id
+            "
         )
         .fetch_all(self.pool())
         .await
@@ -25,7 +29,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
         .map(|row| {
             let parliament_id = u32::try_from(row.parliament_member_id)
                 .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
-            StoredMember::new(row.id, parliament_id)
+            MemberAsId::new(row.id, parliament_id)
                 .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))
         })
         .collect()

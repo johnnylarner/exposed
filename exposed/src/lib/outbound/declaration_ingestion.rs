@@ -18,7 +18,7 @@ use super::file_system::ExposedDataPipeline;
 use crate::domain::{
     models::declaration_ingestion::{
         CapturedDeclaration, CapturedFundingEntry, DeclarationId, DeclarationMemberOutput,
-        StoredMember,
+        MemberAsId,
     },
     repositories::entity_ingestion::EntitySearchPipelineError,
 };
@@ -40,7 +40,7 @@ impl ExposedDataPipeline {
 
     pub(super) async fn write_declaration_partition(
         &self,
-        member: StoredMember,
+        member: MemberAsId,
         declarations: &[CapturedDeclaration],
     ) -> Result<(), EntitySearchPipelineError> {
         let destination = self.declarations_path().join(member_filename(member));
@@ -138,7 +138,7 @@ async fn publish(temporary: &Path, destination: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-fn member_filename(member: StoredMember) -> String {
+fn member_filename(member: MemberAsId) -> String {
     format!("{}.parquet", member.member_id())
 }
 
@@ -222,7 +222,7 @@ struct DeclarationRecord<'a> {
 }
 
 fn declaration_record(
-    member: StoredMember,
+    member: MemberAsId,
     declaration: &CapturedDeclaration,
 ) -> DeclarationRecord<'_> {
     DeclarationRecord {

@@ -1,16 +1,16 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    declaration_ingestion::StoredMember, entity_search::EntitySearchRequest,
+    declaration_ingestion::MemberAsId, entity_search::EntitySearchRequest,
     parliament_member::ParliamentMember, search_similarity::SearchSimilarity,
 };
 
 /// Allows users to search the databse using free text.
 pub trait ParliamentMemberRepo: Clone + Send + Sync + 'static {
     /// All stored member identities, including former MPs, ordered by Parliament ID.
-    fn get_stored_members(
+    fn get_stored_member_ids(
         &self,
-    ) -> impl Future<Output = Result<Vec<StoredMember>, ParliamentMemberRepoError>> + Send;
+    ) -> impl Future<Output = Result<Vec<MemberAsId>, ParliamentMemberRepoError>> + Send;
 
     /// Returns entities based on free text search
     fn get_members_by_text_search_score(

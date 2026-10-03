@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::{ApiError, ParliamentApiClient};
 use crate::domain::models::declaration_ingestion::{
-    CapturedDeclaration, CapturedFundingEntry, DeclarationId, StoredMember,
+    CapturedDeclaration, CapturedFundingEntry, DeclarationId, MemberAsId,
 };
 
 const INTERESTS_URL: &str = "https://interests-api.parliament.uk/api/v2/Interests";
@@ -17,7 +17,7 @@ mod tests;
 impl ParliamentApiClient {
     pub(super) async fn capture_declarations(
         &self,
-        member: StoredMember,
+        member: MemberAsId,
     ) -> Result<Vec<CapturedDeclaration>, ApiError> {
         let mut declarations = Vec::new();
         let mut offset = 0;

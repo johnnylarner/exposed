@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    declaration_ingestion::{CapturedDeclaration, StoredMember},
+    declaration_ingestion::{CapturedDeclaration, MemberAsId},
     parliament_member::ParliamentMember,
 };
 
@@ -15,7 +15,7 @@ pub trait ParliamentApi: Clone + Send + Sync + 'static {
     /// Uses each declaration's latest publication and returns children as separate declarations.
     fn get_declarations(
         &self,
-        member: StoredMember,
+        member: MemberAsId,
     ) -> impl Future<Output = Result<Vec<CapturedDeclaration>, ParliamentApiError>> + Send;
 }
 

@@ -45,7 +45,7 @@ where
     pub async fn fetch_declarations(
         &self,
     ) -> Result<DeclarationCaptureOutcome, EntityIngestionError> {
-        let members = self.member_repo.get_stored_members().await?;
+        let members = self.member_repo.get_stored_member_ids().await?;
         if members.is_empty() {
             return Err(EntityIngestionError::DataError(
                 "no stored members; load members with `data members load` before fetching declarations".into(),
