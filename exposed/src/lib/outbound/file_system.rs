@@ -7,7 +7,7 @@ use uuid::Uuid;
 
 use crate::domain::{
     models::entity_ingestion::IngestionKey,
-    repositories::entity_ingestion_pipline::EntitySearchPipelineError,
+    repositories::entity_ingestion::EntitySearchPipelineError,
 };
 
 /// File system pipeline

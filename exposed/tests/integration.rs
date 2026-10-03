@@ -8,9 +8,7 @@ use std::{collections::HashMap, path::PathBuf, time::Duration};
 use exposed::{
     domain::{
         models::entity_search::EntitySearchRequest,
-        repositories::{
-            entity_ingestion_pipline::EntityIngestionStorage, parliament_api::ParliamentApi,
-        },
+        repositories::{entity_ingestion::EntityIngestionStorage, parliament_api::ParliamentApi},
     },
     outbound::{ExposedDataPipeline, ParliamentApiClient},
 };

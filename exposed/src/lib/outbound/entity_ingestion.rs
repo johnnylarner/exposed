@@ -7,9 +7,7 @@ use parquet::arrow::{ParquetRecordBatchStreamBuilder, async_writer::AsyncArrowWr
 use crate::{
     domain::{
         models::{entity_ingestion::IngestionKey, parliament_member::ParliamentMember},
-        repositories::entity_ingestion_pipline::{
-            EntityIngestionStorage, EntitySearchPipelineError,
-        },
+        repositories::entity_ingestion::{EntityIngestionStorage, EntitySearchPipelineError},
     },
     outbound::file_system::{ExposedDataPipeline, members_schema},
 };

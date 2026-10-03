@@ -3,9 +3,7 @@
 
 use crate::domain::{
     models::entity_ingestion::{EntityIngestionError, EntityIngestionRequest, IngestionKey},
-    repositories::{
-        entity_ingestion_pipline::EntityIngestionStorage, parliament_api::ParliamentApi,
-    },
+    repositories::{entity_ingestion::EntityIngestionStorage, parliament_api::ParliamentApi},
 };
 
 mod interface;

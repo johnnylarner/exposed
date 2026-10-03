@@ -9,7 +9,7 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use crate::domain::repositories::{
-    entity_ingestion_pipline::EntitySearchPipelineError, parliament_api::ParliamentApiError,
+    entity_ingestion::EntitySearchPipelineError, parliament_api::ParliamentApiError,
 };
 
 /// Data required to search entities
