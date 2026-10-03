@@ -3,18 +3,22 @@
 //!
 //!
 
-use std::{collections::HashMap, path::PathBuf, time::Duration};
+use std::{collections::HashMap, ffi::OsString, time::Duration};
 
+use clap::Parser;
 use exposed::{
     domain::{
-        models::entity_search::EntitySearchRequest,
-        repositories::{entity_ingestion::EntityIngestionStorage, parliament_api::ParliamentApi},
+        models::{entity_ingestion::IngestionKey, entity_search::EntitySearchRequest},
+        repositories::parliament_member_repository::ParliamentMemberRepo,
     },
-    outbound::{ExposedDataPipeline, ParliamentApiClient},
+    inbound::cli::{DataArgs, run_cli},
+    outbound::ExposedDatabase,
 };
+use sqlx::{ConnectOptions, PgPool};
+use tempfile::TempDir;
 use tokio::time;
 
-use crate::common::{search_entities, start_app};
+use crate::common::{cli_fetcher_config, cli_loader_config, search_entities, start_app};
 
 mod common;
 
@@ -39,19 +43,44 @@ async fn shows_no_hsbc_duplicates() {
     assert_eq!(duplicates.get("HSBC UK (Ian Stuart, CEO)"), Some(&1));
 }
 
-#[tokio::test]
-async fn parliament_api_parses_all_sitting_members() {
-    let api = ParliamentApiClient::new(100).unwrap();
+#[sqlx::test(migrations = "../db/migrations")]
+async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result<()> {
+    let ingestion_key = IngestionKey::default();
+    let tmp = TempDir::new().unwrap();
 
-    let members = api.get_sitting_members().await.unwrap();
-    assert_eq!(members.len(), 649);
+    let (_file, path) = cli_fetcher_config(&tmp);
+    let args = DataArgs::try_parse_from([
+        OsString::from("exposed-data"),
+        "members".into(),
+        "fetch".into(),
+        path.into_os_string(),
+        "--ingestion-key".into(),
+        ingestion_key.to_string().into(),
+    ])
+    .unwrap();
+    run_cli(args).await.unwrap();
 
-    let tmp = tempfile::tempdir().unwrap();
-    let buf = PathBuf::from(tmp.path());
-    let fs = ExposedDataPipeline::new(&buf).unwrap();
+    let url = pool.connect_options().to_url_lossy();
+    let (_file, path) = cli_loader_config(&tmp, url.to_string().as_str());
+    let args = DataArgs::try_parse_from([
+        OsString::from("exposed-data"),
+        "members".into(),
+        "load".into(),
+        path.into_os_string(),
+        "--ingestion-key".into(),
+        ingestion_key.to_string().into(),
+    ])
+    .unwrap();
+    run_cli(args).await.unwrap();
 
-    fs.write_raw_members(&members).await.unwrap();
-    let stored_members = fs.read_raw_members().await.unwrap();
+    let db = ExposedDatabase::from(pool);
 
-    assert_eq!(members.len(), stored_members.len());
+    let params =
+        EntitySearchRequest::new_with_strictness("John McDonnell".into(), 10, 0.8).unwrap();
+    let res = db.get_members_by_text_search_score(&params).await.unwrap();
+
+    let (mp, _) = res.first().unwrap();
+    assert_eq!(mp.name(), "John McDonnell".to_string());
+
+    Ok(())
 }

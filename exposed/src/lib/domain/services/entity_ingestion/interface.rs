@@ -10,3 +10,9 @@ pub trait EntityFetcherService: Clone + 'static {
         req: &EntityIngestionRequest,
     ) -> impl Future<Output = Result<IngestionKey, EntityIngestionError>> + Send;
 }
+
+/// Loads data into application database
+pub trait EntityIngesterService: Clone + 'static {
+    /// Loads members from the data layer
+    fn load_members(&self) -> impl Future<Output = Result<(), EntityIngestionError>> + Send;
+}

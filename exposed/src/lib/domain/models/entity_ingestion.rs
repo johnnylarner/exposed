@@ -1,6 +1,6 @@
 //! Contains entity ingestion models
 
-use std::fmt::Display;
+use std::{fmt::Display, str::FromStr};
 
 // use std::str::FromStr;
 //
@@ -26,11 +26,32 @@ impl Display for IngestionKey {
     }
 }
 
+impl FromStr for IngestionKey {
+    type Err = EntityIngestionError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let id =
+            Uuid::from_str(s).map_err(|e| EntityIngestionError::InvalidStage(e.to_string()))?;
+        Ok(Self(id))
+    }
+}
+
 impl IngestionKey {
     /// Creates a new key
     #[must_use]
     pub const fn new(uuid: Uuid) -> Self {
         Self(uuid)
+    }
+
+    /// Underlying UUID
+    #[must_use]
+    pub const fn uuid(&self) -> Uuid {
+        self.0
+    }
+}
+
+impl Default for IngestionKey {
+    fn default() -> Self {
+        Self::new(Uuid::now_v7())
     }
 }
 
@@ -40,7 +61,7 @@ impl IngestionKey {
 #[strum(ascii_case_insensitive)]
 pub enum MemberIngestionStage {
     Fetch,
-    // Load,
+    Load,
 }
 //
 // /// From what stage to run the declaration pipeline
@@ -72,4 +93,12 @@ pub enum EntityIngestionError {
     /// Invalid stage
     #[error("invalid stage provided: {0}")]
     InvalidStage(String),
+
+    /// Invalid stage
+    #[error("invalid ingestion ID: {0}")]
+    UnvalidIngestionId(String),
+
+    /// Generic error
+    #[error("unexpected error occured: {0}")]
+    UnexpectedError(String),
 }

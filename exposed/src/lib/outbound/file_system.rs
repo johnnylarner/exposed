@@ -33,6 +33,12 @@ impl From<&PipelineKey> for IngestionKey {
     }
 }
 
+impl From<IngestionKey> for PipelineKey {
+    fn from(value: IngestionKey) -> Self {
+        Self(value.uuid())
+    }
+}
+
 #[derive(Clone)]
 struct FsSchema {
     raw: String,
@@ -51,19 +57,22 @@ impl Default for FsSchema {
 }
 
 impl ExposedDataPipeline {
-    /// Creates a new instance of [`ExposedDataPipeline`]
+    /// Creates a new instance of [`ExposedDataPipeline`] with an [`IngestionKey`]
     ///
     /// # Errors
     /// - if [`root`] cannot be parsed as absolute
     /// - if required directories cannot be created
-    pub fn new(root: &PathBuf) -> Result<Self, EntitySearchPipelineError> {
+    pub fn new_with_ingestion_key(
+        root: &PathBuf,
+        key: IngestionKey,
+    ) -> Result<Self, EntitySearchPipelineError> {
         let root_abs = path::absolute(root).map_err(|_| {
             EntitySearchPipelineError::Unexpected("valid root path must be provided".to_string())
         })?;
 
         let res = Self {
             root: root_abs,
-            key: PipelineKey::new(),
+            key: PipelineKey::from(key),
             fs_schema: FsSchema::default(),
         };
         std::fs::create_dir_all(res.raw_path()).map_err(|_| {
