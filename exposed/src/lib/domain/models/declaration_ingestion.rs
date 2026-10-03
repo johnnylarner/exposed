@@ -6,7 +6,7 @@ use chrono::{DateTime, NaiveDate, Utc};
 use serde::Serialize;
 use uuid::Uuid;
 
-use super::entity_ingestion::{EntityIngestionError, IngestionKey};
+use super::entity_ingestion::EntityIngestionError;
 
 /// An existing database member and their Parliament identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -264,108 +264,6 @@ impl CapturedFundingEntry {
     #[must_use]
     pub const fn is_ultimate_payer_different(&self) -> Option<bool> {
         self.is_ultimate_payer_different
-    }
-}
-
-/// Counts for a member whose declaration file was successfully finalized.
-#[derive(Clone, Debug)]
-pub struct DeclarationMemberOutput {
-    member: MemberAsId,
-    declaration_count: usize,
-    funding_entry_count: usize,
-}
-
-impl DeclarationMemberOutput {
-    /// Records a completed member, including an empty result.
-    #[must_use]
-    pub const fn new(
-        member: MemberAsId,
-        declaration_count: usize,
-        funding_entry_count: usize,
-    ) -> Self {
-        Self {
-            member,
-            declaration_count,
-            funding_entry_count,
-        }
-    }
-
-    /// Member captured by this output.
-    #[must_use]
-    pub const fn member(&self) -> MemberAsId {
-        self.member
-    }
-
-    /// Declarations returned for this member.
-    #[must_use]
-    pub const fn declaration_count(&self) -> usize {
-        self.declaration_count
-    }
-
-    /// Funding entries in the member's declarations.
-    #[must_use]
-    pub const fn funding_entry_count(&self) -> usize {
-        self.funding_entry_count
-    }
-}
-
-/// Successfully completed declaration capture.
-#[derive(Clone, Debug)]
-pub struct DeclarationCaptureOutcome {
-    ingestion_key: IngestionKey,
-    output_location: String,
-    members: Vec<DeclarationMemberOutput>,
-}
-
-impl DeclarationCaptureOutcome {
-    /// Records the outcome after storage publishes the completion manifest.
-    #[must_use]
-    pub const fn new(
-        ingestion_key: IngestionKey,
-        output_location: String,
-        members: Vec<DeclarationMemberOutput>,
-    ) -> Self {
-        Self {
-            ingestion_key,
-            output_location,
-            members,
-        }
-    }
-
-    /// Key identifying this completed run.
-    #[must_use]
-    pub const fn ingestion_key(&self) -> &IngestionKey {
-        &self.ingestion_key
-    }
-
-    /// Location returned by storage.
-    #[must_use]
-    pub fn output_location(&self) -> &str {
-        &self.output_location
-    }
-
-    /// Selected members, including members without declarations.
-    #[must_use]
-    pub const fn member_count(&self) -> usize {
-        self.members.len()
-    }
-
-    /// Total declaration-to-member associations across member files.
-    #[must_use]
-    pub fn declaration_count(&self) -> usize {
-        self.members
-            .iter()
-            .map(DeclarationMemberOutput::declaration_count)
-            .sum()
-    }
-
-    /// Total funding entries across member files.
-    #[must_use]
-    pub fn funding_entry_count(&self) -> usize {
-        self.members
-            .iter()
-            .map(DeclarationMemberOutput::funding_entry_count)
-            .sum()
     }
 }
 

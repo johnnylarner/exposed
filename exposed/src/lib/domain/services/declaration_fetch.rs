@@ -1,17 +1,14 @@
 //! Capture declaration evidence using stored member identities and domain-owned ports.
 
 use crate::domain::{
-    models::{
-        declaration_ingestion::{DeclarationCaptureOutcome, DeclarationMemberOutput},
-        entity_ingestion::EntityIngestionError,
-    },
+    models::entity_ingestion::{EntityIngestionError, IngestionKey},
     repositories::{
         entity_ingestion::EntityIngestionStorage, parliament_api::ParliamentApi,
         parliament_member_repository::ParliamentMemberRepo,
     },
 };
 
-/// Acquires each member sequentially and publishes completion after all writes succeed.
+/// Fetches and saves declarations for each stored member.
 #[derive(Clone)]
 pub struct DeclarationFetcherService<PR, PA, PS> {
     member_repo: PR,
@@ -40,38 +37,20 @@ where
     /// Captures a complete dataset for the cohort read at the start of the run.
     ///
     /// # Errors
-    /// Empty cohorts, existing output, source and storage failures
-    /// prevent publication of a completion manifest.
-    pub async fn fetch_declarations(
-        &self,
-    ) -> Result<DeclarationCaptureOutcome, EntityIngestionError> {
+    /// Returns errors from the source or storage, or when no members are stored.
+    pub async fn fetch_declarations(&self) -> Result<IngestionKey, EntityIngestionError> {
         let members = self.member_repo.get_stored_member_ids().await?;
         if members.is_empty() {
             return Err(EntityIngestionError::DataError(
                 "no stored members; load members with `data members load` before fetching declarations".into(),
             ));
         }
-        self.storage.begin_declarations().await?;
-        let mut outputs = Vec::with_capacity(members.len());
         for member in members {
             let declarations = self.parliament_api.get_declarations(member).await?;
             self.storage
                 .write_raw_declarations(member, &declarations)
                 .await?;
-            outputs.push(DeclarationMemberOutput::new(
-                member,
-                declarations.len(),
-                declarations
-                    .iter()
-                    .map(|declaration| declaration.funding_entries().len())
-                    .sum(),
-            ));
         }
-        let location = self.storage.complete_declarations(&outputs).await?;
-        Ok(DeclarationCaptureOutcome::new(
-            self.storage.ingestion_key(),
-            location,
-            outputs,
-        ))
+        Ok(self.storage.ingestion_key())
     }
 }

@@ -1,33 +1,20 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    declaration_ingestion::{CapturedDeclaration, DeclarationMemberOutput, MemberAsId},
+    declaration_ingestion::{CapturedDeclaration, MemberAsId},
     entity_ingestion::IngestionKey,
     parliament_member::ParliamentMember,
 };
 
 /// Set of I/O methods for data in the entity search pipeline
 pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
-    /// Reserves a fresh declarations run. Rejects any existing declaration output for this key.
-    fn begin_declarations(
-        &self,
-    ) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
-
-    /// Associates the returned declarations with this member and publishes their source data.
-    /// Writes one declaration record per member association, with nested funding entries.
-    /// Empty input produces a valid empty dataset partition. Call after `begin_declarations`.
+    /// Writes and closes one member's declaration file, including an empty result.
+    /// Each record contains the declaration and its nested funding entries.
     fn write_raw_declarations(
         &self,
         member: MemberAsId,
         declarations: &[CapturedDeclaration],
     ) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
-
-    /// Publishes the completion manifest and returns the dataset location.
-    /// Call after every selected member's complete API response has been written.
-    fn complete_declarations(
-        &self,
-        members: &[DeclarationMemberOutput],
-    ) -> impl Future<Output = Result<String, EntitySearchPipelineError>> + Send;
 
     /// Key used for storage
     fn ingestion_key(&self) -> IngestionKey;

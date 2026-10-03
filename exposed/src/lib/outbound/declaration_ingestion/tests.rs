@@ -1,4 +1,4 @@
-use std::fs::{self, File};
+use std::fs::File;
 
 use arrow::{
     datatypes::{DataType, TimeUnit},
@@ -14,8 +14,7 @@ use super::{ExposedDataPipeline, member_filename};
 use crate::domain::{
     models::{
         declaration_ingestion::{
-            CapturedDeclaration, CapturedFundingEntry, DeclarationId, DeclarationMemberOutput,
-            MemberAsId,
+            CapturedDeclaration, CapturedFundingEntry, DeclarationId, MemberAsId,
         },
         entity_ingestion::IngestionKey,
     },
@@ -23,18 +22,17 @@ use crate::domain::{
 };
 
 #[tokio::test]
-async fn publishes_empty_member_partitions_and_completion_counts() -> anyhow::Result<()> {
+async fn writes_a_readable_empty_member_file() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
-    let key = IngestionKey::default();
-    let storage =
-        ExposedDataPipeline::new_with_ingestion_key(&tmp.path().to_path_buf(), key.clone())?;
+    let storage = ExposedDataPipeline::new_with_ingestion_key(
+        &tmp.path().to_path_buf(),
+        IngestionKey::default(),
+    )?;
     let member = MemberAsId::new(Uuid::from_u128(1), 512)?;
     let directory = storage.declarations_path();
 
-    storage.begin_declarations().await?;
     storage.write_raw_declarations(member, &[]).await?;
 
-    assert!(!directory.join("manifest.json").exists());
     let reader = ParquetRecordBatchReaderBuilder::try_new(File::open(
         directory.join(member_filename(member)),
     )?)?;
@@ -53,57 +51,6 @@ async fn publishes_empty_member_partitions_and_completion_counts() -> anyhow::Re
     );
     assert_eq!(reader.build()?.count(), 0);
 
-    storage
-        .complete_declarations(&[DeclarationMemberOutput::new(member, 0, 0)])
-        .await?;
-
-    let manifest: Value = serde_json::from_slice(&fs::read(directory.join("manifest.json"))?)?;
-    assert_eq!(manifest["ingestion_key"], key.to_string());
-    assert_eq!(manifest["member_count"], 1);
-    assert_eq!(manifest["declaration_count"], 0);
-    assert_eq!(manifest["funding_entry_count"], 0);
-    assert_eq!(
-        manifest["members"],
-        json!([{
-            "member_id": member.member_id().to_string(),
-            "parliament_member_id": 512,
-            "file": format!("{}.parquet", member.member_id()),
-            "declaration_count": 0,
-            "funding_entry_count": 0
-        }])
-    );
-    Ok(())
-}
-
-#[tokio::test]
-async fn protects_existing_partitions_and_completed_or_incomplete_runs() -> anyhow::Result<()> {
-    let tmp = TempDir::new()?;
-    let storage = ExposedDataPipeline::new_with_ingestion_key(
-        &tmp.path().to_path_buf(),
-        IngestionKey::default(),
-    )?;
-    let member = MemberAsId::new(Uuid::from_u128(1), 512)?;
-    let directory = storage.declarations_path();
-    let manifest_path = directory.join("manifest.json");
-    let partition_path = directory.join(member_filename(member));
-
-    storage.begin_declarations().await?;
-    storage.write_raw_declarations(member, &[]).await?;
-    let original_partition = fs::read(&partition_path)?;
-
-    assert!(storage.begin_declarations().await.is_err());
-    assert!(storage.write_raw_declarations(member, &[]).await.is_err());
-    assert_eq!(fs::read(&partition_path)?, original_partition);
-    assert!(!manifest_path.exists());
-
-    let outputs = [DeclarationMemberOutput::new(member, 0, 0)];
-    storage.complete_declarations(&outputs).await?;
-    let original_manifest = fs::read(&manifest_path)?;
-
-    assert!(storage.begin_declarations().await.is_err());
-    assert!(storage.complete_declarations(&outputs).await.is_err());
-    assert_eq!(fs::read(&manifest_path)?, original_manifest);
-    assert_eq!(fs::read(&partition_path)?, original_partition);
     Ok(())
 }
 
@@ -168,7 +115,6 @@ async fn saves_one_record_per_mp_with_nested_funding_entries() -> anyhow::Result
     )?;
     let declarations = [declaration, nonfinancial];
 
-    storage.begin_declarations().await?;
     for member in members {
         storage
             .write_raw_declarations(member, &declarations)
@@ -194,14 +140,5 @@ async fn saves_one_record_per_mp_with_nested_funding_entries() -> anyhow::Result
         assert_eq!(nonfinancial["declaration_id"], 43);
         assert_eq!(nonfinancial["funding_entries"], json!([]));
     }
-    let outputs = members.map(|member| DeclarationMemberOutput::new(member, 2, 2));
-    storage.complete_declarations(&outputs).await?;
-    let manifest: Value = serde_json::from_slice(&fs::read(
-        storage.declarations_path().join("manifest.json"),
-    )?)?;
-    assert_eq!(manifest["schema_version"], 2);
-    assert_eq!(manifest["member_count"], 2);
-    assert_eq!(manifest["declaration_count"], 4);
-    assert_eq!(manifest["funding_entry_count"], 4);
     Ok(())
 }

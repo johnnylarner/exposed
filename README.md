@@ -54,8 +54,7 @@ The configuration supplies `connection_string`, `data_dir`, and a nonzero
 at startup. An empty cohort returns an instruction to load members first. The
 existing `data members fetch` and `data members load` commands remain available.
 To choose the run identity, append `--ingestion-key <UUID>`; otherwise a new key
-is generated for the output directory. The completion manifest contains the run
-identity and counts.
+is generated for the output directory.
 
 Each run writes one dataset at
 `<data_dir>/<ingestion_key>/raw/declarations/`, partitioned into
@@ -78,17 +77,15 @@ evidence.
 provides no separate version or donor-entry ID. A future refresh can replace a
 member's declaration and funding entries together using these source references.
 
-`manifest.json` records the completed run, every selected member and file, and
-declaration and funding-entry counts. Declaration counts include each MP
-association. This nested format is schema version 2. A directory without the
-manifest is incomplete. Existing capture files are preserved; use a new ingestion
-key to capture the new format.
+Each storage call creates and closes one member's Parquet file. The CLI returns
+success after every member has been saved. If a run fails, files already written
+remain; run again with a new ingestion key. Existing files are not overwritten.
 
 The declaration-fetch service reads the stored cohort and saves each member's
 complete results. The Parliament adapter owns requests, pagination, JSON
 deserialization and latest-publication selection; the PostgreSQL adapter owns the
-member query; and the filesystem adapter owns Parquet and file publication. Each
-page is requested once, and request or parsing errors propagate to the caller.
+member query; and the filesystem adapter creates, writes and closes Parquet
+files. Each page is requested once, and request or parsing errors propagate to the caller.
 Exhausted pagination is treated as complete for that MP. Expired declarations and
 parent references are retained. Cleaning, attribution, funder resolution and
 database publication remain later steps.
