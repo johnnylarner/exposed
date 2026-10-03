@@ -6,12 +6,10 @@ use std::{
 };
 
 use arrow::{
-    array::{
-        BooleanArray, Date32Array, RecordBatch, StringArray, TimestampMicrosecondArray, UInt32Array,
-    },
     datatypes::{DataType, Field, Schema, TimeUnit},
+    json::ReaderBuilder,
 };
-use chrono::{Datelike, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
 use parquet::arrow::async_writer::AsyncArrowWriter;
 use serde::Serialize;
 use tokio::{fs, io::AsyncWriteExt};
@@ -19,7 +17,8 @@ use tokio::{fs, io::AsyncWriteExt};
 use super::file_system::ExposedDataPipeline;
 use crate::domain::{
     models::declaration_ingestion::{
-        CapturedDeclaration, DeclarationId, DeclarationMemberOutput, SourceFieldGroup, StoredMember,
+        CapturedDeclaration, CapturedFundingEntry, DeclarationId, DeclarationMemberOutput,
+        StoredMember,
     },
     repositories::entity_ingestion::EntitySearchPipelineError,
 };
@@ -50,10 +49,14 @@ impl ExposedDataPipeline {
             let file = fs::File::create_new(&temporary).await?;
             let schema = Arc::new(declarations_schema());
             let mut writer = AsyncArrowWriter::try_new(file, schema.clone(), None)?;
-            for declaration in declarations {
-                writer
-                    .write(&declaration_batch(member, declaration, schema.clone())?)
-                    .await?;
+            let records = declarations
+                .iter()
+                .map(|declaration| declaration_record(member, declaration))
+                .collect::<Vec<_>>();
+            let mut decoder = ReaderBuilder::new(schema).build_decoder()?;
+            decoder.serialize(&records)?;
+            if let Some(batch) = decoder.flush()? {
+                writer.write(&batch).await?;
             }
             // Closing also produces a schema-bearing Parquet file for empty members.
             writer.close().await?;
@@ -83,7 +86,7 @@ impl ExposedDataPipeline {
                     parliament_member_id: output.member().parliament_member_id(),
                     file: member_filename(output.member()),
                     declaration_count: output.declaration_count(),
-                    row_count: output.row_count(),
+                    funding_entry_count: output.funding_entry_count(),
                 })
                 .collect::<Vec<_>>();
             for output in &outputs {
@@ -94,7 +97,7 @@ impl ExposedDataPipeline {
                 );
             }
             let manifest = CompletionManifest {
-                schema_version: 1,
+                schema_version: 2,
                 ingestion_key: crate::domain::models::entity_ingestion::IngestionKey::from(
                     self.key(),
                 )
@@ -105,7 +108,10 @@ impl ExposedDataPipeline {
                     .iter()
                     .map(DeclarationMemberOutput::declaration_count)
                     .sum(),
-                row_count: members.iter().map(DeclarationMemberOutput::row_count).sum(),
+                funding_entry_count: members
+                    .iter()
+                    .map(DeclarationMemberOutput::funding_entry_count)
+                    .sum(),
                 members: outputs,
             };
             let mut file = fs::File::create_new(&temporary).await?;
@@ -147,7 +153,7 @@ struct CompletionManifest {
     completed_at: String,
     member_count: usize,
     declaration_count: usize,
-    row_count: usize,
+    funding_entry_count: usize,
     members: Vec<MemberManifest>,
 }
 
@@ -157,10 +163,24 @@ struct MemberManifest {
     parliament_member_id: u32,
     file: String,
     declaration_count: usize,
-    row_count: usize,
+    funding_entry_count: usize,
 }
 
 fn declarations_schema() -> Schema {
+    let funding_entry = DataType::Struct(
+        vec![
+            Field::new("ultimate_payer_name", DataType::Utf8, true),
+            Field::new("donor_name", DataType::Utf8, true),
+            Field::new("payer_name", DataType::Utf8, true),
+            Field::new("amount", DataType::Utf8, true),
+            Field::new("currency", DataType::Utf8, true),
+            Field::new("payment_type", DataType::Utf8, true),
+            Field::new("funder_kind", DataType::Utf8, true),
+            Field::new("company_number", DataType::Utf8, true),
+            Field::new("is_ultimate_payer_different", DataType::Boolean, true),
+        ]
+        .into(),
+    );
     Schema::new(vec![
         Field::new("member_id", DataType::Utf8, false),
         Field::new("parliament_member_id", DataType::UInt32, false),
@@ -168,115 +188,55 @@ fn declarations_schema() -> Schema {
         Field::new("parent_declaration_id", DataType::UInt32, true),
         Field::new("category_id", DataType::UInt32, false),
         Field::new("category_name", DataType::Utf8, false),
-        Field::new("version_index", DataType::UInt32, false),
         Field::new("register_id", DataType::UInt32, false),
         Field::new("register_published_date", DataType::Date32, false),
         Field::new("registration_date", DataType::Date32, true),
-        Field::new("source_field_path", DataType::Utf8, false),
-        Field::new("ultimate_payer_name", DataType::Utf8, true),
-        Field::new("donor_name", DataType::Utf8, true),
-        Field::new("payer_name", DataType::Utf8, true),
-        Field::new("amount", DataType::Utf8, true),
-        Field::new("currency", DataType::Utf8, true),
-        Field::new("payment_type", DataType::Utf8, true),
-        Field::new("funder_kind", DataType::Utf8, true),
-        Field::new("company_number", DataType::Utf8, true),
-        Field::new("is_ultimate_payer_different", DataType::Boolean, true),
+        Field::new_list(
+            "funding_entries",
+            Field::new("item", funding_entry, false),
+            false,
+        ),
         Field::new(
             "fetched_at",
-            DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into())),
+            DataType::Timestamp(TimeUnit::Microsecond, Some("+00:00".into())),
             false,
         ),
         Field::new("source_json", DataType::Utf8, false),
     ])
 }
 
-fn declaration_batch(
+#[derive(Serialize)]
+struct DeclarationRecord<'a> {
+    member_id: String,
+    parliament_member_id: u32,
+    declaration_id: u32,
+    parent_declaration_id: Option<u32>,
+    category_id: u32,
+    category_name: &'a str,
+    register_id: u32,
+    register_published_date: NaiveDate,
+    registration_date: Option<NaiveDate>,
+    funding_entries: &'a [CapturedFundingEntry],
+    fetched_at: DateTime<Utc>,
+    source_json: &'a str,
+}
+
+fn declaration_record(
     member: StoredMember,
     declaration: &CapturedDeclaration,
-    schema: Arc<Schema>,
-) -> anyhow::Result<RecordBatch> {
-    let rows = declaration
-        .versions()
-        .iter()
-        .flat_map(|version| version.groups().iter().map(move |group| (version, group)))
-        .collect::<Vec<_>>();
-    let text = |field: fn(&SourceFieldGroup) -> Option<&str>| {
-        Arc::new(StringArray::from(
-            rows.iter()
-                .map(|(_, group)| field(group))
-                .collect::<Vec<_>>(),
-        ))
-    };
-    let count = rows.len();
-    let member_id = member.member_id().to_string();
-    Ok(RecordBatch::try_new(
-        schema,
-        vec![
-            Arc::new(StringArray::from(vec![member_id.as_str(); count])),
-            Arc::new(UInt32Array::from(vec![
-                member.parliament_member_id();
-                count
-            ])),
-            Arc::new(UInt32Array::from(vec![declaration.id().value(); count])),
-            Arc::new(UInt32Array::from(vec![
-                declaration
-                    .parent_id()
-                    .map(DeclarationId::value);
-                count
-            ])),
-            Arc::new(UInt32Array::from(vec![declaration.category_id(); count])),
-            Arc::new(StringArray::from(vec![declaration.category_name(); count])),
-            Arc::new(UInt32Array::from(
-                rows.iter()
-                    .map(|(version, _)| version.index())
-                    .collect::<Vec<_>>(),
-            )),
-            Arc::new(UInt32Array::from(
-                rows.iter()
-                    .map(|(version, _)| version.register_id())
-                    .collect::<Vec<_>>(),
-            )),
-            Arc::new(Date32Array::from(
-                rows.iter()
-                    .map(|(version, _)| version.published_date().num_days_from_ce() - 719_163)
-                    .collect::<Vec<_>>(),
-            )),
-            Arc::new(Date32Array::from(
-                rows.iter()
-                    .map(|(version, _)| {
-                        version
-                            .registration_date()
-                            .map(|date| date.num_days_from_ce() - 719_163)
-                    })
-                    .collect::<Vec<_>>(),
-            )),
-            Arc::new(StringArray::from(
-                rows.iter()
-                    .map(|(_, group)| group.path())
-                    .collect::<Vec<_>>(),
-            )),
-            text(SourceFieldGroup::ultimate_payer_name),
-            text(SourceFieldGroup::donor_name),
-            text(SourceFieldGroup::payer_name),
-            text(SourceFieldGroup::amount),
-            text(SourceFieldGroup::currency),
-            text(SourceFieldGroup::payment_type),
-            text(SourceFieldGroup::funder_kind),
-            text(SourceFieldGroup::company_number),
-            Arc::new(BooleanArray::from(
-                rows.iter()
-                    .map(|(_, group)| group.is_ultimate_payer_different())
-                    .collect::<Vec<_>>(),
-            )),
-            Arc::new(
-                TimestampMicrosecondArray::from(vec![
-                    declaration.fetched_at().timestamp_micros();
-                    count
-                ])
-                .with_timezone("UTC"),
-            ),
-            Arc::new(StringArray::from(vec![declaration.source_json(); count])),
-        ],
-    )?)
+) -> DeclarationRecord<'_> {
+    DeclarationRecord {
+        member_id: member.member_id().to_string(),
+        parliament_member_id: member.parliament_member_id(),
+        declaration_id: declaration.id().value(),
+        parent_declaration_id: declaration.parent_id().map(DeclarationId::value),
+        category_id: declaration.category_id(),
+        category_name: declaration.category_name(),
+        register_id: declaration.register_id(),
+        register_published_date: declaration.register_published_date(),
+        registration_date: declaration.registration_date(),
+        funding_entries: declaration.funding_entries(),
+        fetched_at: declaration.fetched_at(),
+        source_json: declaration.source_json(),
+    }
 }

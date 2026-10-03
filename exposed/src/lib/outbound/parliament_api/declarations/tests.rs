@@ -27,55 +27,54 @@ fn decode(source: &Value) -> Result<CapturedDeclaration, ApiError> {
 }
 
 #[test]
-fn preserves_every_version_and_the_complete_source_payload() {
-    let mut source = source(&json!([]));
+fn keeps_only_the_latest_funding_and_its_source_identifiers() {
+    let mut source = source(&json!([
+        {"name": "DonorName", "value": "Current donor"},
+        {"name": "Value", "value": "200.00"}
+    ]));
     source["parentInterestId"] = json!(41);
     source["unprojectedEvidence"] = json!({"notes": ["keep this", null]});
-    let mut older_version = source["versions"][0].clone();
-    older_version["register"]["id"] = json!(810);
-    older_version["register"]["publishedDate"] = json!("2026-08-01");
-    older_version["registrationDate"] = Value::Null;
-    source["versions"]
-        .as_array_mut()
-        .unwrap()
-        .push(older_version);
-    let declaration = decode(&source).unwrap();
+    let latest = source["versions"][0].clone();
+    let mut older = latest.clone();
+    older["register"]["id"] = json!(999);
+    older["register"]["publishedDate"] = json!("2026-08-01");
+    older["fields"] = json!([
+        {"name": "DonorName", "value": "Old donor"},
+        {"name": "Value", "value": "100.00"}
+    ]);
 
-    assert_eq!(declaration.id().value(), 42);
-    assert_eq!(declaration.parent_id().unwrap().value(), 41);
-    assert_eq!(declaration.category_id(), 3);
-    assert_eq!(declaration.category_name(), "Donations");
-    assert_eq!(declaration.fetched_at(), fetched_at());
-    assert_eq!(
-        serde_json::from_str::<Value>(declaration.source_json()).unwrap(),
-        source
-    );
-    let [latest, older] = declaration.versions() else {
-        panic!("expected both source versions")
-    };
-    assert_eq!(latest.index(), 0);
-    assert_eq!(latest.register_id(), 820);
-    assert_eq!(
-        latest.published_date(),
-        NaiveDate::from_ymd_opt(2026, 9, 7).unwrap()
-    );
-    assert_eq!(
-        latest.registration_date(),
-        NaiveDate::from_ymd_opt(2026, 9, 1)
-    );
-    assert_eq!(older.index(), 1);
-    assert_eq!(older.register_id(), 810);
-    assert_eq!(
-        older.published_date(),
-        NaiveDate::from_ymd_opt(2026, 8, 1).unwrap()
-    );
-    assert_eq!(older.registration_date(), None);
-    assert_eq!(latest.groups()[0].path(), "/versions/0/fields");
-    assert_eq!(older.groups()[0].path(), "/versions/1/fields");
+    for versions in [json!([older, latest]), json!([latest, older])] {
+        source["versions"] = versions;
+        let declaration = decode(&source).unwrap();
+
+        assert_eq!(declaration.id().value(), 42);
+        assert_eq!(declaration.parent_id().unwrap().value(), 41);
+        assert_eq!(declaration.category_id(), 3);
+        assert_eq!(declaration.category_name(), "Donations");
+        assert_eq!(declaration.fetched_at(), fetched_at());
+        assert_eq!(declaration.register_id(), 820);
+        assert_eq!(
+            declaration.register_published_date(),
+            NaiveDate::from_ymd_opt(2026, 9, 7).unwrap()
+        );
+        assert_eq!(
+            declaration.registration_date(),
+            NaiveDate::from_ymd_opt(2026, 9, 1)
+        );
+        let [funding] = declaration.funding_entries() else {
+            panic!("expected only the latest funding entry")
+        };
+        assert_eq!(funding.donor_name(), Some("Current donor"));
+        assert_eq!(funding.amount(), Some("200.00"));
+        assert_eq!(
+            serde_json::from_str::<Value>(declaration.source_json()).unwrap(),
+            source
+        );
+    }
 }
 
 #[test]
-fn keeps_repeated_donor_groups_separate_without_inheriting_other_groups_fields() {
+fn keeps_multiple_funding_entries_with_their_own_details() {
     let repeated_donor = json!([
         {"name": "Name", "value": "Alice Example"},
         {"name": "Value", "value": "120.50", "typeInfo": {"currencyCode": "EUR"}}
@@ -93,8 +92,8 @@ fn keeps_repeated_donor_groups_separate_without_inheriting_other_groups_fields()
     ])))
     .unwrap();
 
-    let [top, first_alice, second_alice, bob] = declaration.versions()[0].groups() else {
-        panic!("expected a top-level row and all three donor groups")
+    let [top, first_alice, second_alice, bob] = declaration.funding_entries() else {
+        panic!("expected the main funding entry and all three donors")
     };
     assert_eq!(top.donor_name(), Some("Top-level donor"));
     assert_eq!(top.amount(), None);
@@ -107,9 +106,6 @@ fn keeps_repeated_donor_groups_separate_without_inheriting_other_groups_fields()
         assert_eq!(alice.funder_kind(), None);
         assert_eq!(alice.company_number(), None);
     }
-    assert_eq!(first_alice.path(), "/versions/0/fields/4/values/0");
-    assert_eq!(second_alice.path(), "/versions/0/fields/4/values/1");
-    assert_eq!(bob.path(), "/versions/0/fields/4/values/2");
     assert_eq!(bob.donor_name(), Some("Bob Example"));
     assert_eq!(bob.amount(), Some("300.00"));
     assert_eq!(bob.currency(), Some("GBP"));
@@ -133,7 +129,7 @@ fn preserves_names_attribution_evidence_and_exact_numeric_amounts() {
     ])))
     .unwrap();
 
-    let group = &declaration.versions()[0].groups()[0];
+    let group = &declaration.funding_entries()[0];
     assert_eq!(group.ultimate_payer_name(), Some(" Ultimate Payer LTD. "));
     assert_eq!(group.donor_name(), Some("Donor Limited"));
     assert_eq!(group.payer_name(), Some("Payment Intermediary"));
@@ -146,29 +142,35 @@ fn preserves_names_attribution_evidence_and_exact_numeric_amounts() {
 }
 
 #[test]
-fn retains_nonfinancial_declarations_and_missing_values() {
+fn retains_nonfinancial_declarations_with_no_funding_entries() {
     for fields in [
         Value::Null,
         json!([]),
         json!([
-            {"name": "Description", "value": "Unpaid trustee"},
-            {"name": "Value", "value": null},
-            {"name": "DonorName", "value": null}
+            {"name": "Description", "value": "Unpaid trustee"}
         ]),
     ] {
         let declaration = decode(&source(&fields)).unwrap();
-        let [group] = declaration.versions()[0].groups() else {
-            panic!("expected a top-level row")
-        };
-        assert_eq!(group.path(), "/versions/0/fields");
-        assert_eq!(group.ultimate_payer_name(), None);
-        assert_eq!(group.donor_name(), None);
-        assert_eq!(group.payer_name(), None);
-        assert_eq!(group.amount(), None);
-        assert_eq!(group.currency(), None);
-        assert_eq!(group.payment_type(), None);
-        assert_eq!(group.funder_kind(), None);
-        assert_eq!(group.company_number(), None);
-        assert_eq!(group.is_ultimate_payer_different(), None);
+        assert_eq!(declaration.id().value(), 42);
+        assert!(declaration.funding_entries().is_empty());
     }
+}
+
+#[test]
+fn donor_lists_do_not_add_an_empty_funding_entry() {
+    let declaration = decode(&source(&json!([
+        {"name": "Purpose", "value": "Conference visit"},
+        {"name": "Donors", "values": [[
+            {"name": "Name", "value": "Travel sponsor"},
+            {"name": "Value", "value": null}
+        ]]}
+    ])))
+    .unwrap();
+    let [entry] = declaration.funding_entries() else {
+        panic!("expected one donor funding entry")
+    };
+    assert_eq!(entry.donor_name(), Some("Travel sponsor"));
+    assert_eq!(entry.amount(), None);
+    assert_eq!(entry.currency(), None);
+    assert_eq!(entry.payment_type(), None);
 }

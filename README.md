@@ -57,34 +57,41 @@ To choose the run identity, append `--ingestion-key <UUID>`; otherwise a new key
 is generated for the output directory. The completion manifest contains the run
 identity and counts.
 
-Each run writes one logical dataset at
+Each run writes one dataset at
 `<data_dir>/<ingestion_key>/raw/declarations/`, partitioned into
-`<database-member-UUID>.parquet` files. Members without declarations receive a
-valid empty file. `manifest.json` identifies the completed run, every selected
-member and file, and separate declaration and flattened-row counts. A directory
-without this manifest is incomplete. Existing declaration output is protected;
-retry a failed run with a new ingestion key.
+`<database-member-UUID>.parquet` files. Each row represents a declaration made by
+that MP and contains a `funding_entries` list. A declaration shared by several MPs
+appears once in each member's file. Nonfinancial declarations have an empty
+funding list; members without declarations receive an empty file.
 
-The dataset retains expired interests, all returned versions, nonfinancial
-declarations, and parent references as supplied by the API. Every version has a
-top-level row plus a row for each nested `Donors` group, identified by `version_index` and
-the `source_field_path` JSON pointer. Names, exact amount text, currency, payment
-type, donor status, company identifiers, and ultimate-payer flags stay within
-their original source groups. Missing optional values remain null. Calendar
-dates use Parquet dates, and `fetched_at` is a UTC timestamp. Complete original
-`source_json`, including unprojected fields, is repeated on the declaration's rows.
-Each member file records that MP's association with the returned declarations.
-The same declaration ID can appear in several member files. The manifest counts
-these MP associations as separate declarations.
+The adapter selects the version with the latest register publication date, using
+register ID to break a date tie. Only that publication supplies the funding
+entries. Names, exact amount text, currency, payment type, donor status, company
+identifiers, and ultimate-payer flags retain their source values. Missing values
+remain null. Calendar dates use Parquet dates, and `fetched_at` is a UTC timestamp.
+The complete API response for the declaration remains in `source_json` as source
+evidence.
+
+`declaration_id` identifies the source declaration for a future refresh, and
+`register_id` records its selected publication. The
+[Parliament API schema](https://interests-api.parliament.uk/swagger/v2/swagger.json)
+provides no separate version or donor-entry ID. A future refresh can replace a
+member's declaration and funding entries together using these source references.
+
+`manifest.json` records the completed run, every selected member and file, and
+declaration and funding-entry counts. Declaration counts include each MP
+association. This nested format is schema version 2. A directory without the
+manifest is incomplete. Existing capture files are preserved; use a new ingestion
+key to capture the new format.
 
 The declaration-fetch service reads the stored cohort and saves each member's
-complete API response. The Parliament adapter owns requests, pagination and JSON
-deserialization; the PostgreSQL adapter owns the member query; and the filesystem
-adapter owns Parquet and file publication. Each page is requested once, and
-request or parsing errors propagate to the caller. Once pagination is exhausted,
-the response is treated as complete for that MP. Parent references stay in the
-saved data without further API requests. Cleaning, version selection, attribution,
-funder resolution and database publication are later steps that use the saved data.
+complete results. The Parliament adapter owns requests, pagination, JSON
+deserialization and latest-publication selection; the PostgreSQL adapter owns the
+member query; and the filesystem adapter owns Parquet and file publication. Each
+page is requested once, and request or parsing errors propagate to the caller.
+Exhausted pagination is treated as complete for that MP. Expired declarations and
+parent references are retained. Cleaning, attribution, funder resolution and
+database publication remain later steps.
 
 Run the Rust checks with a migrated PostgreSQL database available through
 `DATABASE_URL` (the root `.env` is also supported). Integration tests require

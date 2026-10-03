@@ -2,9 +2,7 @@
 
 use crate::domain::{
     models::{
-        declaration_ingestion::{
-            CapturedDeclaration, DeclarationCaptureOutcome, DeclarationMemberOutput,
-        },
+        declaration_ingestion::{DeclarationCaptureOutcome, DeclarationMemberOutput},
         entity_ingestion::EntityIngestionError,
     },
     repositories::{
@@ -65,7 +63,7 @@ where
                 declarations.len(),
                 declarations
                     .iter()
-                    .map(CapturedDeclaration::row_count)
+                    .map(|declaration| declaration.funding_entries().len())
                     .sum(),
             ));
         }

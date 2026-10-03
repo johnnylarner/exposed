@@ -12,7 +12,7 @@ pub trait ParliamentApi: Clone + Send + Sync + 'static {
         &self,
     ) -> impl Future<Output = Result<Vec<ParliamentMember>, ParliamentApiError>> + Send;
     /// All available Commons declarations for this stored member, including expired records.
-    /// Includes every returned version and returns children as separate declarations.
+    /// Uses each declaration's latest publication and returns children as separate declarations.
     fn get_declarations(
         &self,
         member: StoredMember,

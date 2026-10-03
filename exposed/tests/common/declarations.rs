@@ -13,6 +13,11 @@ use serde::Deserialize;
 pub struct DeclarationFunding {
     pub declaration_id: u32,
     pub member_id: String,
+    pub funding_entries: Vec<FundingEntry>,
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq)]
+pub struct FundingEntry {
     pub donor_name: Option<String>,
     pub amount: Option<String>,
     pub currency: Option<String>,
@@ -34,19 +39,10 @@ pub fn read_declaration_funding(
             .is_some_and(|extension| extension == "parquet")
         {
             let reader = ParquetRecordBatchReaderBuilder::try_new(File::open(path)?)?;
-            let columns = [
-                "declaration_id",
-                "member_id",
-                "donor_name",
-                "amount",
-                "currency",
-                "payment_type",
-                "funder_kind",
-                "company_number",
-            ]
-            .into_iter()
-            .map(|name| reader.schema().index_of(name))
-            .collect::<Result<Vec<_>, _>>()?;
+            let columns = ["declaration_id", "member_id", "funding_entries"]
+                .into_iter()
+                .map(|name| reader.schema().index_of(name))
+                .collect::<Result<Vec<_>, _>>()?;
             for batch in reader.build()? {
                 json.write(&batch?.project(&columns)?)?;
             }

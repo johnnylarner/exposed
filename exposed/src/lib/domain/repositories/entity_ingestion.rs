@@ -14,7 +14,7 @@ pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
 
     /// Associates the returned declarations with this member and publishes their source data.
-    /// A declaration can appear in multiple members' outputs.
+    /// Writes one declaration record per member association, with nested funding entries.
     /// Empty input produces a valid empty dataset partition. Call after `begin_declarations`.
     fn write_raw_declarations(
         &self,

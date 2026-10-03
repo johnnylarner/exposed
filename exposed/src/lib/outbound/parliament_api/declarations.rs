@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::{ApiError, ParliamentApiClient};
 use crate::domain::models::declaration_ingestion::{
-    CapturedDeclaration, CapturedVersion, DeclarationId, SourceFieldGroup, StoredMember,
+    CapturedDeclaration, CapturedFundingEntry, DeclarationId, StoredMember,
 };
 
 const INTERESTS_URL: &str = "https://interests-api.parliament.uk/api/v2/Interests";
@@ -135,22 +135,12 @@ fn decode_declaration(
 ) -> Result<CapturedDeclaration, ApiError> {
     let source_json = source.to_string();
     let source: Interest = serde_json::from_value(source)?;
-    let versions = (0..)
-        .zip(source.versions)
-        .map(|(index, version)| {
-            let path = format!("/versions/{index}/fields");
-            let fields = version.fields.unwrap_or_default();
-            let mut groups = vec![project_group(&fields, &path, false)?];
-            donor_groups(&fields, &path, &mut groups)?;
-            Ok(CapturedVersion::new(
-                index,
-                version.register.id,
-                version.register.published_date,
-                version.registration_date,
-                groups,
-            )?)
-        })
-        .collect::<Result<Vec<_>, ApiError>>()?;
+    let latest = source
+        .versions
+        .into_iter()
+        .max_by_key(|version| (version.register.published_date, version.register.id))
+        .ok_or_else(|| ApiError::ResponseError("declaration has no published version".into()))?;
+    let funding_entries = funding_entries(&latest.fields.unwrap_or_default())?;
     Ok(CapturedDeclaration::new(
         DeclarationId::new(source.id)?,
         source
@@ -159,34 +149,39 @@ fn decode_declaration(
             .transpose()?,
         source.category.id,
         source.category.name,
-        versions,
+        latest.register.id,
+        latest.register.published_date,
+        latest.registration_date,
+        funding_entries,
         fetched_at,
         source_json,
     )?)
 }
 
-fn donor_groups(
-    fields: &[SourceField],
-    path: &str,
-    groups: &mut Vec<SourceFieldGroup>,
-) -> Result<(), ApiError> {
-    for (field_index, field) in fields.iter().enumerate() {
-        for (group_index, nested) in field.values.iter().flatten().enumerate() {
-            let path = format!("{path}/{field_index}/values/{group_index}");
+fn funding_entries(fields: &[SourceField]) -> Result<Vec<CapturedFundingEntry>, ApiError> {
+    let mut entries = Vec::new();
+    if fields
+        .iter()
+        .any(|field| matches!(field.name.as_str(), "Value" | "PaymentType"))
+    {
+        entries.push(parse_funding_entry(fields, false)?);
+    }
+    for field in fields {
+        for nested in field.values.iter().flatten() {
             if field.name == "Donors" {
-                groups.push(project_group(nested, &path, true)?);
+                entries.push(parse_funding_entry(nested, true)?);
+            } else {
+                entries.extend(funding_entries(nested)?);
             }
-            donor_groups(nested, &path, groups)?;
         }
     }
-    Ok(())
+    Ok(entries)
 }
 
-fn project_group(
+fn parse_funding_entry(
     fields: &[SourceField],
-    path: &str,
     donor: bool,
-) -> Result<SourceFieldGroup, ApiError> {
+) -> Result<CapturedFundingEntry, ApiError> {
     let values = fields
         .iter()
         .map(|field| (field.name.clone(), field.value.clone()))
@@ -200,8 +195,7 @@ fn project_group(
     let donor_name = funding
         .donor_name
         .or(if donor { funding.name } else { None });
-    Ok(SourceFieldGroup::new(
-        path.to_string(),
+    Ok(CapturedFundingEntry::new(
         funding.ultimate_payer_name,
         donor_name,
         funding.payer_name,

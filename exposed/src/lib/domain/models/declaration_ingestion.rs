@@ -3,6 +3,7 @@
 use std::num::NonZeroU32;
 
 use chrono::{DateTime, NaiveDate, Utc};
+use serde::Serialize;
 use uuid::Uuid;
 
 use super::entity_ingestion::{EntityIngestionError, IngestionKey};
@@ -62,48 +63,54 @@ impl DeclarationId {
     }
 }
 
-/// Source evidence for a declaration that can be associated with multiple stored members.
+/// A declaration and the funding entries from its latest publication.
 #[derive(Clone, Debug)]
 pub struct CapturedDeclaration {
     id: DeclarationId,
     parent_id: Option<DeclarationId>,
     category_id: NonZeroU32,
     category_name: String,
-    versions: Vec<CapturedVersion>,
+    register_id: NonZeroU32,
+    register_published_date: NaiveDate,
+    registration_date: Option<NaiveDate>,
+    funding_entries: Vec<CapturedFundingEntry>,
     fetched_at: DateTime<Utc>,
     source_json: String,
 }
 
 impl CapturedDeclaration {
-    /// Captures source evidence without assigning an exclusive declaring member.
+    /// Captures the latest publication and its funding entries.
     ///
     /// # Errors
-    /// Rejects a missing category identity or no versions.
+    /// Rejects a missing category or register identity.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: DeclarationId,
         parent_id: Option<DeclarationId>,
         category_id: u32,
         category_name: String,
-        versions: Vec<CapturedVersion>,
+        register_id: u32,
+        register_published_date: NaiveDate,
+        registration_date: Option<NaiveDate>,
+        funding_entries: Vec<CapturedFundingEntry>,
         fetched_at: DateTime<Utc>,
         source_json: String,
     ) -> Result<Self, EntityIngestionError> {
-        if versions.is_empty() {
-            return Err(invalid(
-                "declaration must contain at least one source version",
-            ));
-        }
         Ok(Self {
             id,
             parent_id,
             category_id: positive_id(category_id)?,
             category_name,
-            versions,
+            register_id: positive_id(register_id)?,
+            register_published_date,
+            registration_date,
+            funding_entries,
             fetched_at,
             source_json,
         })
     }
-    /// Source declaration identity.
+
+    /// Source declaration identity, retained for future refreshes.
     #[must_use]
     pub const fn id(&self) -> DeclarationId {
         self.id
@@ -127,10 +134,28 @@ impl CapturedDeclaration {
         &self.category_name
     }
 
-    /// All versions in source order.
+    /// Register containing the selected publication of this declaration.
     #[must_use]
-    pub fn versions(&self) -> &[CapturedVersion] {
-        &self.versions
+    pub const fn register_id(&self) -> u32 {
+        self.register_id.get()
+    }
+
+    /// Publication date of the selected register.
+    #[must_use]
+    pub const fn register_published_date(&self) -> NaiveDate {
+        self.register_published_date
+    }
+
+    /// Registration date from the latest publication.
+    #[must_use]
+    pub const fn registration_date(&self) -> Option<NaiveDate> {
+        self.registration_date
+    }
+
+    /// Funding entries from the latest publication, in source order.
+    #[must_use]
+    pub fn funding_entries(&self) -> &[CapturedFundingEntry] {
+        &self.funding_entries
     }
 
     /// Retrieval instant in UTC.
@@ -139,90 +164,16 @@ impl CapturedDeclaration {
         self.fetched_at
     }
 
-    /// Complete original JSON, including unknown fields.
+    /// Complete source response for this declaration, including unknown fields.
     #[must_use]
     pub fn source_json(&self) -> &str {
         &self.source_json
     }
-
-    /// Number of top-level and donor rows across every source version.
-    #[must_use]
-    pub fn row_count(&self) -> usize {
-        self.versions
-            .iter()
-            .map(|version| version.groups.len())
-            .sum()
-    }
 }
 
-/// One source version with its calendar dates and ordered field groups.
-#[derive(Clone, Debug)]
-pub struct CapturedVersion {
-    index: u32,
-    register_id: NonZeroU32,
-    published_date: NaiveDate,
-    registration_date: Option<NaiveDate>,
-    groups: Vec<SourceFieldGroup>,
-}
-
-impl CapturedVersion {
-    /// Constructs a version without selecting or normalizing it.
-    ///
-    /// # Errors
-    /// Rejects zero register identities or a missing top-level group.
-    pub fn new(
-        index: u32,
-        register_id: u32,
-        published_date: NaiveDate,
-        registration_date: Option<NaiveDate>,
-        groups: Vec<SourceFieldGroup>,
-    ) -> Result<Self, EntityIngestionError> {
-        if groups.is_empty() {
-            return Err(invalid("version must retain its top-level field group"));
-        }
-        Ok(Self {
-            index,
-            register_id: positive_id(register_id)?,
-            published_date,
-            registration_date,
-            groups,
-        })
-    }
-    /// Captured index from the source version.
-    #[must_use]
-    pub const fn index(&self) -> u32 {
-        self.index
-    }
-
-    /// Captured register id from the source version.
-    #[must_use]
-    pub const fn register_id(&self) -> u32 {
-        self.register_id.get()
-    }
-
-    /// Captured published date from the source version.
-    #[must_use]
-    pub const fn published_date(&self) -> NaiveDate {
-        self.published_date
-    }
-
-    /// Captured registration date from the source version.
-    #[must_use]
-    pub const fn registration_date(&self) -> Option<NaiveDate> {
-        self.registration_date
-    }
-
-    /// Captured groups from the source version.
-    #[must_use]
-    pub fn groups(&self) -> &[SourceFieldGroup] {
-        &self.groups
-    }
-}
-
-/// A top-level or donor field group; optional strings retain their source spelling.
-#[derive(Clone, Debug)]
-pub struct SourceFieldGroup {
-    path: String,
+/// Funding details from the latest declaration publication.
+#[derive(Clone, Debug, Serialize)]
+pub struct CapturedFundingEntry {
     ultimate_payer_name: Option<String>,
     donor_name: Option<String>,
     payer_name: Option<String>,
@@ -234,12 +185,11 @@ pub struct SourceFieldGroup {
     is_ultimate_payer_different: Option<bool>,
 }
 
-impl SourceFieldGroup {
-    /// Retains fields from one source position, with no inheritance or interpretation.
+impl CapturedFundingEntry {
+    /// Retains the supplied funding details.
     #[must_use]
     #[allow(clippy::too_many_arguments)]
     pub const fn new(
-        path: String,
         ultimate_payer_name: Option<String>,
         donor_name: Option<String>,
         payer_name: Option<String>,
@@ -251,7 +201,6 @@ impl SourceFieldGroup {
         is_ultimate_payer_different: Option<bool>,
     ) -> Self {
         Self {
-            path,
             ultimate_payer_name,
             donor_name,
             payer_name,
@@ -263,55 +212,49 @@ impl SourceFieldGroup {
             is_ultimate_payer_different,
         }
     }
-    /// JSON pointer to the exact source field group.
-    #[must_use]
-    pub fn path(&self) -> &str {
-        &self.path
-    }
-
-    /// Original ultimate payer name in this group.
+    /// Original ultimate payer name for this funding entry.
     #[must_use]
     pub fn ultimate_payer_name(&self) -> Option<&str> {
         self.ultimate_payer_name.as_deref()
     }
 
-    /// Original donor name in this group.
+    /// Original donor name for this funding entry.
     #[must_use]
     pub fn donor_name(&self) -> Option<&str> {
         self.donor_name.as_deref()
     }
 
-    /// Original payer name in this group.
+    /// Original payer name for this funding entry.
     #[must_use]
     pub fn payer_name(&self) -> Option<&str> {
         self.payer_name.as_deref()
     }
 
-    /// Original amount in this group.
+    /// Original amount for this funding entry.
     #[must_use]
     pub fn amount(&self) -> Option<&str> {
         self.amount.as_deref()
     }
 
-    /// Original currency in this group.
+    /// Original currency for this funding entry.
     #[must_use]
     pub fn currency(&self) -> Option<&str> {
         self.currency.as_deref()
     }
 
-    /// Original payment type in this group.
+    /// Original payment type for this funding entry.
     #[must_use]
     pub fn payment_type(&self) -> Option<&str> {
         self.payment_type.as_deref()
     }
 
-    /// Original funder kind in this group.
+    /// Original funder kind for this funding entry.
     #[must_use]
     pub fn funder_kind(&self) -> Option<&str> {
         self.funder_kind.as_deref()
     }
 
-    /// Original company number in this group.
+    /// Original company number for this funding entry.
     #[must_use]
     pub fn company_number(&self) -> Option<&str> {
         self.company_number.as_deref()
@@ -329,17 +272,21 @@ impl SourceFieldGroup {
 pub struct DeclarationMemberOutput {
     member: StoredMember,
     declaration_count: usize,
-    row_count: usize,
+    funding_entry_count: usize,
 }
 
 impl DeclarationMemberOutput {
     /// Records a completed member, including an empty result.
     #[must_use]
-    pub const fn new(member: StoredMember, declaration_count: usize, row_count: usize) -> Self {
+    pub const fn new(
+        member: StoredMember,
+        declaration_count: usize,
+        funding_entry_count: usize,
+    ) -> Self {
         Self {
             member,
             declaration_count,
-            row_count,
+            funding_entry_count,
         }
     }
 
@@ -355,10 +302,10 @@ impl DeclarationMemberOutput {
         self.declaration_count
     }
 
-    /// Flattened version and field-group rows.
+    /// Funding entries in the member's declarations.
     #[must_use]
-    pub const fn row_count(&self) -> usize {
-        self.row_count
+    pub const fn funding_entry_count(&self) -> usize {
+        self.funding_entry_count
     }
 }
 
@@ -412,12 +359,12 @@ impl DeclarationCaptureOutcome {
             .sum()
     }
 
-    /// Total projected rows across member files.
+    /// Total funding entries across member files.
     #[must_use]
-    pub fn row_count(&self) -> usize {
+    pub fn funding_entry_count(&self) -> usize {
         self.members
             .iter()
-            .map(DeclarationMemberOutput::row_count)
+            .map(DeclarationMemberOutput::funding_entry_count)
             .sum()
     }
 }

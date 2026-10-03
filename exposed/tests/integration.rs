@@ -20,8 +20,8 @@ use tempfile::TempDir;
 use tokio::time;
 
 use crate::common::{
-    DeclarationFunding, cli_declaration_fetcher_config, cli_fetcher_config, cli_loader_config,
-    read_declaration_funding, search_entities, start_app,
+    DeclarationFunding, FundingEntry, cli_declaration_fetcher_config, cli_fetcher_config,
+    cli_loader_config, read_declaration_funding, search_entities, start_app,
 };
 
 mod common;
@@ -129,12 +129,14 @@ async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Res
         &DeclarationFunding {
             declaration_id: 16901,
             member_id: members[&4613].to_string(),
-            donor_name: Some("David Robert Meller".into()),
-            amount: Some("2000.00".into()),
-            currency: Some("GBP".into()),
-            payment_type: Some("Monetary".into()),
-            funder_kind: Some("Individual".into()),
-            company_number: None,
+            funding_entries: vec![FundingEntry {
+                donor_name: Some("David Robert Meller".into()),
+                amount: Some("2000.00".into()),
+                currency: Some("GBP".into()),
+                payment_type: Some("Monetary".into()),
+                funder_kind: Some("Individual".into()),
+                company_number: None,
+            }],
         }
     );
 
@@ -147,12 +149,14 @@ async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Res
         &DeclarationFunding {
             declaration_id: 16863,
             member_id: members[&5030].to_string(),
-            donor_name: Some("Labour Together Limited".into()),
-            amount: Some("5000.00".into()),
-            currency: Some("GBP".into()),
-            payment_type: Some("Monetary".into()),
-            funder_kind: Some("Company".into()),
-            company_number: Some("09630980".into()),
+            funding_entries: vec![FundingEntry {
+                donor_name: Some("Labour Together Limited".into()),
+                amount: Some("5000.00".into()),
+                currency: Some("GBP".into()),
+                payment_type: Some("Monetary".into()),
+                funder_kind: Some("Company".into()),
+                company_number: Some("09630980".into()),
+            }],
         }
     );
     Ok(())

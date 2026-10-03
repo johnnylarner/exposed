@@ -1,8 +1,8 @@
 use std::fs::{self, File};
 
 use arrow::{
-    array::AsArray,
     datatypes::{DataType, TimeUnit},
+    json::ArrayWriter,
 };
 use chrono::{NaiveDate, Utc};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
@@ -14,8 +14,8 @@ use super::{ExposedDataPipeline, member_filename};
 use crate::domain::{
     models::{
         declaration_ingestion::{
-            CapturedDeclaration, CapturedVersion, DeclarationId, DeclarationMemberOutput,
-            SourceFieldGroup, StoredMember,
+            CapturedDeclaration, CapturedFundingEntry, DeclarationId, DeclarationMemberOutput,
+            StoredMember,
         },
         entity_ingestion::IngestionKey,
     },
@@ -45,7 +45,7 @@ async fn publishes_empty_member_partitions_and_completion_counts() -> anyhow::Re
     );
     assert_eq!(
         schema.field_with_name("fetched_at")?.data_type(),
-        &DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into()))
+        &DataType::Timestamp(TimeUnit::Microsecond, Some("+00:00".into()))
     );
     assert_eq!(
         schema.field_with_name("source_json")?.data_type(),
@@ -61,7 +61,7 @@ async fn publishes_empty_member_partitions_and_completion_counts() -> anyhow::Re
     assert_eq!(manifest["ingestion_key"], key.to_string());
     assert_eq!(manifest["member_count"], 1);
     assert_eq!(manifest["declaration_count"], 0);
-    assert_eq!(manifest["row_count"], 0);
+    assert_eq!(manifest["funding_entry_count"], 0);
     assert_eq!(
         manifest["members"],
         json!([{
@@ -69,7 +69,7 @@ async fn publishes_empty_member_partitions_and_completion_counts() -> anyhow::Re
             "parliament_member_id": 512,
             "file": format!("{}.parquet", member.member_id()),
             "declaration_count": 0,
-            "row_count": 0
+            "funding_entry_count": 0
         }])
     );
     Ok(())
@@ -107,8 +107,18 @@ async fn protects_existing_partitions_and_completed_or_incomplete_runs() -> anyh
     Ok(())
 }
 
+fn read_declarations(path: &std::path::Path) -> anyhow::Result<Vec<Value>> {
+    let reader = ParquetRecordBatchReaderBuilder::try_new(File::open(path)?)?.build()?;
+    let mut json = ArrayWriter::new(Vec::new());
+    for batch in reader {
+        json.write(&batch?)?;
+    }
+    json.finish()?;
+    Ok(serde_json::from_slice(&json.into_inner())?)
+}
+
 #[tokio::test]
-async fn saves_the_same_declaration_for_each_declaring_member() -> anyhow::Result<()> {
+async fn saves_one_record_per_mp_with_nested_funding_entries() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
     let storage = ExposedDataPipeline::new_with_ingestion_key(
         &tmp.path().to_path_buf(),
@@ -118,59 +128,80 @@ async fn saves_the_same_declaration_for_each_declaring_member() -> anyhow::Resul
         StoredMember::new(Uuid::from_u128(1), 4613)?,
         StoredMember::new(Uuid::from_u128(2), 5030)?,
     ];
-    let declaration = CapturedDeclaration::new(
-        DeclarationId::new(42)?,
-        None,
-        3,
-        "Donations".into(),
-        vec![CapturedVersion::new(
-            0,
-            820,
-            NaiveDate::from_ymd_opt(2026, 9, 7).unwrap(),
-            None,
-            vec![SourceFieldGroup::new(
-                "/versions/0/fields".into(),
+    let funding =
+        [("First donor", "2000.00"), ("Second donor", "3000.00")].map(|(name, amount)| {
+            CapturedFundingEntry::new(
                 None,
-                Some("Shared donor".into()),
+                Some(name.into()),
                 None,
-                Some("2000.00".into()),
+                Some(amount.into()),
                 Some("GBP".into()),
                 None,
                 None,
                 None,
                 None,
-            )],
-        )?],
+            )
+        });
+    let declaration = CapturedDeclaration::new(
+        DeclarationId::new(42)?,
+        None,
+        3,
+        "Donations".into(),
+        820,
+        NaiveDate::from_ymd_opt(2026, 9, 7).unwrap(),
+        NaiveDate::from_ymd_opt(2026, 9, 1),
+        funding.to_vec(),
         Utc::now(),
         r#"{"id":42}"#.into(),
     )?;
+    let nonfinancial = CapturedDeclaration::new(
+        DeclarationId::new(43)?,
+        None,
+        12,
+        "Miscellaneous".into(),
+        820,
+        NaiveDate::from_ymd_opt(2026, 9, 7).unwrap(),
+        None,
+        vec![],
+        Utc::now(),
+        r#"{"id":43}"#.into(),
+    )?;
+    let declarations = [declaration, nonfinancial];
 
     storage.begin_declarations().await?;
     for member in members {
         storage
-            .write_raw_declarations(member, std::slice::from_ref(&declaration))
+            .write_raw_declarations(member, &declarations)
             .await?;
-        let file = File::open(storage.declarations_path().join(member_filename(member)))?;
-        let mut reader = ParquetRecordBatchReaderBuilder::try_new(file)?.build()?;
-        let row = reader.next().unwrap()?;
-        let member_ids = row.column_by_name("member_id").unwrap().as_string::<i32>();
-        let declaration_ids = row
-            .column_by_name("declaration_id")
-            .unwrap()
-            .as_primitive::<arrow::datatypes::UInt32Type>();
-
-        assert_eq!(row.num_rows(), 1);
-        assert_eq!(member_ids.value(0), member.member_id().to_string());
-        assert_eq!(declaration_ids.value(0), 42);
-        assert!(reader.next().is_none());
+        let records =
+            read_declarations(&storage.declarations_path().join(member_filename(member)))?;
+        let [funded, nonfinancial] = records.as_slice() else {
+            panic!("expected one record per declaration")
+        };
+        assert_eq!(funded["member_id"], member.member_id().to_string());
+        assert_eq!(funded["declaration_id"], 42);
+        assert_eq!(funded["register_id"], 820);
+        assert_eq!(funded["register_published_date"], "2026-09-07");
+        assert_eq!(funded["registration_date"], "2026-09-01");
+        assert_eq!(
+            funded["funding_entries"],
+            json!([
+                {"donor_name": "First donor", "amount": "2000.00", "currency": "GBP"},
+                {"donor_name": "Second donor", "amount": "3000.00", "currency": "GBP"}
+            ])
+        );
+        assert_eq!(nonfinancial["member_id"], member.member_id().to_string());
+        assert_eq!(nonfinancial["declaration_id"], 43);
+        assert_eq!(nonfinancial["funding_entries"], json!([]));
     }
-    let outputs = members.map(|member| DeclarationMemberOutput::new(member, 1, 1));
+    let outputs = members.map(|member| DeclarationMemberOutput::new(member, 2, 2));
     storage.complete_declarations(&outputs).await?;
     let manifest: Value = serde_json::from_slice(&fs::read(
         storage.declarations_path().join("manifest.json"),
     )?)?;
+    assert_eq!(manifest["schema_version"], 2);
     assert_eq!(manifest["member_count"], 2);
-    assert_eq!(manifest["declaration_count"], 2);
-    assert_eq!(manifest["row_count"], 2);
+    assert_eq!(manifest["declaration_count"], 4);
+    assert_eq!(manifest["funding_entry_count"], 4);
     Ok(())
 }
