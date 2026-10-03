@@ -51,12 +51,8 @@ impl ExposedDataPipeline {
             let schema = Arc::new(declarations_schema());
             let mut writer = AsyncArrowWriter::try_new(file, schema.clone(), None)?;
             for declaration in declarations {
-                anyhow::ensure!(
-                    declaration.member() == member,
-                    "declaration belongs to a different stored member"
-                );
                 writer
-                    .write(&declaration_batch(declaration, schema.clone())?)
+                    .write(&declaration_batch(member, declaration, schema.clone())?)
                     .await?;
             }
             // Closing also produces a schema-bearing Parquet file for empty members.
@@ -196,6 +192,7 @@ fn declarations_schema() -> Schema {
 }
 
 fn declaration_batch(
+    member: StoredMember,
     declaration: &CapturedDeclaration,
     schema: Arc<Schema>,
 ) -> anyhow::Result<RecordBatch> {
@@ -212,15 +209,13 @@ fn declaration_batch(
         ))
     };
     let count = rows.len();
-    let member_id = declaration.member().member_id().to_string();
+    let member_id = member.member_id().to_string();
     Ok(RecordBatch::try_new(
         schema,
         vec![
             Arc::new(StringArray::from(vec![member_id.as_str(); count])),
             Arc::new(UInt32Array::from(vec![
-                declaration
-                    .member()
-                    .parliament_member_id();
+                member.parliament_member_id();
                 count
             ])),
             Arc::new(UInt32Array::from(vec![declaration.id().value(); count])),

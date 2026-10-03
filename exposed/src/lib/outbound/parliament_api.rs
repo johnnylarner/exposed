@@ -1,6 +1,6 @@
 //! Minimal client for the UK parliament API
 
-use std::{num::NonZeroU8, time::Duration};
+use std::num::NonZeroU8;
 
 use serde::Deserialize;
 use thiserror::Error;
@@ -9,7 +9,8 @@ use reqwest::Client;
 
 use crate::domain::{
     models::{
-        declaration_ingestion::{CapturedDeclaration, DeclarationId, StoredMember},
+        declaration_ingestion::{CapturedDeclaration, StoredMember},
+        entity_ingestion::EntityIngestionError,
         parliament_member::ParliamentMember,
     },
     repositories::parliament_api::{ParliamentApi as Interface, ParliamentApiError},
@@ -35,8 +36,6 @@ impl ParliamentApiClient {
         let batch_size = NonZeroU8::new(batch_size)
             .ok_or_else(|| ApiError::BuilderError("batch size must be nonzero".into()))?;
         let client = Client::builder()
-            .connect_timeout(Duration::from_secs(10))
-            .timeout(Duration::from_secs(30))
             .build()
             .map_err(|e| ApiError::BuilderError(e.to_string()))?;
 
@@ -68,12 +67,10 @@ impl Interface for ParliamentApiClient {
             let response: ParliamentResponse = serde_json::from_slice(&bytes)
                 .map_err(|e| ApiError::ResponseError(e.to_string()))?;
 
-            println!("retrieved {batch} records from offset {offset}");
             offset += response.items.len();
             members.extend(response.items);
 
             if members.len() == response.total_results {
-                println!("received all members");
                 break;
             }
         }
@@ -96,23 +93,7 @@ impl Interface for ParliamentApiClient {
         &self,
         member: StoredMember,
     ) -> Result<Vec<CapturedDeclaration>, ParliamentApiError> {
-        self.capture_declarations(member, None).await
-    }
-
-    async fn get_declaration(
-        &self,
-        member: StoredMember,
-        id: DeclarationId,
-    ) -> Result<CapturedDeclaration, ParliamentApiError> {
-        let mut declarations = self.capture_declarations(member, Some(id)).await?;
-        if declarations.len() != 1 || declarations[0].id() != id {
-            return Err(ParliamentApiError::ApiError(format!(
-                "member {}: required parent {} was not returned with matching identity",
-                member.parliament_member_id(),
-                id.value(),
-            )));
-        }
-        Ok(declarations.remove(0))
+        self.capture_declarations(member).await.map_err(Into::into)
     }
 }
 
@@ -166,5 +147,23 @@ impl From<ApiError> for ParliamentApiError {
         match value {
             ApiError::BuilderError(e) | ApiError::ResponseError(e) => Self::ApiError(e),
         }
+    }
+}
+
+impl From<reqwest::Error> for ApiError {
+    fn from(error: reqwest::Error) -> Self {
+        Self::ResponseError(error.to_string())
+    }
+}
+
+impl From<serde_json::Error> for ApiError {
+    fn from(error: serde_json::Error) -> Self {
+        Self::ResponseError(error.to_string())
+    }
+}
+
+impl From<EntityIngestionError> for ApiError {
+    fn from(error: EntityIngestionError) -> Self {
+        Self::ResponseError(error.to_string())
     }
 }

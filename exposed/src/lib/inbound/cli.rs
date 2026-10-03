@@ -69,15 +69,7 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                 ingestion_key.unwrap_or_default(),
             )?;
             let service = DeclarationFetcherService::new(db, api, fs);
-            let outcome = service.fetch_declarations().await?;
-            println!(
-                "Completed declaration capture {}: {} members, {} declarations, {} rows at {}",
-                outcome.ingestion_key(),
-                outcome.member_count(),
-                outcome.declaration_count(),
-                outcome.row_count(),
-                outcome.output_location(),
-            );
+            service.fetch_declarations().await?;
         }
         DataCommands::Members {
             stage,

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    declaration_ingestion::{CapturedDeclaration, DeclarationId, StoredMember},
+    declaration_ingestion::{CapturedDeclaration, StoredMember},
     parliament_member::ParliamentMember,
 };
 
@@ -17,13 +17,6 @@ pub trait ParliamentApi: Clone + Send + Sync + 'static {
         &self,
         member: StoredMember,
     ) -> impl Future<Output = Result<Vec<CapturedDeclaration>, ParliamentApiError>> + Send;
-
-    /// Captures a required parent with all available versions; fails if absent or misattributed.
-    fn get_declaration(
-        &self,
-        member: StoredMember,
-        id: DeclarationId,
-    ) -> impl Future<Output = Result<CapturedDeclaration, ParliamentApiError>> + Send;
 }
 
 /// Errors that can occur when interacting with the repo

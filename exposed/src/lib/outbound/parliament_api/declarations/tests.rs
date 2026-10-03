@@ -1,13 +1,8 @@
 use chrono::{DateTime, NaiveDate, Utc};
-use serde_json::{Value, json, value::to_raw_value};
-use uuid::Uuid;
+use serde_json::{Value, json};
 
-use super::decode_declaration;
-use crate::domain::models::declaration_ingestion::{CapturedDeclaration, StoredMember};
-
-fn member() -> StoredMember {
-    StoredMember::new(Uuid::from_u128(1), 4613).unwrap()
-}
+use super::{ApiError, decode_declaration};
+use crate::domain::models::declaration_ingestion::CapturedDeclaration;
 
 fn fetched_at() -> DateTime<Utc> {
     DateTime::from_timestamp(1_790_985_600, 123_000_000).unwrap()
@@ -27,8 +22,8 @@ fn source(fields: &Value) -> Value {
     })
 }
 
-fn decode(source: &Value) -> anyhow::Result<CapturedDeclaration> {
-    decode_declaration(&to_raw_value(source)?, member(), fetched_at())
+fn decode(source: &Value) -> Result<CapturedDeclaration, ApiError> {
+    decode_declaration(source.clone(), fetched_at())
 }
 
 #[test]
@@ -44,19 +39,17 @@ fn preserves_every_version_and_the_complete_source_payload() {
         .as_array_mut()
         .unwrap()
         .push(older_version);
-    let raw =
-        serde_json::value::RawValue::from_string(serde_json::to_string_pretty(&source).unwrap())
-            .unwrap();
+    let declaration = decode(&source).unwrap();
 
-    let declaration = decode_declaration(&raw, member(), fetched_at()).unwrap();
-
-    assert_eq!(declaration.member(), member());
     assert_eq!(declaration.id().value(), 42);
     assert_eq!(declaration.parent_id().unwrap().value(), 41);
     assert_eq!(declaration.category_id(), 3);
     assert_eq!(declaration.category_name(), "Donations");
     assert_eq!(declaration.fetched_at(), fetched_at());
-    assert_eq!(declaration.source_json(), raw.get());
+    assert_eq!(
+        serde_json::from_str::<Value>(declaration.source_json()).unwrap(),
+        source
+    );
     let [latest, older] = declaration.versions() else {
         panic!("expected both source versions")
     };
@@ -178,14 +171,4 @@ fn retains_nonfinancial_declarations_and_missing_values() {
         assert_eq!(group.company_number(), None);
         assert_eq!(group.is_ultimate_payer_different(), None);
     }
-}
-
-#[test]
-fn rejects_declarations_for_another_member() {
-    let mut source = source(&json!([]));
-    source["registrant"]["memberDetail"]["id"] = json!(5030);
-
-    let error = decode(&source).unwrap_err();
-
-    assert!(error.to_string().contains("different Parliament member"));
 }

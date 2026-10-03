@@ -1,19 +1,12 @@
-//! Interests API transport, envelope decoding, and lossless source projection.
+//! Deserialize and project the Interests API response.
 
-use std::{collections::HashMap, time::Duration};
-
-use anyhow::{Context, ensure};
-use chrono::{NaiveDate, Utc};
-use reqwest::StatusCode;
+use chrono::{DateTime, NaiveDate, Utc};
 use serde::Deserialize;
-use serde_json::{Value, value::RawValue};
+use serde_json::Value;
 
-use super::ParliamentApiClient;
-use crate::domain::{
-    models::declaration_ingestion::{
-        CapturedDeclaration, CapturedVersion, DeclarationId, SourceFieldGroup, StoredMember,
-    },
-    repositories::parliament_api::ParliamentApiError,
+use super::{ApiError, ParliamentApiClient};
+use crate::domain::models::declaration_ingestion::{
+    CapturedDeclaration, CapturedVersion, DeclarationId, SourceFieldGroup, StoredMember,
 };
 
 const INTERESTS_URL: &str = "https://interests-api.parliament.uk/api/v2/Interests";
@@ -25,129 +18,39 @@ impl ParliamentApiClient {
     pub(super) async fn capture_declarations(
         &self,
         member: StoredMember,
-        required_id: Option<DeclarationId>,
-    ) -> Result<Vec<CapturedDeclaration>, ParliamentApiError> {
-        let mut declarations: Vec<CapturedDeclaration> = Vec::new();
-        let mut seen = HashMap::new();
-        let mut offset = 0_usize;
+    ) -> Result<Vec<CapturedDeclaration>, ApiError> {
+        let mut declarations = Vec::new();
+        let mut offset = 0;
         loop {
-            let context = format!(
-                "member {}, declaration filter {:?}, page offset {offset}",
-                member.parliament_member_id(),
-                required_id.map(DeclarationId::value),
-            );
-            let mut url = format!(
+            let url = format!(
                 "{INTERESTS_URL}?MemberId={}&Type=Commons&ExcludeExpired=false&ExpandChildInterests=false&Skip={offset}&Take={}",
                 member.parliament_member_id(),
                 self.batch_size,
             );
-            if let Some(id) = required_id {
-                use std::fmt::Write;
-                write!(url, "&InterestIds={}", id.value())
-                    .expect("writing to a String cannot fail");
-            }
-            let bytes = self.interests_response(&url, &context).await?;
-            let fetched_at = Utc::now();
-            let decode = || -> anyhow::Result<(InterestPage, Vec<CapturedDeclaration>)> {
-                let page: InterestPage = serde_json::from_slice(&bytes)?;
-                ensure!(
-                    page.skip == offset,
-                    "response skip {} does not match requested offset",
-                    page.skip
-                );
-                ensure!(
-                    page.take > 0 && page.items.len() <= page.take,
-                    "invalid page size"
-                );
-                let records = page
-                    .items
-                    .iter()
-                    .map(|raw| {
-                        decode_declaration(raw, member, fetched_at).context("decoding declaration")
-                    })
-                    .collect::<anyhow::Result<Vec<_>>>()?;
-                Ok((page, records))
-            };
-            let (page, records) = decode().map_err(|e| api_error(&context, &e))?;
-            if records.is_empty() {
+            let bytes = self.client.get(url).send().await?.bytes().await?;
+            let response: InterestPage = serde_json::from_slice(&bytes)?;
+            if response.items.is_empty() {
                 break;
             }
-            let previous_count = declarations.len();
-            for declaration in records {
-                if let Some(&index) = seen.get(&declaration.id()) {
-                    let previous: &CapturedDeclaration = &declarations[index];
-                    if previous.source_json() != declaration.source_json() {
-                        return Err(ParliamentApiError::ApiError(format!(
-                            "{context}: declaration {} changed during pagination; retry with a new ingestion key",
-                            declaration.id().value(),
-                        )));
-                    }
-                } else {
-                    seen.insert(declaration.id(), declarations.len());
-                    declarations.push(declaration);
-                }
+            let fetched_at = Utc::now();
+            offset += response.items.len();
+            for source in response.items {
+                declarations.push(decode_declaration(source, fetched_at)?);
             }
-            if declarations.len() == previous_count {
-                return Err(ParliamentApiError::ApiError(format!(
-                    "{context}: pagination stalled; no new declaration identities"
-                )));
-            }
-            offset = offset.checked_add(page.items.len()).ok_or_else(|| {
-                ParliamentApiError::ApiError(format!("{context}: pagination offset overflow"))
-            })?;
-            if offset >= page.total_results {
+            if offset >= response.total_results {
                 break;
             }
         }
         Ok(declarations)
-    }
-
-    async fn interests_response(
-        &self,
-        url: &str,
-        context: &str,
-    ) -> Result<Vec<u8>, ParliamentApiError> {
-        for attempt in 1..=3_u32 {
-            let response = async {
-                self.client
-                    .get(url)
-                    .send()
-                    .await?
-                    .error_for_status()?
-                    .bytes()
-                    .await
-            }
-            .await;
-            match response {
-                Ok(bytes) => return Ok(bytes.to_vec()),
-                Err(error) => {
-                    let transient = error.is_timeout()
-                        || error.is_connect()
-                        || error.is_body()
-                        || error.is_request()
-                        || error.status().is_some_and(|status| {
-                            status == StatusCode::TOO_MANY_REQUESTS || status.is_server_error()
-                        });
-                    if !transient || attempt == 3 {
-                        return Err(ParliamentApiError::ApiError(format!(
-                            "{context}: request failed after {attempt} attempt(s): {error}"
-                        )));
-                    }
-                    tokio::time::sleep(Duration::from_secs(u64::from(attempt))).await;
-                }
-            }
-        }
-        unreachable!("the last attempt returns its error")
     }
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct InterestPage {
-    skip: usize,
-    take: usize,
     total_results: usize,
-    items: Vec<Box<RawValue>>,
+    // Retain every source field alongside the typed projection below.
+    items: Vec<Value>,
 }
 
 #[derive(Deserialize)]
@@ -156,7 +59,6 @@ struct Interest {
     id: u32,
     parent_interest_id: Option<u32>,
     category: Category,
-    registrant: Registrant,
     versions: Vec<Version>,
 }
 
@@ -164,26 +66,13 @@ struct Interest {
 struct Category {
     id: u32,
     name: String,
-    r#type: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Registrant {
-    r#type: String,
-    member_detail: MemberIdentity,
-}
-
-#[derive(Deserialize)]
-struct MemberIdentity {
-    id: u32,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Version {
     register: Register,
-    registration_date: Option<String>,
+    registration_date: Option<NaiveDate>,
     fields: Option<Vec<SourceField>>,
 }
 
@@ -191,60 +80,78 @@ struct Version {
 #[serde(rename_all = "camelCase")]
 struct Register {
     id: u32,
-    published_date: String,
-    r#type: String,
+    published_date: NaiveDate,
 }
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SourceField {
     name: String,
-    value: Option<Box<RawValue>>,
-    type_info: Option<Value>,
+    #[serde(default)]
+    value: Value,
+    type_info: Option<Currency>,
     values: Option<Vec<Vec<Self>>>,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct Currency {
+    currency_code: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+struct FundingFields {
+    ultimate_payer_name: Option<String>,
+    donor_name: Option<String>,
+    name: Option<String>,
+    payer_name: Option<String>,
+    value: Option<Amount>,
+    payment_type: Option<String>,
+    donor_status: Option<String>,
+    donor_company_identifier: Option<String>,
+    is_ultimate_payer_different: Option<bool>,
+}
+
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum Amount {
+    Text(String),
+    Number(serde_json::Number),
+}
+
+impl Amount {
+    fn into_text(self) -> String {
+        match self {
+            Self::Text(value) => value,
+            Self::Number(value) => value.to_string(),
+        }
+    }
+}
+
 fn decode_declaration(
-    raw: &RawValue,
-    member: StoredMember,
-    fetched_at: chrono::DateTime<Utc>,
-) -> anyhow::Result<CapturedDeclaration> {
-    let source: Interest = serde_json::from_str(raw.get())?;
-    ensure!(
-        source.category.r#type == "Commons" && source.registrant.r#type == "Member",
-        "expected a Commons member declaration, received {}",
-        source.id
-    );
-    let versions = source
-        .versions
-        .into_iter()
-        .enumerate()
+    source: Value,
+    fetched_at: DateTime<Utc>,
+) -> Result<CapturedDeclaration, ApiError> {
+    let source_json = source.to_string();
+    let source: Interest = serde_json::from_value(source)?;
+    let versions = (0..)
+        .zip(source.versions)
         .map(|(index, version)| {
-            ensure!(
-                version.register.r#type == "Commons",
-                "declaration {}: expected a Commons register",
-                source.id
-            );
             let path = format!("/versions/{index}/fields");
             let fields = version.fields.unwrap_or_default();
             let mut groups = vec![project_group(&fields, &path, false)?];
             donor_groups(&fields, &path, &mut groups)?;
             Ok(CapturedVersion::new(
-                u32::try_from(index)?,
+                index,
                 version.register.id,
-                NaiveDate::parse_from_str(&version.register.published_date, "%Y-%m-%d")?,
-                version
-                    .registration_date
-                    .as_deref()
-                    .map(|date| NaiveDate::parse_from_str(date, "%Y-%m-%d"))
-                    .transpose()?,
+                version.register.published_date,
+                version.registration_date,
                 groups,
             )?)
         })
-        .collect::<anyhow::Result<Vec<_>>>()?;
+        .collect::<Result<Vec<_>, ApiError>>()?;
     Ok(CapturedDeclaration::new(
-        member,
-        source.registrant.member_detail.id,
         DeclarationId::new(source.id)?,
         source
             .parent_interest_id
@@ -254,7 +161,7 @@ fn decode_declaration(
         source.category.name,
         versions,
         fetched_at,
-        raw.get().to_owned(),
+        source_json,
     )?)
 }
 
@@ -262,14 +169,14 @@ fn donor_groups(
     fields: &[SourceField],
     path: &str,
     groups: &mut Vec<SourceFieldGroup>,
-) -> anyhow::Result<()> {
+) -> Result<(), ApiError> {
     for (field_index, field) in fields.iter().enumerate() {
         for (group_index, nested) in field.values.iter().flatten().enumerate() {
-            let nested_path = format!("{path}/{field_index}/values/{group_index}");
+            let path = format!("{path}/{field_index}/values/{group_index}");
             if field.name == "Donors" {
-                groups.push(project_group(nested, &nested_path, true)?);
+                groups.push(project_group(nested, &path, true)?);
             }
-            donor_groups(nested, &nested_path, groups)?;
+            donor_groups(nested, &path, groups)?;
         }
     }
     Ok(())
@@ -279,68 +186,30 @@ fn project_group(
     fields: &[SourceField],
     path: &str,
     donor: bool,
-) -> anyhow::Result<SourceFieldGroup> {
-    let field = |name: &str| -> anyhow::Result<Option<&SourceField>> {
-        let mut matches = fields.iter().filter(|field| field.name == name);
-        let found = matches.next();
-        ensure!(
-            matches.next().is_none(),
-            "{path}: repeated source field {name}"
-        );
-        Ok(found)
-    };
-    let text = |name| -> anyhow::Result<Option<String>> {
-        field(name)?
-            .and_then(|field| field.value.as_ref())
-            .map(|raw| {
-                serde_json::from_str::<String>(raw.get())
-                    .with_context(|| format!("{path}: {name} must contain source text"))
-            })
-            .transpose()
-    };
-    let amount_field = field("Value")?;
-    let amount = amount_field
-        .and_then(|field| field.value.as_ref())
-        .map(|raw| match serde_json::from_str::<Value>(raw.get())? {
-            Value::String(value) => Ok(value),
-            Value::Number(_) => Ok(raw.get().to_owned()),
-            _ => anyhow::bail!("{path}: Value must contain source decimal text or a JSON number"),
-        })
-        .transpose()?;
-    let currency = amount_field
+) -> Result<SourceFieldGroup, ApiError> {
+    let values = fields
+        .iter()
+        .map(|field| (field.name.clone(), field.value.clone()))
+        .collect();
+    let funding: FundingFields = serde_json::from_value(Value::Object(values))?;
+    let currency = fields
+        .iter()
+        .find(|field| field.name == "Value")
         .and_then(|field| field.type_info.as_ref())
-        .and_then(|info| info.get("currencyCode"))
-        .filter(|value| !value.is_null())
-        .map(|value| {
-            value
-                .as_str()
-                .map(str::to_owned)
-                .with_context(|| format!("{path}: currency must contain source text"))
-        })
-        .transpose()?;
-    let different = field("IsUltimatePayerDifferent")?
-        .and_then(|field| field.value.as_ref())
-        .map(|raw| serde_json::from_str::<bool>(raw.get()))
-        .transpose()?;
-    let donor_name = match text("DonorName")? {
-        Some(name) => Some(name),
-        None if donor => text("Name")?,
-        None => None,
-    };
+        .and_then(|info| info.currency_code.clone());
+    let donor_name = funding
+        .donor_name
+        .or(if donor { funding.name } else { None });
     Ok(SourceFieldGroup::new(
         path.to_string(),
-        text("UltimatePayerName")?,
+        funding.ultimate_payer_name,
         donor_name,
-        text("PayerName")?,
-        amount,
+        funding.payer_name,
+        funding.value.map(Amount::into_text),
         currency,
-        text("PaymentType")?,
-        text("DonorStatus")?,
-        text("DonorCompanyIdentifier")?,
-        different,
+        funding.payment_type,
+        funding.donor_status,
+        funding.donor_company_identifier,
+        funding.is_ultimate_payer_different,
     ))
-}
-
-fn api_error(context: &str, error: &anyhow::Error) -> ParliamentApiError {
-    ParliamentApiError::ApiError(format!("{context}: {error:#}"))
 }

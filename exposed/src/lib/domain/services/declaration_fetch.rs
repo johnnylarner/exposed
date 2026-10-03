@@ -1,11 +1,9 @@
 //! Capture declaration evidence using stored member identities and domain-owned ports.
 
-use std::collections::{HashMap, HashSet};
-
 use crate::domain::{
     models::{
         declaration_ingestion::{
-            CapturedDeclaration, DeclarationCaptureOutcome, DeclarationMemberOutput, StoredMember,
+            CapturedDeclaration, DeclarationCaptureOutcome, DeclarationMemberOutput,
         },
         entity_ingestion::EntityIngestionError,
     },
@@ -44,7 +42,7 @@ where
     /// Captures a complete dataset for the cohort read at the start of the run.
     ///
     /// # Errors
-    /// Empty cohorts, existing output, unresolved parents, source and storage failures
+    /// Empty cohorts, existing output, source and storage failures
     /// prevent publication of a completion manifest.
     pub async fn fetch_declarations(
         &self,
@@ -58,7 +56,7 @@ where
         self.storage.begin_declarations().await?;
         let mut outputs = Vec::with_capacity(members.len());
         for member in members {
-            let declarations = self.capture_member(member).await?;
+            let declarations = self.parliament_api.get_declarations(member).await?;
             self.storage
                 .write_raw_declarations(member, &declarations)
                 .await?;
@@ -77,63 +75,5 @@ where
             location,
             outputs,
         ))
-    }
-
-    async fn capture_member(
-        &self,
-        member: StoredMember,
-    ) -> Result<Vec<CapturedDeclaration>, EntityIngestionError> {
-        let mut declarations = self.parliament_api.get_declarations(member).await?;
-        let mut parents = HashMap::new();
-        for declaration in &declarations {
-            if declaration.member() != member
-                || parents
-                    .insert(declaration.id(), declaration.parent_id())
-                    .is_some()
-            {
-                return Err(EntityIngestionError::DataError(format!(
-                    "member {}: duplicate or misattributed declaration {}",
-                    member.parliament_member_id(),
-                    declaration.id().value(),
-                )));
-            }
-        }
-        let mut index = 0;
-        while index < declarations.len() {
-            if let Some(parent_id) = declarations[index].parent_id()
-                && !parents.contains_key(&parent_id)
-            {
-                let parent = self
-                    .parliament_api
-                    .get_declaration(member, parent_id)
-                    .await?;
-                if parent.id() != parent_id || parent.member() != member {
-                    return Err(EntityIngestionError::DataError(format!(
-                        "member {}: invalid parent {} for declaration {}",
-                        member.parliament_member_id(),
-                        parent_id.value(),
-                        declarations[index].id().value(),
-                    )));
-                }
-                parents.insert(parent_id, parent.parent_id());
-                declarations.push(parent);
-            }
-            index += 1;
-        }
-        for declaration in &declarations {
-            let mut visited = HashSet::new();
-            let mut next = Some(declaration.id());
-            while let Some(id) = next {
-                if !visited.insert(id) {
-                    return Err(EntityIngestionError::DataError(format!(
-                        "member {}: cyclic parent reference at declaration {}",
-                        member.parliament_member_id(),
-                        id.value(),
-                    )));
-                }
-                next = parents[&id];
-            }
-        }
-        Ok(declarations)
     }
 }

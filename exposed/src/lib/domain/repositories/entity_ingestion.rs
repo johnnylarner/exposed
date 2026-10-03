@@ -13,7 +13,8 @@ pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
         &self,
     ) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
 
-    /// Finalizes one member's source data before publishing it, without replacing output.
+    /// Associates the returned declarations with this member and publishes their source data.
+    /// A declaration can appear in multiple members' outputs.
     /// Empty input produces a valid empty dataset partition. Call after `begin_declarations`.
     fn write_raw_declarations(
         &self,
@@ -22,7 +23,7 @@ pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
     ) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
 
     /// Publishes the completion manifest and returns the dataset location.
-    /// Call only after every selected member and required parent has been captured and written.
+    /// Call after every selected member's complete API response has been written.
     fn complete_declarations(
         &self,
         members: &[DeclarationMemberOutput],

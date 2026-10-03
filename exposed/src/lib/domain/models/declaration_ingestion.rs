@@ -62,10 +62,9 @@ impl DeclarationId {
     }
 }
 
-/// Complete source evidence for one declaration belonging to a stored member.
+/// Source evidence for a declaration that can be associated with multiple stored members.
 #[derive(Clone, Debug)]
 pub struct CapturedDeclaration {
-    member: StoredMember,
     id: DeclarationId,
     parent_id: Option<DeclarationId>,
     category_id: NonZeroU32,
@@ -76,14 +75,11 @@ pub struct CapturedDeclaration {
 }
 
 impl CapturedDeclaration {
-    /// Checks source identities and association without interpreting funding values.
+    /// Captures source evidence without assigning an exclusive declaring member.
     ///
     /// # Errors
-    /// Rejects missing identities, a different member, self-parenting, or no versions.
-    #[allow(clippy::too_many_arguments)]
+    /// Rejects a missing category identity or no versions.
     pub fn new(
-        member: StoredMember,
-        source_member_id: u32,
         id: DeclarationId,
         parent_id: Option<DeclarationId>,
         category_id: u32,
@@ -92,21 +88,12 @@ impl CapturedDeclaration {
         fetched_at: DateTime<Utc>,
         source_json: String,
     ) -> Result<Self, EntityIngestionError> {
-        if member.parliament_member_id() != source_member_id {
-            return Err(invalid(
-                "declaration belongs to a different Parliament member",
-            ));
-        }
-        if parent_id == Some(id) {
-            return Err(invalid("declaration cannot be its own parent"));
-        }
         if versions.is_empty() {
             return Err(invalid(
                 "declaration must contain at least one source version",
             ));
         }
         Ok(Self {
-            member,
             id,
             parent_id,
             category_id: positive_id(category_id)?,
@@ -116,19 +103,13 @@ impl CapturedDeclaration {
             source_json,
         })
     }
-    /// Stored member association.
-    #[must_use]
-    pub const fn member(&self) -> StoredMember {
-        self.member
-    }
-
     /// Source declaration identity.
     #[must_use]
     pub const fn id(&self) -> DeclarationId {
         self.id
     }
 
-    /// Required source parent, when present.
+    /// Parent reference as supplied by the source.
     #[must_use]
     pub const fn parent_id(&self) -> Option<DeclarationId> {
         self.parent_id
@@ -368,7 +349,7 @@ impl DeclarationMemberOutput {
         self.member
     }
 
-    /// Distinct declarations, including captured parents.
+    /// Declarations returned for this member.
     #[must_use]
     pub const fn declaration_count(&self) -> usize {
         self.declaration_count
@@ -422,7 +403,7 @@ impl DeclarationCaptureOutcome {
         self.members.len()
     }
 
-    /// Total distinct declarations across member files.
+    /// Total declaration-to-member associations across member files.
     #[must_use]
     pub fn declaration_count(&self) -> usize {
         self.members
