@@ -25,6 +25,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 m.name,
                 m.parliament_member_id,
                 m.party_name,
+                m.party_id,
                 m.latest_membership_from as constituency,
                  word_similarity($1, m.name) as similarity_score,
                 row_number() OVER (ORDER BY word_similarity($1, m.name) DESC) as rank
@@ -48,12 +49,63 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 r.name,
                 r.parliament_member_id as u32,
                 r.party_name,
+                r.party_id as u32,
                 r.constituency,
             );
             let score = SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32));
             Ok((member, score))
         })
         .collect()
+    }
+
+    async fn upsert_members(
+        &self,
+        members: &[ParliamentMember],
+    ) -> Result<(), ParliamentMemberRepoError> {
+        let mut tx = self
+            .pool()
+            .begin()
+            .await
+            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
+
+        for m in members {
+            let res = sqlx::query!(
+                "
+            INSERT INTO 
+                exposed.members (
+                    parliament_member_id, 
+                    name, 
+                    party_id,
+                    party_name,
+                    latest_house,
+                    latest_membership_from,
+                    is_current_commons
+           ) 
+            VALUES ($1,$2,$3,$4,1,$5,true)
+           ON CONFLICT (parliament_member_id) DO UPDATE SET
+               name = EXCLUDED.name, party_id = EXCLUDED.party_id,
+               party_name = EXCLUDED.party_name, latest_house = EXCLUDED.latest_house,
+               latest_membership_from = EXCLUDED.latest_membership_from,
+               is_current_commons = EXCLUDED.is_current_commons
+           RETURNING id
+            ",
+                m.member_id().cast_signed(),
+                m.name(),
+                m.party_id().cast_signed(),
+                m.party_name(),
+                m.constituency()
+            )
+            .fetch_one(&mut *tx)
+            .await;
+
+            if let Err(e) = res {
+                println!("{e}");
+            }
+        }
+        tx.commit()
+            .await
+            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
+        Ok(())
     }
 }
 

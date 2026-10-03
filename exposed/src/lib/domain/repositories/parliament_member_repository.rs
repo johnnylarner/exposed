@@ -14,6 +14,12 @@ pub trait ParliamentMemberRepo: Clone + Send + Sync + 'static {
     ) -> impl Future<
         Output = Result<Vec<(ParliamentMember, SearchSimilarity)>, ParliamentMemberRepoError>,
     > + Send;
+
+    /// Inserts members or updates existing members with matching Parliament IDs.
+    fn upsert_members(
+        &self,
+        members: &[ParliamentMember],
+    ) -> impl Future<Output = Result<(), ParliamentMemberRepoError>> + Send;
 }
 
 /// Errors that can occur when interacting with the repo

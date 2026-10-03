@@ -1,8 +1,8 @@
 -- Date-only source values are stored at midnight UTC.
 CREATE SCHEMA IF NOT EXISTS exposed;
-CREATE EXTENSION pg_trgm WITH SCHEMA exposed;
+CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA exposed;
 
-CREATE TABLE exposed.parliament_terms (
+CREATE TABLE IF NOT EXISTS exposed.parliament_terms (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     term_start TIMESTAMPTZ NOT NULL UNIQUE,
     term_end TIMESTAMPTZ,
@@ -12,7 +12,7 @@ CREATE TABLE exposed.parliament_terms (
         CHECK (term_end IS NULL OR term_end >= term_start)
 );
 
-CREATE TABLE exposed.members (
+CREATE TABLE IF NOT EXISTS exposed.members (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     parliament_member_id INTEGER NOT NULL UNIQUE CHECK (parliament_member_id > 0),
     name TEXT NOT NULL CHECK (length(trim(name)) > 0),
@@ -26,7 +26,7 @@ CREATE TABLE exposed.members (
     CHECK (NOT is_current_commons OR latest_house = 1)
 );
 
-CREATE TABLE exposed.member_terms (
+CREATE TABLE IF NOT EXISTS exposed.member_terms (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     member_id UUID NOT NULL REFERENCES exposed.members (id),
     term_id UUID NOT NULL REFERENCES exposed.parliament_terms (id),
@@ -43,10 +43,10 @@ CREATE TABLE exposed.member_terms (
     CHECK (served_until IS NOT DISTINCT FROM source_end_date)
 );
 
-CREATE INDEX member_terms_term_idx
+CREATE INDEX IF NOT EXISTS member_terms_term_idx
     ON exposed.member_terms (term_id);
 
-CREATE FUNCTION exposed.check_term_service_start()
+CREATE OR REPLACE FUNCTION exposed.check_term_service_start()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
@@ -64,12 +64,12 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER member_terms_check_start
+CREATE OR REPLACE TRIGGER member_terms_check_start
     BEFORE INSERT OR UPDATE ON exposed.member_terms
     FOR EACH ROW
     EXECUTE FUNCTION exposed.check_term_service_start();
 
-CREATE TABLE exposed.declarations (
+CREATE TABLE IF NOT EXISTS exposed.declarations (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     source_declaration_id INTEGER NOT NULL UNIQUE CHECK (source_declaration_id > 0),
     member_id UUID NOT NULL REFERENCES exposed.members (id),
@@ -81,13 +81,13 @@ CREATE TABLE exposed.declarations (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX declarations_member_idx
+CREATE INDEX IF NOT EXISTS declarations_member_idx
     ON exposed.declarations (member_id);
 
 COMMENT ON COLUMN exposed.declarations.registration_date IS
     'Parliament registrationDate at midnight UTC from the latest selected register version; NULL when unavailable';
 
-CREATE TABLE exposed.funders (
+CREATE TABLE IF NOT EXISTS exposed.funders (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     funder_name TEXT NOT NULL UNIQUE,
     funder_kind TEXT,
@@ -103,7 +103,7 @@ COMMENT ON COLUMN exposed.funders.funder_kind IS
 COMMENT ON COLUMN exposed.funders.company_number IS
     'Parliament DonorCompanyIdentifier when DonorStatus is Company; text preserves leading zeros';
 
-CREATE TABLE exposed.funding_entries (
+CREATE TABLE IF NOT EXISTS exposed.funding_entries (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     source_declaration_id INTEGER NOT NULL REFERENCES exposed.declarations (source_declaration_id),
     funder_id UUID REFERENCES exposed.funders (id),
@@ -114,15 +114,15 @@ CREATE TABLE exposed.funding_entries (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX funding_entries_declaration_idx
+CREATE INDEX IF NOT EXISTS funding_entries_declaration_idx
     ON exposed.funding_entries (source_declaration_id);
-CREATE INDEX funding_entries_funder_idx
+CREATE INDEX IF NOT EXISTS funding_entries_funder_idx
     ON exposed.funding_entries (funder_id);
 
 COMMENT ON COLUMN exposed.funding_entries.funder_id IS
     'Shared exact-name funder; NULL when the source does not identify a funder';
 
-CREATE FUNCTION exposed.set_updated_at()
+CREATE OR REPLACE FUNCTION exposed.set_updated_at()
 RETURNS TRIGGER
 LANGUAGE plpgsql
 AS $$
@@ -133,37 +133,37 @@ BEGIN
 END;
 $$;
 
-CREATE TRIGGER parliament_terms_set_updated_at
+CREATE OR REPLACE TRIGGER parliament_terms_set_updated_at
     BEFORE UPDATE ON exposed.parliament_terms
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();
 
-CREATE TRIGGER members_set_updated_at
+CREATE OR REPLACE TRIGGER members_set_updated_at
     BEFORE UPDATE ON exposed.members
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();
 
-CREATE TRIGGER member_terms_set_updated_at
+CREATE OR REPLACE TRIGGER member_terms_set_updated_at
     BEFORE UPDATE ON exposed.member_terms
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();
 
-CREATE TRIGGER declarations_set_updated_at
+CREATE OR REPLACE TRIGGER declarations_set_updated_at
     BEFORE UPDATE ON exposed.declarations
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();
 
-CREATE TRIGGER funding_entries_set_updated_at
+CREATE OR REPLACE TRIGGER funding_entries_set_updated_at
     BEFORE UPDATE ON exposed.funding_entries
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();
 
-CREATE TRIGGER funders_set_updated_at
+CREATE OR REPLACE TRIGGER funders_set_updated_at
     BEFORE UPDATE ON exposed.funders
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)

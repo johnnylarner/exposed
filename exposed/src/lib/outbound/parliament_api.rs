@@ -74,6 +74,7 @@ impl Interface for ParliamentApiClient {
                     m.value.name,
                     m.value.id,
                     m.value.party.name,
+                    m.value.party.id,
                     m.value.membership.membership_from,
                 )
             })
@@ -110,6 +111,7 @@ struct ParliamentMemberItem {
 
 #[derive(Clone, Deserialize)]
 struct PartyDetails {
+    id: u32,
     name: String,
 }
 
