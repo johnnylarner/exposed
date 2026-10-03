@@ -6,6 +6,7 @@ pub struct ParliamentMember {
     name: ParliamentMemberName,
     member_id: MemberId,
     party_name: PartyName,
+    party_id: PartyId,
     constituency: Constituency,
 }
 
@@ -16,12 +17,14 @@ impl ParliamentMember {
         name: String,
         member_id: u32,
         party_name: String,
+        party_id: u32,
         constituency: String,
     ) -> Self {
         Self {
             name: ParliamentMemberName::new(name),
             member_id: MemberId::new(member_id),
             party_name: PartyName::new(party_name),
+            party_id: PartyId::new(party_id),
             constituency: Constituency::new(constituency),
         }
     }
@@ -42,6 +45,12 @@ impl ParliamentMember {
     /// Party name
     pub fn party_name(&self) -> &str {
         &self.party_name.0
+    }
+
+    #[must_use]
+    /// Party ID
+    pub const fn party_id(&self) -> u32 {
+        self.party_id.0
     }
 
     #[must_use]
@@ -86,6 +95,19 @@ impl Constituency {
     /// Creates member constituency
     pub const fn new(name: String) -> Self {
         Self(name)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Member party ID
+#[allow(dead_code)]
+pub struct PartyId(u32);
+
+impl PartyId {
+    #[must_use]
+    /// Creates party ID
+    pub const fn new(id: u32) -> Self {
+        Self(id)
     }
 }
 

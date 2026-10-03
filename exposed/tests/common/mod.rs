@@ -1,11 +1,15 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{fs::File, io::Write, path::PathBuf, str::FromStr};
 
 use exposed::{
-    domain::models::entity_search::EntitySearchRequest, inbound::http::config::ServerConfig,
-    inbound::http::server::serve_exposed,
+    domain::models::entity_search::EntitySearchRequest,
+    inbound::{
+        cli::config::{FetcherConfig, LoaderConfig},
+        http::{config::ServerConfig, server::serve_exposed},
+    },
 };
 use reqwest::StatusCode;
 use serde_json::Value;
+use tempfile::{NamedTempFile, TempDir};
 
 pub struct Guard;
 
@@ -50,4 +54,28 @@ pub async fn start_app() -> anyhow::Result<Guard> {
     });
 
     Ok(Guard)
+}
+
+pub fn cli_fetcher_config(tmp: &TempDir) -> (NamedTempFile<File>, PathBuf) {
+    let config = FetcherConfig {
+        batch_size: 100,
+        data_dir: tmp.path().to_path_buf(),
+    };
+    let contents = rust_yaml::to_string(&config).unwrap();
+    let mut file = tempfile::NamedTempFile::new().unwrap();
+    file.write_all(contents.as_bytes()).unwrap();
+    let path = file.path().to_path_buf();
+    (file, path)
+}
+
+pub fn cli_loader_config(tmp: &TempDir, conn_str: &str) -> (NamedTempFile<File>, PathBuf) {
+    let config = LoaderConfig {
+        connection_string: conn_str.to_string(),
+        data_dir: tmp.path().to_path_buf(),
+    };
+    let contents = rust_yaml::to_string(&config).unwrap();
+    let mut file = tempfile::NamedTempFile::new().unwrap();
+    file.write_all(contents.as_bytes()).unwrap();
+    let path = file.path().to_path_buf();
+    (file, path)
 }

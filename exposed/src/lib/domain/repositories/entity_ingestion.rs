@@ -1,11 +1,15 @@
 use thiserror::Error;
 
-use crate::domain::models::parliament_member::ParliamentMember;
+use crate::domain::models::{entity_ingestion::IngestionKey, parliament_member::ParliamentMember};
 
 /// Set of I/O methods for data in the entity search pipeline
 pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
+    /// Key used for storage
+    fn ingestion_key(&self) -> IngestionKey;
     /// Reads raw data persisted from the parliament API    
-    fn read_raw_data(&self) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
+    fn read_raw_members(
+        &self,
+    ) -> impl Future<Output = Result<Vec<ParliamentMember>, EntitySearchPipelineError>> + Send;
     /// Reads cleaned data
     fn read_cleaned_data(
         &self,

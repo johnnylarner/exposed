@@ -117,11 +117,11 @@ mod merge_scores {
         let funders = Vec::new();
         let mps = vec![
             (
-                ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
+                ParliamentMember::new("johnny larner".into(), 1, String::new(), 1, String::new()),
                 SearchSimilarity::from(1_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 1, String::new(), String::new()),
+                ParliamentMember::new("hades".into(), 1, String::new(), 1, String::new()),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -133,6 +133,7 @@ mod merge_scores {
                 "johnny larner".into(),
                 1,
                 String::new(),
+                1,
                 String::new(),
             ))
         );
@@ -143,6 +144,7 @@ mod merge_scores {
                 "hades".into(),
                 1,
                 String::new(),
+                1,
                 String::new(),
             ))
         );
@@ -162,11 +164,11 @@ mod merge_scores {
         ];
         let mps = vec![
             (
-                ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
+                ParliamentMember::new("johnny larner".into(), 1, String::new(), 1, String::new()),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 1, String::new(), String::new()),
+                ParliamentMember::new("hades".into(), 1, String::new(), 1, String::new()),
                 SearchSimilarity::from(3_f32),
             ),
         ];
@@ -179,6 +181,7 @@ mod merge_scores {
                 "johnny larner".into(),
                 1,
                 String::new(),
+                1,
                 String::new(),
             ))
         );
@@ -192,6 +195,7 @@ mod merge_scores {
                 "hades".into(),
                 1,
                 String::new(),
+                1,
                 String::new(),
             ))
         );
@@ -214,7 +218,7 @@ mod merge_scores {
             ),
         ];
         let mps = vec![(
-            ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
+            ParliamentMember::new("johnny larner".into(), 1, String::new(), 1, String::new()),
             SearchSimilarity::from(4_f32),
         )];
 
@@ -226,6 +230,7 @@ mod merge_scores {
                 "johnny larner".into(),
                 1,
                 String::new(),
+                1,
                 String::new(),
             ))
         );
@@ -247,11 +252,11 @@ mod merge_scores {
         )];
         let mps = vec![
             (
-                ParliamentMember::new("johnny larner".into(), 1, String::new(), String::new()),
+                ParliamentMember::new("johnny larner".into(), 1, String::new(), 1, String::new()),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 1, String::new(), String::new()),
+                ParliamentMember::new("hades".into(), 1, String::new(), 1, String::new()),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -263,6 +268,7 @@ mod merge_scores {
                 "johnny larner".into(),
                 1,
                 String::new(),
+                1,
                 String::new(),
             ))
         );
@@ -272,6 +278,7 @@ mod merge_scores {
                 "hades".into(),
                 1,
                 String::new(),
+                1,
                 String::new(),
             ))
         );

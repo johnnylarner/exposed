@@ -2,22 +2,23 @@
 
 use std::{path::PathBuf, str::FromStr};
 
-use chrono::Local;
-use clap::{Args, Subcommand};
+use clap::{Parser, Subcommand};
 
 use crate::{
     domain::{
-        models::entity_ingestion::{EntityIngestionRequest, MemberIngestionStage},
-        services::entity_ingestion::{EntityFetcherService, Service},
+        models::entity_ingestion::{EntityIngestionRequest, IngestionKey, MemberIngestionStage},
+        services::entity_ingestion::{
+            EntityFetcherService, EntityIngesterService, FetcherService, IngesterService,
+        },
     },
-    inbound::cli::config::FetcherConfig,
-    outbound::{ExposedDataPipeline, ParliamentApiClient},
+    inbound::cli::config::{FetcherConfig, LoaderConfig},
+    outbound::{ExposedDataPipeline, ExposedDatabase, ParliamentApiClient},
 };
 
 pub mod config;
 
 /// CLI Data Args
-#[derive(Args)]
+#[derive(Parser)]
 pub struct DataArgs {
     #[command(subcommand)]
     command: DataCommands,
@@ -27,7 +28,12 @@ pub struct DataArgs {
 #[derive(Subcommand)]
 #[allow(missing_docs)]
 pub enum DataCommands {
-    Members { stage: String, config: PathBuf },
+    Members {
+        stage: String,
+        config: PathBuf,
+        #[arg(long)]
+        ingestion_key: Option<IngestionKey>,
+    },
 }
 
 /// Entry point for CLI commands
@@ -39,17 +45,36 @@ pub enum DataCommands {
 /// - Service level failures
 pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
     match args.command {
-        DataCommands::Members { stage, config } => {
+        DataCommands::Members {
+            stage,
+            config,
+            ingestion_key,
+        } => {
             let stage = MemberIngestionStage::from_str(&stage)?;
+            let ingestion_key = ingestion_key.unwrap_or_default();
             match stage {
                 MemberIngestionStage::Fetch => {
                     let config = FetcherConfig::try_from(&config)?;
                     let api = ParliamentApiClient::new(config.batch_size)?;
-                    let fs = ExposedDataPipeline::new_with_key(&config.key, Local::now().into())?;
-                    let service = Service::new(fs, api);
+                    let fs = ExposedDataPipeline::new_with_ingestion_key(
+                        &config.data_dir,
+                        ingestion_key,
+                    )?;
+                    let service = FetcherService::new(fs, api);
 
                     let req = EntityIngestionRequest {};
                     service.fetch_members(&req).await?;
+                }
+                MemberIngestionStage::Load => {
+                    let config = LoaderConfig::try_from(&config)?;
+                    let fs = ExposedDataPipeline::new_with_ingestion_key(
+                        &config.data_dir,
+                        ingestion_key,
+                    )?;
+                    let db = ExposedDatabase::new(&config.connection_string).await;
+                    let service = IngesterService::new(fs, db);
+
+                    service.load_members().await?;
                 }
             }
         }

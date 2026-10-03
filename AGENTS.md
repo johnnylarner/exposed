@@ -15,6 +15,7 @@ The goal of this project is to make declaration data easy to search, browse and 
   - Service layer abstractions
 
 - Use type driven development, $code-base-design and $hexagonal-architecture always.
+- Interactions with the database must use `sqlx` macros for compile-time query verification.
 
 ## Frontend coding policy
 
