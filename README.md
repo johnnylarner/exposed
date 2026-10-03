@@ -40,68 +40,6 @@ The schema uses a single development baseline. See the
 database or editing the baseline. See the
 [funder identification rules](ingest/README.md#funder-identification) for imported funding.
 
-## Capture declarations with the Rust CLI
-
-Once members are loaded into PostgreSQL, capture their available Commons
-declarations with:
-
-```sh
-cargo run -- data declarations fetch exposed/config/declarations-dev.yaml
-```
-
-The configuration supplies `connection_string`, `data_dir`, and a nonzero
-`batch_size`. The command reads all stored members, including former MPs, once
-at startup. An empty cohort returns an instruction to load members first. The
-existing `data members fetch` and `data members load` commands remain available.
-To choose the run identity, append `--ingestion-key <UUID>`; otherwise a new key
-is generated for the output directory.
-
-Each run writes one dataset at
-`<data_dir>/<ingestion_key>/raw/declarations/`, partitioned into
-`<database-member-UUID>.parquet` files. Each row represents a declaration made by
-that MP and contains a `funding_entries` list. A declaration shared by several MPs
-appears once in each member's file. Nonfinancial declarations have an empty
-funding list; members without declarations receive an empty file.
-
-The adapter selects the version with the latest register publication date, using
-register ID to break a date tie. Only that publication supplies the funding
-entries. Names, exact amount text, currency, payment type, donor status, company
-identifiers, and ultimate-payer flags retain their source values. Missing values
-remain null. Calendar dates use Parquet dates, and `fetched_at` is a UTC timestamp.
-The complete API response for the declaration remains in `source_json` as source
-evidence.
-
-`declaration_id` identifies the source declaration for a future refresh, and
-`register_id` records its selected publication. The
-[Parliament API schema](https://interests-api.parliament.uk/swagger/v2/swagger.json)
-provides no separate version or donor-entry ID. A future refresh can replace a
-member's declaration and funding entries together using these source references.
-
-Each storage call creates and closes one member's Parquet file. The CLI returns
-success after every member has been saved. If a run fails, files already written
-remain; run again with a new ingestion key. Existing files are not overwritten.
-
-The declaration-fetch service reads the stored cohort and saves each member's
-complete results. The Parliament adapter owns requests, pagination, JSON
-deserialization and latest-publication selection; the PostgreSQL adapter owns the
-member query; and the filesystem adapter creates, writes and closes Parquet
-files. Each page is requested once, and request or parsing errors propagate to the caller.
-Exhausted pagination is treated as complete for that MP. Expired declarations and
-parent references are retained. Cleaning, attribution, funder resolution and
-database publication remain later steps.
-
-Run the Rust checks with a migrated PostgreSQL database available through
-`DATABASE_URL` (the root `.env` is also supported). Integration tests require
-access to Parliament's live APIs; the existing search test uses the preloaded
-database configured in `exposed/config/server-test.yaml`.
-
-```sh
-cargo fmt --all -- --check
-cargo check --all-targets
-cargo clippy --all-targets -- -D warnings
-cargo test
-```
-
 ## Develop the application with Docker Compose
 
 Initialize the database using the setup above before starting the app. SQLx checks
