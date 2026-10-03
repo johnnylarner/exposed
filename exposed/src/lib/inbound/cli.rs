@@ -62,8 +62,7 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
             let DeclarationIngestionStage::Fetch = DeclarationIngestionStage::from_str(&stage)?;
             let config = DeclarationFetcherConfig::try_from(&config)?;
             let api = ParliamentApiClient::new(config.batch_size)?;
-            let pool = sqlx::PgPool::connect(&config.connection_string).await?;
-            let db = ExposedDatabase::from(pool);
+            let db = ExposedDatabase::new(&config.connection_string).await;
             let fs = ExposedDataPipeline::new_with_ingestion_key(
                 &config.data_dir,
                 ingestion_key.unwrap_or_default(),

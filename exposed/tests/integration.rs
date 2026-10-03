@@ -77,7 +77,8 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
     .unwrap();
     run_cli(args).await.unwrap();
 
-    let db = ExposedDatabase::from(pool);
+    let url = pool.connect_options().to_url_lossy();
+    let db = ExposedDatabase::new(url.as_str()).await;
 
     let params =
         EntitySearchRequest::new_with_strictness("John McDonnell".into(), 10, 0.8).unwrap();
