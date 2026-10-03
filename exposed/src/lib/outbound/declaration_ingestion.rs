@@ -24,6 +24,9 @@ use crate::domain::{
     repositories::entity_ingestion::EntitySearchPipelineError,
 };
 
+#[cfg(test)]
+mod tests;
+
 impl ExposedDataPipeline {
     fn declarations_path(&self) -> PathBuf {
         self.raw_path().join("declarations")

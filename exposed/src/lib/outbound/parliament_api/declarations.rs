@@ -18,6 +18,9 @@ use crate::domain::{
 
 const INTERESTS_URL: &str = "https://interests-api.parliament.uk/api/v2/Interests";
 
+#[cfg(test)]
+mod tests;
+
 impl ParliamentApiClient {
     pub(super) async fn capture_declarations(
         &self,

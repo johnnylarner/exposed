@@ -11,6 +11,9 @@ use reqwest::StatusCode;
 use serde_json::Value;
 use tempfile::{NamedTempFile, TempDir};
 
+mod declarations;
+pub use declarations::{DeclarationFunding, read_declaration_funding};
+
 pub struct Guard;
 
 pub async fn search_entities(params: &EntitySearchRequest) -> anyhow::Result<Vec<Value>> {
