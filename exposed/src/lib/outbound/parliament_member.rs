@@ -3,8 +3,8 @@
 use crate::{
     domain::{
         models::{
-            entity_search::EntitySearchRequest, parliament_member::ParliamentMember,
-            search_similarity::SearchSimilarity,
+            declaration_ingestion::StoredMember, entity_search::EntitySearchRequest,
+            parliament_member::ParliamentMember, search_similarity::SearchSimilarity,
         },
         repositories::parliament_member_repository::{
             ParliamentMemberRepo, ParliamentMemberRepoError,
@@ -14,6 +14,23 @@ use crate::{
 };
 
 impl ParliamentMemberRepo for ExposedDatabase {
+    async fn get_stored_members(&self) -> Result<Vec<StoredMember>, ParliamentMemberRepoError> {
+        sqlx::query!(
+            "SELECT id, parliament_member_id FROM exposed.members ORDER BY parliament_member_id, id"
+        )
+        .fetch_all(self.pool())
+        .await
+        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?
+        .into_iter()
+        .map(|row| {
+            let parliament_id = u32::try_from(row.parliament_member_id)
+                .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
+            StoredMember::new(row.id, parliament_id)
+                .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))
+        })
+        .collect()
+    }
+
     #[allow(clippy::cast_sign_loss)]
     async fn get_members_by_text_search_score(
         &self,

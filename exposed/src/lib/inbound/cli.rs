@@ -6,12 +6,15 @@ use clap::{Parser, Subcommand};
 
 use crate::{
     domain::{
-        models::entity_ingestion::{EntityIngestionRequest, IngestionKey, MemberIngestionStage},
+        models::entity_ingestion::{
+            DeclarationIngestionStage, EntityIngestionRequest, IngestionKey, MemberIngestionStage,
+        },
+        services::declaration_fetch::DeclarationFetcherService,
         services::entity_ingestion::{
             EntityFetcherService, EntityIngesterService, FetcherService, IngesterService,
         },
     },
-    inbound::cli::config::{FetcherConfig, LoaderConfig},
+    inbound::cli::config::{DeclarationFetcherConfig, FetcherConfig, LoaderConfig},
     outbound::{ExposedDataPipeline, ExposedDatabase, ParliamentApiClient},
 };
 
@@ -28,6 +31,12 @@ pub struct DataArgs {
 #[derive(Subcommand)]
 #[allow(missing_docs)]
 pub enum DataCommands {
+    Declarations {
+        stage: String,
+        config: PathBuf,
+        #[arg(long)]
+        ingestion_key: Option<IngestionKey>,
+    },
     Members {
         stage: String,
         config: PathBuf,
@@ -45,6 +54,31 @@ pub enum DataCommands {
 /// - Service level failures
 pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
     match args.command {
+        DataCommands::Declarations {
+            stage,
+            config,
+            ingestion_key,
+        } => {
+            let DeclarationIngestionStage::Fetch = DeclarationIngestionStage::from_str(&stage)?;
+            let config = DeclarationFetcherConfig::try_from(&config)?;
+            let api = ParliamentApiClient::new(config.batch_size)?;
+            let pool = sqlx::PgPool::connect(&config.connection_string).await?;
+            let db = ExposedDatabase::from(pool);
+            let fs = ExposedDataPipeline::new_with_ingestion_key(
+                &config.data_dir,
+                ingestion_key.unwrap_or_default(),
+            )?;
+            let service = DeclarationFetcherService::new(db, api, fs);
+            let outcome = service.fetch_declarations().await?;
+            println!(
+                "Completed declaration capture {}: {} members, {} declarations, {} rows at {}",
+                outcome.ingestion_key(),
+                outcome.member_count(),
+                outcome.declaration_count(),
+                outcome.row_count(),
+                outcome.output_location(),
+            );
+        }
         DataCommands::Members {
             stage,
             config,

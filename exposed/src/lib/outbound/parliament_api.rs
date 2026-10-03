@@ -1,22 +1,29 @@
 //! Minimal client for the UK parliament API
 
+use std::{num::NonZeroU8, time::Duration};
+
 use serde::Deserialize;
 use thiserror::Error;
 
 use reqwest::Client;
 
 use crate::domain::{
-    models::parliament_member::ParliamentMember,
+    models::{
+        declaration_ingestion::{CapturedDeclaration, DeclarationId, StoredMember},
+        parliament_member::ParliamentMember,
+    },
     repositories::parliament_api::{ParliamentApi as Interface, ParliamentApiError},
 };
 
 const BASE_URL: &str = "https://members-api.parliament.uk";
 
+mod declarations;
+
 /// Parliament API implementation
 #[derive(Clone)]
 pub struct ParliamentApiClient {
     client: Client,
-    batch_size: u8,
+    batch_size: NonZeroU8,
 }
 
 impl ParliamentApiClient {
@@ -25,7 +32,11 @@ impl ParliamentApiClient {
     /// # Errors
     /// - Client error
     pub fn new(batch_size: u8) -> Result<Self, ApiError> {
+        let batch_size = NonZeroU8::new(batch_size)
+            .ok_or_else(|| ApiError::BuilderError("batch size must be nonzero".into()))?;
         let client = Client::builder()
+            .connect_timeout(Duration::from_secs(10))
+            .timeout(Duration::from_secs(30))
             .build()
             .map_err(|e| ApiError::BuilderError(e.to_string()))?;
 
@@ -81,8 +92,27 @@ impl Interface for ParliamentApiClient {
             .collect())
     }
 
-    async fn get_declarations_for_sitting_members(&self) -> Result<(), ParliamentApiError> {
-        todo!("still needs doing")
+    async fn get_declarations(
+        &self,
+        member: StoredMember,
+    ) -> Result<Vec<CapturedDeclaration>, ParliamentApiError> {
+        self.capture_declarations(member, None).await
+    }
+
+    async fn get_declaration(
+        &self,
+        member: StoredMember,
+        id: DeclarationId,
+    ) -> Result<CapturedDeclaration, ParliamentApiError> {
+        let mut declarations = self.capture_declarations(member, Some(id)).await?;
+        if declarations.len() != 1 || declarations[0].id() != id {
+            return Err(ParliamentApiError::ApiError(format!(
+                "member {}: required parent {} was not returned with matching identity",
+                member.parliament_member_id(),
+                id.value(),
+            )));
+        }
+        Ok(declarations.remove(0))
     }
 }
 

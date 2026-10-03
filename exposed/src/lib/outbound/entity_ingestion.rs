@@ -6,7 +6,11 @@ use parquet::arrow::{ParquetRecordBatchStreamBuilder, async_writer::AsyncArrowWr
 
 use crate::{
     domain::{
-        models::{entity_ingestion::IngestionKey, parliament_member::ParliamentMember},
+        models::{
+            declaration_ingestion::{CapturedDeclaration, DeclarationMemberOutput, StoredMember},
+            entity_ingestion::IngestionKey,
+            parliament_member::ParliamentMember,
+        },
         repositories::entity_ingestion::{EntityIngestionStorage, EntitySearchPipelineError},
     },
     outbound::file_system::{ExposedDataPipeline, members_schema},
@@ -14,6 +18,25 @@ use crate::{
 use futures::TryStreamExt;
 
 impl EntityIngestionStorage for ExposedDataPipeline {
+    async fn begin_declarations(&self) -> Result<(), EntitySearchPipelineError> {
+        self.begin_declaration_capture().await
+    }
+
+    async fn write_raw_declarations(
+        &self,
+        member: StoredMember,
+        declarations: &[CapturedDeclaration],
+    ) -> Result<(), EntitySearchPipelineError> {
+        self.write_declaration_partition(member, declarations).await
+    }
+
+    async fn complete_declarations(
+        &self,
+        members: &[DeclarationMemberOutput],
+    ) -> Result<String, EntitySearchPipelineError> {
+        self.finish_declaration_capture(members).await
+    }
+
     fn ingestion_key(&self) -> IngestionKey {
         self.key().into()
     }

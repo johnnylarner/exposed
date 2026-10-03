@@ -1,6 +1,9 @@
 use thiserror::Error;
 
-use crate::domain::models::parliament_member::ParliamentMember;
+use crate::domain::models::{
+    declaration_ingestion::{CapturedDeclaration, DeclarationId, StoredMember},
+    parliament_member::ParliamentMember,
+};
 
 /// Allows users to interact with the UK Parliament API.
 pub trait ParliamentApi: Clone + Send + Sync + 'static {
@@ -8,10 +11,19 @@ pub trait ParliamentApi: Clone + Send + Sync + 'static {
     fn get_sitting_members(
         &self,
     ) -> impl Future<Output = Result<Vec<ParliamentMember>, ParliamentApiError>> + Send;
-    /// Returns declarations for sitting members
-    fn get_declarations_for_sitting_members(
+    /// All available Commons declarations for this stored member, including expired records.
+    /// Includes every returned version and returns children as separate declarations.
+    fn get_declarations(
         &self,
-    ) -> impl Future<Output = Result<(), ParliamentApiError>> + Send;
+        member: StoredMember,
+    ) -> impl Future<Output = Result<Vec<CapturedDeclaration>, ParliamentApiError>> + Send;
+
+    /// Captures a required parent with all available versions; fails if absent or misattributed.
+    fn get_declaration(
+        &self,
+        member: StoredMember,
+        id: DeclarationId,
+    ) -> impl Future<Output = Result<CapturedDeclaration, ParliamentApiError>> + Send;
 }
 
 /// Errors that can occur when interacting with the repo

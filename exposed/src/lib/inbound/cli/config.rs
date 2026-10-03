@@ -5,6 +5,26 @@ use thiserror::Error;
 
 use serde::{Deserialize, Serialize};
 
+/// Configuration for capturing declarations for the stored member cohort.
+#[derive(Serialize, Deserialize)]
+pub struct DeclarationFetcherConfig {
+    /// Existing application database connection.
+    pub connection_string: String,
+    /// Root directory for ingestion datasets.
+    pub data_dir: PathBuf,
+    /// Nonzero API page size; validated when constructing the HTTP adapter.
+    pub batch_size: u8,
+}
+
+impl TryFrom<&PathBuf> for DeclarationFetcherConfig {
+    type Error = CliConfigError;
+
+    fn try_from(value: &PathBuf) -> Result<Self, Self::Error> {
+        let raw = read_to_string(value)?;
+        Ok(rust_yaml::from_str(&raw)?)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 /// Config for the exposed application
 pub struct FetcherConfig {

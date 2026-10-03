@@ -40,6 +40,59 @@ The schema uses a single development baseline. See the
 database or editing the baseline. See the
 [funder identification rules](ingest/README.md#funder-identification) for imported funding.
 
+## Capture declarations with the Rust CLI
+
+Once members are loaded into PostgreSQL, capture their available Commons
+declarations with:
+
+```sh
+cargo run -- data declarations fetch exposed/config/declarations-dev.yaml
+```
+
+The configuration supplies `connection_string`, `data_dir`, and a nonzero
+`batch_size`. The command reads all stored members, including former MPs, once
+at startup. An empty cohort returns an instruction to load members first. The
+existing `data members fetch` and `data members load` commands remain available.
+To choose the run identity, append `--ingestion-key <UUID>`; otherwise a new key
+is generated and printed with the completed output location and counts.
+
+Each run writes one logical dataset at
+`<data_dir>/<ingestion_key>/raw/declarations/`, partitioned into
+`<database-member-UUID>.parquet` files. Members without declarations receive a
+valid empty file. `manifest.json` identifies the completed run, every selected
+member and file, and separate declaration and flattened-row counts. A directory
+without this manifest is incomplete. Existing declaration output is protected;
+retry a failed run with a new ingestion key.
+
+The dataset retains expired interests, all returned versions, nonfinancial
+declarations, and referenced parent declarations. Every version has a top-level
+row plus a row for each nested `Donors` group, identified by `version_index` and
+the `source_field_path` JSON pointer. Names, exact amount text, currency, payment
+type, donor status, company identifiers, and ultimate-payer flags stay within
+their original source groups. Missing optional values remain null. Calendar
+dates use Parquet dates, and `fetched_at` is a UTC timestamp. Complete original
+`source_json`, including unprojected fields, is repeated on the declaration's rows.
+
+The declaration-fetch service owns cohort and parent acquisition. The Parliament
+adapter owns requests, pagination, decoding and projection; the PostgreSQL
+adapter owns the member query; and the filesystem adapter owns Parquet and atomic
+file publication. The HTTP client uses the official Interests API with timeouts
+and at most three attempts for transient failures. A capture reflects the API
+data available during the run. Cleaning, version selection, attribution, funder
+resolution and database publication are later steps that can use the saved data.
+
+Run the Rust checks with a migrated PostgreSQL database available through
+`DATABASE_URL` (the root `.env` is also supported). Integration tests require
+access to Parliament's live APIs; the existing search test uses the preloaded
+database configured in `exposed/config/server-test.yaml`.
+
+```sh
+cargo fmt --all -- --check
+cargo check --all-targets
+cargo clippy --all-targets -- -D warnings
+cargo test
+```
+
 ## Develop the application with Docker Compose
 
 Initialize the database using the setup above before starting the app. SQLx checks
