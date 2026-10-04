@@ -42,10 +42,26 @@ impl ExposedDataPipeline {
             AsyncArrowWriter::try_new(file, schema.clone(), None).map_err(write_error)?;
         let records = declarations
             .iter()
-            .map(|declaration| {
+            .flat_map(|declaration| {
+                if declaration.funding_entries().is_empty() {
+                    return vec![DeclarationRecord::new_without_funding_entry(
+                        member.member_id().to_string(),
+                        member.parliament_member_id(),
+                        declaration.id().value(),
+                        declaration.parent_id().map(DeclarationId::value),
+                        declaration.category_id(),
+                        declaration.category_name().to_string(),
+                        declaration.register_id(),
+                        declaration.register_published_date(),
+                        declaration.registration_date(),
+                        declaration.fetched_at(),
+                        declaration.source_json().to_string(),
+                    )];
+                }
+
                 let mut subrecords = Vec::with_capacity(declaration.funding_entries().len());
                 for entry in declaration.funding_entries() {
-                    subrecords.push(DeclarationRecord::new(
+                    subrecords.push(DeclarationRecord::new_with_funding_entry(
                         member.member_id().to_string(),
                         member.parliament_member_id(),
                         declaration.id().value(),
@@ -63,6 +79,7 @@ impl ExposedDataPipeline {
                 subrecords
             })
             .collect::<Vec<_>>();
+
         let mut decoder = ReaderBuilder::new(schema)
             .build_decoder()
             .map_err(write_error)?;
@@ -84,20 +101,6 @@ fn write_error(error: impl std::fmt::Display) -> EntitySearchPipelineError {
 }
 
 fn declarations_schema() -> Schema {
-    let funding_entry = DataType::Struct(
-        vec![
-            Field::new("ultimate_payer_name", DataType::Utf8, true),
-            Field::new("donor_name", DataType::Utf8, true),
-            Field::new("payer_name", DataType::Utf8, true),
-            Field::new("amount", DataType::Utf8, true),
-            Field::new("currency", DataType::Utf8, true),
-            Field::new("payment_type", DataType::Utf8, true),
-            Field::new("funder_kind", DataType::Utf8, true),
-            Field::new("company_number", DataType::Utf8, true),
-            Field::new("is_ultimate_payer_different", DataType::Boolean, true),
-        ]
-        .into(),
-    );
     Schema::new(vec![
         Field::new("member_id", DataType::Utf8, false),
         Field::new("parliament_member_id", DataType::UInt32, false),
@@ -108,11 +111,15 @@ fn declarations_schema() -> Schema {
         Field::new("register_id", DataType::UInt32, false),
         Field::new("register_published_date", DataType::Date32, false),
         Field::new("registration_date", DataType::Date32, true),
-        Field::new_list(
-            "funding_entries",
-            Field::new("item", funding_entry, false),
-            false,
-        ),
+        Field::new("ultimate_payer_name", DataType::Utf8, true),
+        Field::new("donor_name", DataType::Utf8, true),
+        Field::new("payer_name", DataType::Utf8, true),
+        Field::new("amount", DataType::Utf8, true),
+        Field::new("currency", DataType::Utf8, true),
+        Field::new("payment_type", DataType::Utf8, true),
+        Field::new("funder_kind", DataType::Utf8, true),
+        Field::new("company_number", DataType::Utf8, true),
+        Field::new("is_ultimate_payer_different", DataType::Boolean, true),
         Field::new(
             "fetched_at",
             DataType::Timestamp(TimeUnit::Microsecond, Some("+00:00".into())),
@@ -133,14 +140,15 @@ struct DeclarationRecord {
     register_id: u32,
     register_published_date: NaiveDate,
     registration_date: Option<NaiveDate>,
-    funding_entries: CapturedFundingEntry,
+    #[serde(flatten)]
+    funding_entries: Option<CapturedFundingEntry>,
     fetched_at: DateTime<Utc>,
     source_json: String,
 }
 
 impl DeclarationRecord {
     #[allow(clippy::too_many_arguments)]
-    const fn new(
+    const fn new_with_funding_entry(
         member_id: String,
         parliament_member_id: u32,
         declaration_id: u32,
@@ -164,7 +172,37 @@ impl DeclarationRecord {
             register_id,
             register_published_date,
             registration_date,
-            funding_entries,
+            funding_entries: Some(funding_entries),
+            fetched_at,
+            source_json,
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    const fn new_without_funding_entry(
+        member_id: String,
+        parliament_member_id: u32,
+        declaration_id: u32,
+        parent_declaration_id: Option<u32>,
+        category_id: u32,
+        category_name: String,
+        register_id: u32,
+        register_published_date: NaiveDate,
+        registration_date: Option<NaiveDate>,
+        fetched_at: DateTime<Utc>,
+        source_json: String,
+    ) -> Self {
+        Self {
+            member_id,
+            parliament_member_id,
+            declaration_id,
+            parent_declaration_id,
+            category_id,
+            category_name,
+            register_id,
+            register_published_date,
+            registration_date,
+            funding_entries: None,
             fetched_at,
             source_json,
         }

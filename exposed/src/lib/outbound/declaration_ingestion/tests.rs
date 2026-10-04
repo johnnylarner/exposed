@@ -6,7 +6,7 @@ use arrow::{
 };
 use chrono::{NaiveDate, Utc};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
-use serde_json::{Value, json};
+use serde_json::Value;
 use tempfile::TempDir;
 use uuid::Uuid;
 
@@ -65,7 +65,7 @@ fn read_declarations(path: &std::path::Path) -> anyhow::Result<Vec<Value>> {
 }
 
 #[tokio::test]
-async fn saves_one_record_per_mp_with_nested_funding_entries() -> anyhow::Result<()> {
+async fn flattens_funding_entries_into_separate_rows() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
     let storage = ExposedDataPipeline::new_with_ingestion_key(
         &tmp.path().to_path_buf(),
@@ -121,24 +121,45 @@ async fn saves_one_record_per_mp_with_nested_funding_entries() -> anyhow::Result
             .await?;
         let records =
             read_declarations(&storage.declarations_path().join(member_filename(member)))?;
-        let [funded, nonfinancial] = records.as_slice() else {
+        let [first_funding, second_funding, nonfinancial] = records.as_slice() else {
             panic!("expected one record per declaration")
         };
-        assert_eq!(funded["member_id"], member.member_id().to_string());
-        assert_eq!(funded["declaration_id"], 42);
-        assert_eq!(funded["register_id"], 820);
-        assert_eq!(funded["register_published_date"], "2026-09-07");
-        assert_eq!(funded["registration_date"], "2026-09-01");
+        assert_eq!(first_funding["member_id"], member.member_id().to_string());
+        assert_eq!(first_funding["member_id"], second_funding["member_id"]);
+
+        assert_eq!(first_funding["declaration_id"], 42);
         assert_eq!(
-            funded["funding_entries"],
-            json!([
-                {"donor_name": "First donor", "amount": "2000.00", "currency": "GBP"},
-                {"donor_name": "Second donor", "amount": "3000.00", "currency": "GBP"}
-            ])
+            first_funding["declaration_id"],
+            second_funding["declaration_id"],
         );
+
+        assert_eq!(first_funding["register_id"], 820);
+        assert_eq!(first_funding["register_id"], second_funding["register_id"],);
+
+        assert_eq!(first_funding["register_published_date"], "2026-09-07");
+        assert_eq!(
+            first_funding["register_published_date"],
+            second_funding["register_published_date"],
+        );
+
+        assert_eq!(first_funding["registration_date"], "2026-09-01");
+        assert_eq!(
+            first_funding["registration_date"],
+            second_funding["registration_date"],
+        );
+
+        assert_eq!(first_funding["donor_name"], "First donor");
+        assert_eq!(second_funding["donor_name"], "Second donor");
+
+        assert_eq!(first_funding["amount"], "2000.00");
+        assert_eq!(second_funding["amount"], "3000.00");
+
+        assert_eq!(first_funding["currency"], "GBP");
+        assert_eq!(second_funding["currency"], "GBP");
+
         assert_eq!(nonfinancial["member_id"], member.member_id().to_string());
         assert_eq!(nonfinancial["declaration_id"], 43);
-        assert_eq!(nonfinancial["funding_entries"], json!([]));
+        assert_eq!(nonfinancial["amount"], serde_json::Value::Null);
     }
     Ok(())
 }
