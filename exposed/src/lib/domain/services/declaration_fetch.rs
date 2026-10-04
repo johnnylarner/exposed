@@ -1,5 +1,7 @@
 //! Capture declaration evidence using stored member identities and domain-owned ports.
 
+use tokio::task::JoinSet;
+
 use crate::domain::{
     models::entity_ingestion::{EntityIngestionError, IngestionKey},
     repositories::{
@@ -7,6 +9,8 @@ use crate::domain::{
         parliament_member_repository::ParliamentMemberRepo,
     },
 };
+
+const MAX_CONCURRENT_MEMBERS: usize = 10;
 
 /// Fetches and saves declarations for each stored member.
 #[derive(Clone)]
@@ -35,9 +39,11 @@ where
     PS: EntityIngestionStorage,
 {
     /// Captures a complete dataset for the cohort read at the start of the run.
+    /// Runs up to ten member tasks concurrently, including their storage writes.
+    /// On failure, cancels and awaits the remaining tasks before returning.
     ///
     /// # Errors
-    /// Returns errors from the source or storage, or when no members are stored.
+    /// Returns errors from the source or storage, task failures, or when no members are stored.
     pub async fn fetch_declarations(&self) -> Result<IngestionKey, EntityIngestionError> {
         let members = self.member_repo.get_stored_member_ids().await?;
         if members.is_empty() {
@@ -45,12 +51,39 @@ where
                 "no stored members; load members with `data members load` before fetching declarations".into(),
             ));
         }
-        for member in members {
-            let declarations = self.parliament_api.get_declarations(member).await?;
-            self.storage
-                .write_raw_declarations(member, &declarations)
-                .await?;
+        let mut members = members.into_iter();
+        let mut tasks = JoinSet::new();
+        loop {
+            while tasks.len() < MAX_CONCURRENT_MEMBERS {
+                let Some(member) = members.next() else {
+                    break;
+                };
+                let api = self.parliament_api.clone();
+                let storage = self.storage.clone();
+                tasks.spawn(async move {
+                    let declarations = api.get_declarations(member).await?;
+                    storage
+                        .write_raw_declarations(member, &declarations)
+                        .await?;
+                    Ok::<(), EntityIngestionError>(())
+                });
+            }
+            let Some(result) = tasks.join_next().await else {
+                break;
+            };
+            let result = result.unwrap_or_else(|error| {
+                Err(EntityIngestionError::UnexpectedError(format!(
+                    "declaration capture task failed: {error}"
+                )))
+            });
+            if let Err(error) = result {
+                tasks.shutdown().await;
+                return Err(error);
+            }
         }
         Ok(self.storage.ingestion_key())
     }
 }
+
+#[cfg(test)]
+mod tests;
