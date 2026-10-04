@@ -3,13 +3,16 @@ use std::{fs::File, io::Write, path::PathBuf, str::FromStr};
 use exposed::{
     domain::models::entity_search::EntitySearchRequest,
     inbound::{
-        cli::config::{FetcherConfig, LoaderConfig},
+        cli::config::{DeclarationFetcherConfig, FetcherConfig, LoaderConfig},
         http::{config::ServerConfig, server::serve_exposed},
     },
 };
 use reqwest::StatusCode;
 use serde_json::Value;
 use tempfile::{NamedTempFile, TempDir};
+
+mod declarations;
+pub use declarations::{DeclarationFunding, FundingEntry, read_declaration_funding};
 
 pub struct Guard;
 
@@ -72,6 +75,23 @@ pub fn cli_loader_config(tmp: &TempDir, conn_str: &str) -> (NamedTempFile<File>,
     let config = LoaderConfig {
         connection_string: conn_str.to_string(),
         data_dir: tmp.path().to_path_buf(),
+    };
+    let contents = rust_yaml::to_string(&config).unwrap();
+    let mut file = tempfile::NamedTempFile::new().unwrap();
+    file.write_all(contents.as_bytes()).unwrap();
+    let path = file.path().to_path_buf();
+    (file, path)
+}
+
+pub fn cli_declaration_fetcher_config(
+    tmp: &TempDir,
+    conn_str: &str,
+) -> (NamedTempFile<File>, PathBuf) {
+    let config = DeclarationFetcherConfig {
+        connection_string: conn_str.to_string(),
+        data_dir: tmp.path().to_path_buf(),
+        // Small pages exercise pagination against the live source.
+        batch_size: 5,
     };
     let contents = rust_yaml::to_string(&config).unwrap();
     let mut file = tempfile::NamedTempFile::new().unwrap();

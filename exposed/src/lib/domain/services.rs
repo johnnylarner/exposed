@@ -2,4 +2,5 @@
 
 pub mod entity_search;
 
+pub mod declaration_fetch;
 pub mod entity_ingestion;
