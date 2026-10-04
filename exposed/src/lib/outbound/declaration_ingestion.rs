@@ -42,7 +42,26 @@ impl ExposedDataPipeline {
             AsyncArrowWriter::try_new(file, schema.clone(), None).map_err(write_error)?;
         let records = declarations
             .iter()
-            .map(|declaration| declaration_record(member, declaration))
+            .map(|declaration| {
+                let mut subrecords = Vec::with_capacity(declaration.funding_entries().len());
+                for entry in declaration.funding_entries() {
+                    subrecords.push(DeclarationRecord::new(
+                        member.member_id().to_string(),
+                        member.parliament_member_id(),
+                        declaration.id().value(),
+                        declaration.parent_id().map(DeclarationId::value),
+                        declaration.category_id(),
+                        declaration.category_name().to_string(),
+                        declaration.register_id(),
+                        declaration.register_published_date(),
+                        declaration.registration_date(),
+                        entry.clone(),
+                        declaration.fetched_at(),
+                        declaration.source_json().to_string(),
+                    ));
+                }
+                subrecords
+            })
             .collect::<Vec<_>>();
         let mut decoder = ReaderBuilder::new(schema)
             .build_decoder()
@@ -104,37 +123,50 @@ fn declarations_schema() -> Schema {
 }
 
 #[derive(Serialize)]
-struct DeclarationRecord<'a> {
+struct DeclarationRecord {
     member_id: String,
     parliament_member_id: u32,
     declaration_id: u32,
     parent_declaration_id: Option<u32>,
     category_id: u32,
-    category_name: &'a str,
+    category_name: String,
     register_id: u32,
     register_published_date: NaiveDate,
     registration_date: Option<NaiveDate>,
-    funding_entries: &'a [CapturedFundingEntry],
+    funding_entries: CapturedFundingEntry,
     fetched_at: DateTime<Utc>,
-    source_json: &'a str,
+    source_json: String,
 }
 
-fn declaration_record(
-    member: MemberAsId,
-    declaration: &CapturedDeclaration,
-) -> DeclarationRecord<'_> {
-    DeclarationRecord {
-        member_id: member.member_id().to_string(),
-        parliament_member_id: member.parliament_member_id(),
-        declaration_id: declaration.id().value(),
-        parent_declaration_id: declaration.parent_id().map(DeclarationId::value),
-        category_id: declaration.category_id(),
-        category_name: declaration.category_name(),
-        register_id: declaration.register_id(),
-        register_published_date: declaration.register_published_date(),
-        registration_date: declaration.registration_date(),
-        funding_entries: declaration.funding_entries(),
-        fetched_at: declaration.fetched_at(),
-        source_json: declaration.source_json(),
+impl DeclarationRecord {
+    #[allow(clippy::too_many_arguments)]
+    const fn new(
+        member_id: String,
+        parliament_member_id: u32,
+        declaration_id: u32,
+        parent_declaration_id: Option<u32>,
+        category_id: u32,
+        category_name: String,
+        register_id: u32,
+        register_published_date: NaiveDate,
+        registration_date: Option<NaiveDate>,
+        funding_entries: CapturedFundingEntry,
+        fetched_at: DateTime<Utc>,
+        source_json: String,
+    ) -> Self {
+        Self {
+            member_id,
+            parliament_member_id,
+            declaration_id,
+            parent_declaration_id,
+            category_id,
+            category_name,
+            register_id,
+            register_published_date,
+            registration_date,
+            funding_entries,
+            fetched_at,
+            source_json,
+        }
     }
 }
