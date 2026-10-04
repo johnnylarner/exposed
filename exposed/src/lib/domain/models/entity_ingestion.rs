@@ -63,18 +63,14 @@ pub enum MemberIngestionStage {
     Fetch,
     Load,
 }
-//
-// /// From what stage to run the declaration pipeline
-// #[derive(Clone, Debug, PartialEq, Eq, EnumString)]
-// #[allow(missing_docs)]
-// #[strum(ascii_case_insensitive)]
-// pub enum DeclarationIngestionStage {
-//     Fetch,
-//     Clean,
-//     Resolve,
-//     Load,
-// }
-//
+/// Supported acquisition stage for declarations.
+#[derive(Clone, Debug, PartialEq, Eq, EnumString)]
+#[strum(ascii_case_insensitive)]
+pub enum DeclarationIngestionStage {
+    /// Capture source evidence for later offline processing.
+    Fetch,
+}
+
 /// Errors related to entity search
 #[derive(Error, Debug)]
 pub enum EntityIngestionError {
@@ -86,8 +82,8 @@ pub enum EntityIngestionError {
     #[error("error in ingestion pipeline: {0}")]
     DataError(String),
 
-    /// Invalid strictness value
-    #[error("at least one entry must be expected to return")]
+    /// Failure reading or writing ingestion storage.
+    #[error("ingestion storage failed: {0}")]
     IoError(#[from] EntitySearchPipelineError),
 
     /// Invalid stage

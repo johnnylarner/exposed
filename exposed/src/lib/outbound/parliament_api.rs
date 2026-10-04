@@ -1,22 +1,30 @@
 //! Minimal client for the UK parliament API
 
+use std::num::NonZeroU8;
+
 use serde::Deserialize;
 use thiserror::Error;
 
 use reqwest::Client;
 
 use crate::domain::{
-    models::parliament_member::ParliamentMember,
+    models::{
+        declaration_ingestion::{CapturedDeclaration, MemberAsId},
+        entity_ingestion::EntityIngestionError,
+        parliament_member::ParliamentMember,
+    },
     repositories::parliament_api::{ParliamentApi as Interface, ParliamentApiError},
 };
 
 const BASE_URL: &str = "https://members-api.parliament.uk";
 
+mod declarations;
+
 /// Parliament API implementation
 #[derive(Clone)]
 pub struct ParliamentApiClient {
     client: Client,
-    batch_size: u8,
+    batch_size: NonZeroU8,
 }
 
 impl ParliamentApiClient {
@@ -25,6 +33,8 @@ impl ParliamentApiClient {
     /// # Errors
     /// - Client error
     pub fn new(batch_size: u8) -> Result<Self, ApiError> {
+        let batch_size = NonZeroU8::new(batch_size)
+            .ok_or_else(|| ApiError::BuilderError("batch size must be nonzero".into()))?;
         let client = Client::builder()
             .build()
             .map_err(|e| ApiError::BuilderError(e.to_string()))?;
@@ -57,12 +67,10 @@ impl Interface for ParliamentApiClient {
             let response: ParliamentResponse = serde_json::from_slice(&bytes)
                 .map_err(|e| ApiError::ResponseError(e.to_string()))?;
 
-            println!("retrieved {batch} records from offset {offset}");
             offset += response.items.len();
             members.extend(response.items);
 
             if members.len() == response.total_results {
-                println!("received all members");
                 break;
             }
         }
@@ -81,8 +89,11 @@ impl Interface for ParliamentApiClient {
             .collect())
     }
 
-    async fn get_declarations_for_sitting_members(&self) -> Result<(), ParliamentApiError> {
-        todo!("still needs doing")
+    async fn get_declarations(
+        &self,
+        member: MemberAsId,
+    ) -> Result<Vec<CapturedDeclaration>, ParliamentApiError> {
+        self.capture_declarations(member).await.map_err(Into::into)
     }
 }
 
@@ -136,5 +147,23 @@ impl From<ApiError> for ParliamentApiError {
         match value {
             ApiError::BuilderError(e) | ApiError::ResponseError(e) => Self::ApiError(e),
         }
+    }
+}
+
+impl From<reqwest::Error> for ApiError {
+    fn from(error: reqwest::Error) -> Self {
+        Self::ResponseError(error.to_string())
+    }
+}
+
+impl From<serde_json::Error> for ApiError {
+    fn from(error: serde_json::Error) -> Self {
+        Self::ResponseError(error.to_string())
+    }
+}
+
+impl From<EntityIngestionError> for ApiError {
+    fn from(error: EntityIngestionError) -> Self {
+        Self::ResponseError(error.to_string())
     }
 }
