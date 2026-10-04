@@ -141,7 +141,7 @@ struct DeclarationRecord {
     register_published_date: NaiveDate,
     registration_date: Option<NaiveDate>,
     #[serde(flatten)]
-    funding_entries: Option<CapturedFundingEntry>,
+    funding_entry: Option<CapturedFundingEntry>,
     fetched_at: DateTime<Utc>,
     source_json: String,
 }
@@ -158,7 +158,7 @@ impl DeclarationRecord {
         register_id: u32,
         register_published_date: NaiveDate,
         registration_date: Option<NaiveDate>,
-        funding_entries: CapturedFundingEntry,
+        funding_entry: CapturedFundingEntry,
         fetched_at: DateTime<Utc>,
         source_json: String,
     ) -> Self {
@@ -172,7 +172,7 @@ impl DeclarationRecord {
             register_id,
             register_published_date,
             registration_date,
-            funding_entries: Some(funding_entries),
+            funding_entry: Some(funding_entry),
             fetched_at,
             source_json,
         }
@@ -202,7 +202,7 @@ impl DeclarationRecord {
             register_id,
             register_published_date,
             registration_date,
-            funding_entries: None,
+            funding_entry: None,
             fetched_at,
             source_json,
         }
