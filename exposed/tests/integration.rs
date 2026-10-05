@@ -28,11 +28,11 @@ mod common;
 
 #[tokio::test]
 async fn shows_no_hsbc_duplicates() {
-    let _guard = start_app().await.unwrap();
+    let app = start_app().await.unwrap();
     time::sleep(Duration::from_secs(2)).await;
 
     let known_duplicate = EntitySearchRequest::new_with_strictness("HSBC".into(), 10, 0.9).unwrap();
-    let entities = search_entities(&known_duplicate).await.unwrap();
+    let entities = search_entities(&app, &known_duplicate).await.unwrap();
 
     let mut duplicates: HashMap<String, usize> = HashMap::new();
     for e in entities.into_iter() {

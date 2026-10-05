@@ -1,2 +1,0 @@
-connection_string: postgresql://exposed:exposed_local_dev@postgres:5432/exposed?sslmode=disable
-port: 6999

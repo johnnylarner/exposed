@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, path::PathBuf, str::FromStr};
+use std::{fs::File, io::Write, path::PathBuf};
 
 use exposed::{
     domain::models::entity_search::EntitySearchRequest,
@@ -14,14 +14,17 @@ use tempfile::{NamedTempFile, TempDir};
 mod declarations;
 pub use declarations::{DeclarationFunding, FundingEntry, read_declaration_funding};
 
-pub struct Guard;
+pub struct Guard {
+    port: u16,
+}
 
-pub async fn search_entities(params: &EntitySearchRequest) -> anyhow::Result<Vec<Value>> {
+pub async fn search_entities(
+    app: &Guard,
+    params: &EntitySearchRequest,
+) -> anyhow::Result<Vec<Value>> {
     let client = reqwest::Client::new();
 
-    let test_config = PathBuf::from_str("config/server-test.yaml").unwrap();
-    let config = ServerConfig::try_from(&test_config).unwrap();
-    let port = config.port;
+    let port = app.port;
 
     let (term, strictness, entries) = (params.term(), params.strictness(), params.max_entries());
     let url = format!(
@@ -49,14 +52,15 @@ pub async fn search_entities(params: &EntitySearchRequest) -> anyhow::Result<Vec
 }
 
 pub async fn start_app() -> anyhow::Result<Guard> {
+    let config = ServerConfig::from_env()?;
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
+    let port = listener.local_addr()?.port();
     let _handle = tokio::task::spawn(async move {
-        let test_config = PathBuf::from_str("config/server-test.yaml").unwrap();
-        let config = ServerConfig::try_from(&test_config).unwrap();
-        let _ = serve_exposed(&config).await;
+        let _ = serve_exposed(&config, listener).await;
         println!("started");
     });
 
-    Ok(Guard)
+    Ok(Guard { port })
 }
 
 pub fn cli_fetcher_config(tmp: &TempDir) -> (NamedTempFile<File>, PathBuf) {

@@ -68,9 +68,28 @@ restarts the app when Rust source, Cargo manifests, `Cargo.lock`, or files in
 The first image and app builds take longer; named volumes cache Cargo downloads
 and Linux build artifacts separately from the host's `target/` directory.
 
-The container uses `exposed/config/compose.yaml` and connects to `postgres:5432`.
-Its `DATABASE_URL` supplies the same connection for SQLx compile-time checks.
-For running Cargo on the host, `exposed/config/dev.yaml` uses `localhost:55432`.
+The server reads its configuration from environment variables and an optional `.env` file at startup.
+It uses `.env` from the current directory or the nearest parent directory that contains one.
+Exported environment variables take precedence over values in `.env`.
+Only `DATABASE_URL` is required.
+
+The server listens on `0.0.0.0:6999` by default.
+If port `6999` is occupied, the operating system selects an available port.
+The server prints the selected address at startup.
+
+Compose sets `DATABASE_URL` to connect to `postgres:5432`.
+SQLx uses the same variable for query checks at compile time.
+
+To run the server on the host, create `.env` from the local database example:
+
+```sh
+test -f .env || cp .env.example .env
+cargo run --package exposed --bin exposed -- server
+```
+
+Edit `DATABASE_URL` in `.env` to use another database. Git ignores `.env`.
+
+The `data` subcommands still use their YAML configuration files.
 
 The frontend service proxies `/api/search` to `http://exposed:6999/search`.
 Its source is bind-mounted, with polling for live reload on Docker Desktop and a
