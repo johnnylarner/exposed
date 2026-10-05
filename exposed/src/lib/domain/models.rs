@@ -6,6 +6,5 @@ pub mod entity_ingestion;
 pub mod entity_search;
 pub mod funder;
 pub mod funding_entry;
-pub mod ingestion_status;
 pub mod parliament_member;
 pub mod search_similarity;

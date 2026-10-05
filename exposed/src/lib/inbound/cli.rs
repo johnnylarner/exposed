@@ -9,19 +9,13 @@ use crate::{
         models::entity_ingestion::{
             DeclarationIngestionStage, EntityIngestionRequest, IngestionKey, MemberIngestionStage,
         },
-        models::ingestion_status::{IngestionDataStage, IngestionDataset, IngestionStatus},
         services::declaration_fetch::DeclarationFetcherService,
         services::entity_ingestion::{
             EntityFetcherService, EntityIngesterService, FetcherService, IngesterService,
         },
-        services::ingestion_status::IngestionStatusService,
     },
-    inbound::cli::config::{
-        DataConfig, DeclarationFetcherConfig, FetcherConfig, IngestionStatusConfig, LoaderConfig,
-    },
-    outbound::{
-        ExposedDataPipeline, ExposedDatabase, ExposedIngestionCatalog, ParliamentApiClient,
-    },
+    inbound::cli::config::{DataConfig, DeclarationFetcherConfig, FetcherConfig, LoaderConfig},
+    outbound::{ExposedDataPipeline, ExposedDatabase, ParliamentApiClient},
 };
 
 pub mod config;
@@ -37,7 +31,7 @@ pub struct DataArgs {
 #[derive(Subcommand)]
 #[allow(missing_docs)]
 pub enum DataCommands {
-    /// Show the latest stored ingestion key, datasets, and data stages.
+    /// Show the latest ingestion key and directory path.
     Latest {
         /// YAML configuration with the ingestion `data_dir`.
         config: PathBuf,
@@ -67,12 +61,13 @@ pub enum DataCommands {
 pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
     match args.command {
         DataCommands::Latest { config } => {
-            let config = IngestionStatusConfig::try_from(&config)?;
-            let catalog = ExposedIngestionCatalog::new(config.data_dir);
-            let service = IngestionStatusService::new(catalog);
-            match service.latest().await? {
-                Some(status) => print_ingestion_status(&status),
-                None => println!("No ingestion datasets found."),
+            let config = LoaderConfig::try_from(&config)?;
+            match ExposedDataPipeline::latest_ingestion(&config.data_dir).await? {
+                Some((path, key)) => {
+                    println!("Ingestion key: {key}");
+                    println!("Path: {}", path.display());
+                }
+                None => println!("No ingestion runs found."),
             }
         }
         DataCommands::Declarations {
@@ -128,21 +123,4 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
         }
     }
     Ok(())
-}
-
-fn print_ingestion_status(status: &IngestionStatus) {
-    println!("Ingestion key: {}", status.key);
-    println!("DATASET\tSTAGE");
-    for (dataset, stage) in &status.datasets {
-        let dataset = match dataset {
-            IngestionDataset::Members => "members",
-            IngestionDataset::Declarations => "declarations",
-        };
-        let stage = match stage {
-            IngestionDataStage::Raw => "raw",
-            IngestionDataStage::Cleaned => "cleaned",
-            IngestionDataStage::Resolved => "resolved",
-        };
-        println!("{dataset}\t{stage}");
-    }
 }

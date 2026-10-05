@@ -1,8 +1,13 @@
 //! File system interface for entity search ingestion
 
-use std::path::{self, PathBuf};
+use std::{
+    io::ErrorKind,
+    path::{self, Path, PathBuf},
+    time::SystemTime,
+};
 
 use arrow::datatypes::{DataType, Field, Schema};
+use tokio::fs;
 use uuid::Uuid;
 
 use crate::domain::{
@@ -57,6 +62,57 @@ impl Default for FsSchema {
 }
 
 impl ExposedDataPipeline {
+    /// Returns the absolute path and key of the most recently modified run directory.
+    /// Equal timestamps use the greatest UUID. An absent or empty store returns `None`.
+    /// This operation does not create or change files.
+    ///
+    /// # Errors
+    /// Returns an error if ingestion storage cannot be read.
+    pub async fn latest_ingestion(
+        root: &Path,
+    ) -> Result<Option<(PathBuf, IngestionKey)>, EntitySearchPipelineError> {
+        let root = path::absolute(root).map_err(|e| read_error(root, e))?;
+        let mut entries = match fs::read_dir(&root).await {
+            Ok(entries) => entries,
+            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
+            Err(error) => return Err(read_error(&root, error)),
+        };
+        let mut latest: Option<(SystemTime, PathBuf, IngestionKey)> = None;
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| read_error(&root, e))?
+        {
+            let path = entry.path();
+            if !entry
+                .file_type()
+                .await
+                .map_err(|e| read_error(&path, e))?
+                .is_dir()
+            {
+                continue;
+            }
+            let Some(key) = entry
+                .file_name()
+                .to_str()
+                .and_then(|name| name.parse::<IngestionKey>().ok())
+            else {
+                continue;
+            };
+            let modified_at = entry
+                .metadata()
+                .await
+                .and_then(|metadata| metadata.modified())
+                .map_err(|e| read_error(&path, e))?;
+            if latest.as_ref().is_none_or(|(latest_time, _, latest_key)| {
+                (modified_at, key.uuid()) > (*latest_time, latest_key.uuid())
+            }) {
+                latest = Some((modified_at, path, key));
+            }
+        }
+        Ok(latest.map(|(_, path, key)| (path, key)))
+    }
+
     /// Creates a new instance of [`ExposedDataPipeline`] with an [`IngestionKey`]
     ///
     /// # Errors
@@ -100,6 +156,10 @@ impl ExposedDataPipeline {
     // pub(super) fn resolved_path(&self) -> PathBuf {
     //     self.latest_run_path().join(&self.fs_schema.resolved)
     // }
+}
+
+fn read_error(path: &Path, error: impl std::fmt::Display) -> EntitySearchPipelineError {
+    EntitySearchPipelineError::ReadError(format!("{}: {error}", path.display()))
 }
 
 pub(super) fn members_schema() -> Schema {

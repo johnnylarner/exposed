@@ -2,8 +2,7 @@
 
 Diagrams exist for this project `exposed architecture` excalidraw board. 
 
-The `data latest` CLI command constructs `IngestionStatusService` with the
-filesystem adapter `ExposedIngestionCatalog`. The service selects the latest run
-and each dataset's furthest stage through the domain-owned `IngestionCatalog`
-port. The adapter reads file names and modification times. The CLI formats the
-result, and the command does not change stored data.
+The `data latest` CLI command calls `ExposedDataPipeline::latest_ingestion`
+directly. The filesystem struct selects the most recently modified run
+directory and returns its absolute path and ingestion key. The CLI formats the
+result. This operation does not change stored data.

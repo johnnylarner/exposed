@@ -11,5 +11,3 @@ pub mod parliament_api;
 
 /// Store for cleaning parliament API data;
 pub mod entity_ingestion;
-
-pub mod ingestion_catalog;
