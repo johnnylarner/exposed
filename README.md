@@ -89,7 +89,21 @@ cargo run --package exposed --bin exposed -- server
 
 Edit `DATABASE_URL` in `.env` to use another database. Git ignores `.env`.
 
-The `data` subcommands still use their YAML configuration files.
+The `data members load` and `data declarations fetch` commands also read
+`DATABASE_URL` from the environment or `.env`, with the same precedence as the server.
+Their YAML files contain only data settings such as `data_dir` and `batch_size`.
+Remove `connection_string` from existing YAML files and set `DATABASE_URL` in `.env` instead.
+The `data members fetch` command does not require a database URL.
+
+To fetch and load members, use the same ingestion key for both stages:
+
+```sh
+test -f .env || cp .env.example .env
+ingestion_key=$(uuidgen)
+cargo run --package exposed --bin exposed -- data members fetch exposed/config/cli-dev.yaml --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data members load exposed/config/cli-dev.yaml --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data declarations fetch exposed/config/declarations-dev.yaml
+```
 
 The frontend service proxies `/api/search` to `http://exposed:6999/search`.
 Its source is bind-mounted, with polling for live reload on Docker Desktop and a

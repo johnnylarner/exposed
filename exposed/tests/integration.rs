@@ -3,7 +3,7 @@
 //!
 //!
 
-use std::{collections::HashMap, ffi::OsString, time::Duration};
+use std::{collections::HashMap, ffi::OsString, fs, process::Command, time::Duration};
 
 use anyhow::Context;
 use clap::Parser;
@@ -65,17 +65,22 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
     run_cli(args).await.unwrap();
 
     let url = pool.connect_options().to_url_lossy();
-    let (_file, path) = cli_loader_config(&tmp, url.to_string().as_str());
-    let args = DataArgs::try_parse_from([
-        OsString::from("exposed-data"),
-        "members".into(),
-        "load".into(),
-        path.into_os_string(),
-        "--ingestion-key".into(),
-        ingestion_key.to_string().into(),
-    ])
-    .unwrap();
-    run_cli(args).await.unwrap();
+    let (_file, path) = cli_loader_config(&tmp);
+    // The process environment must override a URL in .env.
+    fs::write(tmp.path().join(".env"), "DATABASE_URL=invalid-url\n").unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
+        .current_dir(tmp.path())
+        .env("DATABASE_URL", url.as_str())
+        .args(["data", "members", "load"])
+        .arg(path)
+        .args(["--ingestion-key", &ingestion_key.to_string()])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 
     let url = pool.connect_options().to_url_lossy();
     let db = ExposedDatabase::new(url.as_str()).await;
@@ -108,17 +113,20 @@ async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Res
     let ingestion_key = IngestionKey::default();
     let tmp = TempDir::new()?;
     let url = pool.connect_options().to_url_lossy();
-    let (_file, path) = cli_declaration_fetcher_config(&tmp, url.as_str());
-    let args = DataArgs::try_parse_from([
-        OsString::from("exposed-data"),
-        "declarations".into(),
-        "fetch".into(),
-        path.into_os_string(),
-        "--ingestion-key".into(),
-        ingestion_key.to_string().into(),
-    ])?;
-
-    run_cli(args).await?;
+    let (_file, path) = cli_declaration_fetcher_config(&tmp);
+    fs::write(tmp.path().join(".env"), format!("DATABASE_URL={url}\n"))?;
+    let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
+        .current_dir(tmp.path())
+        .env_remove("DATABASE_URL")
+        .args(["data", "declarations", "fetch"])
+        .arg(path)
+        .args(["--ingestion-key", &ingestion_key.to_string()])
+        .output()?;
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     let funding = read_declaration_funding(tmp.path(), &ingestion_key)?;
 
     let individual_donation = funding
@@ -160,5 +168,34 @@ async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Res
             },
         }
     );
+    Ok(())
+}
+
+#[test]
+fn database_commands_require_environment_url() -> anyhow::Result<()> {
+    let tmp = TempDir::new()?;
+    // An empty .env prevents discovery of configuration from a parent directory.
+    fs::write(tmp.path().join(".env"), "")?;
+    let config = tmp.path().join("config.yaml");
+    fs::write(
+        &config,
+        "data_dir: ./data\nbatch_size: 100\nconnection_string: obsolete-yaml-url\n",
+    )?;
+
+    for args in [
+        ["data", "members", "load"],
+        ["data", "declarations", "fetch"],
+    ] {
+        let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
+            .current_dir(tmp.path())
+            .env_remove("DATABASE_URL")
+            .args(args)
+            .arg(&config)
+            .output()?;
+
+        assert!(!output.status.success());
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("DATABASE_URL must be set"), "{stderr}");
+    }
     Ok(())
 }

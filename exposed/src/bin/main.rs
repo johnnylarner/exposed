@@ -20,6 +20,9 @@ fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
     match args.command {
         Commands::Server => run_server(),
-        Commands::Data(args) => tokio::runtime::Runtime::new()?.block_on(run_cli(args)),
+        Commands::Data(args) => {
+            dotenvy::dotenv().ok();
+            tokio::runtime::Runtime::new()?.block_on(run_cli(args))
+        }
     }
 }
