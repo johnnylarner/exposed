@@ -1,9 +1,7 @@
-use std::path::PathBuf;
-
 use clap::{Parser, Subcommand};
 use exposed::inbound::{
     cli::{DataArgs, run_cli},
-    http::{config::ServerConfig, server::serve_exposed},
+    http::server::run_server,
 };
 
 #[derive(Parser)]
@@ -14,21 +12,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Server { config: PathBuf },
+    Server,
     Data(DataArgs),
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
-
     match args.command {
-        Commands::Server { config } => {
-            let config = ServerConfig::try_from(&config)?;
-            serve_exposed(&config).await?;
-        }
-        Commands::Data(args) => run_cli(args).await?,
+        Commands::Server => run_server(),
+        Commands::Data(args) => tokio::runtime::Runtime::new()?.block_on(run_cli(args)),
     }
-
-    Ok(())
 }

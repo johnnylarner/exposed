@@ -934,6 +934,7 @@ dependencies = [
  "axum",
  "chrono",
  "clap",
+ "dotenvy",
  "futures",
  "parquet",
  "reqwest",
