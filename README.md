@@ -23,11 +23,6 @@ Run commands from the repository root:
 python3.14 -m venv ingest/.venv
 ingest/.venv/bin/python -m pip install -r ingest/requirements.lock
 ingest/.venv/bin/python -m pip install --no-deps -e ./ingest
-test -f ingest/.env || cp ingest/.env.example ingest/.env
-make db-start
-make db-migrate
-make import-members
-make import-declarations
 ```
 
 Setup creates `ingest/.env` only when absent. The Makefile runs SQLx from `ingest/`
@@ -47,16 +42,16 @@ queries against the live schema during compilation, so a fresh database needs
 `make db-migrate` first. Migrations remain an explicit step.
 
 ```sh
-docker compose up --build
+docker compose --env-file .env.compose up --build
 ```
 
-Open the Svelte frontend at **http://localhost:5173**. It searches the existing
+With the example ports, open the Svelte frontend at **http://localhost:5173**. It searches the existing
 API as you type, shows MPs and funders together in the API's similarity order,
 and preserves the names returned by the source. Enter at least three characters;
 press `/` to focus search and Escape to clear it. A query URL such as
 `http://localhost:5173/?q=HSBC` can be shared for manual testing.
 
-The API listens at `http://localhost:6999`. For example:
+With the example ports, the API listens at `http://localhost:6999`. For example:
 
 ```sh
 curl 'http://localhost:6999/search?term=McDonald&max_entries=10'
@@ -126,13 +121,47 @@ manifest or lockfile; dependencies are refreshed at startup. The API may take
 longer than the frontend to compile on a first run; use **Try again** if search
 is not ready yet.
 
-Use `docker compose stop frontend exposed` to stop the app and keep the caches.
+Use `docker compose --env-file .env.compose stop frontend exposed` to stop the app and keep the caches.
 `make db-start` and `make db-stop` control only PostgreSQL.
 
-The Compose project is named `exposed`. When testing a frontend-only change in a
-worktree against an already running API, use
-`docker compose up --build -d --no-deps frontend` to avoid recreating the backend
-and database from that worktree. This serves the frontend from the worktree.
+### Separate worktree environments
+
+From the worktree root, create a Compose environment with three free host ports:
+
+```sh
+python3 scripts/setup-compose-env.py
+test -f .env || cp .env.example .env
+```
+
+The script writes `.env.compose` with `FRONTEND_PORT`, `API_PORT`, and
+`POSTGRES_PORT`. It derives `COMPOSE_PROJECT_NAME` from the worktree path and
+branch, so each worktree has separate containers, networks, and volumes.
+Git ignores `.env.compose`. The script refuses to overwrite an existing file.
+
+Set `DATABASE_URL` in `.env` to the value that the script prints.
+For Python imports or `make db-migrate`, set the same value in `ingest/.env`.
+For importer integration tests, set `EXPOSED_TEST_ADMIN_DSN` to that URL with
+`/postgres` in place of `/exposed`.
+
+Start PostgreSQL and apply the schema before the application compiles:
+
+```sh
+docker compose --env-file .env.compose up -d --wait postgres
+sqlx migrate run
+docker compose --env-file .env.compose up -d
+```
+
+Use the frontend and API URLs that the script prints. Container ports remain
+5173, 6999, and 5432. The host ports come from `.env.compose`.
+The Makefile uses `.env.compose` when present and `.env.compose.example` otherwise.
+Direct Compose commands require `--env-file .env.compose` to read the generated file.
+Exported shell variables take precedence over the file, as described in the
+[Docker Compose documentation](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/).
+
+The ports are free when the script selects them. Another process can claim them
+before Compose starts. To select new ports, stop this deployment with
+`docker compose --env-file .env.compose down`, remove `.env.compose`, and run the script again.
+Then update `DATABASE_URL` to match the new PostgreSQL port.
 
 ### Frontend development and checks
 

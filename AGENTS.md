@@ -38,6 +38,7 @@ The goal of this project is to make declaration data easy to search, browse and 
   edits, installs, and checks there.
 - Never modify the primary checkout.
 - Report the worktree path and branch when starting work in a dedicated worktree.
+- When completing work, please provide a command to open the worktree in neovim. `nvim <relative-path-from-main-worktree`
 
 ## Git history
 
