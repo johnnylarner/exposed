@@ -1,6 +1,7 @@
 //! Server startup checks with isolated process environments.
 
 use std::{
+    fs,
     process::{Child, Command},
     time::Duration,
 };
@@ -26,8 +27,10 @@ fn requires_database_url_without_a_config_file() {
 
 #[test]
 fn rejects_invalid_database_urls_before_connecting() {
+    let tmp = TempDir::new().unwrap();
     for value in ["", "not-a-url"] {
         let output = server_command()
+            .current_dir(tmp.path())
             .env("DATABASE_URL", value)
             .output()
             .unwrap();
@@ -39,8 +42,10 @@ fn rejects_invalid_database_urls_before_connecting() {
 
 #[test]
 fn rejects_invalid_ports_before_connecting() {
+    let tmp = TempDir::new().unwrap();
     for value in ["", "abc", "-1", "65536"] {
         let output = server_command()
+            .current_dir(tmp.path())
             .env("DATABASE_URL", "postgresql://localhost/exposed")
             .env("PORT", value)
             .output()
@@ -64,6 +69,39 @@ fn help_does_not_require_database_configuration() {
     assert!(!help.contains("<CONFIG>"));
 }
 
+#[test]
+fn exported_environment_overrides_dotenv() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(
+        tmp.path().join(".env"),
+        "DATABASE_URL=not-a-url\nPORT=6999\n",
+    )
+    .unwrap();
+
+    let output = server_command()
+        .current_dir(tmp.path())
+        .env("DATABASE_URL", "postgresql://localhost/exposed")
+        .env("PORT", "invalid")
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("PORT must be an integer"));
+}
+
+#[test]
+fn rejects_malformed_dotenv_without_printing_its_contents() {
+    let tmp = TempDir::new().unwrap();
+    fs::write(tmp.path().join(".env"), "DATABASE_URL='secret").unwrap();
+
+    let output = server_command().current_dir(tmp.path()).output().unwrap();
+
+    assert!(!output.status.success());
+    let error = String::from_utf8_lossy(&output.stderr);
+    assert!(error.contains("unable to parse .env"));
+    assert!(!error.contains("secret"));
+}
+
 struct ServerProcess(Child);
 
 impl Drop for ServerProcess {
@@ -80,17 +118,44 @@ async fn serves_search_using_environment_configuration(pool: PgPool) {
     let port = listener.local_addr().unwrap().port();
     drop(listener);
 
-    let mut server = ServerProcess(
-        server_command()
-            .current_dir(tmp.path())
-            .env(
-                "DATABASE_URL",
-                pool.connect_options().to_url_lossy().as_str(),
-            )
-            .env("PORT", port.to_string())
-            .spawn()
-            .unwrap(),
-    );
+    let mut command = server_command();
+    command
+        .current_dir(tmp.path())
+        .env(
+            "DATABASE_URL",
+            pool.connect_options().to_url_lossy().as_str(),
+        )
+        .env("PORT", port.to_string());
+    assert_serves_search(command, port).await;
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn serves_search_using_dotenv_from_current_or_parent_directory(pool: PgPool) {
+    let tmp = TempDir::new().unwrap();
+    let child_dir = tmp.path().join("child");
+    fs::create_dir(&child_dir).unwrap();
+
+    for directory in [tmp.path(), child_dir.as_path()] {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        drop(listener);
+        fs::write(
+            tmp.path().join(".env"),
+            format!(
+                "# Local server configuration\nDATABASE_URL='{}'\nPORT={port}\n",
+                pool.connect_options().to_url_lossy(),
+            ),
+        )
+        .unwrap();
+
+        let mut command = server_command();
+        command.current_dir(directory);
+        assert_serves_search(command, port).await;
+    }
+}
+
+async fn assert_serves_search(mut command: Command, port: u16) {
+    let mut server = ServerProcess(command.spawn().unwrap());
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(1))
         .build()

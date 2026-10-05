@@ -68,19 +68,23 @@ restarts the app when Rust source, Cargo manifests, `Cargo.lock`, or files in
 The first image and app builds take longer; named volumes cache Cargo downloads
 and Linux build artifacts separately from the host's `target/` directory.
 
-The server reads its configuration from environment variables at startup.
+The server reads its configuration from environment variables and an optional `.env` file at startup.
+It uses `.env` from the current directory or the nearest parent directory that contains one.
+Exported environment variables take precedence over values in `.env`.
 `DATABASE_URL` is required. `PORT` is optional and defaults to `6999`.
-The server listens on `0.0.0.0`. It does not load a YAML file or `.env` file.
+The server listens on `0.0.0.0`.
 
 Compose sets `DATABASE_URL` to connect to `postgres:5432`.
 SQLx uses the same variable for query checks at compile time.
 
-To run the server on the host, export the local database URL:
+To run the server on the host, create `.env` from the local database example:
 
 ```sh
-export DATABASE_URL='postgresql://exposed:exposed_local_dev@localhost:55432/exposed?sslmode=disable'
+test -f .env || cp .env.example .env
 cargo run --package exposed --bin exposed -- server
 ```
+
+Edit `DATABASE_URL` in `.env` to use another database. Git ignores `.env`.
 
 The `data` subcommands still use their YAML configuration files.
 
