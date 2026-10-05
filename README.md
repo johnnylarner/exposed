@@ -71,8 +71,11 @@ and Linux build artifacts separately from the host's `target/` directory.
 The server reads its configuration from environment variables and an optional `.env` file at startup.
 It uses `.env` from the current directory or the nearest parent directory that contains one.
 Exported environment variables take precedence over values in `.env`.
-`DATABASE_URL` is required. `PORT` is optional and defaults to `6999`.
-The server listens on `0.0.0.0`.
+Only `DATABASE_URL` is required.
+
+The server listens on `0.0.0.0:6999` by default.
+If port `6999` is occupied, the operating system selects an available port.
+The server prints the selected address at startup.
 
 Compose sets `DATABASE_URL` to connect to `postgres:5432`.
 SQLx uses the same variable for query checks at compile time.
