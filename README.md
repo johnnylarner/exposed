@@ -129,14 +129,16 @@ Use `docker compose --env-file .env.compose stop frontend exposed` to stop the a
 From the worktree root, create a Compose environment with three free host ports:
 
 ```sh
-python3 scripts/setup-compose-env.py
+python3 .agents/skills/setup-env/scripts/setup-compose.py
 test -f .env || cp .env.example .env
 ```
 
 The script writes `.env.compose` with `FRONTEND_PORT`, `API_PORT`, and
 `POSTGRES_PORT`. It derives `COMPOSE_PROJECT_NAME` from the worktree path and
 branch, so each worktree has separate containers, networks, and volumes.
-Git ignores `.env.compose`. The script refuses to overwrite an existing file.
+Git ignores `.env.compose`. Rerunning the script selects new free ports and
+preserves the existing project name and other settings. Run Compose again to
+apply the new ports to an existing deployment.
 
 Set `DATABASE_URL` in `.env` to the value that the script prints.
 For Python imports or `make db-migrate`, set the same value in `ingest/.env`.
@@ -159,8 +161,7 @@ Exported shell variables take precedence over the file, as described in the
 [Docker Compose documentation](https://docs.docker.com/compose/how-tos/environment-variables/variable-interpolation/).
 
 The ports are free when the script selects them. Another process can claim them
-before Compose starts. To select new ports, stop this deployment with
-`docker compose --env-file .env.compose down`, remove `.env.compose`, and run the script again.
+before Compose starts. To select new ports, run the script again.
 Then update `DATABASE_URL` to match the new PostgreSQL port.
 
 ### Frontend development and checks

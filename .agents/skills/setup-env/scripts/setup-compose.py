@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create .env.compose with a worktree project name and three free host ports."""
+"""Create or update .env.compose with three free host ports for this worktree."""
 
 import hashlib
 import re
@@ -19,13 +19,8 @@ def main() -> int:
         ).strip()
     )
     destination = root / ".env.compose"
-    if destination.exists():
-        print(
-            f"{destination} already exists. Reuse it, or stop its Compose deployment "
-            "and remove the file before you select new ports.",
-            file=sys.stderr,
-        )
-        return 1
+    existed = destination.exists()
+    existing_lines = destination.read_text(encoding="utf-8").splitlines() if existed else []
 
     branch = subprocess.check_output(
         ["git", "branch", "--show-current"], cwd=root, text=True
@@ -42,12 +37,20 @@ def main() -> int:
             listener.bind(("127.0.0.1", 0))
             ports[name] = listener.getsockname()[1]
 
-        with destination.open("x", encoding="utf-8") as output:
-            output.write(f"COMPOSE_PROJECT_NAME={project}\n")
-            for name, port in ports.items():
-                output.write(f"{name}={port}\n")
+        # Preserve the deployment identity and settings unrelated to host ports.
+        lines = [
+            line
+            for line in existing_lines
+            if line.partition("=")[0].strip() not in ports
+        ]
+        if not any(
+            line.partition("=")[0].strip() == "COMPOSE_PROJECT_NAME" for line in lines
+        ):
+            lines.append(f"COMPOSE_PROJECT_NAME={project}")
+        lines.extend(f"{name}={port}" for name, port in ports.items())
+        destination.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    print(f"Created {destination}")
+    print(f"{'Updated' if existed else 'Created'} {destination}")
     print(f"Frontend: http://localhost:{ports['FRONTEND_PORT']}")
     print(f"API: http://localhost:{ports['API_PORT']}")
     print("Set DATABASE_URL in .env (or ingest/.env for the Python importer) to:")
