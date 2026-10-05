@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create or update .env.compose with three free host ports for this worktree."""
+"""Configure free host ports in .env.compose and DATABASE_URL in .env."""
 
 import hashlib
 import re
@@ -21,6 +21,13 @@ def main() -> int:
     destination = root / ".env.compose"
     existed = destination.exists()
     existing_lines = destination.read_text(encoding="utf-8").splitlines() if existed else []
+    database_destination = root / ".env"
+    database_existed = database_destination.exists()
+    database_lines = (
+        database_destination.read_text(encoding="utf-8").splitlines()
+        if database_existed
+        else []
+    )
 
     branch = subprocess.check_output(
         ["git", "branch", "--show-current"], cwd=root, text=True
@@ -50,14 +57,22 @@ def main() -> int:
         lines.extend(f"{name}={port}" for name, port in ports.items())
         destination.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
+        # Keep the host database connection aligned with the selected compose port.
+        database_lines = [
+            line
+            for line in database_lines
+            if not re.match(r"^\s*(?:export\s+)?DATABASE_URL\s*=", line)
+        ]
+        database_lines.append(
+            "DATABASE_URL=postgresql://exposed:exposed_local_dev@localhost:"
+            f"{ports['POSTGRES_PORT']}/exposed?sslmode=disable"
+        )
+        database_destination.write_text("\n".join(database_lines) + "\n", encoding="utf-8")
+
     print(f"{'Updated' if existed else 'Created'} {destination}")
+    print(f"{'Updated' if database_existed else 'Created'} {database_destination} (DATABASE_URL)")
     print(f"Frontend: http://localhost:{ports['FRONTEND_PORT']}")
     print(f"API: http://localhost:{ports['API_PORT']}")
-    print("Set DATABASE_URL in .env (or ingest/.env for the Python importer) to:")
-    print(
-        "DATABASE_URL=postgresql://exposed:exposed_local_dev@localhost:"
-        f"{ports['POSTGRES_PORT']}/exposed?sslmode=disable"
-    )
     print("Use: docker compose --env-file .env.compose up -d")
     return 0
 
@@ -66,5 +81,5 @@ if __name__ == "__main__":
     try:
         sys.exit(main())
     except (OSError, subprocess.CalledProcessError) as error:
-        print(f"Could not create .env.compose: {error}", file=sys.stderr)
+        print(f"Could not configure compose environment: {error}", file=sys.stderr)
         sys.exit(1)
