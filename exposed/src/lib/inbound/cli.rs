@@ -31,6 +31,11 @@ pub struct DataArgs {
 #[derive(Subcommand)]
 #[allow(missing_docs)]
 pub enum DataCommands {
+    /// Show the latest ingestion key and directory path.
+    Latest {
+        /// YAML configuration with the ingestion `data_dir`.
+        config: PathBuf,
+    },
     Declarations {
         stage: String,
         config: PathBuf,
@@ -55,6 +60,16 @@ pub enum DataCommands {
 /// - Service level failures
 pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
     match args.command {
+        DataCommands::Latest { config } => {
+            let config = LoaderConfig::try_from(&config)?;
+            match ExposedDataPipeline::latest_ingestion(&config.data_dir).await? {
+                Some((path, key)) => {
+                    println!("Ingestion key: {key}");
+                    println!("Path: {}", path.display());
+                }
+                None => println!("No ingestion runs found."),
+            }
+        }
         DataCommands::Declarations {
             stage,
             config,

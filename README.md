@@ -105,6 +105,20 @@ cargo run --package exposed --bin exposed -- data members load exposed/config/cl
 cargo run --package exposed --bin exposed -- data declarations fetch exposed/config/declarations-dev.yaml
 ```
 
+To inspect the latest stored ingestion run, use either fetch configuration:
+
+```sh
+cargo run --package exposed --bin exposed -- data latest exposed/config/cli-dev.yaml
+```
+
+The command prints the ingestion key and absolute path of the most recently
+modified run directory. It considers only directories with UUID names. Equal
+timestamps use the greatest UUID.
+
+This command requires only `data_dir` in the YAML file and no database connection
+at runtime. It does not change files. An absent or empty data directory produces
+`No ingestion runs found.` and a successful exit.
+
 The frontend service proxies `/api/search` to `http://exposed:6999/search`.
 Its source is bind-mounted, with polling for live reload on Docker Desktop and a
 separate Linux dependency volume. Restart `frontend` after changing its package
