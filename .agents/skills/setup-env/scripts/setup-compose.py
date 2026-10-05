@@ -11,7 +11,13 @@ from pathlib import Path
 
 
 def main() -> int:
-    root = Path(__file__).resolve().parent.parent
+    root = Path(
+        subprocess.check_output(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=Path(__file__).resolve().parent,
+            text=True,
+        ).strip()
+    )
     destination = root / ".env.compose"
     if destination.exists():
         print(
