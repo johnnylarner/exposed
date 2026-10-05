@@ -1,3 +1,2 @@
-connection_string: postgresql://exposed:exposed_local_dev@localhost:55432/exposed?sslmode=disable
 data_dir: ./exposed/data
 batch_size: 100

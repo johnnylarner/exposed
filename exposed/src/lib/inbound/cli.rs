@@ -14,7 +14,7 @@ use crate::{
             EntityFetcherService, EntityIngesterService, FetcherService, IngesterService,
         },
     },
-    inbound::cli::config::{DeclarationFetcherConfig, FetcherConfig, LoaderConfig},
+    inbound::cli::config::{DataConfig, DeclarationFetcherConfig, FetcherConfig, LoaderConfig},
     outbound::{ExposedDataPipeline, ExposedDatabase, ParliamentApiClient},
 };
 
@@ -51,6 +51,7 @@ pub enum DataCommands {
 /// - Bad stage arg
 /// - Bad config path
 /// - Bad config shape
+/// - Missing or non-Unicode `DATABASE_URL` for commands that use the database
 /// - Service level failures
 pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
     match args.command {
@@ -61,8 +62,9 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
         } => {
             let DeclarationIngestionStage::Fetch = DeclarationIngestionStage::from_str(&stage)?;
             let config = DeclarationFetcherConfig::try_from(&config)?;
+            let data_config = DataConfig::from_env()?;
             let api = ParliamentApiClient::new(config.batch_size)?;
-            let db = ExposedDatabase::new(&config.connection_string).await;
+            let db = ExposedDatabase::new(&data_config.connection_string).await;
             let fs = ExposedDataPipeline::new_with_ingestion_key(
                 &config.data_dir,
                 ingestion_key.unwrap_or_default(),
@@ -92,11 +94,12 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                 }
                 MemberIngestionStage::Load => {
                     let config = LoaderConfig::try_from(&config)?;
+                    let data_config = DataConfig::from_env()?;
                     let fs = ExposedDataPipeline::new_with_ingestion_key(
                         &config.data_dir,
                         ingestion_key,
                     )?;
-                    let db = ExposedDatabase::new(&config.connection_string).await;
+                    let db = ExposedDatabase::new(&data_config.connection_string).await;
                     let service = IngesterService::new(fs, db);
 
                     service.load_members().await?;

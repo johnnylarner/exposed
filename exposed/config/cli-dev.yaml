@@ -1,2 +1,2 @@
-key: ./exposed/data
+data_dir: ./exposed/data
 batch_size: 100

@@ -75,9 +75,8 @@ pub fn cli_fetcher_config(tmp: &TempDir) -> (NamedTempFile<File>, PathBuf) {
     (file, path)
 }
 
-pub fn cli_loader_config(tmp: &TempDir, conn_str: &str) -> (NamedTempFile<File>, PathBuf) {
+pub fn cli_loader_config(tmp: &TempDir) -> (NamedTempFile<File>, PathBuf) {
     let config = LoaderConfig {
-        connection_string: conn_str.to_string(),
         data_dir: tmp.path().to_path_buf(),
     };
     let contents = rust_yaml::to_string(&config).unwrap();
@@ -87,12 +86,8 @@ pub fn cli_loader_config(tmp: &TempDir, conn_str: &str) -> (NamedTempFile<File>,
     (file, path)
 }
 
-pub fn cli_declaration_fetcher_config(
-    tmp: &TempDir,
-    conn_str: &str,
-) -> (NamedTempFile<File>, PathBuf) {
+pub fn cli_declaration_fetcher_config(tmp: &TempDir) -> (NamedTempFile<File>, PathBuf) {
     let config = DeclarationFetcherConfig {
-        connection_string: conn_str.to_string(),
         data_dir: tmp.path().to_path_buf(),
         // Small pages exercise pagination against the live source.
         batch_size: 5,
