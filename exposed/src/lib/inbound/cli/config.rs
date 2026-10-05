@@ -76,6 +76,22 @@ impl TryFrom<&PathBuf> for LoaderConfig {
     }
 }
 
+/// Configuration for inspection of stored ingestion runs.
+#[derive(Deserialize)]
+pub struct IngestionStatusConfig {
+    /// Root directory for ingestion datasets.
+    pub data_dir: PathBuf,
+}
+
+impl TryFrom<&PathBuf> for IngestionStatusConfig {
+    type Error = CliConfigError;
+
+    fn try_from(value: &PathBuf) -> Result<Self, Self::Error> {
+        let raw = read_to_string(value)?;
+        Ok(rust_yaml::from_str(&raw)?)
+    }
+}
+
 #[derive(Error, Debug)]
 /// Collection of errors when parsing configuration
 pub enum CliConfigError {
