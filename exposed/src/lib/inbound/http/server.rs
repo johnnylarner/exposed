@@ -9,9 +9,10 @@ use crate::{
 /// Starts an `exposed` HTTP server
 ///
 /// # Errors
+/// - When the database connection fails
 /// - When the TCP listener cannot attach
 pub async fn serve_exposed(config: &ServerConfig) -> anyhow::Result<()> {
-    let db = ExposedDatabase::new(&config.connection_string).await;
+    let db = ExposedDatabase::connect_with(config.connection_options.clone()).await?;
     let service = EntitySearchService::new(db.clone(), db);
 
     let state = AppState {

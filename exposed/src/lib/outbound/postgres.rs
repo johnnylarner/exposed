@@ -1,6 +1,6 @@
 //! General purpose postgres client
 
-use sqlx::PgPool;
+use sqlx::{PgPool, postgres::PgConnectOptions};
 
 /// Postgres client that wraps [`sqlx::Pool`]
 #[derive(Clone)]
@@ -15,9 +15,16 @@ impl ExposedDatabase {
     /// Invalid connection string
     #[must_use]
     pub async fn new(conn_str: &str) -> Self {
-        let pool = PgPool::connect(conn_str).await.unwrap();
+        Self::connect_with(conn_str.parse().unwrap()).await.unwrap()
+    }
 
-        Self { pool }
+    /// Connects to PostgreSQL with parsed connection options.
+    ///
+    /// # Errors
+    /// Returns an error if the database connection fails.
+    pub async fn connect_with(options: PgConnectOptions) -> Result<Self, sqlx::Error> {
+        let pool = PgPool::connect_with(options).await?;
+        Ok(Self { pool })
     }
 
     /// Get a reference to the underlying pool

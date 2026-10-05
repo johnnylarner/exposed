@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-
 use clap::{Parser, Subcommand};
 use exposed::inbound::{
     cli::{DataArgs, run_cli},
@@ -14,7 +12,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    Server { config: PathBuf },
+    Server,
     Data(DataArgs),
 }
 
@@ -23,8 +21,8 @@ async fn main() -> anyhow::Result<()> {
     let args = Cli::parse();
 
     match args.command {
-        Commands::Server { config } => {
-            let config = ServerConfig::try_from(&config)?;
+        Commands::Server => {
+            let config = ServerConfig::from_env()?;
             serve_exposed(&config).await?;
         }
         Commands::Data(args) => run_cli(args).await?,

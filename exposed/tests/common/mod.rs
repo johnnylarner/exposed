@@ -1,4 +1,4 @@
-use std::{fs::File, io::Write, path::PathBuf, str::FromStr};
+use std::{fs::File, io::Write, path::PathBuf};
 
 use exposed::{
     domain::models::entity_search::EntitySearchRequest,
@@ -16,12 +16,12 @@ pub use declarations::{DeclarationFunding, FundingEntry, read_declaration_fundin
 
 pub struct Guard;
 
+const TEST_PORT: u16 = 9999;
+
 pub async fn search_entities(params: &EntitySearchRequest) -> anyhow::Result<Vec<Value>> {
     let client = reqwest::Client::new();
 
-    let test_config = PathBuf::from_str("config/server-test.yaml").unwrap();
-    let config = ServerConfig::try_from(&test_config).unwrap();
-    let port = config.port;
+    let port = TEST_PORT;
 
     let (term, strictness, entries) = (params.term(), params.strictness(), params.max_entries());
     let url = format!(
@@ -49,9 +49,9 @@ pub async fn search_entities(params: &EntitySearchRequest) -> anyhow::Result<Vec
 }
 
 pub async fn start_app() -> anyhow::Result<Guard> {
+    let mut config = ServerConfig::from_env()?;
+    config.port = TEST_PORT;
     let _handle = tokio::task::spawn(async move {
-        let test_config = PathBuf::from_str("config/server-test.yaml").unwrap();
-        let config = ServerConfig::try_from(&test_config).unwrap();
         let _ = serve_exposed(&config).await;
         println!("started");
     });
