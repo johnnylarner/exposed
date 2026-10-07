@@ -1,7 +1,7 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde_json::{Value, json};
 
-use super::{ApiError, decode_declaration};
+use super::{ApiError, decode_declaration, replay_declaration};
 use crate::domain::models::declaration_ingestion::CapturedDeclaration;
 
 fn fetched_at() -> DateTime<Utc> {
@@ -154,6 +154,21 @@ fn retains_nonfinancial_declarations_with_no_funding_entries() {
         assert_eq!(declaration.id().value(), 42);
         assert!(declaration.funding_entries().is_empty());
     }
+}
+
+#[test]
+fn capture_preserves_nonfinancial_names_that_cleaning_cannot_interpret() {
+    let source = source(&json!([
+        {"name": "PayerName", "value": {"futureNameFormat": "Example"}}
+    ]));
+    let captured = decode(&source).expect("fetch must retain uninterpreted nonfinancial evidence");
+
+    assert!(captured.funding_entries().is_empty());
+    assert_eq!(
+        serde_json::from_str::<Value>(captured.source_json()).unwrap(),
+        source
+    );
+    assert!(replay_declaration(source, fetched_at()).is_err());
 }
 
 #[test]

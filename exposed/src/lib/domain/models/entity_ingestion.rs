@@ -69,6 +69,8 @@ pub enum MemberIngestionStage {
 pub enum DeclarationIngestionStage {
     /// Capture source evidence for later offline processing.
     Fetch,
+    /// Split captured funding occurrences and funder observations offline.
+    Clean,
 }
 
 /// Errors related to entity search

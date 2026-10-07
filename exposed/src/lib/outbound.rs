@@ -1,6 +1,8 @@
 //! A collection of outbound adapters for the `exposed` project
 
+mod declaration_cleaning;
 mod declaration_ingestion;
+mod declaration_source;
 mod entity_ingestion;
 mod file_system;
 mod funder;

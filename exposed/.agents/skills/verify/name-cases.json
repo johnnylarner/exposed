@@ -1,0 +1,81 @@
+[
+  {
+    "name": "  Ｍｒ.  James O’Brien-Smith  ",
+    "expected": {
+      "name_normalized": "mr. james o’brien-smith",
+      "name_tokens": "mr james obrien smith",
+      "name_token_key": "james mr obrien smith",
+      "person_core": "james obrien smith",
+      "person_initials": "jos"
+    }
+  },
+  {
+    "name": "Friends of Sinn Féin Canada",
+    "expected": {
+      "name_normalized": "friends of sinn féin canada",
+      "name_accent_folded": "friends of sinn fein canada",
+      "name_tokens": "friends of sinn féin canada",
+      "organisation_core": "friends of sinn féin canada"
+    }
+  },
+  {
+    "name": "CSC Computer Sciences Limited (Trading as DXC Technology Ltd)",
+    "expected": {
+      "primary_name_normalized": "csc computer sciences limited",
+      "organisation_core": "csc computer sciences",
+      "parenthetical_text": ["Trading as DXC Technology Ltd"],
+      "explicit_aliases": ["DXC Technology Ltd"],
+      "alias_normalized": ["dxc technology ltd"]
+    }
+  },
+  {
+    "name": "ASLEF (Associated Society of Locomotive Engineers and Firemen)",
+    "expected": {
+      "explicit_acronym": "aslef",
+      "acronym_expansion_normalized": "associated society of locomotive engineers and firemen"
+    }
+  },
+  {
+    "name": "BJD (GB) Limited",
+    "expected": {
+      "organisation_core": "bjd gb",
+      "explicit_acronym": null,
+      "parenthetical_text": ["GB"]
+    }
+  },
+  {
+    "name": "Alan Milburn & Ruth Briel",
+    "expected": {
+      "name_tokens": "alan milburn and ruth briel",
+      "has_conjunction": true,
+      "has_unbalanced_parentheses": false,
+      "explicit_aliases": []
+    }
+  },
+  {
+    "name": "Example (UK",
+    "expected": {
+      "has_unbalanced_parentheses": true,
+      "parenthetical_text": ["UK"]
+    }
+  },
+  {
+    "name": "Confidential",
+    "expected": {
+      "name_status": "withheld",
+      "name_normalized": null,
+      "name_accent_folded": null,
+      "name_tokens": null,
+      "person_core": null,
+      "organisation_core": null
+    }
+  },
+  {
+    "name": " \t ",
+    "expected": {
+      "name_status": "missing",
+      "name_normalized": null,
+      "name_tokens": null
+    }
+  }
+]

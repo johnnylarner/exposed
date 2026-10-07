@@ -26,6 +26,23 @@ This command requires only `data_dir` in the YAML file and no database connectio
 at runtime. It does not change files. An absent or empty data directory produces
 `No ingestion runs found.` and a successful exit.
 
+To split a captured declaration run into funding occurrences and funder
+observations, provide its ingestion key explicitly:
+
+```sh
+cargo run --package exposed --bin exposed -- data declarations clean exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
+```
+
+Cleaning runs offline and requires only `data_dir` in the configuration. It writes
+`<data_dir>/<ingestion_key>/cleaned/declarations/funding_entries.parquet` and
+`funders.parquet` together. It preserves raw files and refuses an existing cleaned
+result. Funder rows are source observations, with separate donor, payer, and
+ultimate-payer roles. They include parallel name features for later entity
+resolution. Matching names do not merge observations. Declaration-level names
+remain available even when the declaration has no funding entry. See the
+[declaration cleaning reference](docs/declaration-cleaning.md) for table semantics
+and exact feature rules.
+
 The frontend service proxies `/api/search` to `http://exposed:6999/search`.
 Its source is bind-mounted, with polling for live reload on Docker Desktop and a
 separate Linux dependency volume. Restart `frontend` after changing its package
