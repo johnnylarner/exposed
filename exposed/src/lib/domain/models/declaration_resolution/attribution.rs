@@ -1,4 +1,3 @@
-//! One reporting selection per funding occurrence, independent of identity links.
 use super::{
     AttributionBasis, AttributionDecision, AttributionIssue, BTreeSet, FunderObservationId,
     FunderRole, Payment, PaymentAttribution, ResolutionInput, UnavailableReason,

@@ -422,3 +422,140 @@ fn duplicate_occurrences_remain_separate_and_profile_grouping_does_not_merge_nam
     );
     assert_eq!(result.pairs[0].disposition, PairDisposition::Review);
 }
+
+#[test]
+fn parent_payer_from_another_member_is_not_selected() {
+    let mut payer = observation(1, Some("guardian"), None, None, None);
+    payer.role = FunderRole::Payer;
+    payer.member_id = uuid::Uuid::from_u128(2).to_string();
+    payer.funder_id = serde_json::from_value(serde_json::json!(format!(
+        "{}/1/1/declaration/payer",
+        payer.member_id
+    )))
+    .unwrap();
+    let child = payment(2, Some(1), Some(false));
+    let input = ResolutionInput::new(vec![payer], vec![child.clone()], BTreeMap::new()).unwrap();
+    assert!(matches!(
+        attribute(&input, &child).decision,
+        AttributionDecision::Unavailable {
+            unavailable_reason: UnavailableReason::ParentEvidenceUnavailable
+        }
+    ));
+}
+
+#[test]
+fn multiple_parent_root_payers_remain_ambiguous() {
+    let mut observations = Vec::new();
+    let mut payments = Vec::new();
+    for ordinal in 0..2 {
+        let mut parent = payment(1, None, None);
+        parent.funding_ordinal = ordinal;
+        parent.funding_entry_id = serde_json::from_value(serde_json::json!(format!(
+            "{}/1/1/funding/{ordinal}",
+            parent.member_id
+        )))
+        .unwrap();
+        let mut payer = observation(1, Some("parent payer"), None, None, None);
+        payer.role = FunderRole::Payer;
+        payer.source_scope = "funding_entry".into();
+        payer.funding_entry_id = Some(parent.funding_entry_id.clone());
+        payer.funding_ordinal = Some(ordinal);
+        payer.funder_id = serde_json::from_value(serde_json::json!(format!(
+            "{}/payer",
+            parent.funding_entry_id.as_str()
+        )))
+        .unwrap();
+        parent.payer_funder_id = Some(payer.funder_id.clone());
+        observations.push(payer);
+        payments.push(parent);
+    }
+    let child = payment(2, Some(1), Some(false));
+    payments.push(child.clone());
+    let input = ResolutionInput::new(observations, payments, BTreeMap::new()).unwrap();
+    assert!(matches!(
+        attribute(&input, &child).decision,
+        AttributionDecision::Unavailable {
+            unavailable_reason: UnavailableReason::ParentPayerAmbiguous
+        }
+    ));
+}
+
+#[test]
+fn indirect_links_cannot_join_distinct_company_components() {
+    let observations = (1..=4)
+        .map(|id| {
+            let company = match id {
+                1 => Some("00000001"),
+                4 => Some("00000002"),
+                _ => None,
+            };
+            observation(
+                id,
+                Some("shared name"),
+                Some("10 example road"),
+                None,
+                company,
+            )
+        })
+        .collect::<Vec<_>>();
+    let input = input(observations);
+    let rows = input
+        .observations
+        .values()
+        .enumerate()
+        .map(|(index, observation)| input::ComparisonRow {
+            key: format!("profile-{index}"),
+            name: observation.name_normalized.clone().unwrap(),
+            address: observation.address_normalized.clone(),
+            needs_resolution: company(observation).is_none(),
+        })
+        .collect::<Vec<_>>();
+    let members = rows
+        .iter()
+        .zip(input.observations.keys())
+        .map(|(row, id)| (row.key.clone(), vec![id.clone()]))
+        .collect();
+    let scoring = ScoringInput {
+        version: 1,
+        candidate_budget: 10,
+        rows,
+        members,
+    };
+    let pairs = scoring
+        .rows
+        .windows(2)
+        .map(|pair| ScoredPair {
+            left: pair[0].key.clone(),
+            right: pair[1].key.clone(),
+            probability: 0.9999,
+            name_level: 2,
+            address_level: 1,
+        })
+        .collect();
+    let scored =
+        ScoredPairs::checked(pairs, serde_json::json!({"calibrated": false}), &scoring).unwrap();
+    let result = ResolvedDeclarations::from_scored(&input, &scoring, scored, "test-run").unwrap();
+    assert_eq!(
+        result.observations[0].identity_id.as_deref(),
+        Some("source-reported:companies-house:00000001")
+    );
+    assert_eq!(
+        result.observations[3].identity_id.as_deref(),
+        Some("source-reported:companies-house:00000002")
+    );
+    assert_eq!(
+        result
+            .pairs
+            .iter()
+            .filter(|pair| pair.disposition == PairDisposition::Accepted)
+            .count(),
+        2
+    );
+    assert!(
+        result
+            .pairs
+            .iter()
+            .any(|pair| pair.disposition == PairDisposition::Rejected
+                && matches!(pair.reason, PairReason::ComponentIdentityConflict))
+    );
+}

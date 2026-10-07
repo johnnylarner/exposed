@@ -1,4 +1,3 @@
-//! Bounded candidate expansion and whole-component identity constraints.
 use super::{
     AUTOMATIC_THRESHOLD, AddressMatchQuality, BTreeMap, BTreeSet, EntityIngestionError,
     FunderObservationId, IdentityBasis, Observation, ObservationResolution, PairDecision,

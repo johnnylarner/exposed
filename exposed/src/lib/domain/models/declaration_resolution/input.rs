@@ -1,4 +1,3 @@
-//! Checked cleaned identities, role references, and scoring protocol data.
 use super::identity::company;
 use super::{
     AddressMatchQuality, BTreeMap, BTreeSet, EntityIngestionError, FunderObservationId, FunderRole,

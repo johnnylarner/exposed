@@ -1,9 +1,9 @@
 # Run declaration resolution
 
-Install the statistical runtime before invoking the CLI. From the repository root, create a Python environment and install the pinned package dependencies:
+Use Python 3.10 or later. Install the statistical runtime before invoking the CLI. From the repository root, create a Python environment and install the pinned package dependencies:
 
 ```sh
-python3.12 -m venv resolution/.venv
+python3 -m venv resolution/.venv
 resolution/.venv/bin/python -m pip install ./resolution
 ```
 

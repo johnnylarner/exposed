@@ -1,5 +1,3 @@
-//! Parquet publication and the versioned Python Splink scoring protocol.
-
 use super::{
     ExposedDataPipeline,
     declaration_cleaning::{funders_schema, funding_schema, write_table},

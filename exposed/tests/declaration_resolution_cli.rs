@@ -1,4 +1,3 @@
-//! Real CLI verification with the separately installed pinned Splink runtime.
 use arrow::json::ArrayWriter;
 use chrono::{NaiveDate, Utc};
 use exposed::{
