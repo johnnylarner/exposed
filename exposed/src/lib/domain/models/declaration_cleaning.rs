@@ -1,7 +1,8 @@
 //! Funding occurrences and source-scoped funder observations.
 
 use chrono::{DateTime, NaiveDate, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
 use super::{
@@ -47,6 +48,7 @@ pub struct DeclarationEvidence {
     pub(crate) declaration_funders: Option<DeclarationFunderNames>,
     pub(crate) declaration_source_pointer: String,
     funding_source_pointers: Vec<String>,
+    pub(crate) addresses: std::collections::BTreeMap<String, RoleAddresses>,
 }
 
 impl DeclarationEvidence {
@@ -70,6 +72,7 @@ impl DeclarationEvidence {
             declaration_funders,
             declaration_source_pointer,
             funding_source_pointers,
+            addresses: std::collections::BTreeMap::new(),
         })
     }
 
@@ -87,18 +90,148 @@ impl DeclarationEvidence {
     }
 }
 
+/// Public address evidence owned by one checked source scope.
+#[derive(Clone, Debug, Default)]
+pub struct RoleAddresses {
+    pub(crate) donor: Option<(String, String)>,
+    pub(crate) payer: Option<(String, String)>,
+    pub(crate) ultimate: Option<(String, String)>,
+}
+
+/// Whether public address evidence supports the conservative automatic-link rule.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum AddressMatchQuality {
+    /// No usable public-address text.
+    #[default]
+    Unavailable,
+    /// Public text lacks a numbered street address.
+    Partial,
+    /// A house or building number and a street designation are both present.
+    NumberedStreet,
+}
+impl AddressMatchQuality {
+    pub(crate) fn from_normalized(address: Option<&str>) -> Self {
+        let Some(address) = address else {
+            return Self::Unavailable;
+        };
+        let tokens = address
+            .split_whitespace()
+            .map(|token| token.trim_matches(|c: char| !c.is_alphanumeric()))
+            .collect::<Vec<_>>();
+        let number = tokens.iter().any(|token| {
+            token.as_bytes().first().is_some_and(u8::is_ascii_digit)
+                && token.bytes().all(|c| c.is_ascii_alphanumeric())
+                && token.bytes().filter(u8::is_ascii_alphabetic).count() <= 1
+        });
+        let street = tokens.iter().any(|token| {
+            matches!(
+                *token,
+                "road"
+                    | "rd"
+                    | "street"
+                    | "st"
+                    | "avenue"
+                    | "ave"
+                    | "lane"
+                    | "drive"
+                    | "way"
+                    | "place"
+                    | "close"
+                    | "terrace"
+                    | "court"
+                    | "crescent"
+                    | "square"
+                    | "gardens"
+                    | "park"
+                    | "mews"
+                    | "boulevard"
+                    | "row"
+            )
+        });
+        if number && street {
+            Self::NumberedStreet
+        } else {
+            Self::Partial
+        }
+    }
+}
+
+/// Raw public address and the usable full-address comparison value.
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct PublicAddressEvidence {
+    #[serde(rename = "address_raw")]
+    pub(crate) raw: Option<String>,
+    #[serde(rename = "address_normalized")]
+    pub(crate) normalized: Option<String>,
+    #[serde(rename = "address_source_field")]
+    pub(crate) source_field: Option<String>,
+    #[serde(rename = "address_match_quality")]
+    pub(crate) match_quality: AddressMatchQuality,
+}
+
+impl PublicAddressEvidence {
+    fn from_source(source: Option<&(String, String)>) -> Self {
+        let Some((raw, field)) = source else {
+            return Self::default();
+        };
+        let normalized = raw
+            .nfkc()
+            .collect::<String>()
+            .to_lowercase()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ");
+        let usable = !normalized.is_empty()
+            && !matches!(
+                normalized.as_str(),
+                "withheld"
+                    | "confidential"
+                    | "private"
+                    | "private address"
+                    | "address private"
+                    | "home address withheld"
+                    | "confidential address"
+                    | "not provided"
+                    | "not-provided"
+                    | "not disclosed"
+                    | "address withheld"
+                    | "not applicable"
+                    | "n/a"
+            );
+        let normalized = usable.then_some(normalized);
+        Self {
+            match_quality: AddressMatchQuality::from_normalized(normalized.as_deref()),
+            raw: Some(raw.clone()),
+            normalized,
+            source_field: Some(field.clone()),
+        }
+    }
+}
+
 /// Stable source occurrence identity, independent of name features.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FundingEntryId(String);
 
 /// Stable source-role observation identity, independent of name features.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct FunderObservationId(String);
 
+impl FundingEntryId {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+impl FunderObservationId {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// Role explicitly named by the source.
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FunderRole {
     /// Donor, the owner of donor-kind and company-number evidence.
@@ -153,6 +286,8 @@ pub struct FunderObservation {
     pub(crate) donor_company_number: Option<String>,
     #[serde(flatten)]
     pub(crate) name: FunderNameFeatures,
+    #[serde(flatten)]
+    pub(crate) address: PublicAddressEvidence,
 }
 
 /// One source funding occurrence with all original values and role references.
@@ -246,6 +381,7 @@ impl CleanedDeclarations {
                         names.ultimate_payer_name.as_deref(),
                         names.donor_kind.as_deref(),
                         names.donor_company_number.as_deref(),
+                        evidence.addresses.get(&evidence.declaration_source_pointer),
                     );
                 }
                 for (ordinal, (funding, pointer)) in evidence.funding_occurrences().enumerate() {
@@ -268,6 +404,7 @@ impl CleanedDeclarations {
                         funding.ultimate_payer_name(),
                         funding.funder_kind(),
                         funding.company_number(),
+                        evidence.addresses.get(pointer),
                     );
                     funding_entries.push(CleanedFundingEntry {
                         funding_entry_id: id,
@@ -316,6 +453,7 @@ fn add_roles(
     ultimate: Option<&str>,
     kind: Option<&str>,
     company: Option<&str>,
+    addresses: Option<&RoleAddresses>,
 ) -> [Option<FunderObservationId>; 3] {
     [
         (FunderRole::Donor, donor, kind, company),
@@ -337,6 +475,13 @@ fn add_roles(
             donor_kind: kind.map(str::to_owned),
             donor_company_number: company.map(str::to_owned),
             name: FunderNameFeatures::from_name(name),
+            address: PublicAddressEvidence::from_source(addresses.and_then(
+                |addresses| match role {
+                    FunderRole::Donor => addresses.donor.as_ref(),
+                    FunderRole::Payer => addresses.payer.as_ref(),
+                    FunderRole::UltimatePayer => addresses.ultimate.as_ref(),
+                },
+            )),
         });
         Some(id)
     })

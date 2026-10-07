@@ -6,7 +6,7 @@ use serde_json::Value;
 
 use super::parliament_api::ApiError;
 use crate::domain::models::{
-    declaration_cleaning::{DeclarationEvidence, DeclarationFunderNames},
+    declaration_cleaning::{DeclarationEvidence, DeclarationFunderNames, RoleAddresses},
     declaration_ingestion::{CapturedDeclaration, CapturedFundingEntry, DeclarationId},
 };
 
@@ -117,12 +117,63 @@ pub(super) fn replay_declaration(
             donor_company_number: names.company_number().map(str::to_owned),
         })
     };
-    Ok(DeclarationEvidence::new(
+    let mut evidence = DeclarationEvidence::new(
         decoded.declaration,
         declaration_funders,
         decoded.source_pointer,
         decoded.funding_source_pointers,
-    )?)
+    )?;
+    collect_addresses(
+        &decoded.fields,
+        &evidence.declaration_source_pointer,
+        false,
+        &mut evidence.addresses,
+    )?;
+    Ok(evidence)
+}
+
+fn collect_addresses(
+    fields: &[SourceField],
+    pointer: &str,
+    nested_donor: bool,
+    addresses: &mut std::collections::BTreeMap<String, RoleAddresses>,
+) -> Result<(), ApiError> {
+    let mut roles = RoleAddresses::default();
+    for field in fields {
+        let role = match field.name.as_str() {
+            "DonorPublicAddress" if !nested_donor => Some(&mut roles.donor),
+            "PublicAddress" if nested_donor => Some(&mut roles.donor),
+            "PayerPublicAddress" => Some(&mut roles.payer),
+            "UltimatePayerAddress" => Some(&mut roles.ultimate),
+            _ => None,
+        };
+        if let Some(role) = role
+            && !field.value.is_null()
+        {
+            let raw = field.value.as_str().ok_or_else(|| {
+                ApiError::ResponseError(format!(
+                    "{} must contain a public-address string",
+                    field.name
+                ))
+            })?;
+            if role.is_some() {
+                return Err(ApiError::ResponseError(format!("duplicate {}", field.name)));
+            }
+            *role = Some((raw.to_owned(), field.name.clone()));
+        }
+    }
+    addresses.insert(pointer.to_owned(), roles);
+    for (field_index, field) in fields.iter().enumerate() {
+        for (entry_index, nested) in field.values.iter().flatten().enumerate() {
+            collect_addresses(
+                nested,
+                &format!("{pointer}/{field_index}/values/{entry_index}"),
+                field.name == "Donors",
+                addresses,
+            )?;
+        }
+    }
+    Ok(())
 }
 
 fn decode_source(source: Value, fetched_at: DateTime<Utc>) -> Result<DecodedDeclaration, ApiError> {

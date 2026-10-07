@@ -233,7 +233,7 @@ fn funding_counts<'a>(
     counts
 }
 
-async fn write_table<T: Serialize + Sync>(
+pub(super) async fn write_table<T: Serialize + Sync>(
     path: &Path,
     schema: Schema,
     rows: &[T],
@@ -254,7 +254,7 @@ async fn write_table<T: Serialize + Sync>(
     Ok(())
 }
 
-fn funding_schema() -> Schema {
+pub(super) fn funding_schema() -> Schema {
     let mut fields = vec![
         Field::new("funding_entry_id", DataType::Utf8, false),
         Field::new("funding_ordinal", DataType::UInt32, false),
@@ -272,7 +272,7 @@ fn funding_schema() -> Schema {
     Schema::new(fields)
 }
 
-fn funders_schema() -> Schema {
+pub(super) fn funders_schema() -> Schema {
     let text = |name, nullable| Field::new(name, DataType::Utf8, nullable);
     let list = |name| Field::new(name, DataType::List(Arc::new(text("item", false))), false);
     Schema::new(vec![
@@ -287,6 +287,10 @@ fn funders_schema() -> Schema {
         Field::new("funding_ordinal", DataType::UInt32, true),
         text("donor_kind", true),
         text("donor_company_number", true),
+        text("address_match_quality", false),
+        text("address_raw", true),
+        text("address_normalized", true),
+        text("address_source_field", true),
         text("name_raw", true),
         text("name_status", false),
         text("name_normalized", true),
