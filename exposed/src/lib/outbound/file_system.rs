@@ -62,6 +62,33 @@ impl Default for FsSchema {
 }
 
 impl ExposedDataPipeline {
+    /// Opens an existing raw declaration dataset without creating directories.
+    ///
+    /// # Errors
+    /// Returns a read error for a missing or invalid declaration directory.
+    pub fn open_existing_declarations(
+        root: &Path,
+        key: IngestionKey,
+    ) -> Result<Self, EntitySearchPipelineError> {
+        let root = path::absolute(root).map_err(|e| read_error(root, e))?;
+        let directory = root.join(key.to_string()).join("raw/declarations");
+        if !std::fs::metadata(&directory)
+            .map_err(|e| read_error(&directory, e))?
+            .is_dir()
+        {
+            return Err(read_error(&directory, "expected a declaration directory"));
+        }
+        Ok(Self {
+            root,
+            key: PipelineKey::from(key),
+            fs_schema: FsSchema::default(),
+        })
+    }
+
+    pub(super) fn cleaned_declarations_path(&self) -> PathBuf {
+        self.latest_run_path().join("cleaned/declarations")
+    }
+
     /// Returns the absolute path and key of the most recently modified run directory.
     /// Equal timestamps use the greatest UUID. An absent or empty store returns `None`.
     /// This operation does not create or change files.

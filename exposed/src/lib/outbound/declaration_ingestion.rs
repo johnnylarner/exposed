@@ -100,7 +100,7 @@ fn write_error(error: impl std::fmt::Display) -> EntitySearchPipelineError {
     EntitySearchPipelineError::WriteError(error.to_string())
 }
 
-fn declarations_schema() -> Schema {
+pub(super) fn declarations_schema() -> Schema {
     Schema::new(vec![
         Field::new("member_id", DataType::Utf8, false),
         Field::new("parliament_member_id", DataType::UInt32, false),
