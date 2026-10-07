@@ -14,7 +14,6 @@ The goal of this project is to make declaration data easy to search, browse and 
   - Consistent error handling
   - Service layer abstractions
 
-- Use type driven development, $code-base-design and $hexagonal-architecture always.
 - Interactions with the database must use `sqlx` macros for compile-time query verification.
 
 ## Frontend coding policy
@@ -44,11 +43,6 @@ The goal of this project is to make declaration data easy to search, browse and 
 - After completing and validating a task, commit its changes on the task's work
   branch without waiting for a separate request.
 - Never commit directly on `main`.
-- When reporting completed and committed work, include a runnable command comparing
-  `main` with the latest commit on the work branch:
-  `git -C <worktree-path> diff <source-branch> <latest-commit-sha>`.
-  Resolve the commit SHA after committing the work. Put the command in its own
-  fenced `sh` code block with the copy-to-clipboard control.
 - Keep Git history linear. Rebase feature branches onto the target branch and
   integrate changes with a fast-forward or squash; do not create merge commits.
 
