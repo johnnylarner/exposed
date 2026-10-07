@@ -3,7 +3,7 @@
 use std::num::NonZeroU32;
 
 use chrono::{DateTime, NaiveDate, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::entity_ingestion::EntityIngestionError;
@@ -172,7 +172,7 @@ impl CapturedDeclaration {
 }
 
 /// Funding details from the latest declaration publication.
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct CapturedFundingEntry {
     ultimate_payer_name: Option<String>,
     donor_name: Option<String>,

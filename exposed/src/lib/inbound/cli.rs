@@ -9,6 +9,7 @@ use crate::{
         models::entity_ingestion::{
             DeclarationIngestionStage, EntityIngestionRequest, IngestionKey, MemberIngestionStage,
         },
+        services::declaration_cleaning::DeclarationCleanerService,
         services::declaration_fetch::DeclarationFetcherService,
         services::entity_ingestion::{
             EntityFetcherService, EntityIngesterService, FetcherService, IngesterService,
@@ -74,19 +75,46 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
             stage,
             config,
             ingestion_key,
-        } => {
-            let DeclarationIngestionStage::Fetch = DeclarationIngestionStage::from_str(&stage)?;
-            let config = DeclarationFetcherConfig::try_from(&config)?;
-            let data_config = DataConfig::from_env()?;
-            let api = ParliamentApiClient::new(config.batch_size)?;
-            let db = ExposedDatabase::new(&data_config.connection_string).await;
-            let fs = ExposedDataPipeline::new_with_ingestion_key(
-                &config.data_dir,
-                ingestion_key.unwrap_or_default(),
-            )?;
-            let service = DeclarationFetcherService::new(db, api, fs);
-            service.fetch_declarations().await?;
-        }
+        } => match DeclarationIngestionStage::from_str(&stage)? {
+            DeclarationIngestionStage::Fetch => {
+                let config = DeclarationFetcherConfig::try_from(&config)?;
+                let data_config = DataConfig::from_env()?;
+                let api = ParliamentApiClient::new(config.batch_size)?;
+                let db = ExposedDatabase::new(&data_config.connection_string).await;
+                let fs = ExposedDataPipeline::new_with_ingestion_key(
+                    &config.data_dir,
+                    ingestion_key.unwrap_or_default(),
+                )?;
+                DeclarationFetcherService::new(db, api, fs)
+                    .fetch_declarations()
+                    .await?;
+            }
+            DeclarationIngestionStage::Clean => {
+                let ingestion_key = ingestion_key.ok_or_else(|| {
+                    anyhow::anyhow!("declarations clean requires --ingestion-key")
+                })?;
+                let config = LoaderConfig::try_from(&config)?;
+                let fs = ExposedDataPipeline::open_existing_declarations(
+                    &config.data_dir,
+                    ingestion_key.clone(),
+                )?;
+                let summary = DeclarationCleanerService::new(fs)
+                    .clean_declarations()
+                    .await?;
+                println!("Ingestion key: {ingestion_key}");
+                println!(
+                    "Cleaned declarations: {}",
+                    std::path::absolute(&config.data_dir)?
+                        .join(ingestion_key.to_string())
+                        .join("cleaned/declarations")
+                        .display()
+                );
+                println!("Member partitions: {}", summary.member_partitions);
+                println!("Declarations: {}", summary.declarations);
+                println!("Funding entries: {}", summary.funding_entries);
+                println!("Funder observations: {}", summary.funders);
+            }
+        },
         DataCommands::Members {
             stage,
             config,

@@ -9,5 +9,6 @@ pub mod parliament_member_repository;
 /// Pubilc API for UK Parliament  
 pub mod parliament_api;
 
+pub mod declaration_cleaning;
 /// Store for cleaning parliament API data;
 pub mod entity_ingestion;
