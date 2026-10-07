@@ -113,3 +113,22 @@ organisation initials and acronym checks are `a`, `an`, `and`, `for`, `in`, `of`
 There is no fuzzy matching, phonetic encoding, external enrichment, or inferred
 entity-type selection. The original donor kind remains available beside the
 parallel person and organisation features.
+
+## Public address evidence
+
+The cleaner adds supplemental public-address evidence from checked source scopes.
+Root `DonorPublicAddress`, `PayerPublicAddress`, and `UltimatePayerAddress` belong
+to their respective roles. Nested `Donors` groups use `PublicAddress` only for
+that nested donor. Addresses never propagate between root and nested scopes.
+
+`address_raw` preserves absent and blank values. `address_normalized` uses NFKC,
+lowercase, and collapsed whitespace. Explicit private, withheld, confidential,
+and not-provided placeholders have no usable normalized value.
+`address_source_field` records the source field name. `address_match_quality`
+records `unavailable`, `partial`, or `numbered_street`. The last requires a numeric
+house or building token and a street designation. The raw Parquet projection is
+unchanged, so old captures can be replayed by this cleaner.
+
+The [resolver](funder-resolution-design.md) requires this cleaned schema. Older
+cleaned results remain immutable and require a fresh clean run from retained raw
+capture before resolution.

@@ -11,12 +11,16 @@ use crate::{
         },
         services::declaration_cleaning::DeclarationCleanerService,
         services::declaration_fetch::DeclarationFetcherService,
+        services::declaration_resolution::DeclarationResolverService,
         services::entity_ingestion::{
             EntityFetcherService, EntityIngesterService, FetcherService, IngesterService,
         },
     },
-    inbound::cli::config::{DataConfig, DeclarationFetcherConfig, FetcherConfig, LoaderConfig},
-    outbound::{ExposedDataPipeline, ExposedDatabase, ParliamentApiClient},
+    inbound::cli::config::{
+        DataConfig, DeclarationFetcherConfig, DeclarationResolverConfig, FetcherConfig,
+        LoaderConfig,
+    },
+    outbound::{ExposedDataPipeline, ExposedDatabase, ParliamentApiClient, SplinkScorer},
 };
 
 pub mod config;
@@ -88,6 +92,32 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                 DeclarationFetcherService::new(db, api, fs)
                     .fetch_declarations()
                     .await?;
+            }
+            DeclarationIngestionStage::Resolve => {
+                let ingestion_key = ingestion_key.ok_or_else(|| {
+                    anyhow::anyhow!("declarations resolve requires --ingestion-key")
+                })?;
+                let config = DeclarationResolverConfig::try_from(&config)?;
+                let storage = ExposedDataPipeline::open_cleaned_declarations(
+                    &config.data_dir,
+                    ingestion_key.clone(),
+                )?;
+                let scorer = SplinkScorer::new(config.resolution_python, config.resolution_worker)?;
+                let summary =
+                    DeclarationResolverService::new(storage, scorer, config.candidate_budget)
+                        .resolve_declarations()
+                        .await?;
+                println!("Ingestion key: {ingestion_key}");
+                println!(
+                    "Resolved declarations: {}",
+                    std::path::absolute(config.data_dir)?
+                        .join(ingestion_key.to_string())
+                        .join("resolved/declarations")
+                        .display()
+                );
+                println!("Observations: {}", summary.observations);
+                println!("Funding occurrences: {}", summary.payments);
+                println!("Pair decisions: {}", summary.pairs);
             }
             DeclarationIngestionStage::Clean => {
                 let ingestion_key = ingestion_key.ok_or_else(|| {

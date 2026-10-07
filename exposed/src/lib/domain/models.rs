@@ -10,3 +10,5 @@ pub mod funder_name;
 pub mod funding_entry;
 pub mod parliament_member;
 pub mod search_similarity;
+
+pub mod declaration_resolution;
