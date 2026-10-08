@@ -154,7 +154,7 @@ fn extracted_hsbc_name_and_punctuation_normalized_address_link_across_roles() {
         None,
     );
     bank.name_raw = Some("HSBC UK Bank plc".into());
-    let payer_observation = payer(bank.clone());
+    let payer_observation = payer(bank);
     let result = resolve(&input(vec![ceo, payer_observation]), 0.08);
     assert_eq!(
         result.observations[0].identity_id,
@@ -197,7 +197,7 @@ fn unite_trade_union_variants_link_but_similarly_spelled_entities_do_not() {
         .enumerate()
         .map(|(index, name)| {
             observation(
-                index as u32 + 1,
+                u32::try_from(index).expect("test fixture index fits u32") + 1,
                 Some(name),
                 None,
                 Some("Trade Union"),
