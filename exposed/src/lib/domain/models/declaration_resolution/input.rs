@@ -17,7 +17,10 @@ pub struct Observation {
     pub funding_ordinal: Option<u32>,
     pub donor_kind: Option<String>,
     pub donor_company_number: Option<String>,
+    pub name_raw: Option<String>,
     pub name_normalized: Option<String>,
+    pub organisation_core: Option<String>,
+    pub alias_normalized: Vec<String>,
     pub address_normalized: Option<String>,
     pub address_match_quality: AddressMatchQuality,
 }
@@ -132,6 +135,12 @@ impl ResolutionInput {
                 key: key.clone(),
                 name: name.clone(),
                 address: address.clone(),
+                blocking_keys: ids
+                    .iter()
+                    .flat_map(|id| blocking_keys(&self.observations[id]))
+                    .collect::<BTreeSet<_>>()
+                    .into_iter()
+                    .collect(),
                 needs_resolution: ids
                     .iter()
                     .any(|id| company(&self.observations[id]).is_none()),
@@ -147,18 +156,49 @@ impl ResolutionInput {
                     key: copy.clone(),
                     name,
                     address,
+                    blocking_keys: ids
+                        .iter()
+                        .flat_map(|id| blocking_keys(&self.observations[id]))
+                        .collect::<BTreeSet<_>>()
+                        .into_iter()
+                        .collect(),
                     needs_resolution: true,
                 });
                 members.insert(copy, ids);
             }
         }
         ScoringInput {
-            version: 1,
+            version: 2,
             candidate_budget,
             rows,
             members,
         }
     }
+}
+
+fn blocking_keys(observation: &Observation) -> BTreeSet<String> {
+    let mut keys = observation
+        .name_normalized
+        .iter()
+        .chain(observation.alias_normalized.iter())
+        .map(|name| format!("funder-name:{name}"))
+        .collect::<BTreeSet<_>>();
+    let is_trade_union = observation
+        .donor_kind
+        .as_deref()
+        .is_some_and(|kind| kind.trim().eq_ignore_ascii_case("trade union"));
+    let Some(raw) = observation.name_raw.as_deref() else {
+        return keys;
+    };
+    let raw = raw.to_lowercase();
+    if is_trade_union
+        && raw
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|token| token == "unite")
+    {
+        keys.insert("trade-union:unite".to_owned());
+    }
+    keys
 }
 
 fn root_scope(pointer: &str) -> bool {
@@ -193,6 +233,7 @@ pub struct ComparisonRow {
     pub key: String,
     pub name: String,
     pub address: Option<String>,
+    pub blocking_keys: Vec<String>,
     pub needs_resolution: bool,
 }
 

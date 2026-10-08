@@ -1,5 +1,5 @@
 {
-  "model_version": "funder-frozen-v1",
+  "model_version": "funder-frozen-v2",
   "splink_version": "4.0.17",
   "duckdb_version": "1.4.4",
   "calibrated": false,
@@ -11,7 +11,8 @@
       "(l.needs_resolution OR r.needs_resolution) AND (l.name = r.name)",
       "(l.needs_resolution OR r.needs_resolution) AND (l.address = r.address)",
       "(l.needs_resolution OR r.needs_resolution) AND (substr(l.name, 1, 3) = substr(r.name, 1, 3))",
-      "(l.needs_resolution OR r.needs_resolution) AND (substr(l.name, 1, 1) = substr(r.name, 1, 1) AND substr(regexp_extract(l.name, '[a-z]+$'), 1, 2) = substr(regexp_extract(r.name, '[a-z]+$'), 1, 2) AND regexp_extract(l.name, '[a-z]+$') NOT IN ('limited', 'ltd', 'plc', 'llp', 'company', 'inc', 'and'))"
+      "(l.needs_resolution OR r.needs_resolution) AND (substr(l.name, 1, 1) = substr(r.name, 1, 1) AND substr(regexp_extract(l.name, '[a-z]+$'), 1, 2) = substr(regexp_extract(r.name, '[a-z]+$'), 1, 2) AND regexp_extract(l.name, '[a-z]+$') NOT IN ('limited', 'ltd', 'plc', 'llp', 'company', 'inc', 'and'))",
+      "(l.needs_resolution OR r.needs_resolution) AND list_has_any(l.blocking_keys, r.blocking_keys)"
     ],
     "retain_matching_columns": true,
     "retain_intermediate_calculation_columns": true,

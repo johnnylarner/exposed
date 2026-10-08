@@ -58,6 +58,8 @@ pub(super) fn company(observation: &Observation) -> Option<String> {
 enum LinkEvidence {
     Statistical,
     DonorName,
+    ExtractedName,
+    TradeUnionFamily,
 }
 #[derive(Clone, Copy)]
 enum EdgeEligibility {
@@ -78,19 +80,132 @@ fn classify(a: &Observation, b: &Observation, probability: f64) -> EdgeEligibili
         && b.address_match_quality == AddressMatchQuality::NumberedStreet
         && a.address_normalized.is_some()
         && b.address_normalized.is_some();
-    if exact_name
-        && full_addresses
-        && a.address_normalized == b.address_normalized
-        && probability >= AUTOMATIC_THRESHOLD
+    let addresses_agree = a
+        .address_normalized
+        .as_deref()
+        .zip(b.address_normalized.as_deref())
+        .is_some_and(|(left, right)| address_key(left) == address_key(right));
+    let same_union_family = trade_union(a)
+        && trade_union(b)
+        && union_root(a.name_raw.as_deref()).is_some()
+        && union_root(a.name_raw.as_deref()) == union_root(b.name_raw.as_deref());
+    let extracted_name_agrees = aliases_agree(a, b)
+        || (organization_compatible(a, b)
+            && addresses_agree
+            && representative_annotation(a, b)
+            && base_name_overlap(a, b));
+    if same_union_family {
+        EdgeEligibility::Link(LinkEvidence::TradeUnionFamily)
+    } else if exact_name && full_addresses && addresses_agree && probability >= AUTOMATIC_THRESHOLD
     {
         EdgeEligibility::Link(LinkEvidence::Statistical)
     } else if exact_name && a.role == FunderRole::Donor && b.role == FunderRole::Donor {
         EdgeEligibility::Link(LinkEvidence::DonorName)
-    } else if full_addresses && a.address_normalized != b.address_normalized {
+    } else if extracted_name_agrees {
+        EdgeEligibility::Link(LinkEvidence::ExtractedName)
+    } else if full_addresses && !addresses_agree {
         EdgeEligibility::Reject(PairReason::FullAddressDisagreement)
     } else {
         EdgeEligibility::Review
     }
+}
+
+fn trade_union(observation: &Observation) -> bool {
+    observation
+        .donor_kind
+        .as_deref()
+        .is_some_and(|kind| kind.trim().eq_ignore_ascii_case("trade union"))
+}
+fn organization_compatible(a: &Observation, b: &Observation) -> bool {
+    let left = kind(a);
+    let right = kind(b);
+    !matches!(left, EntityKind::Person)
+        && !matches!(right, EntityKind::Person)
+        && (matches!(left, EntityKind::Organisation) || matches!(right, EntityKind::Organisation))
+}
+fn union_root(raw: Option<&str>) -> Option<&'static str> {
+    let raw = raw?.to_lowercase();
+    raw.split(|c: char| !c.is_alphanumeric())
+        .any(|word| word == "unite")
+        .then_some("unite")
+}
+fn aliases_agree(a: &Observation, b: &Observation) -> bool {
+    a.alias_normalized.iter().any(|alias| {
+        b.alias_normalized.iter().any(|other| alias == other)
+            || b.name_normalized.as_ref() == Some(alias)
+    }) || b
+        .alias_normalized
+        .iter()
+        .any(|alias| a.name_normalized.as_ref() == Some(alias))
+}
+fn address_key(value: &str) -> String {
+    value
+        .chars()
+        .flat_map(char::to_lowercase)
+        .map(|c| if c.is_alphanumeric() { c } else { ' ' })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+fn representative_annotation(a: &Observation, b: &Observation) -> bool {
+    [a, b].iter().any(|observation| {
+        let Some(qualifier) = observation
+            .name_raw
+            .as_deref()
+            .and_then(|name| name.split_once('(').map(|(_, qualifier)| qualifier))
+        else {
+            return false;
+        };
+        let words = qualifier
+            .split(|character: char| !character.is_alphanumeric())
+            .filter(|word| !word.is_empty())
+            .map(str::to_ascii_lowercase)
+            .collect::<BTreeSet<_>>();
+        [
+            "ceo",
+            "cfo",
+            "cto",
+            "cmo",
+            "director",
+            "chair",
+            "chairman",
+            "chairwoman",
+            "president",
+        ]
+        .iter()
+        .any(|title| words.contains(*title))
+            || (words.contains("chief") && words.contains("executive"))
+    })
+}
+fn base_name_overlap(a: &Observation, b: &Observation) -> bool {
+    let tokens = |observation: &Observation| {
+        let raw_tokens = observation
+            .name_raw
+            .as_deref()
+            .unwrap_or("")
+            .split('(')
+            .next()
+            .unwrap_or("")
+            .split(|c: char| !c.is_alphanumeric())
+            .filter(|word| !word.is_empty())
+            .map(str::to_lowercase);
+        let core_tokens = observation
+            .organisation_core
+            .as_deref()
+            .unwrap_or("")
+            .split_whitespace()
+            .map(str::to_owned);
+        raw_tokens
+            .chain(core_tokens)
+            .filter(|word| {
+                !["the", "and", "limited", "ltd", "plc", "bank"].contains(&word.as_str())
+            })
+            .collect::<BTreeSet<_>>()
+    };
+    let left = tokens(a);
+    let right = tokens(b);
+    left.len() >= 2 && right.len() >= 2 && left.intersection(&right).count() >= 2
 }
 type CandidateEdges = BTreeMap<(FunderObservationId, FunderObservationId), CandidateEdge>;
 fn expanded_edges(
@@ -253,6 +368,8 @@ impl Components {
             edge.reason = match evidence {
                 LinkEvidence::Statistical => PairReason::ExactNameFullAddressThreshold,
                 LinkEvidence::DonorName => PairReason::ExactDonorName,
+                LinkEvidence::ExtractedName => PairReason::ExtractedNameEvidence,
+                LinkEvidence::TradeUnionFamily => PairReason::TradeUnionFamily,
             };
         }
     }
@@ -275,16 +392,27 @@ impl Components {
     ) -> Vec<ObservationResolution> {
         let mut statistical = Self::new(input);
         let mut statistical_groups = BTreeSet::new();
+        let mut extracted_groups = BTreeSet::new();
+        let mut union_groups = BTreeSet::new();
         for candidate in edges.values() {
-            if candidate.decision.disposition == PairDisposition::Accepted
-                && matches!(
-                    candidate.eligibility,
-                    EdgeEligibility::Link(LinkEvidence::Statistical)
-                )
-            {
-                let edge = &candidate.decision;
-                statistical.join(&edge.left_funder_id, &edge.right_funder_id);
-                statistical_groups.insert(self.group[&edge.left_funder_id]);
+            if candidate.decision.disposition != PairDisposition::Accepted {
+                continue;
+            }
+            let edge = &candidate.decision;
+            match candidate.eligibility {
+                EdgeEligibility::Link(LinkEvidence::Statistical) => {
+                    statistical.join(&edge.left_funder_id, &edge.right_funder_id);
+                    statistical_groups.insert(self.group[&edge.left_funder_id]);
+                }
+                EdgeEligibility::Link(LinkEvidence::ExtractedName) => {
+                    extracted_groups.insert(self.group[&edge.left_funder_id]);
+                }
+                EdgeEligibility::Link(LinkEvidence::TradeUnionFamily) => {
+                    union_groups.insert(self.group[&edge.left_funder_id]);
+                }
+                EdgeEligibility::Link(LinkEvidence::DonorName)
+                | EdgeEligibility::Review
+                | EdgeEligibility::Reject(_) => {}
             }
         }
         let mut observations = Vec::new();
@@ -299,7 +427,17 @@ impl Components {
             let component_basis = if statistical_connected {
                 IdentityBasis::StatisticalLink
             } else if statistical_groups.contains(&self.group[&observation.funder_id]) {
-                IdentityBasis::StatisticalAndDonorNameLink
+                if union_groups.contains(&self.group[&observation.funder_id])
+                    || extracted_groups.contains(&self.group[&observation.funder_id])
+                {
+                    IdentityBasis::StatisticalAndSupportingNameLink
+                } else {
+                    IdentityBasis::StatisticalAndDonorNameLink
+                }
+            } else if union_groups.contains(&self.group[&observation.funder_id]) {
+                IdentityBasis::TradeUnionFamilyLink
+            } else if extracted_groups.contains(&self.group[&observation.funder_id]) {
+                IdentityBasis::ExtractedNameLink
             } else {
                 IdentityBasis::DonorNameLink
             };
