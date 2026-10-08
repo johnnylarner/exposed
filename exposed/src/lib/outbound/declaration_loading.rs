@@ -736,6 +736,9 @@ fn sql_timestamp(value: DateTime<Utc>) -> Result<time::OffsetDateTime, EntityIng
 fn read_error(error: impl std::fmt::Display) -> EntityIngestionError {
     EntityIngestionError::IoError(EntitySearchPipelineError::ReadError(error.to_string()))
 }
+
+#[cfg(test)]
+mod tests;
 fn db_error(error: impl std::fmt::Display) -> EntityIngestionError {
     EntityIngestionError::DataError(error.to_string())
 }
