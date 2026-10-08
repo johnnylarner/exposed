@@ -1,10 +1,14 @@
 use std::sync::Arc;
 
-use crate::domain::services::entity_search::EntitySearchService;
+use crate::domain::services::{
+    entity_details::EntityDetailsService, entity_search::EntitySearchService,
+};
 
 #[derive(Clone)]
 /// State required to run the exposed app
-pub struct AppState<E: EntitySearchService> {
+pub struct AppState<E: EntitySearchService, D: EntityDetailsService> {
     /// Entity search service
     pub entity_search_service: Arc<E>,
+    /// Entity detail service
+    pub entity_details_service: Arc<D>,
 }

@@ -154,11 +154,19 @@ mod merge_scores {
     fn works_for_balanced_results() {
         let funders = vec![
             (
-                Funder::new("heavenly ltd".into(), FunderKind::Company),
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "heavenly ltd".into(),
+                    FunderKind::Company,
+                ),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                Funder::new("canna ltd".into(), FunderKind::Company),
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "canna ltd".into(),
+                    FunderKind::Company,
+                ),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -187,7 +195,11 @@ mod merge_scores {
         );
         assert_eq!(
             ranked.get(1).unwrap(),
-            &Entity::from(&Funder::new("heavenly ltd".into(), FunderKind::Company),)
+            &Entity::from(&Funder::new(
+                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                "heavenly ltd".into(),
+                FunderKind::Company
+            ),)
         );
         assert_eq!(
             ranked.get(2).unwrap(),
@@ -201,7 +213,11 @@ mod merge_scores {
         );
         assert_eq!(
             ranked.get(3).unwrap(),
-            &Entity::from(&Funder::new("canna ltd".into(), FunderKind::Company),)
+            &Entity::from(&Funder::new(
+                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                "canna ltd".into(),
+                FunderKind::Company
+            ),)
         );
     }
 
@@ -209,11 +225,19 @@ mod merge_scores {
     fn works_for_more_funders() {
         let funders = vec![
             (
-                Funder::new("heavenly ltd".into(), FunderKind::Company),
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "heavenly ltd".into(),
+                    FunderKind::Company,
+                ),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                Funder::new("canna ltd".into(), FunderKind::Company),
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "canna ltd".into(),
+                    FunderKind::Company,
+                ),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -236,18 +260,30 @@ mod merge_scores {
         );
         assert_eq!(
             ranked.get(1).unwrap(),
-            &Entity::from(&Funder::new("heavenly ltd".into(), FunderKind::Company),)
+            &Entity::from(&Funder::new(
+                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                "heavenly ltd".into(),
+                FunderKind::Company
+            ),)
         );
         assert_eq!(
             ranked.get(2).unwrap(),
-            &Entity::from(&Funder::new("canna ltd".into(), FunderKind::Company),)
+            &Entity::from(&Funder::new(
+                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                "canna ltd".into(),
+                FunderKind::Company
+            ),)
         );
     }
 
     #[test]
     fn works_for_more_mps() {
         let funders = vec![(
-            Funder::new("canna ltd".into(), FunderKind::Company),
+            Funder::new(
+                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                "canna ltd".into(),
+                FunderKind::Company,
+            ),
             SearchSimilarity::from(2_f32),
         )];
         let mps = vec![
@@ -284,7 +320,11 @@ mod merge_scores {
         );
         assert_eq!(
             ranked.get(2).unwrap(),
-            &Entity::from(&Funder::new("canna ltd".into(), FunderKind::Company,))
+            &Entity::from(&Funder::new(
+                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                "canna ltd".into(),
+                FunderKind::Company,
+            ))
         );
     }
 }
