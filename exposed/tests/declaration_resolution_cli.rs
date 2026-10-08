@@ -55,17 +55,26 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
     let member = MemberAsId::new(Uuid::from_u128(1), 1)?;
     let date = NaiveDate::from_ymd_opt(2026, 9, 7).unwrap();
     let mut captures = Vec::new();
-    for id in 1..=6 {
-        let name = if id <= 2 {
-            "Example Charity"
-        } else {
-            "Gary Lubner"
+    for id in 1..=14 {
+        let (name, kind) = match id {
+            1 | 2 => ("Example Charity", "Charity"),
+            3..=6 => ("Gary Lubner", "Individual"),
+            7 => ("HSBC UK Bank PLC", "Company"),
+            8 => ("HSBC UK (Ian Stuart, CEO)", "Company"),
+            9 => ("Unite Union", "Trade Union"),
+            10 => ("UNITE the Union West Midlands", "Trade Union"),
+            11 => ("East Midlands Unite the Union", "Trade Union"),
+            12 => ("Unite the Union Parliamentary Staff Branch", "Trade Union"),
+            13 => ("Northstar Consulting trading as Fletchers", "Company"),
+            14 => ("Fletchers", "Company"),
+            _ => unreachable!(),
         };
-        let kind = if id <= 2 { "Charity" } else { "Individual" };
         let address = match id {
             1 | 2 => Some("10 Example Road, London SW1A 1AA"),
             5 => Some("20 Other Road, London SW1A 1AA"),
             6 => Some("30 Other Road, London SW1A 1AA"),
+            7 => Some("1 Centenary Square, Birmingham, B1 1HQ"),
+            8 => Some("1 Centenary Square Birmingham B1 1HQ"),
             _ => None,
         };
         let mut fields = vec![
@@ -140,14 +149,14 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
     );
     let output = root.join(key.to_string()).join("resolved/declarations");
     let observations = rows(&output.join("observation_resolution.parquet"))?;
-    assert_eq!(observations.len(), 6);
+    assert_eq!(observations.len(), 14);
     assert_eq!(
         observations
             .iter()
             .map(|r| r["identity_id"].as_str().unwrap())
             .collect::<BTreeSet<_>>()
             .len(),
-        2
+        5
     );
     for (name, basis, count) in [
         ("Example Charity", "statistical_link", 2),
@@ -169,25 +178,77 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
             "one identity for {name}"
         );
     }
+    for (prefix, basis, count) in [
+        ("HSBC", "extracted_name_link", 2),
+        ("Unite", "trade_union_family_link", 4),
+    ] {
+        let members = observations
+            .iter()
+            .filter(|row| {
+                names[row["funder_id"].as_str().unwrap()]
+                    .to_ascii_lowercase()
+                    .contains(&prefix.to_ascii_lowercase())
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(members.len(), count, "membership count for {prefix}");
+        assert!(members.iter().all(|row| row["identity_basis"] == basis));
+        assert_eq!(
+            members
+                .iter()
+                .map(|row| row["identity_id"].as_str().unwrap())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            1,
+            "one identity for {prefix}"
+        );
+    }
+    let alias_members = observations
+        .iter()
+        .filter(|row| {
+            let name = names[row["funder_id"].as_str().unwrap()];
+            name.contains("Northstar") || name == "Fletchers"
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(alias_members.len(), 2);
+    assert!(
+        alias_members
+            .iter()
+            .all(|row| row["identity_basis"] == "extracted_name_link")
+    );
+    assert_eq!(
+        alias_members
+            .iter()
+            .map(|row| row["identity_id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>()
+            .len(),
+        1
+    );
     let attribution = rows(&output.join("payment_attribution.parquet"))?;
-    assert_eq!(attribution.len(), 6);
+    assert_eq!(attribution.len(), 14);
     assert!(
         attribution
             .iter()
             .all(|row| row["attribution_basis"] == "donor")
     );
     let pairs = rows(&output.join("pair_decisions.parquet"))?;
-    assert_eq!(pairs.len(), 7);
+    assert_eq!(pairs.len(), 15);
     assert!(pairs.iter().all(|pair| pair["disposition"] == "accepted"));
     for pair in &pairs {
         let left_name = names[pair["left_funder_id"].as_str().unwrap()];
         let right_name = names[pair["right_funder_id"].as_str().unwrap()];
-        assert_eq!(left_name, right_name);
         if left_name == "Gary Lubner" {
+            assert_eq!(left_name, right_name);
             assert_eq!(pair["reason"], "exact_donor_name");
             assert!(pair["probability"].as_f64().unwrap() < 0.999);
             assert!(pair["probability"].as_f64().unwrap() > 0.0);
+        } else if left_name.contains("HSBC") || right_name.contains("HSBC") {
+            assert_eq!(pair["reason"], "extracted_name_evidence");
+        } else if left_name.contains("Unite") || right_name.contains("Unite") {
+            assert_eq!(pair["reason"], "trade_union_family");
+        } else if left_name.contains("Northstar") || right_name.contains("Northstar") {
+            assert_eq!(pair["reason"], "extracted_name_evidence");
         } else {
+            assert_eq!(left_name, right_name);
             assert_eq!(pair["reason"], "exact_name_full_address_threshold");
         }
     }
@@ -195,7 +256,7 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
     let model: Value = serde_json::from_slice(&manifest)?;
     assert_eq!(model["model"]["splink_version"], "4.0.17");
     assert_eq!(model["model"]["calibrated"], false);
-    assert_eq!(model["policy_version"], "funder-resolution-v2");
+    assert_eq!(model["policy_version"], "funder-resolution-v3");
     assert_eq!(fs::read(cleaned.join("funders.parquet"))?, before);
     assert_eq!(
         fs::read(cleaned.join("funding_entries.parquet"))?,
