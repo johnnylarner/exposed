@@ -127,6 +127,25 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
             serde_json::to_string(&worker)?
         ),
     )?;
+    let source_key = key;
+    let key = IngestionKey::default();
+    let copied = Command::new(env!("CARGO_BIN_EXE_exposed"))
+        .args(["data", "copy-latest-raw"])
+        .arg(&config)
+        .arg("--ingestion-key")
+        .arg(key.to_string())
+        .env_remove("DATABASE_URL")
+        .output()?;
+    assert!(
+        copied.status.success(),
+        "{}",
+        String::from_utf8_lossy(&copied.stderr)
+    );
+    assert!(
+        root.join(source_key.to_string())
+            .join("raw/declarations")
+            .is_dir()
+    );
     let clean = run("clean", &config, &key);
     assert!(
         clean.status.success(),

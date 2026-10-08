@@ -204,6 +204,28 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
         .join("raw/declarations")
         .join(format!("{}.parquet", member.member_id()));
     let before = fs::read(&raw_path)?;
+    let key = IngestionKey::default();
+    fs::write(tmp.path().join(".env"), "")?;
+    fs::write(tmp.path().join("config.yaml"), "data_dir: ./data\n")?;
+    let copied = Command::new(env!("CARGO_BIN_EXE_exposed"))
+        .current_dir(tmp.path())
+        .env_remove("DATABASE_URL")
+        .args([
+            "data",
+            "copy-latest-raw",
+            "config.yaml",
+            "--ingestion-key",
+            &key.to_string(),
+        ])
+        .output()?;
+    assert_success(&copied);
+    let copied_raw = tmp
+        .path()
+        .join("data")
+        .join(key.to_string())
+        .join("raw/declarations")
+        .join(format!("{}.parquet", member.member_id()));
+    assert_eq!(fs::read(&copied_raw)?, before);
     let output = run_clean(tmp.path(), Some(&key))?;
     let stdout = assert_success(&output);
     assert!(
@@ -213,6 +235,7 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
         "{stdout}"
     );
     assert_eq!(fs::read(raw_path)?, before);
+    assert_eq!(fs::read(copied_raw)?, before);
     let path = cleaned_path(tmp.path(), &key);
     let entries = read_table(&path.join("funding_entries.parquet"))?;
     let funders = read_table(&path.join("funders.parquet"))?;

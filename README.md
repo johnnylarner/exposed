@@ -26,6 +26,26 @@ This command requires only `data_dir` in the YAML file and no database connectio
 at runtime. It does not change files. An absent or empty data directory produces
 `No ingestion runs found.` and a successful exit.
 
+To reprocess the latest raw capture in a new run, copy it with a fresh ingestion key:
+
+```sh
+ingestion_key=$(uuidgen)
+cargo run --package exposed --bin exposed -- data copy-latest-raw exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data declarations clean exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
+```
+
+Omit `--ingestion-key` to generate a UUID-v7. The command prints the source key,
+destination key, and absolute destination run path. It requires only `data_dir`
+and runs without a database or API connection.
+
+The command uses the same latest-run selection as `data latest`. It copies the
+entire `raw` directory, preserving file bytes and empty directories. It excludes
+cleaned and resolved results and fails if the selected run has no raw directory.
+Symlinks and special files fail the copy. Existing destinations remain unchanged.
+The complete run appears only after the copy succeeds. An absent or empty store
+prints `No ingestion runs found.` without creating directories. Copy only captures
+that are no longer being written.
+
 To split a captured declaration run into funding occurrences and funder
 observations, provide its ingestion key explicitly:
 
