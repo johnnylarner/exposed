@@ -136,7 +136,7 @@ fn publish_directory(_staging: &Path, _destination: &Path) -> std::io::Result<()
     ))
 }
 
-fn read_table<T: DeserializeOwned>(
+pub(super) fn read_table<T: DeserializeOwned>(
     path: &Path,
     expected: &Schema,
 ) -> Result<(Vec<T>, String), EntitySearchPipelineError> {
@@ -240,14 +240,14 @@ impl FunderScorer for SplinkScorer {
 fn text(name: &str, nullable: bool) -> Field {
     Field::new(name, DataType::Utf8, nullable)
 }
-fn observation_schema() -> Schema {
+pub(super) fn observation_schema() -> Schema {
     Schema::new(vec![
         text("funder_id", false),
         text("identity_id", true),
         text("identity_basis", false),
     ])
 }
-fn attribution_schema() -> Schema {
+pub(super) fn attribution_schema() -> Schema {
     Schema::new(vec![
         text("funding_entry_id", false),
         text("attribution_status", false),
@@ -262,7 +262,7 @@ fn attribution_schema() -> Schema {
         ),
     ])
 }
-fn pair_schema() -> Schema {
+pub(super) fn pair_schema() -> Schema {
     Schema::new(vec![
         text("left_funder_id", false),
         text("right_funder_id", false),

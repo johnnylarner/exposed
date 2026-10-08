@@ -21,15 +21,36 @@ impl FunderRepo for ExposedDatabase {
     ) -> Result<Vec<(Funder, SearchSimilarity)>, FunderRepoError> {
         sqlx::query!(
             "
-            SELECT  
+            SELECT
                 f.id,
                 f.funder_name as name,
                 f.funder_kind as kind,
                 f.company_number,
-                word_similarity($1, f.funder_name) as similarity_score,
-                row_number() OVER (ORDER BY word_similarity($1, f.funder_name) DESC) as rank
-            FROM funders f
-            WHERE word_similarity($1, f.funder_name) >= $2
+                GREATEST(
+                    word_similarity($1, f.funder_name),
+                    COALESCE((
+                        SELECT MAX(word_similarity($1, a.funder_alias))
+                        FROM exposed.funder_aliases a
+                        WHERE a.funder_id = f.id
+                    ), 0)
+                ) as similarity_score,
+                row_number() OVER (ORDER BY GREATEST(
+                    word_similarity($1, f.funder_name),
+                    COALESCE((
+                        SELECT MAX(word_similarity($1, a.funder_alias))
+                        FROM exposed.funder_aliases a
+                        WHERE a.funder_id = f.id
+                    ), 0)
+                ) DESC) as rank
+            FROM exposed.funders f
+            WHERE GREATEST(
+                word_similarity($1, f.funder_name),
+                COALESCE((
+                    SELECT MAX(word_similarity($1, a.funder_alias))
+                    FROM exposed.funder_aliases a
+                    WHERE a.funder_id = f.id
+                ), 0)
+            ) >= $2
             ORDER BY similarity_score DESC
             ",
             req.term(),

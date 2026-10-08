@@ -140,7 +140,9 @@ impl RawDeclarationRecord {
     }
 }
 
-fn read_partition(path: &Path) -> Result<CapturedMemberDeclarations, EntitySearchPipelineError> {
+pub(super) fn read_partition(
+    path: &Path,
+) -> Result<CapturedMemberDeclarations, EntitySearchPipelineError> {
     let member_id = path
         .file_stem()
         .and_then(|name| name.to_str())
