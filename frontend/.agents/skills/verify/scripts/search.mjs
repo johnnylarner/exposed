@@ -87,11 +87,20 @@ try {
     assert.equal(response.status(), 200);
     const body = JSON.parse(bodyText);
     assert.deepEqual(
-      [...body.entities].sort((a, b) => a.name.localeCompare(b.name)),
+      body.entities
+        .map(({ name, kind, funder_kind }) => ({ name, kind, funder_kind }))
+        .sort((a, b) => a.name.localeCompare(b.name)),
       [
         { name: "John Humphries", kind: "MP", funder_kind: null },
         { name: "John McDonnell", kind: "MP", funder_kind: null },
       ],
+    );
+    assert(
+      body.entities.every(
+        (entity) =>
+          typeof entity.id === "string" && /^[1-9]\d*$/u.test(entity.id),
+      ),
+      "Search MPs have stable Parliament IDs",
     );
     const request = new URL(response.url());
     assert.equal(request.searchParams.get("max_entries"), "10");

@@ -16,3 +16,5 @@ pub use postgres::ExposedDatabase;
 
 mod declaration_resolution;
 pub use declaration_resolution::SplinkScorer;
+
+mod entity_details;

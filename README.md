@@ -43,7 +43,21 @@ remain available even when the declaration has no funding entry. See the
 [declaration cleaning reference](docs/declaration-cleaning.md) for table semantics
 and exact feature rules.
 
-The frontend service proxies `/api/search` to `http://exposed:6999/search`.
+Search result names open MP and funder detail pages. MPs show their latest 20
+stored declarations, including incomplete funding entries. Funders show declared
+support by recipients' latest stored party and up to ten recipients per currency.
+These party groups do not establish membership when support was received or direct
+payments to parties. Unknown currencies are excluded from totals; unknown amounts
+are reported beside partial totals. Values remain exact decimal strings. See the [entity details reference](docs/entity-details.md)
+for response semantics and read ownership.
+
+The HTTP API exposes `/search`, `/members/{Parliament ID}`, and `/funders/{UUID}`.
+Search entities include stable `id` strings interpreted by `kind`. Detail pages
+preserve search query and strictness in native links, so Back, reload, and new tabs
+work normally. A frontend host must serve `index.html` for direct detail paths.
+Vite provides this fallback in development and preview.
+
+The frontend service proxies `/api/*` to `http://exposed:6999/*`.
 Its source is bind-mounted, with polling for live reload on Docker Desktop and a
 separate Linux dependency volume. Restart `frontend` after changing its package
 manifest or lockfile; dependencies are refreshed at startup. The API may take
@@ -81,8 +95,8 @@ preserves the query and threshold, for example `/?q=John&strictness=0.65`.
 Search delay, result limits and defaults live in
 [`frontend/src/lib/search.ts`](frontend/src/lib/search.ts). The API caps each entity type separately, so the UI describes the returned
 results without claiming a total count or offering unsupported pagination.
-This slice displays results; entity pages and in-app feedback collection are
-future work. Feedback is gathered through manual testing.
+In-app feedback collection is future work. Feedback is gathered through manual
+testing.
 
 For frontend checks, install dependencies and the browser once, then run:
 

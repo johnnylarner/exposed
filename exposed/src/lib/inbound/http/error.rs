@@ -10,6 +10,9 @@ pub enum ApiError {
     #[error("internal server error")]
     /// Private error, message should only be logged
     InternalServerError,
+    /// Entity identity absent from the store.
+    #[error("entity not found")]
+    NotFound,
     #[error("unable to process malformed request: {0}")]
     /// Bad request from user
     UnprocessibleEntity(String),
@@ -18,6 +21,7 @@ pub enum ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let code = match self {
+            Self::NotFound => StatusCode::NOT_FOUND,
             Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
             Self::UnprocessibleEntity(_) => StatusCode::UNPROCESSABLE_ENTITY,
         };

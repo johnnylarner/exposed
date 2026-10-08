@@ -4,13 +4,43 @@ test("live search preserves API ranking, spelling, duplicates and entity context
   page,
 }) => {
   const entities = [
-    { name: "john lewis partnership", kind: "Funder", funder_kind: "Company" },
-    { name: "John Cooper", kind: "MP", funder_kind: null },
-    { name: "John Kinder", kind: "Funder", funder_kind: "Individual" },
-    { name: "john lewis partnership", kind: "Funder", funder_kind: "Company" },
-    { name: "John Union", kind: "Funder", funder_kind: "Trade Union" },
-    { name: "John Trust", kind: "Funder", funder_kind: "Not Specified" },
-    { name: "John Foundation", kind: "Funder", funder_kind: null },
+    {
+      id: "10000000-0000-0000-0000-000000000001",
+      name: "john lewis partnership",
+      kind: "Funder",
+      funder_kind: "Company",
+    },
+    { id: "1", name: "John Cooper", kind: "MP", funder_kind: null },
+    {
+      id: "10000000-0000-0000-0000-000000000001",
+      name: "John Kinder",
+      kind: "Funder",
+      funder_kind: "Individual",
+    },
+    {
+      id: "10000000-0000-0000-0000-000000000001",
+      name: "john lewis partnership",
+      kind: "Funder",
+      funder_kind: "Company",
+    },
+    {
+      id: "10000000-0000-0000-0000-000000000001",
+      name: "John Union",
+      kind: "Funder",
+      funder_kind: "Trade Union",
+    },
+    {
+      id: "10000000-0000-0000-0000-000000000001",
+      name: "John Trust",
+      kind: "Funder",
+      funder_kind: "Not Specified",
+    },
+    {
+      id: "10000000-0000-0000-0000-000000000001",
+      name: "John Foundation",
+      kind: "Funder",
+      funder_kind: null,
+    },
   ];
   const requests: URL[] = [];
   await page.route("**/api/search?*", async (route) => {
@@ -104,6 +134,7 @@ test("a late response cannot replace a newer query or repopulate a cleared searc
       json: {
         entities: [
           {
+            id: "10000000-0000-0000-0000-000000000001",
             name: term === "John" ? "John Cooper" : "hsbc uk bank plc",
             kind: "Funder",
             funder_kind: "Company",
@@ -168,7 +199,16 @@ test("search text and names containing markup or regular expression syntax remai
   const name = 'A.* <img src=x onerror="alert(1)"> & Co';
   await page.route("**/api/search?*", (route) =>
     route.fulfill({
-      json: { entities: [{ name, kind: "Funder", funder_kind: "Company" }] },
+      json: {
+        entities: [
+          {
+            id: "10000000-0000-0000-0000-000000000001",
+            name,
+            kind: "Funder",
+            funder_kind: "Company",
+          },
+        ],
+      },
     }),
   );
   await page.goto("/");
@@ -187,6 +227,7 @@ test("keyboard search and long results remain usable on a narrow screen", async 
       json: {
         entities: [
           {
+            id: "10000000-0000-0000-0000-000000000001",
             name: "Association of Research and Public Interest Organisations of the United Kingdom",
             kind: "Funder",
             funder_kind: "Unincorporated association",

@@ -932,6 +932,7 @@ dependencies = [
  "anyhow",
  "arrow",
  "axum",
+ "bigdecimal",
  "bytes",
  "chrono",
  "clap",
