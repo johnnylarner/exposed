@@ -122,7 +122,7 @@ def verify(entries, funders, observations, attributions, pairs, manifest):
     assert charity_pairs[0]["disposition"] == "accepted"
     assert charity_pairs[0]["reason"] == "exact_name_full_address_threshold"
     assert charity_pairs[0]["probability"] >= 0.999
-    assert manifest["policy_version"] == "funder-resolution-v2"
+    assert manifest["policy_version"] == "funder-resolution-v3"
     assert manifest["model"]["splink_version"] == "4.0.17"
     assert manifest["model"]["duckdb_version"] == "1.4.4"
     assert manifest["model"]["calibrated"] is False

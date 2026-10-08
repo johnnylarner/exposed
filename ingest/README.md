@@ -167,18 +167,23 @@ model attributes rather than depending on model field order.
 
 ## Tests
 
-From the repository root:
+The Python importer is legacy code. Its PostgreSQL member, declaration, and funder
+refresh tests have been removed because they depended on the retired schema and
+upgrade script. The source, domain, in-memory refresh, and injected CLI tests remain.
+The baseline migration round-trip and future-term rejection checks also remain.
+
+From `ingest/`, with the development dependencies installed:
 
 ```sh
-make db-start
-make check
-# Or run tests that do not need PostgreSQL:
-make test-unit
+python -m pytest -m "not integration"
 ```
 
-Integration tests create and drop their own randomly named `exposed_test_*` databases; the test role needs `CREATE DATABASE`. They do not modify the application database. The Makefile supplies the local test-server URL through `EXPOSED_TEST_ADMIN_DSN`. Direct pytest invocations without that variable explicitly skip integration tests. Test schemas are created by SQLx. All API responses in automated tests use synthetic fixtures; a live import is a separate end-to-end check.
+The remaining integration tests require `EXPOSED_TEST_ADMIN_DSN` and SQLx. They create
+and drop randomly named `exposed_test_*` databases. The database role needs
+`CREATE DATABASE`; tests do not modify the application database. Without that
+variable, the integration tests skip.
 
-See the [recorded verification results](../docs/verification/member-import.md) for automated and live import checks.
+Current backend behavior is tested in `exposed/` and `resolution/`.
 
 ### Neovim and type checking
 

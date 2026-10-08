@@ -3,39 +3,20 @@ from uuid import UUID
 
 import pytest
 
-from exposed.adapters.declaration_postgres import PostgresDeclarationStore
-from exposed.adapters.postgres import connect
 from exposed.core.declarations import DeclarationDraft, FundingEntry
 from exposed.core.errors import ImportFailed, SourceError
 from exposed.core.refresh_declarations import refresh_declarations
 from tests.declaration_memory import MemoryDeclarationSource, MemoryDeclarationStore
-from tests.fakes import TERM_START, ParliamentFixture
-from tests.test_importer import run as import_members
+from tests.fakes import TERM_START
 
 
-@pytest.fixture(params=["memory", pytest.param("postgres", marks=pytest.mark.integration)])
-def declaration_store(request):
-    if request.param == "memory":
-        store = MemoryDeclarationStore(TERM_START, {1: UUID(int=1), 2: UUID(int=2)})
-        yield (
-            store,
-            lambda: {id: d.funding[0].amount for id, (d, _) in store.records.items()},
-        )
-    else:
-        url = request.getfixturevalue("database_url")
-        import_members(url, ParliamentFixture(2))
-
-        def amounts():
-            with connect(url) as reader:
-                return {
-                    r["source_declaration_id"]: r["amount"]
-                    for r in reader.execute(
-                        "SELECT source_declaration_id, amount FROM exposed.funding_entries"
-                    )
-                }
-
-        with connect(url) as conn:
-            yield PostgresDeclarationStore(conn), amounts
+@pytest.fixture
+def declaration_store():
+    store = MemoryDeclarationStore(TERM_START, {1: UUID(int=1), 2: UUID(int=2)})
+    return (
+        store,
+        lambda: {id: d.funding[0].amount for id, (d, _) in store.records.items()},
+    )
 
 
 def test_declaration_store_publishes_member_writes_together_and_rolls_back_before_retry(
