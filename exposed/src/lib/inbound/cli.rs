@@ -11,6 +11,7 @@ use crate::{
         },
         services::declaration_cleaning::DeclarationCleanerService,
         services::declaration_fetch::DeclarationFetcherService,
+        services::declaration_loading::DeclarationLoaderService,
         services::declaration_resolution::DeclarationResolverService,
         services::entity_ingestion::{
             EntityFetcherService, EntityIngesterService, FetcherService, IngesterService,
@@ -42,8 +43,12 @@ pub enum DataCommands {
         config: PathBuf,
     },
     Declarations {
+        /// Stage to run: fetch, clean, resolve, or load.
+        #[arg(value_parser = ["fetch", "clean", "resolve", "load"])]
         stage: String,
+        /// YAML configuration containing the declaration `data_dir`.
         config: PathBuf,
+        /// Ingestion run to clean, resolve, or load.
         #[arg(long)]
         ingestion_key: Option<IngestionKey>,
     },
@@ -118,6 +123,31 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                 println!("Observations: {}", summary.observations);
                 println!("Funding occurrences: {}", summary.payments);
                 println!("Pair decisions: {}", summary.pairs);
+            }
+            DeclarationIngestionStage::Load => {
+                let ingestion_key = ingestion_key
+                    .ok_or_else(|| anyhow::anyhow!("declarations load requires --ingestion-key"))?;
+                let config = LoaderConfig::try_from(&config)?;
+                let data_config = DataConfig::from_env()?;
+                let storage = ExposedDataPipeline::open_resolved_declarations(
+                    &config.data_dir,
+                    ingestion_key.clone(),
+                )?;
+                let db = ExposedDatabase::new(&data_config.connection_string).await;
+                let summary = DeclarationLoaderService::new(storage, db)
+                    .load_declarations()
+                    .await?;
+                println!("Ingestion key: {ingestion_key}");
+                match summary.outcome {
+                    crate::domain::models::declaration_loading::DeclarationLoadOutcome::Imported => {
+                        println!("Loaded declarations: {}", summary.declarations);
+                    }
+                    crate::domain::models::declaration_loading::DeclarationLoadOutcome::AlreadyLoaded => {
+                        println!("Run already loaded. Declarations: {}", summary.declarations);
+                    }
+                }
+                println!("Resolved identities: {}", summary.funders);
+                println!("Funding occurrences: {}", summary.funding_entries);
             }
             DeclarationIngestionStage::Clean => {
                 let ingestion_key = ingestion_key.ok_or_else(|| {

@@ -73,6 +73,8 @@ pub enum DeclarationIngestionStage {
     Clean,
     /// Resolve cleaned funder observations and attribute each occurrence.
     Resolve,
+    /// Load the published identities and attributions into the database.
+    Load,
 }
 
 /// Errors related to entity search

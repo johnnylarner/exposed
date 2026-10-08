@@ -4,8 +4,8 @@
 the single development baseline version, with an
 [`up` migration](migrations/20260915000000_initial.up.sql) and a
 [`down` migration](migrations/20260915000000_initial.down.sql).
-It creates the member, service, declaration, funder and funding tables, their current
-constraints, and `pg_trgm` in the `exposed` schema. Application code does not
+It creates the member, declaration, funder, funder-alias, funding, and declaration-load tables,
+their constraints, and `pg_trgm` in the `exposed` schema. Application code does not
 apply migrations.
 
 For a fresh database, from the repository root:
@@ -39,17 +39,20 @@ Run only one import or migration against a database at a time.
 
 ## Timestamps
 
-Every domain table has `created_at` and `updated_at`, both
+Each entity table has `created_at` and `updated_at`, both
 `TIMESTAMPTZ NOT NULL DEFAULT now()`. A shared `BEFORE UPDATE` trigger function
 sets `updated_at` when `OLD.* IS DISTINCT FROM NEW.*`; no-op updates and unchanged
 upserts retain their timestamps. Updates preserve `created_at` unless the caller
 explicitly changes it. PostgreSQL's `now()` is the transaction start time, so
 changes within the same transaction share a timestamp.
 
+`declaration_load_runs` records the first successful load time in `loaded_at`. Its
+fingerprint and row counts remain fixed for that ingestion key.
+
 All source date/time columns also use `TIMESTAMPTZ`. The importer converts
 date-only values to midnight UTC at the persistence boundary, keeping calendar
 dates in the domain model. It supplies timezone-aware parameters and reads stored
-term starts in UTC, independent of the database session's timezone. PostgreSQL
+ date values in UTC, independent of the database session's timezone. PostgreSQL
 stores instants; their displayed offset depends on the session timezone.
 `members.latest_membership_from` remains text: it is a constituency or membership
 description, not a date.
@@ -63,8 +66,8 @@ SQLx does not read `public.schema_migrations`. Running the baseline normally
 against an existing schema would try to create tables that already exist.
 
 1. Inspect the existing schema and compare it with a fresh database initialized
-   from the baseline. Verify columns, nullability, constraints, indexes, the
-   service-start and audit triggers, and the `pg_trgm` extension's schema. Old
+   from the baseline. Verify columns, nullability, constraints, indexes, audit
+   triggers, and the `pg_trgm` extension's schema. Old
    dbmate history alone is insufficient because the baseline has been edited during development.
 2. Apply any missing schema changes in place, preserving imported data. This
    baseline includes `pg_trgm`, the later member/funding `NOT NULL` changes, and
@@ -97,9 +100,16 @@ SQLx records a SHA-384 checksum and rejects edits to an already applied migratio
 It does not apply those edits to the database. For an existing database:
 
 1. Inspect the live schema and apply the required changes in place.
+   After confirming the current columns and unique constraint names, apply
+   [`upgrades/resolved_declaration_loader.sql`](upgrades/resolved_declaration_loader.sql)
+   with `psql -v ON_ERROR_STOP=1`. The script preserves existing declaration,
+   funder, and funding rows. It leaves the new identity and source-occurrence keys
+   null on legacy rows.
 2. Compare the result with a fresh database migrated from the edited baseline,
    and verify that imported records were preserved.
-3. Only after verification, update the recorded checksum. From the repository
+3. Only after verification, update the recorded checksum. Remove the old
+   `20261002203727` term-removal history row in the same transaction after you
+   confirm that its tables are absent. From the repository
    root, this uses the same environment file as the Makefile:
 
    ```sh
@@ -122,6 +132,13 @@ It does not apply those edits to the database. For an existing database:
        )
        if updated.rowcount != 1:
            raise RuntimeError('Expected one successfully applied baseline')
+       removed = conn.execute(
+           'DELETE FROM public._sqlx_migrations '
+           'WHERE version = %s AND success = true',
+           (20261002203727,),
+       )
+       if removed.rowcount > 1:
+           raise RuntimeError('Expected at most one term-removal history row')
    PY
    make db-migrate
    make db-migration-status
@@ -135,9 +152,11 @@ when supplied by Parliament. Missing source dates remain null.
 
 ### Normalize existing funders in place
 
-The baseline now stores one `funders` row per exact source name. Payments reference
-it through nullable `funding_entries.funder_id`; currency and payment type are also
-nullable to preserve genuinely absent source values. No placeholder funders are created.
+The normalization upgrade groups legacy payments by exact source name. The resolved
+declaration loader stores one row per resolution identity and keeps its identity key
+in `funders.resolution_identity_id`. Names can repeat because they do not define an
+identity. Payments reference the selected identity through nullable
+`funding_entries.funder_id`; currency and payment type remain nullable.
 
 After inspecting and backing up the existing database, apply
 [`upgrades/normalize_funders.sql`](upgrades/normalize_funders.sql) with a client that

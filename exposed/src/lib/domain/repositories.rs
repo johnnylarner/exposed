@@ -13,6 +13,8 @@ pub mod declaration_cleaning;
 /// Store for cleaning parliament API data;
 pub mod entity_ingestion;
 
+/// Read and persist a resolved declaration run.
+pub mod declaration_loading;
 pub mod declaration_resolution;
 
 /// Entity profiles and declared support.

@@ -30,6 +30,7 @@ bigdecimal = "0.4.10"
 anyhow = "1.0.104"
 axum = "0.8.9"
 chrono = { version = "0.4.45", features = ["serde"] }
+time = "0.3.47"
 clap = { version = "4.6.7", features = ["derive"] }
 dotenvy = "0.15.7"
 rust-yaml = { version = "1.1.0", features = ["serde"] }
