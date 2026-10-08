@@ -652,13 +652,20 @@ impl DeclarationLoadRepository for ExposedDatabase {
         let mut funder_ids = BTreeMap::new();
         for funder in &load.funders {
             let id = sqlx::query!(
-                "INSERT INTO exposed.funders (funder_name, funder_kind, company_number, resolution_identity_id) VALUES ($1, $2, $3, $4) ON CONFLICT (resolution_identity_id) DO UPDATE SET funder_kind = COALESCE(EXCLUDED.funder_kind, exposed.funders.funder_kind), company_number = COALESCE(EXCLUDED.company_number, exposed.funders.company_number) RETURNING id",
+                "INSERT INTO exposed.funders (funder_name, funder_kind, company_number, resolution_identity_id) VALUES ($1, $2, $3, $4) ON CONFLICT (resolution_identity_id) DO UPDATE SET funder_name = EXCLUDED.funder_name, funder_kind = EXCLUDED.funder_kind, company_number = EXCLUDED.company_number RETURNING id",
                 funder.name,
                 funder.kind,
                 funder.company_number,
                 funder.identity_id
             ).fetch_one(&mut *tx).await.map_err(db_error)?.id;
             funder_ids.insert(funder.identity_id.as_str(), id);
+            sqlx::query!(
+                "DELETE FROM exposed.funder_aliases WHERE funder_id = $1",
+                id
+            )
+            .execute(&mut *tx)
+            .await
+            .map_err(db_error)?;
             for alias in funder.aliases.iter().chain(std::iter::once(&funder.name)) {
                 sqlx::query!(
                     "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, $2) ON CONFLICT (funder_id, funder_alias) DO NOTHING",
@@ -741,6 +748,18 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 serde_json::to_value(&entry.issues).map_err(db_error)?
             ).execute(&mut *tx).await.map_err(db_error)?;
         }
+        sqlx::query!(
+            "DELETE FROM exposed.funder_aliases AS alias WHERE NOT EXISTS (SELECT 1 FROM exposed.funding_entries AS entry WHERE entry.funder_id = alias.funder_id)"
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(db_error)?;
+        sqlx::query!(
+            "DELETE FROM exposed.funders AS funder WHERE NOT EXISTS (SELECT 1 FROM exposed.funding_entries AS entry WHERE entry.funder_id = funder.id)"
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(db_error)?;
         let summary = load.summary();
         sqlx::query!(
             "INSERT INTO exposed.declaration_load_runs (ingestion_key, fingerprint, declarations, funders, funding_entries) VALUES ($1, $2, $3, $4, $5)",

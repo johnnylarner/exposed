@@ -153,3 +153,213 @@ async fn company_number_uses_the_matching_company_kind() -> anyhow::Result<()> {
     assert_eq!(company.kind.as_deref(), Some("Company"));
     Ok(())
 }
+
+async fn database_snapshot(pool: &sqlx::PgPool) -> sqlx::Result<serde_json::Value> {
+    sqlx::query_scalar!(
+        r#"SELECT jsonb_build_object(
+            'members', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.members AS row),
+            'declarations', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.declarations AS row),
+            'funders', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.funders AS row),
+            'aliases', (SELECT jsonb_agg(to_jsonb(row) ORDER BY funder_id, funder_alias) FROM exposed.funder_aliases AS row),
+            'entries', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.funding_entries AS row),
+            'runs', (SELECT jsonb_agg(to_jsonb(row) ORDER BY ingestion_key) FROM exposed.declaration_load_runs AS row)
+        ) AS "snapshot!""#
+    )
+    .fetch_one(pool)
+    .await
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn refresh_replaces_funders_and_preserves_untouched_declarations(
+    pool: sqlx::PgPool,
+) -> anyhow::Result<()> {
+    let (_temporary, mut load) = resolved_test_run().await?;
+    sqlx::query!(
+        "INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES ($1, 4613, 'Test member', 1, 'Test party', 1, 'Test constituency', true)",
+        Uuid::from_u128(1)
+    )
+    .execute(&pool)
+    .await?;
+    let repository = ExposedDatabase::from(pool.clone());
+    repository.load_declarations(&load).await?;
+    let shared = sqlx::query!("SELECT id FROM exposed.funders WHERE company_number = '12345678'")
+        .fetch_one(&pool)
+        .await?;
+    sqlx::query!(
+        "INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) SELECT 5, member_id, category_id, category_name, fetched_at, registration_date FROM exposed.declarations WHERE source_declaration_id = 4"
+    )
+    .execute(&pool)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, source_funding_entry_id) VALUES (5, $1, 'untouched-shared-company')",
+        shared.id
+    )
+    .execute(&pool)
+    .await?;
+    let original = database_snapshot(&pool).await?;
+    let old_local = sqlx::query!(
+        "SELECT funder_id FROM exposed.funding_entries WHERE source_declaration_id = 1"
+    )
+    .fetch_one(&pool)
+    .await?
+    .funder_id
+    .unwrap();
+    assert!(matches!(
+        repository.load_declarations(&load).await?.outcome,
+        DeclarationLoadOutcome::AlreadyLoaded
+    ));
+    assert_eq!(database_snapshot(&pool).await?, original);
+
+    sqlx::query!("INSERT INTO exposed.funders (funder_name) VALUES ('Legacy orphan')")
+        .execute(&pool)
+        .await?;
+    sqlx::query!(
+        "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) SELECT id, 'Legacy alias' FROM exposed.funders WHERE funder_name = 'Legacy orphan'"
+    )
+    .execute(&pool)
+    .await?;
+    let before_refresh = database_snapshot(&pool).await?;
+    load.ingestion_key = IngestionKey::default();
+    load.fingerprint = "refreshed artifacts".to_owned();
+    load.declarations
+        .retain(|declaration| matches!(declaration.source_declaration_id, 1 | 4));
+    load.funding_entries
+        .retain(|entry| matches!(entry.source_declaration_id, 1 | 4));
+    let retained = load
+        .funding_entries
+        .iter()
+        .filter_map(|entry| entry.identity_id.clone())
+        .collect::<BTreeSet<_>>();
+    load.funders
+        .retain(|funder| retained.contains(&funder.identity_id));
+    for funder in &mut load.funders {
+        if funder.company_number.is_some() {
+            funder.name = "Current company name".to_owned();
+            funder.aliases = vec!["Current company alias".to_owned()];
+            funder.kind = None;
+            funder.company_number = None;
+        } else {
+            let new_identity = format!("run-local:{}:replacement", load.ingestion_key.uuid());
+            for entry in &mut load.funding_entries {
+                if entry.identity_id.as_deref() == Some(funder.identity_id.as_str()) {
+                    entry.identity_id = Some(new_identity.clone());
+                }
+            }
+            funder.identity_id = new_identity;
+        }
+    }
+    assert!(repository.load_declarations(&load).await.is_err());
+    assert_eq!(database_snapshot(&pool).await?, before_refresh);
+    for declaration in &mut load.declarations {
+        declaration.fetched_at += chrono::Duration::seconds(1);
+    }
+    repository.load_declarations(&load).await?;
+    let refreshed = database_snapshot(&pool).await?;
+    assert_eq!(refreshed["members"], original["members"]);
+    for table in ["declarations", "entries"] {
+        let untouched = |snapshot: &serde_json::Value| {
+            snapshot[table]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|row| matches!(row["source_declaration_id"].as_u64(), Some(2 | 3 | 5)))
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(untouched(&refreshed), untouched(&original));
+    }
+    let funder = sqlx::query!(
+        "SELECT funder_name, funder_kind, company_number FROM exposed.funders WHERE id = $1",
+        shared.id
+    )
+    .fetch_one(&pool)
+    .await?;
+    assert_eq!(funder.funder_name, "Current company name");
+    assert_eq!(funder.funder_kind, None);
+    assert_eq!(funder.company_number, None);
+    let aliases = sqlx::query_scalar!(
+        "SELECT funder_alias FROM exposed.funder_aliases WHERE funder_id = $1 ORDER BY funder_alias",
+        shared.id
+    )
+    .fetch_all(&pool)
+    .await?;
+    assert_eq!(aliases, ["Current company alias", "Current company name"]);
+    assert_eq!(
+        sqlx::query_scalar!(
+            "SELECT funder_id FROM exposed.funding_entries WHERE source_declaration_id = 4"
+        )
+        .fetch_one(&pool)
+        .await?,
+        Some(shared.id)
+    );
+    assert!(
+        sqlx::query!("SELECT id FROM exposed.funders WHERE id = $1", old_local)
+            .fetch_optional(&pool)
+            .await?
+            .is_none()
+    );
+    assert_eq!(
+        sqlx::query_scalar!(
+            "SELECT count(*) FROM exposed.funders AS funder WHERE NOT EXISTS (SELECT 1 FROM exposed.funding_entries AS entry WHERE entry.funder_id = funder.id)"
+        )
+        .fetch_one(&pool)
+        .await?,
+        Some(0)
+    );
+    assert!(matches!(
+        repository.load_declarations(&load).await?.outcome,
+        DeclarationLoadOutcome::AlreadyLoaded
+    ));
+    assert_eq!(database_snapshot(&pool).await?, refreshed);
+
+    let removed = sqlx::query_scalar!(
+        "SELECT funder_id FROM exposed.funding_entries WHERE source_declaration_id = 1"
+    )
+    .fetch_one(&pool)
+    .await?
+    .unwrap();
+    load.ingestion_key = IngestionKey::default();
+    load.fingerprint = "declaration without funding".to_owned();
+    load.declarations
+        .retain(|declaration| declaration.source_declaration_id == 1);
+    load.declarations[0].fetched_at += chrono::Duration::seconds(1);
+    load.funding_entries.clear();
+    load.funders.clear();
+    repository.load_declarations(&load).await?;
+    assert!(
+        sqlx::query!("SELECT id FROM exposed.funders WHERE id = $1", removed)
+            .fetch_optional(&pool)
+            .await?
+            .is_none()
+    );
+    assert!(
+        sqlx::query!(
+            "SELECT funder_alias FROM exposed.funder_aliases WHERE funder_id = $1",
+            removed
+        )
+        .fetch_all(&pool)
+        .await?
+        .is_empty()
+    );
+    let without_funding = database_snapshot(&pool).await?;
+    for table in ["declarations", "entries"] {
+        let untouched = |snapshot: &serde_json::Value| {
+            snapshot[table]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|row| row["source_declaration_id"].as_u64() != Some(1))
+                .cloned()
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(untouched(&without_funding), untouched(&refreshed));
+    }
+    assert!(
+        without_funding["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|entry| entry["source_declaration_id"] != 1)
+    );
+    Ok(())
+}

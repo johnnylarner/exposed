@@ -138,7 +138,12 @@ The loader includes declarations with no funding occurrences. It replaces only
 declarations whose captured timestamps are newer, and an exact retry of an imported
 run leaves the database unchanged. Keep the raw, cleaned, and resolved files for the
 ingestion key because the loader validates and fingerprints all three stages. It
-stores alternate source names as searchable aliases on each resolved identity.
+replaces each incoming funder's name, kind, company number, and searchable aliases
+with that run's resolved values, including missing optional values. A shared
+identity keeps its database ID, but its metadata and aliases reflect the last
+accepted run. Declarations omitted from the run retain their funding entries.
+After replacing entries, the loader removes funders and aliases that no remaining
+funding entry references. These changes commit together or all roll back.
 
 ## View example declarations from the API
 
