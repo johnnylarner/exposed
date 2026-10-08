@@ -128,6 +128,18 @@ automatic links require exact names and complete usable addresses. Name-only and
 fuzzy candidates remain for review, while named singletons receive separate
 provisional identities. See the [resolution policy](docs/funder-resolution-design.md).
 
+Load a resolved run into the searchable database after its members have been loaded:
+
+```sh
+cargo run --package exposed --bin exposed -- data declarations load exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
+```
+
+The loader includes declarations with no funding occurrences. It replaces only
+declarations whose captured timestamps are newer, and an exact retry of an imported
+run leaves the database unchanged. Keep the raw, cleaned, and resolved files for the
+ingestion key because the loader validates and fingerprints all three stages. It
+stores alternate source names as searchable aliases on each resolved identity.
+
 ## View example declarations from the API
 
 These standalone scripts require `bash`, `curl` and `jq`; no database, API key or
@@ -161,4 +173,3 @@ if the expected donor status changes, and `--raw` lets you inspect the response.
 
 Contains Parliamentary information licensed under the
 [Open Parliament Licence v3.0](https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/).
-

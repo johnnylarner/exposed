@@ -111,6 +111,33 @@ impl ExposedDataPipeline {
         })
     }
 
+    /// Opens an existing run with retained raw, cleaned, and resolved declaration data.
+    ///
+    /// # Errors
+    /// Returns a read error when any required stage directory is missing.
+    pub fn open_resolved_declarations(
+        root: &Path,
+        key: IngestionKey,
+    ) -> Result<Self, EntitySearchPipelineError> {
+        let pipeline = Self::open_cleaned_declarations(root, key)?;
+        let required = [
+            pipeline.raw_path().join("declarations"),
+            pipeline.resolved_declarations_path(),
+        ];
+        for directory in required {
+            if !std::fs::metadata(&directory)
+                .map_err(|error| read_error(&directory, error))?
+                .is_dir()
+            {
+                return Err(read_error(
+                    &directory,
+                    "expected declaration pipeline directory",
+                ));
+            }
+        }
+        Ok(pipeline)
+    }
+
     pub(super) fn resolved_declarations_path(&self) -> PathBuf {
         self.latest_run_path().join("resolved/declarations")
     }

@@ -2,16 +2,6 @@
 CREATE SCHEMA IF NOT EXISTS exposed;
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA exposed;
 
-CREATE TABLE IF NOT EXISTS exposed.parliament_terms (
-    id UUID PRIMARY KEY DEFAULT uuidv7(),
-    term_start TIMESTAMPTZ NOT NULL UNIQUE,
-    term_end TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT parliament_terms_valid_dates
-        CHECK (term_end IS NULL OR term_end >= term_start)
-);
-
 CREATE TABLE IF NOT EXISTS exposed.members (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     parliament_member_id INTEGER NOT NULL UNIQUE CHECK (parliament_member_id > 0),
@@ -25,49 +15,6 @@ CREATE TABLE IF NOT EXISTS exposed.members (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (NOT is_current_commons OR latest_house = 1)
 );
-
-CREATE TABLE IF NOT EXISTS exposed.member_terms (
-    id UUID PRIMARY KEY DEFAULT uuidv7(),
-    member_id UUID NOT NULL REFERENCES exposed.members (id),
-    term_id UUID NOT NULL REFERENCES exposed.parliament_terms (id),
-    house SMALLINT NOT NULL CHECK (house IN (1, 2)),
-    source_start_date TIMESTAMPTZ NOT NULL,
-    source_end_date TIMESTAMPTZ,
-    served_from TIMESTAMPTZ NOT NULL,
-    served_until TIMESTAMPTZ,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (member_id, term_id, house, source_start_date),
-    CHECK (served_from >= source_start_date),
-    CHECK (served_until IS NULL OR served_until >= served_from),
-    CHECK (served_until IS NOT DISTINCT FROM source_end_date)
-);
-
-CREATE INDEX IF NOT EXISTS member_terms_term_idx
-    ON exposed.member_terms (term_id);
-
-CREATE OR REPLACE FUNCTION exposed.check_term_service_start()
-RETURNS TRIGGER
-LANGUAGE plpgsql
-AS $$
-BEGIN
-    IF NEW.served_from IS DISTINCT FROM (
-        SELECT greatest(NEW.source_start_date, term_start)
-        FROM exposed.parliament_terms
-        WHERE id = NEW.term_id
-    ) THEN
-        RAISE EXCEPTION 'Service start must be the later of source start and term start'
-            USING ERRCODE = '23514';
-    END IF;
-
-    RETURN NEW;
-END;
-$$;
-
-CREATE OR REPLACE TRIGGER member_terms_check_start
-    BEFORE INSERT OR UPDATE ON exposed.member_terms
-    FOR EACH ROW
-    EXECUTE FUNCTION exposed.check_term_service_start();
 
 CREATE TABLE IF NOT EXISTS exposed.declarations (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
@@ -89,13 +36,22 @@ COMMENT ON COLUMN exposed.declarations.registration_date IS
 
 CREATE TABLE IF NOT EXISTS exposed.funders (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    funder_name TEXT NOT NULL UNIQUE,
+    funder_name TEXT NOT NULL,
     funder_kind TEXT,
     company_number TEXT,
+    resolution_identity_id TEXT UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT funders_company_number_status
         CHECK (company_number IS NULL OR funder_kind IS NOT DISTINCT FROM 'Company')
+);
+
+CREATE TABLE IF NOT EXISTS exposed.funder_aliases (
+    funder_id UUID NOT NULL REFERENCES exposed.funders (id),
+    funder_alias TEXT NOT NULL CHECK (length(trim(funder_alias)) > 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (funder_id, funder_alias)
 );
 
 COMMENT ON COLUMN exposed.funders.funder_kind IS
@@ -110,6 +66,12 @@ CREATE TABLE IF NOT EXISTS exposed.funding_entries (
     amount NUMERIC,
     currency TEXT,
     payment_type TEXT,
+    source_funding_entry_id TEXT UNIQUE,
+    selected_observation_id TEXT,
+    attribution_basis TEXT,
+    selected_parent_declaration_id INTEGER,
+    unavailable_reason TEXT,
+    attribution_issues JSONB NOT NULL DEFAULT '[]'::JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -120,7 +82,16 @@ CREATE INDEX IF NOT EXISTS funding_entries_funder_idx
     ON exposed.funding_entries (funder_id);
 
 COMMENT ON COLUMN exposed.funding_entries.funder_id IS
-    'Shared exact-name funder; NULL when the source does not identify a funder';
+    'Resolved identity selected by the reporting attribution policy; NULL when unavailable';
+
+CREATE TABLE IF NOT EXISTS exposed.declaration_load_runs (
+    ingestion_key UUID PRIMARY KEY,
+    fingerprint TEXT NOT NULL,
+    declarations BIGINT NOT NULL CHECK (declarations >= 0),
+    funders BIGINT NOT NULL CHECK (funders >= 0),
+    funding_entries BIGINT NOT NULL CHECK (funding_entries >= 0),
+    loaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 CREATE OR REPLACE FUNCTION exposed.set_updated_at()
 RETURNS TRIGGER
@@ -133,20 +104,8 @@ BEGIN
 END;
 $$;
 
-CREATE OR REPLACE TRIGGER parliament_terms_set_updated_at
-    BEFORE UPDATE ON exposed.parliament_terms
-    FOR EACH ROW
-    WHEN (OLD.* IS DISTINCT FROM NEW.*)
-    EXECUTE FUNCTION exposed.set_updated_at();
-
 CREATE OR REPLACE TRIGGER members_set_updated_at
     BEFORE UPDATE ON exposed.members
-    FOR EACH ROW
-    WHEN (OLD.* IS DISTINCT FROM NEW.*)
-    EXECUTE FUNCTION exposed.set_updated_at();
-
-CREATE OR REPLACE TRIGGER member_terms_set_updated_at
-    BEFORE UPDATE ON exposed.member_terms
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();
@@ -165,6 +124,12 @@ CREATE OR REPLACE TRIGGER funding_entries_set_updated_at
 
 CREATE OR REPLACE TRIGGER funders_set_updated_at
     BEFORE UPDATE ON exposed.funders
+    FOR EACH ROW
+    WHEN (OLD.* IS DISTINCT FROM NEW.*)
+    EXECUTE FUNCTION exposed.set_updated_at();
+
+CREATE OR REPLACE TRIGGER funder_aliases_set_updated_at
+    BEFORE UPDATE ON exposed.funder_aliases
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();

@@ -11,6 +11,8 @@ pub mod funding_entry;
 pub mod parliament_member;
 pub mod search_similarity;
 
+/// Checked database projection for a resolved declaration run.
+pub mod declaration_loading;
 pub mod declaration_resolution;
 
 /// Entity profiles and declared support.
