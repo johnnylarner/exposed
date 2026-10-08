@@ -197,6 +197,32 @@ impl ExposedDataPipeline {
         Ok(latest.map(|(_, path, key)| (path, key)))
     }
 
+    /// Copies the latest run's entire raw layer into a new ingestion run.
+    /// Returns the published destination run path and the selected source key.
+    /// An absent or empty store returns `None` without creating directories.
+    ///
+    /// # Errors
+    /// Returns an error for unreadable raw data, symlinks, special files, or an
+    /// existing destination. Failed copies leave no published run.
+    pub async fn copy_latest_raw(
+        root: &Path,
+        key: IngestionKey,
+    ) -> Result<Option<(PathBuf, IngestionKey)>, EntitySearchPipelineError> {
+        let root = path::absolute(root).map_err(|error| read_error(root, error))?;
+        let Some((source, source_key)) = Self::latest_ingestion(&root).await? else {
+            return Ok(None);
+        };
+        let destination = root.join(key.to_string());
+        let staging = tempfile::Builder::new()
+            .prefix(".raw-copy-")
+            .tempdir_in(&root)
+            .map_err(|error| write_error(&root, error))?;
+        copy_raw_directory(&source.join("raw"), &staging.path().join("raw")).await?;
+        publish_directory(staging.path(), &destination)
+            .map_err(|error| write_error(&destination, error))?;
+        Ok(Some((destination, source_key)))
+    }
+
     /// Creates a new instance of [`ExposedDataPipeline`] with an [`IngestionKey`]
     ///
     /// # Errors
@@ -244,6 +270,91 @@ impl ExposedDataPipeline {
 
 fn read_error(path: &Path, error: impl std::fmt::Display) -> EntitySearchPipelineError {
     EntitySearchPipelineError::ReadError(format!("{}: {error}", path.display()))
+}
+
+fn write_error(path: &Path, error: impl std::fmt::Display) -> EntitySearchPipelineError {
+    EntitySearchPipelineError::WriteError(format!("{}: {error}", path.display()))
+}
+
+async fn copy_raw_directory(
+    source: &Path,
+    destination: &Path,
+) -> Result<(), EntitySearchPipelineError> {
+    let mut directories = vec![(source.to_path_buf(), destination.to_path_buf())];
+    while let Some((source, destination)) = directories.pop() {
+        if !fs::symlink_metadata(&source)
+            .await
+            .map_err(|error| read_error(&source, error))?
+            .is_dir()
+        {
+            return Err(read_error(
+                &source,
+                "expected a raw directory, not a symlink or special file",
+            ));
+        }
+        fs::create_dir(&destination)
+            .await
+            .map_err(|error| write_error(&destination, error))?;
+        let mut entries = fs::read_dir(&source)
+            .await
+            .map_err(|error| read_error(&source, error))?;
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|error| read_error(&source, error))?
+        {
+            let source = entry.path();
+            let destination = destination.join(entry.file_name());
+            let kind = entry
+                .file_type()
+                .await
+                .map_err(|error| read_error(&source, error))?;
+            if kind.is_dir() {
+                directories.push((source, destination));
+            } else if kind.is_file() {
+                fs::copy(&source, &destination)
+                    .await
+                    .map_err(|error| write_error(&destination, error))?;
+            } else {
+                return Err(read_error(
+                    &source,
+                    "raw data contains a symlink or special file",
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+#[cfg(any(target_os = "macos", target_os = "linux"))]
+pub(super) fn publish_directory(staging: &Path, destination: &Path) -> std::io::Result<()> {
+    use std::{ffi::CString, os::unix::ffi::OsStrExt};
+    let staging = CString::new(staging.as_os_str().as_bytes())?;
+    let destination = CString::new(destination.as_os_str().as_bytes())?;
+    #[cfg(target_os = "macos")]
+    let result =
+        unsafe { libc::renamex_np(staging.as_ptr(), destination.as_ptr(), libc::RENAME_EXCL) };
+    #[cfg(target_os = "linux")]
+    let result = unsafe {
+        libc::renameat2(
+            libc::AT_FDCWD,
+            staging.as_ptr(),
+            libc::AT_FDCWD,
+            destination.as_ptr(),
+            libc::RENAME_NOREPLACE,
+        )
+    };
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+#[cfg(not(any(target_os = "macos", target_os = "linux")))]
+pub(super) fn publish_directory(_staging: &Path, _destination: &Path) -> std::io::Result<()> {
+    Err(std::io::Error::other(
+        "atomic directory publication requires macOS or Linux",
+    ))
 }
 
 pub(super) fn members_schema() -> Schema {
