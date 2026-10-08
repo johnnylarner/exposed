@@ -87,8 +87,8 @@ fn classify(a: &Observation, b: &Observation, probability: f64) -> EdgeEligibili
         .is_some_and(|(left, right)| address_key(left) == address_key(right));
     let same_union_family = trade_union(a)
         && trade_union(b)
-        && union_root(&a.name_raw).is_some()
-        && union_root(&a.name_raw) == union_root(&b.name_raw);
+        && union_root(a.name_raw.as_deref()).is_some()
+        && union_root(a.name_raw.as_deref()) == union_root(b.name_raw.as_deref());
     let extracted_name_agrees = aliases_agree(a, b)
         || (organization_compatible(a, b)
             && addresses_agree
@@ -123,8 +123,8 @@ fn organization_compatible(a: &Observation, b: &Observation) -> bool {
         && !matches!(right, EntityKind::Person)
         && (matches!(left, EntityKind::Organisation) || matches!(right, EntityKind::Organisation))
 }
-fn union_root(raw: &Option<String>) -> Option<&'static str> {
-    let raw = raw.as_deref()?.to_lowercase();
+fn union_root(raw: Option<&str>) -> Option<&'static str> {
+    let raw = raw?.to_lowercase();
     raw.split(|c: char| !c.is_alphanumeric())
         .any(|word| word == "unite")
         .then_some("unite")
@@ -189,17 +189,14 @@ fn base_name_overlap(a: &Observation, b: &Observation) -> bool {
             .unwrap_or("")
             .split(|c: char| !c.is_alphanumeric())
             .filter(|word| !word.is_empty())
-            .map(str::to_lowercase)
-            .collect::<Vec<_>>();
+            .map(str::to_lowercase);
         let core_tokens = observation
             .organisation_core
             .as_deref()
             .unwrap_or("")
             .split_whitespace()
-            .map(str::to_owned)
-            .collect::<Vec<_>>();
+            .map(str::to_owned);
         raw_tokens
-            .into_iter()
             .chain(core_tokens)
             .filter(|word| {
                 !["the", "and", "limited", "ltd", "plc", "bank"].contains(&word.as_str())

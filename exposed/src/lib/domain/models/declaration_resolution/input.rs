@@ -191,11 +191,11 @@ fn blocking_keys(observation: &Observation) -> BTreeSet<String> {
         return keys;
     };
     let raw = raw.to_lowercase();
-    let tokens = raw
-        .split(|c: char| !c.is_alphanumeric())
-        .filter(|token| !token.is_empty())
-        .collect::<Vec<_>>();
-    if is_trade_union && tokens.iter().any(|token| *token == "unite") {
+    if is_trade_union
+        && raw
+            .split(|c: char| !c.is_alphanumeric())
+            .any(|token| token == "unite")
+    {
         keys.insert("trade-union:unite".to_owned());
     }
     keys
