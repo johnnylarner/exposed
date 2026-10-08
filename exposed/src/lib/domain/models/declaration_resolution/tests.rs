@@ -22,7 +22,10 @@ fn observation(
         funding_ordinal: None,
         donor_kind: kind.map(str::to_owned),
         donor_company_number: company.map(str::to_owned),
+        name_raw: name.map(str::to_owned),
         name_normalized: name.map(str::to_owned),
+        organisation_core: name.map(str::to_owned),
+        alias_normalized: Vec::new(),
         address_normalized: address.map(str::to_owned),
         address_match_quality: AddressMatchQuality::from_normalized(address),
     }
@@ -131,6 +134,139 @@ fn fuzzy_missing_and_other_role_names_do_not_use_donor_rule() {
             IdentityBasis::ProvisionalSingleton | IdentityBasis::Unresolved
         )));
     }
+}
+
+#[test]
+fn extracted_hsbc_name_and_punctuation_normalized_address_link_across_roles() {
+    let mut ceo = observation(
+        1,
+        Some("HSBC UK (Ian Stuart, CEO)"),
+        Some("1 Centenary Square, Birmingham, B1 1HQ"),
+        Some("Company"),
+        None,
+    );
+    ceo.name_raw = Some("HSBC UK (Ian Stuart, CEO)".into());
+    let mut bank = observation(
+        2,
+        Some("HSBC UK Bank plc"),
+        Some("1 Centenary Square Birmingham B1 1HQ"),
+        Some("Company"),
+        None,
+    );
+    bank.name_raw = Some("HSBC UK Bank plc".into());
+    let payer_observation = payer(bank);
+    let result = resolve(&input(vec![ceo, payer_observation]), 0.08);
+    assert_eq!(
+        result.observations[0].identity_id,
+        result.observations[1].identity_id
+    );
+    assert!(result.pairs.iter().any(|pair| {
+        pair.disposition == PairDisposition::Accepted
+            && matches!(pair.reason, PairReason::ExtractedNameEvidence)
+    }));
+}
+
+#[test]
+fn explicit_cleaner_aliases_are_positive_resolution_evidence() {
+    let mut legal_name = observation(1, Some("Fletcher Legal Ltd"), None, None, None);
+    legal_name.alias_normalized = vec!["fletchers".into()];
+    let brand = observation(2, Some("fletchers"), None, None, None);
+    let result = resolve(&input(vec![legal_name, brand]), 0.01);
+    assert_eq!(
+        result.observations[0].identity_id,
+        result.observations[1].identity_id
+    );
+    assert!(result.pairs.iter().any(|pair| {
+        pair.disposition == PairDisposition::Accepted
+            && matches!(pair.reason, PairReason::ExtractedNameEvidence)
+    }));
+}
+
+#[test]
+fn unite_trade_union_variants_link_but_similarly_spelled_entities_do_not() {
+    let names = [
+        "Unite Union",
+        "Unite the Union",
+        "Unite West Midlands",
+        "East Midlands Unite the Union",
+        "UNITE The Union (West Midlands)",
+        "Unite the Union Parliamentary Staff Branch",
+    ];
+    let unions = names
+        .iter()
+        .enumerate()
+        .map(|(index, name)| {
+            observation(
+                u32::try_from(index).expect("test fixture index fits u32") + 1,
+                Some(name),
+                None,
+                Some("Trade Union"),
+                None,
+            )
+        })
+        .collect::<Vec<_>>();
+    let result = resolve(&input(unions), 0.01);
+    assert!(
+        result
+            .observations
+            .iter()
+            .all(|row| row.identity_id == result.observations[0].identity_id)
+    );
+    assert!(
+        result
+            .pairs
+            .iter()
+            .filter(|pair| pair.disposition == PairDisposition::Accepted)
+            .all(|pair| matches!(pair.reason, PairReason::TradeUnionFamily))
+    );
+    assert!(
+        result
+            .observations
+            .iter()
+            .all(|row| matches!(row.identity_basis, IdentityBasis::TradeUnionFamilyLink))
+    );
+
+    let separate = resolve(
+        &input(vec![
+            observation(20, Some("Unite"), None, Some("Trade Union"), None),
+            observation(
+                21,
+                Some("United Against Malnutrition and Hunger"),
+                None,
+                Some("Charity"),
+                None,
+            ),
+        ]),
+        0.9999,
+    );
+    assert_ne!(
+        separate.observations[0].identity_id,
+        separate.observations[1].identity_id
+    );
+
+    let committee = resolve(
+        &input(vec![
+            observation(
+                30,
+                Some("Carlton Club"),
+                Some("69 St James's Street, London SW1A 1PJ"),
+                Some("Unincorporated association"),
+                None,
+            ),
+            observation(
+                31,
+                Some("Carlton Club Political Committee"),
+                Some("69 St. James's Street London SW1A 1PJ"),
+                Some("Unincorporated association"),
+                None,
+            ),
+        ]),
+        0.9999,
+    );
+    assert_ne!(
+        committee.observations[0].identity_id,
+        committee.observations[1].identity_id
+    );
 }
 #[test]
 fn statistical_support_takes_precedence_and_mixed_components_are_honest() {
@@ -560,6 +696,7 @@ fn indirect_links_cannot_join_distinct_company_components() {
             key: format!("profile-{index}"),
             name: observation.name_normalized.clone().unwrap(),
             address: observation.address_normalized.clone(),
+            blocking_keys: Vec::new(),
             needs_resolution: company(observation).is_none(),
         })
         .collect::<Vec<_>>();
@@ -569,7 +706,7 @@ fn indirect_links_cannot_join_distinct_company_components() {
         .map(|(row, id)| (row.key.clone(), vec![id.clone()]))
         .collect();
     let scoring = ScoringInput {
-        version: 1,
+        version: 2,
         candidate_budget: 10,
         rows,
         members,
@@ -622,7 +759,7 @@ fn resolve_edges(
     let input = input(observations);
     let ids = input.observations.keys().cloned().collect::<Vec<_>>();
     let scoring = ScoringInput {
-        version: 1,
+        version: 2,
         candidate_budget: 100,
         rows: ids
             .iter()
@@ -631,6 +768,7 @@ fn resolve_edges(
                 key: format!("profile-{index}"),
                 name: input.observations[id].name_normalized.clone().unwrap(),
                 address: input.observations[id].address_normalized.clone(),
+                blocking_keys: Vec::new(),
                 needs_resolution: company(&input.observations[id]).is_none(),
             })
             .collect(),

@@ -19,6 +19,19 @@ use serde_json::json;
 use tempfile::TempDir;
 use uuid::Uuid;
 
+#[test]
+fn canonical_funder_name_prefers_the_most_reported_source_spelling() {
+    assert_eq!(
+        canonical_name([
+            "East Midlands Unite the Union",
+            "Unite",
+            "Unite the Union",
+            "Unite the Union",
+        ]),
+        Some("Unite the Union")
+    );
+}
+
 #[derive(Clone, Copy)]
 struct TestScorer;
 

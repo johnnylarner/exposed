@@ -15,7 +15,7 @@ SETTINGS = MODEL["settings"]
 
 
 def score(request):
-    if request.get("version") != 1:
+    if request.get("version") != 2:
         raise ValueError("unsupported scoring request version")
     budget = request.get("candidate_budget")
     if not isinstance(budget, int) or isinstance(budget, bool) or budget <= 0:
@@ -31,6 +31,9 @@ def score(request):
             raise ValueError("profile name must be a usable string")
         if row["address"] is not None and (not isinstance(row["address"], str) or not row["address"]):
             raise ValueError("profile address must be a usable string or null")
+        blocking_keys = row.get("blocking_keys")
+        if not isinstance(blocking_keys, list) or any(not isinstance(key, str) or not key for key in blocking_keys):
+            raise ValueError("blocking_keys must be a list of usable strings")
     if any(not isinstance(row.get("needs_resolution"), bool) for row in rows):
         raise ValueError("needs_resolution must be a boolean")
     actual = importlib.metadata.version("splink")
@@ -43,9 +46,9 @@ def score(request):
 
     connection = duckdb.connect(":memory:")
     try:
-        connection.execute('CREATE TABLE profiles ("key" VARCHAR, name VARCHAR, address VARCHAR, needs_resolution BOOLEAN)')
+        connection.execute('CREATE TABLE profiles ("key" VARCHAR, name VARCHAR, address VARCHAR, blocking_keys VARCHAR[], needs_resolution BOOLEAN)')
         if rows:
-            connection.executemany("INSERT INTO profiles VALUES (?, ?, ?, ?)", [(r["key"], r["name"], r["address"], r["needs_resolution"]) for r in rows])
+            connection.executemany("INSERT INTO profiles VALUES (?, ?, ?, ?, ?)", [(r["key"], r["name"], r["address"], r["blocking_keys"], r["needs_resolution"]) for r in rows])
         rules = " OR ".join(f"({rule})" for rule in SETTINGS["blocking_rules_to_generate_predictions"])
         count = connection.execute(f'SELECT count(*) FROM profiles l JOIN profiles r ON l."key" < r."key" AND ({rules})').fetchone()[0]
         if count > budget:

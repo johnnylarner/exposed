@@ -7,7 +7,7 @@ use super::{
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
-pub(crate) const POLICY_VERSION: &str = "funder-resolution-v2";
+pub(crate) const POLICY_VERSION: &str = "funder-resolution-v3";
 pub(crate) const AUTOMATIC_THRESHOLD: f64 = 0.999;
 
 mod attribution;
@@ -33,8 +33,14 @@ pub enum IdentityBasis {
     StatisticalLink,
     /// Exact donor names are necessary to connect the identity.
     DonorNameLink,
+    /// Cleaner-extracted aliases or organization evidence connect the identity.
+    ExtractedNameLink,
+    /// Typed trade-union family evidence connects the identity.
+    TradeUnionFamilyLink,
     /// Statistical and exact donor-name links support the identity.
     StatisticalAndDonorNameLink,
+    /// Statistical links combine with extracted aliases or typed domain evidence.
+    StatisticalAndSupportingNameLink,
     /// A separate local identity without evidence of a cross-observation match.
     ProvisionalSingleton,
     /// No usable name or eligible captured identifier.
@@ -76,6 +82,10 @@ pub enum PairReason {
     ExactNameFullAddressThreshold,
     /// Both donors have the same usable normalized name.
     ExactDonorName,
+    /// Cleaner-extracted aliases or matching organization evidence support the link.
+    ExtractedNameEvidence,
+    /// Both observations are explicitly typed trade unions with the distinctive Unite root.
+    TradeUnionFamily,
 }
 /// A scored edge retained for inspection, including rejected evidence.
 #[derive(Serialize)]

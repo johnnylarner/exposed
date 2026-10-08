@@ -58,7 +58,13 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
         let manifest_bytes = fs::read(resolved.join("manifest.json")).map_err(read_error)?;
         let manifest: ResolutionManifest =
             serde_json::from_slice(&manifest_bytes).map_err(read_error)?;
-        if manifest.schema_version != 1 || manifest.policy_version != "funder-resolution-v2" {
+        if manifest.schema_version != 1
+            || !matches!(
+                manifest.policy_version.as_str(),
+                "funder-resolution-v2"
+                    | crate::domain::models::declaration_resolution::POLICY_VERSION
+            )
+        {
             return Err(data_error("unsupported resolved declaration manifest"));
         }
         if manifest.input_sha256.get("funders.parquet") != Some(&funders_digest)
@@ -405,19 +411,23 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
             };
             let names = group
                 .iter()
-                .find_map(|row| row.name_raw.as_ref().filter(|name| !name.trim().is_empty()));
+                .filter_map(|row| row.name_raw.as_deref())
+                .filter(|name| !name.trim().is_empty());
             let aliases = group
                 .iter()
                 .filter_map(|row| row.name_raw.as_ref())
                 .filter(|name| !name.trim().is_empty())
                 .cloned()
                 .collect::<BTreeSet<_>>();
-            let name = names.cloned().unwrap_or_else(|| {
-                company_number.as_ref().map_or_else(
-                    || "Unnamed resolved funder".to_owned(),
-                    |number| format!("Companies House {number}"),
-                )
-            });
+            let name = canonical_name(names).map_or_else(
+                || {
+                    company_number.as_ref().map_or_else(
+                        || "Unnamed resolved funder".to_owned(),
+                        |number| format!("Companies House {number}"),
+                    )
+                },
+                str::to_owned,
+            );
             let aliases = aliases.into_iter().collect();
             load_funders.push(LoadFunder {
                 identity_id,
@@ -444,6 +454,26 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
             funding_entries,
         )
     }
+}
+
+fn canonical_name<'a>(names: impl IntoIterator<Item = &'a str>) -> Option<&'a str> {
+    let mut counts = BTreeMap::<&str, usize>::new();
+    for name in names {
+        *counts.entry(name).or_default() += 1;
+    }
+    counts
+        .into_iter()
+        .max_by(|(left, left_count), (right, right_count)| {
+            left_count
+                .cmp(right_count)
+                .then_with(|| {
+                    let left_unannotated = !left.contains('(');
+                    let right_unannotated = !right.contains('(');
+                    left_unannotated.cmp(&right_unannotated)
+                })
+                .then_with(|| right.cmp(left))
+        })
+        .map(|(name, _)| name)
 }
 
 #[derive(Deserialize)]
