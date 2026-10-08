@@ -71,6 +71,8 @@ pub enum DeclarationIngestionStage {
     Fetch,
     /// Split captured funding occurrences and funder observations offline.
     Clean,
+    /// Resolve cleaned funder observations and attribute each occurrence.
+    Resolve,
 }
 
 /// Errors related to entity search

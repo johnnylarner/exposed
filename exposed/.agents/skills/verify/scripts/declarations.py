@@ -35,10 +35,8 @@ def run_cli(binary, cwd, evidence, label, args):
     return result
 
 
-def fixtures(directory):
-    from datetime import date, datetime, timezone
-
-    schema = pa.schema([
+def raw_schema():
+    return pa.schema([
         pa.field("member_id", pa.string(), False),
         *[pa.field(name, pa.uint32(), nullable) for name, nullable in [
             ("parliament_member_id", False), ("declaration_id", False),
@@ -56,6 +54,11 @@ def fixtures(directory):
         pa.field("fetched_at", pa.timestamp("us", tz="+00:00"), False),
         pa.field("source_json", pa.string(), False),
     ])
+
+
+def fixtures(directory):
+    from datetime import date, datetime, timezone
+
     cases = json.loads((SKILL / "name-cases.json").read_text())
     declarations = [
         (1, [{"donor": "Sir Trevor Chinn", "ultimate_payer": "Labour Together Limited"}] * 2, False),
@@ -99,7 +102,7 @@ def fixtures(directory):
             rows.append(row)
     path = directory / "data" / KEY / "raw/declarations" / f"{MEMBER}.parquet"
     path.parent.mkdir(parents=True)
-    pq.write_table(pa.Table.from_pylist(rows, schema=schema), path)
+    pq.write_table(pa.Table.from_pylist(rows, schema=raw_schema()), path)
     (directory / ".env").write_text("")
     (directory / "config.yaml").write_text("data_dir: ./data\n")
     return path, cases, expected_entries, expected_funders

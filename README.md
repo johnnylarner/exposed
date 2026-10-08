@@ -98,6 +98,22 @@ try an MP's name, `HSBC`, a misspelling, clearing a pending query, and stopping
 the API to check retry behavior. See the
 [search design brief](docs/design/entity-search.md) for the agreed scope.
 
+## Resolve declaration funders
+
+Install the pinned Python worker with the [resolution setup](resolution/README.md). Then resolve a cleaned run from the repository root:
+
+```sh
+cargo run --package exposed --bin exposed -- data declarations resolve exposed/config/declaration-resolution-dev.yaml --ingestion-key "$ingestion_key"
+```
+
+The command writes observation identities, one attribution per funding occurrence,
+statistical candidate decisions, and a manifest under `resolved/declarations`.
+Company anchors use captured source numbers. Splink supplies uncalibrated scores
+for observations without eligible company IDs, including noncompanies. Initial
+automatic links require exact names and complete usable addresses. Name-only and
+fuzzy candidates remain for review, while named singletons receive separate
+provisional identities. See the [resolution policy](docs/funder-resolution-design.md).
+
 ## View example declarations from the API
 
 These standalone scripts require `bash`, `curl` and `jq`; no database, API key or

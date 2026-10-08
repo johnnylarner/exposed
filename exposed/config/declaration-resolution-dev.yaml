@@ -1,0 +1,4 @@
+data_dir: ./exposed/data
+resolution_python: resolution/.venv/bin/python
+resolution_worker: resolution/worker.py
+candidate_budget: 1000000

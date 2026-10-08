@@ -5,3 +5,5 @@ pub mod entity_search;
 pub mod declaration_cleaning;
 pub mod declaration_fetch;
 pub mod entity_ingestion;
+
+pub mod declaration_resolution;

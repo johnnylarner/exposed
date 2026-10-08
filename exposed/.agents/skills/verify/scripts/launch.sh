@@ -12,7 +12,7 @@ git rev-parse HEAD > "$evidence/revision.txt"
 git diff HEAD > "$evidence/source.diff"
 git status --short > "$evidence/source-status.txt"
 python3 -m venv "$evidence/venv"
-"$evidence/venv/bin/pip" install pyarrow > "$evidence/dependencies.log" 2>&1
+"$evidence/venv/bin/pip" install pyarrow ./resolution > "$evidence/dependencies.log" 2>&1
 "$evidence/venv/bin/pip" freeze > "$evidence/dependencies.txt"
 
 container=""
@@ -22,7 +22,7 @@ docker run -d --label exposed.verification=declarations \
 	-e POSTGRES_DB=exposed -p 127.0.0.1::5432 postgres:18-alpine \
 	> "$evidence/container.id"
 container="$(cat "$evidence/container.id")"
-for attempt in {1..60}; do
+for attempt in {1..240}; do
 	if docker exec "$container" pg_isready -U exposed -d exposed > /dev/null 2>&1; then
 		break
 	fi
@@ -31,6 +31,8 @@ done
 docker exec "$container" pg_isready -U exposed -d exposed
 docker exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U exposed -d exposed \
 	< db/migrations/20260915000000_initial.up.sql > "$evidence/schema.log" 2>&1
+docker exec "$container" psql -X -v ON_ERROR_STOP=1 -U exposed -d exposed \
+	-c 'ALTER ROLE exposed SET search_path TO exposed, public' >> "$evidence/schema.log" 2>&1
 address="$(docker port "$container" 5432/tcp)"
 DATABASE_URL="postgresql://exposed:verification@$address/exposed?sslmode=disable" \
 	SQLX_OFFLINE=false CARGO_TARGET_DIR="$repo/target" \
