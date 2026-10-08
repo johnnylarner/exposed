@@ -37,10 +37,11 @@ pub fn run_server() -> anyhow::Result<()> {
 /// - When the HTTP server fails
 pub async fn serve_exposed(config: &ServerConfig, listener: TcpListener) -> anyhow::Result<()> {
     let db = ExposedDatabase::new(&config.connection_string).await;
-    let service = EntitySearchService::new(db.clone(), db);
+    let service = EntitySearchService::new(db.clone(), db.clone());
 
     let state = AppState {
         entity_search_service: Arc::new(service),
+        entity_details_service: Arc::new(crate::domain::services::entity_details::Service::new(db)),
     };
     let router = routes().with_state(state);
 

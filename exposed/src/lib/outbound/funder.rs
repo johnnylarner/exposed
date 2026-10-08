@@ -6,7 +6,7 @@ use crate::{
     domain::{
         models::{
             entity_search::EntitySearchRequest,
-            funder::{Funder, FunderKind},
+            funder::{Funder, FunderId, FunderKind},
             search_similarity::SearchSimilarity,
         },
         repositories::funder_repository::{FunderRepo, FunderRepoError},
@@ -22,6 +22,7 @@ impl FunderRepo for ExposedDatabase {
         sqlx::query!(
             "
             SELECT  
+                f.id,
                 f.funder_name as name,
                 f.funder_kind as kind,
                 f.company_number,
@@ -46,7 +47,7 @@ impl FunderRepo for ExposedDatabase {
             let kind = r.kind.map_or(FunderKind::NotSpecified, |ref kind| {
                 FunderKind::from_str(kind).unwrap()
             });
-            let funder = Funder::new(r.name, kind);
+            let funder = Funder::new(FunderId::new(r.id), r.name, kind);
             let score = SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32));
             Ok((funder, score))
         })

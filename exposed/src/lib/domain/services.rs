@@ -7,3 +7,6 @@ pub mod declaration_fetch;
 pub mod entity_ingestion;
 
 pub mod declaration_resolution;
+
+/// Entity profiles and declared support.
+pub mod entity_details;

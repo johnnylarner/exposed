@@ -12,3 +12,6 @@ pub mod parliament_member;
 pub mod search_similarity;
 
 pub mod declaration_resolution;
+
+/// Entity profiles and declared support.
+pub mod entity_details;

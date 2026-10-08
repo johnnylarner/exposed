@@ -16,10 +16,19 @@ export function readStrictness(value: string | null): number {
     : searchConfiguration.strictness;
 }
 
-export interface Entity {
-  name: string;
-  kind: "MP" | "Funder";
-  funderKind: string | null;
+export type Entity =
+  | { id: string; name: string; kind: "MP"; funderKind: null }
+  | { id: string; name: string; kind: "Funder"; funderKind: string | null };
+
+export function entityHref(entity: Pick<Entity, "kind" | "id">): string {
+  const params = new URLSearchParams(window.location.search);
+  const retained = new URLSearchParams();
+  for (const key of ["q", "strictness"]) {
+    const value = params.get(key);
+    if (value !== null) retained.set(key, value);
+  }
+  const query = retained.size ? `?${retained}` : "";
+  return `/${entity.kind === "MP" ? "members" : "funders"}/${encodeURIComponent(entity.id)}${query}`;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -35,14 +44,35 @@ function readEntities(body: unknown): Entity[] {
     if (
       !isRecord(value) ||
       typeof value.name !== "string" ||
+      typeof value.id !== "string" ||
       (value.kind !== "MP" && value.kind !== "Funder") ||
       (value.funder_kind !== null && typeof value.funder_kind !== "string")
     ) {
       throw new Error("Search returned an unexpected response. Try again.");
     }
+    if (value.kind === "MP") {
+      if (
+        !/^[1-9]\d*$/u.test(value.id) ||
+        Number(value.id) > 2147483647 ||
+        value.funder_kind !== null
+      )
+        throw new Error(
+          "Search returned an unexpected MP identity. Try again.",
+        );
+      return { id: value.id, name: value.name, kind: "MP", funderKind: null };
+    }
+    if (
+      !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu.test(
+        value.id,
+      )
+    )
+      throw new Error(
+        "Search returned an unexpected funder identity. Try again.",
+      );
     return {
+      id: value.id,
       name: value.name,
-      kind: value.kind,
+      kind: "Funder",
       funderKind: value.funder_kind,
     };
   });

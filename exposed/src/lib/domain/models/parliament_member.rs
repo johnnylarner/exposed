@@ -111,7 +111,7 @@ impl PartyId {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 /// Member parliament API ID
 #[allow(dead_code)]
 pub struct MemberId(u32);
@@ -121,5 +121,26 @@ impl MemberId {
     /// Creates member parliament API ID
     pub const fn new(id: u32) -> Self {
         Self(id)
+    }
+}
+
+impl MemberId {
+    /// Numeric Parliament identity.
+    #[must_use]
+    pub const fn value(&self) -> u32 {
+        self.0
+    }
+}
+
+impl std::str::FromStr for MemberId {
+    type Err = String;
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let id = value
+            .parse::<u32>()
+            .map_err(|_| "Invalid MP ID".to_string())?;
+        if id == 0 || i32::try_from(id).is_err() {
+            return Err("Invalid MP ID".to_string());
+        }
+        Ok(Self(id))
     }
 }

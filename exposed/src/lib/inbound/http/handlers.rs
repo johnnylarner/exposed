@@ -1,3 +1,6 @@
+mod entity_details;
+pub use entity_details::{funder_details, member_details};
+
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -7,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     domain::{
         models::entity_search::{Entity, EntitySearchError, EntitySearchRequest},
-        services::entity_search::EntitySearchService,
+        services::{entity_details::EntityDetailsService, entity_search::EntitySearchService},
     },
     inbound::http::{error::ApiError, state::AppState, success::ApiSuccess},
 };
@@ -43,6 +46,7 @@ impl From<&[Entity]> for SearchEntityResponseData {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct SearchEntity {
+    id: String,
     name: String,
     kind: String,
     funder_kind: Option<String>,
@@ -51,6 +55,10 @@ pub struct SearchEntity {
 impl From<&Entity> for SearchEntity {
     fn from(value: &Entity) -> Self {
         Self {
+            id: match value {
+                Entity::Funder(funder) => funder.id().value().to_string(),
+                Entity::ParliamentMember(member) => member.member_id().to_string(),
+            },
             name: value.name().to_string(),
             kind: value.kind().to_string(),
             funder_kind: value.funder_kind().map(String::from),
@@ -69,8 +77,8 @@ impl From<EntitySearchError> for ApiError {
     }
 }
 
-pub async fn search_entities<E: EntitySearchService>(
-    State(state): State<AppState<E>>,
+pub async fn search_entities<E: EntitySearchService, D: EntityDetailsService>(
+    State(state): State<AppState<E, D>>,
     Query(query): Query<SearchEntitiesHttpRequest>,
 ) -> Result<ApiSuccess<SearchEntityResponseData>, ApiError> {
     let domain_req = query.try_into_domain()?;

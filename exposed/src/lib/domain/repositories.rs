@@ -14,3 +14,6 @@ pub mod declaration_cleaning;
 pub mod entity_ingestion;
 
 pub mod declaration_resolution;
+
+/// Entity profiles and declared support.
+pub mod entity_details;
