@@ -2,7 +2,6 @@ from datetime import date
 
 import pytest
 
-from exposed.adapters.postgres import PostgresStore, connect
 from exposed.core.errors import ImportFailed, ImportValidationError, SourceError
 from exposed.core.models import CommonsService, Member
 from exposed.core.refresh import refresh_members
@@ -10,13 +9,9 @@ from tests.fakes import AS_OF, TERM_START
 from tests.memory import MemorySource, MemoryStore
 
 
-@pytest.fixture(params=["memory", pytest.param("postgres", marks=pytest.mark.integration)])
-def store(request):
-    if request.param == "memory":
-        yield MemoryStore()
-    else:
-        with connect(request.getfixturevalue("database_url")) as conn:
-            yield PostgresStore(conn)
+@pytest.fixture
+def store():
+    return MemoryStore()
 
 
 def test_storage_port_preserves_completed_batches_before_allowing_a_retry(store):

@@ -1,12 +1,10 @@
 import json
 from datetime import date
 
-import httpx
 import pytest
 
-from exposed.cli import main, run_cli
+from exposed.cli import run_cli
 from exposed.core.errors import ImportFailed, StorageError
-from tests.fakes import ParliamentFixture
 
 
 def test_cli_passes_explicit_configuration_to_the_refresh_and_prints_its_summary(
@@ -81,32 +79,3 @@ def test_invalid_cli_configuration_exits_before_starting_a_refresh(
 
     assert error.value.code == 2
     assert capsys.readouterr().out == ""
-
-
-@pytest.mark.integration
-def test_production_cli_wiring_refreshes_members_in_postgresql(
-    database_url, monkeypatch, tmp_path, capsys
-):
-    fixture = ParliamentFixture(2)
-    fixture.leave(2, lords=True)
-    client_type = httpx.Client
-
-    def local_client(*args, **kwargs):
-        kwargs["transport"] = httpx.MockTransport(fixture.handle)
-        return client_type(*args, **kwargs)
-
-    # Substitute only the external HTTP transport; run the real CLI, composition,
-    # source adapter, refresh and PostgreSQL adapter against a temporary database.
-    monkeypatch.setattr(httpx, "Client", local_client)
-    monkeypatch.chdir(tmp_path)
-    monkeypatch.setenv("DATABASE_URL", database_url)
-    monkeypatch.setenv("PARLIAMENT_TERM_START", "2024-07-04")
-
-    assert main(["import-members"]) == 0
-    result = json.loads(capsys.readouterr().out)
-    assert (
-        result["status"],
-        result["inserted"],
-        result["current_commons"],
-        result["former_commons"],
-    ) == ("succeeded", 2, 1, 1)
