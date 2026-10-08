@@ -7,7 +7,7 @@ use super::{
 use serde::Serialize;
 use std::collections::{BTreeMap, BTreeSet};
 
-pub(crate) const POLICY_VERSION: &str = "funder-resolution-v1";
+pub(crate) const POLICY_VERSION: &str = "funder-resolution-v2";
 pub(crate) const AUTOMATIC_THRESHOLD: f64 = 0.999;
 
 mod attribution;
@@ -31,6 +31,10 @@ pub enum IdentityBasis {
     SourceReportedCompany,
     /// An accepted exact name and full address score.
     StatisticalLink,
+    /// Exact donor names are necessary to connect the identity.
+    DonorNameLink,
+    /// Statistical and exact donor-name links support the identity.
+    StatisticalAndDonorNameLink,
     /// A separate local identity without evidence of a cross-observation match.
     ProvisionalSingleton,
     /// No usable name or eligible captured identifier.
@@ -47,7 +51,7 @@ pub struct ObservationResolution {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PairDisposition {
-    /// The edge passed both statistical and component constraints.
+    /// The edge passed its evidence rule and component constraints.
     Accepted,
     /// The edge remains a candidate for human review.
     Review,
@@ -64,12 +68,14 @@ pub enum PairReason {
     PersonOrganisationConflict,
     /// Two usable numbered-street addresses disagree.
     FullAddressDisagreement,
-    /// Strong candidates point to more than one company anchor.
+    /// An eligible unanchored group reaches more than one company anchor.
     CompetingCompanyAnchors,
     /// A union would mix company numbers or incompatible entity kinds.
     ComponentIdentityConflict,
     /// Exact names, full addresses, threshold, and component constraints agree.
     ExactNameFullAddressThreshold,
+    /// Both donors have the same usable normalized name.
+    ExactDonorName,
 }
 /// A scored edge retained for inspection, including rejected evidence.
 #[derive(Serialize)]

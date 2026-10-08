@@ -1,7 +1,7 @@
 use super::{
     AUTOMATIC_THRESHOLD, AddressMatchQuality, BTreeMap, BTreeSet, EntityIngestionError,
-    FunderObservationId, IdentityBasis, Observation, ObservationResolution, PairDecision,
-    PairDisposition, PairReason, ResolutionInput, ScoredPair, ScoringInput, invalid,
+    FunderObservationId, FunderRole, IdentityBasis, Observation, ObservationResolution,
+    PairDecision, PairDisposition, PairReason, ResolutionInput, ScoredPair, ScoringInput, invalid,
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum EntityKind {
@@ -54,19 +54,45 @@ pub(super) fn company(observation: &Observation) -> Option<String> {
     .then_some(number)
 }
 
-fn strong(input: &ResolutionInput, edge: &PairDecision) -> bool {
-    let a = &input.observations[&edge.left_funder_id];
-    let b = &input.observations[&edge.right_funder_id];
-    edge.probability >= AUTOMATIC_THRESHOLD
-        && a.name_normalized.is_some()
-        && a.name_normalized == b.name_normalized
-        && a.address_match_quality == AddressMatchQuality::NumberedStreet
+#[derive(Clone, Copy)]
+enum LinkEvidence {
+    Statistical,
+    DonorName,
+}
+#[derive(Clone, Copy)]
+enum EdgeEligibility {
+    Link(LinkEvidence),
+    Review,
+    Reject(PairReason),
+}
+struct CandidateEdge {
+    decision: PairDecision,
+    eligibility: EdgeEligibility,
+}
+fn classify(a: &Observation, b: &Observation, probability: f64) -> EdgeEligibility {
+    if kind(a) != EntityKind::Unknown && kind(b) != EntityKind::Unknown && kind(a) != kind(b) {
+        return EdgeEligibility::Reject(PairReason::PersonOrganisationConflict);
+    }
+    let exact_name = a.name_normalized.is_some() && a.name_normalized == b.name_normalized;
+    let full_addresses = a.address_match_quality == AddressMatchQuality::NumberedStreet
         && b.address_match_quality == AddressMatchQuality::NumberedStreet
         && a.address_normalized.is_some()
+        && b.address_normalized.is_some();
+    if exact_name
+        && full_addresses
         && a.address_normalized == b.address_normalized
+        && probability >= AUTOMATIC_THRESHOLD
+    {
+        EdgeEligibility::Link(LinkEvidence::Statistical)
+    } else if exact_name && a.role == FunderRole::Donor && b.role == FunderRole::Donor {
+        EdgeEligibility::Link(LinkEvidence::DonorName)
+    } else if full_addresses && a.address_normalized != b.address_normalized {
+        EdgeEligibility::Reject(PairReason::FullAddressDisagreement)
+    } else {
+        EdgeEligibility::Review
+    }
 }
-
-type CandidateEdges = BTreeMap<(FunderObservationId, FunderObservationId), PairDecision>;
+type CandidateEdges = BTreeMap<(FunderObservationId, FunderObservationId), CandidateEdge>;
 fn expanded_edges(
     input: &ResolutionInput,
     scoring: &ScoringInput,
@@ -91,14 +117,17 @@ fn expanded_edges(
                 }
                 edges
                     .entry((left.clone(), right.clone()))
-                    .or_insert_with(|| PairDecision {
-                        left_funder_id: left.clone(),
-                        right_funder_id: right.clone(),
-                        probability: pair.probability,
-                        name_level: pair.name_level,
-                        address_level: pair.address_level,
-                        disposition: PairDisposition::Review,
-                        reason: PairReason::InsufficientExactEvidence,
+                    .or_insert_with(|| CandidateEdge {
+                        eligibility: classify(a, b, pair.probability),
+                        decision: PairDecision {
+                            left_funder_id: left.clone(),
+                            right_funder_id: right.clone(),
+                            probability: pair.probability,
+                            name_level: pair.name_level,
+                            address_level: pair.address_level,
+                            disposition: PairDisposition::Review,
+                            reason: PairReason::InsufficientExactEvidence,
+                        },
                     });
                 if edges.len() > scoring.candidate_budget {
                     return Err(invalid(
@@ -138,8 +167,24 @@ impl Components {
         }
     }
     fn apply(&mut self, input: &ResolutionInput, edges: &mut CandidateEdges) {
-        let mut candidate_companies = BTreeMap::<FunderObservationId, BTreeSet<String>>::new();
-        for edge in edges.values().filter(|edge| strong(input, edge)) {
+        let mut unanchored = Self::new(input);
+        for edge in edges
+            .values()
+            .filter(|edge| matches!(edge.eligibility, EdgeEligibility::Link(_)))
+        {
+            let edge = &edge.decision;
+            if company(&input.observations[&edge.left_funder_id]).is_none()
+                && company(&input.observations[&edge.right_funder_id]).is_none()
+            {
+                unanchored.join(&edge.left_funder_id, &edge.right_funder_id);
+            }
+        }
+        let mut candidate_companies = BTreeMap::<usize, BTreeSet<String>>::new();
+        for candidate in edges
+            .values()
+            .filter(|edge| matches!(edge.eligibility, EdgeEligibility::Link(_)))
+        {
+            let edge = &candidate.decision;
             for (unknown, known) in [
                 (&edge.left_funder_id, &edge.right_funder_id),
                 (&edge.right_funder_id, &edge.left_funder_id),
@@ -148,43 +193,36 @@ impl Components {
                     && let Some(number) = company(&input.observations[known])
                 {
                     candidate_companies
-                        .entry(unknown.clone())
+                        .entry(unanchored.group[unknown])
                         .or_default()
                         .insert(number);
                 }
             }
         }
-        let ambiguous = candidate_companies
+        for candidate in edges.values_mut() {
+            let edge = &mut candidate.decision;
+            let evidence = match candidate.eligibility {
+                EdgeEligibility::Reject(reason) => {
+                    edge.disposition = PairDisposition::Rejected;
+                    edge.reason = reason;
+                    continue;
+                }
+                EdgeEligibility::Review => continue,
+                EdgeEligibility::Link(evidence) => evidence,
+            };
+            let ambiguous_attachment = [
+                (&edge.left_funder_id, &edge.right_funder_id),
+                (&edge.right_funder_id, &edge.left_funder_id),
+            ]
             .iter()
-            .filter(|(_, numbers)| numbers.len() > 1)
-            .map(|(id, _)| id.clone())
-            .collect::<BTreeSet<_>>();
-        for edge in edges.values_mut() {
-            let a = &input.observations[&edge.left_funder_id];
-            let b = &input.observations[&edge.right_funder_id];
-            if kind(a) != EntityKind::Unknown
-                && kind(b) != EntityKind::Unknown
-                && kind(a) != kind(b)
-            {
-                edge.disposition = PairDisposition::Rejected;
-                edge.reason = PairReason::PersonOrganisationConflict;
-                continue;
-            }
-            if a.address_match_quality == AddressMatchQuality::NumberedStreet
-                && b.address_match_quality == AddressMatchQuality::NumberedStreet
-                && a.address_normalized.is_some()
-                && b.address_normalized.is_some()
-                && a.address_normalized != b.address_normalized
-            {
-                edge.disposition = PairDisposition::Rejected;
-                edge.reason = PairReason::FullAddressDisagreement;
-                continue;
-            }
-            if !strong(input, edge) {
-                continue;
-            }
-            if ambiguous.contains(&edge.left_funder_id) || ambiguous.contains(&edge.right_funder_id)
-            {
+            .any(|(unknown, known)| {
+                company(&input.observations[*unknown]).is_none()
+                    && company(&input.observations[*known]).is_some()
+                    && candidate_companies
+                        .get(&unanchored.group[*unknown])
+                        .is_some_and(|numbers| numbers.len() > 1)
+            });
+            if ambiguous_attachment {
                 edge.reason = PairReason::CompetingCompanyAnchors;
                 continue;
             }
@@ -210,21 +248,61 @@ impl Components {
                 edge.reason = PairReason::ComponentIdentityConflict;
                 continue;
             }
-            if left != right {
-                self.members[right].clear();
-                self.members[left] = ids;
-                for id in &self.members[left] {
-                    self.group.insert(id.clone(), left);
-                }
-            }
+            self.join(&edge.left_funder_id, &edge.right_funder_id);
             edge.disposition = PairDisposition::Accepted;
-            edge.reason = PairReason::ExactNameFullAddressThreshold;
+            edge.reason = match evidence {
+                LinkEvidence::Statistical => PairReason::ExactNameFullAddressThreshold,
+                LinkEvidence::DonorName => PairReason::ExactDonorName,
+            };
         }
     }
-    fn outcomes(&self, input: &ResolutionInput, run_key: &str) -> Vec<ObservationResolution> {
+    fn join(&mut self, left_id: &FunderObservationId, right_id: &FunderObservationId) {
+        let left = self.group[left_id];
+        let right = self.group[right_id];
+        if left != right {
+            let members = std::mem::take(&mut self.members[right]);
+            for id in &members {
+                self.group.insert(id.clone(), left);
+            }
+            self.members[left].extend(members);
+        }
+    }
+    fn outcomes(
+        &self,
+        input: &ResolutionInput,
+        edges: &CandidateEdges,
+        run_key: &str,
+    ) -> Vec<ObservationResolution> {
+        let mut statistical = Self::new(input);
+        let mut statistical_groups = BTreeSet::new();
+        for candidate in edges.values() {
+            if candidate.decision.disposition == PairDisposition::Accepted
+                && matches!(
+                    candidate.eligibility,
+                    EdgeEligibility::Link(LinkEvidence::Statistical)
+                )
+            {
+                let edge = &candidate.decision;
+                statistical.join(&edge.left_funder_id, &edge.right_funder_id);
+                statistical_groups.insert(self.group[&edge.left_funder_id]);
+            }
+        }
         let mut observations = Vec::new();
         for observation in input.observations.values() {
             let ids = &self.members[self.group[&observation.funder_id]];
+            let statistical_connected = ids
+                .iter()
+                .map(|id| statistical.group[id])
+                .collect::<BTreeSet<_>>()
+                .len()
+                == 1;
+            let component_basis = if statistical_connected {
+                IdentityBasis::StatisticalLink
+            } else if statistical_groups.contains(&self.group[&observation.funder_id]) {
+                IdentityBasis::StatisticalAndDonorNameLink
+            } else {
+                IdentityBasis::DonorNameLink
+            };
             let number = ids.iter().find_map(|id| company(&input.observations[id]));
             let (identity_id, identity_basis) = number.map_or_else(
                 || {
@@ -238,7 +316,7 @@ impl Components {
                         (
                             Some(format!("run-local:{run_key}:{leader}")),
                             if ids.len() > 1 {
-                                IdentityBasis::StatisticalLink
+                                component_basis
                             } else {
                                 IdentityBasis::ProvisionalSingleton
                             },
@@ -251,7 +329,7 @@ impl Components {
                         if company(observation).is_some() {
                             IdentityBasis::SourceReportedCompany
                         } else {
-                            IdentityBasis::StatisticalLink
+                            component_basis
                         },
                     )
                 },
@@ -275,7 +353,7 @@ pub(super) fn resolve(
     let mut components = Components::new(input);
     components.apply(input, &mut edges);
     Ok((
-        components.outcomes(input, run_key),
-        edges.into_values().collect(),
+        components.outcomes(input, &edges, run_key),
+        edges.into_values().map(|edge| edge.decision).collect(),
     ))
 }

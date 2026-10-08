@@ -12,7 +12,7 @@ At the root, `DonorPublicAddress`, `PayerPublicAddress`, and `UltimatePayerAddre
 
 Cleaned observations retain `address_raw`, `address_normalized`, `address_source_field`, and `address_match_quality`. Normalization uses NFKC, lowercase, and collapsed whitespace. Absent values and blank strings remain distinct in raw evidence. Withheld, confidential, private, and not-provided placeholders have no usable normalized address.
 
-`address_match_quality` is `unavailable`, `partial`, or `numbered_street`. The conservative automatic rule requires a numeric house or building token and an explicit street designation. A postcode alone, a place name, or a named premise without a street number remains partial. Some valid international and named-premises addresses therefore require review.
+`address_match_quality` is `unavailable`, `partial`, or `numbered_street`. The statistical rule requires a numeric house or building token and an explicit street designation. A postcode alone, a place name, or a named premise without a street number remains partial. Some valid international and named-premises addresses therefore require review.
 
 The resolver rejects older cleaned schemas with an instruction to clean retained raw capture into a fresh ingestion run. It checks unique IDs, member and declaration identities, source scopes, role ownership, and reciprocal observation links before scoring. Archived raw files are not needed to resolve a valid cleaned pair.
 
@@ -32,19 +32,25 @@ These parameters are chosen starting values. They are not fitted to this dataset
 
 Candidate rules use exact normalized names, exact public addresses, a shared three-character name prefix, or the same first initial and two-character final-name prefix. Generic legal suffixes do not enable the last rule. Every candidate must have at least one profile containing an observation without an accepted company anchor. Name transformations are candidate rules or levels of one name comparison. Postcodes, roles, member identities, declaration identities, and amounts add no independent match evidence.
 
-Identical name and address profiles share computation. Every original observation remains distinct until Rust accepts a scored link. A repeated profile uses two distinct worker keys so even its identical-feature comparison receives an actual Splink score. Grouping alone never merges name-only observations. The configured `candidate_budget` bounds generated profile pairs and expanded observation pairs. Exceeding the budget fails the command instead of truncating candidates.
+Identical name and address profiles share computation. Every original observation remains distinct until Rust accepts a scored link. A repeated profile uses two distinct worker keys so even its identical-feature comparison receives an actual Splink score. Profile grouping alone never assigns identities. Exact usable donor names can support accepted links independently of their actual scores. The configured `candidate_budget` bounds generated profile pairs and expanded observation pairs. Exceeding the budget fails the command instead of truncating candidates.
 
 Rust accepts an initial statistical edge only when all of these conditions hold:
 
 - Both normalized names agree exactly.
 - Both normalized full addresses agree exactly and have `numbered_street` quality.
 - The computed probability is at least 0.999.
-- Neither endpoint has competing strong matches to different company anchors.
+- The connected unanchored candidate group does not reach different company anchors.
 - The resulting complete component has at most one distinct company number and no explicit person versus organisation conflict.
 
-Fuzzy names, missing or partial addresses, name-only evidence, and competing anchors remain review decisions. Conflicting full addresses or incompatible kinds produce rejected decisions. Rust retains every eligible scored edge with its probability, comparison levels, disposition, and reason. Deterministic ordering and whole-component checks prevent an unnumbered observation from bridging different company IDs. Reviewed-pair calibration is required before widening automatic matching.
+Policy `funder-resolution-v2` also accepts exact usable `name_normalized` matches when both observations have role `Donor`. Missing, partial, or disagreeing addresses do not block this rule. It does not use the 0.999 threshold and deliberately accepts same-name false positives. Existing Unicode, case, and whitespace normalization applies; fuzzy and alias matches receive no new acceptance rule. Explicit incompatible kinds and whole-component company constraints still apply. Statistical evidence takes precedence when both rules apply.
 
-A usable name without an accepted link still receives a distinct provisional singleton identity. A singleton is not evidence of a match. A missing or withheld name without an eligible company anchor remains unresolved. In the inspected source capture, named individuals lack usable public addresses, so this initial policy supplies review candidates and provisional identities for them.
+Before merging, Rust collects company numbers reachable from each connected group of unanchored observations through eligible links. Groups reaching multiple company IDs keep every company attachment in review, while eligible links within the unanchored group may still merge. This abstention is independent of observation ID ordering. Whole-component checks additionally prevent mixing distinct company numbers or explicit person and organisation kinds through unknown intermediaries.
+
+Fuzzy names and competing anchors remain review decisions. Other role combinations retain the full-address and probability rule, including rejection of disagreeing full addresses. Rust retains each scored edge's actual probability, comparison levels, disposition, and reason. Donor-name acceptance records `exact_donor_name` without replacing the score.
+
+Identity membership uses `statistical_link` when accepted statistical edges and equal-company seed groups connect the complete component. Otherwise it uses `statistical_and_donor_name_link` when accepted statistical edges support part of the component, or `donor_name_link` when no statistical edge supports it. Redundant donor-name edges do not downgrade a component connected entirely by statistical evidence. Observations supplying an accepted company number retain `source_reported_company`.
+
+A usable name without an accepted link still receives a distinct provisional singleton identity. A singleton is not evidence of a match. A missing or withheld name without an eligible company anchor remains unresolved.
 
 ## Payment attribution
 
@@ -75,7 +81,9 @@ The complete result lives under `<data_dir>/<UUID>/resolved/declarations/`:
 | `observation_resolution.parquet` | One identity decision per input observation, including provisional and unresolved outcomes. |
 | `payment_attribution.parquet` | One reporting decision per input funding occurrence, with source basis and issues. |
 | `pair_decisions.parquet` | Every eligible scored observation pair, with accepted, review, or rejected disposition. |
-| `manifest.json` | Input SHA-256 digests, policy and package versions, exact frozen model, runtime versions, threshold, budget, and counts. |
+| `manifest.json` | Input SHA-256 digests, policy and package versions, exact frozen model, runtime versions, statistical threshold, budget, and counts. |
+
+The manifest retains `automatic_threshold` at 0.999 for statistical acceptance. This field does not constrain exact donor-name acceptance. `policy_version` distinguishes that scope through `funder-resolution-v2`.
 
 The reader hashes the same bytes it decodes. Publication writes all files into a unique sibling directory. macOS and Linux then use atomic rename with exclusive destination creation. Existing results, including an empty destination, are never replaced. Reported failures remove staging. A process killed during staging can leave a hidden directory, but a retry uses a fresh one. No publication lock survives a crash. Other operating systems fail publication with an explicit unsupported-platform error.
 
@@ -83,8 +91,8 @@ Local identities use the ingestion key and the lexicographically first observati
 
 ## Verification
 
-Rust policy tests cover noncompany identities, exact full-address support, fuzzy and name-only review, sparse-address review, conflicting company anchors, person and organisation conflicts, source-number parsing, reordered input, parent attribution, withholding, and malformed scores. Adapter tests exercise old raw replay, root and nested address isolation, complete Parquet publication, no replacement, malformed worker output, and subprocess failure.
+Rust policy tests cover noncompany identities, exact full-address support, addressless and disagreeing-address donor-name links, mixed evidence, fuzzy and other-role name-only review, sparse-address review, conflicting company anchors, person and organisation conflicts, source-number parsing, reordered input, parent attribution, withholding, and malformed scores. Adapter tests exercise old raw replay, root and nested address isolation, complete Parquet publication, no replacement, malformed worker output, and subprocess failure.
 
 `resolution/tests/test_worker.py` uses the actual pinned Splink package. The ignored Rust integration test `declaration_resolution_cli` creates raw evidence, runs the real `clean` and `resolve` commands, inspects resulting Parquet rows, and checks input immutability and output refusal. It requires the installed worker and a build environment that can satisfy existing SQLx macros. See the [runtime setup](../resolution/README.md) for both commands.
 
-The implementation session ran the actual domain, replay, and filesystem modules through an isolated harness that excludes database adapters. Full CLI execution and real Splink inference remain blocked in this environment by unavailable SQLx database access and unavailable Python dependencies. Mock scores prove Rust policy only.
+Verification runs the complete Rust library suite with an isolated PostgreSQL database, the real pinned Splink worker tests, and the clean-to-resolve CLI integration test. The CLI fixture verifies statistical charity links and addressless Gary Lubner donor links with real probabilities below 0.999, unchanged cleaned observations and funding occurrences, and refusal to overwrite results.

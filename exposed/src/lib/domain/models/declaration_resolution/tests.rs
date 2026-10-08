@@ -52,80 +52,121 @@ fn resolve(input: &ResolutionInput, probability: f64) -> ResolvedDeclarations {
         ScoredPairs::checked(pairs, serde_json::json!({"calibrated":false}), &scoring).unwrap();
     ResolvedDeclarations::from_scored(input, &scoring, scored, "test-run").unwrap()
 }
-#[test]
-fn noncompanies_share_only_exact_name_full_address() {
-    let result = resolve(
-        &input(vec![
-            observation(
-                1,
-                Some("john smith"),
-                Some("1 road"),
-                Some("Individual"),
-                None,
-            ),
-            observation(
-                2,
-                Some("john smith"),
-                Some("1 road"),
-                Some("Individual"),
-                None,
-            ),
-            observation(
-                3,
-                Some("john smith"),
-                Some("2 road"),
-                Some("Individual"),
-                None,
-            ),
-        ]),
-        0.9999,
-    );
-    assert_eq!(
-        result.observations[0].identity_id,
-        result.observations[1].identity_id
-    );
-    assert_ne!(
-        result.observations[0].identity_id,
-        result.observations[2].identity_id
-    );
-    assert!(
-        result
-            .pairs
-            .iter()
-            .any(|edge| edge.disposition == PairDisposition::Rejected)
-    );
+fn payer(mut observation: Observation) -> Observation {
+    observation.role = FunderRole::Payer;
+    observation.donor_kind = None;
+    observation.donor_company_number = None;
+    observation.funder_id = serde_json::from_value(serde_json::json!(
+        observation.funder_id.as_str().replace("/donor", "/payer")
+    ))
+    .unwrap();
+    observation
 }
 #[test]
-fn fuzzy_and_name_only_remain_review_and_singletons() {
-    for address in [None, Some("1 road")] {
+fn exact_donor_names_link_without_address_or_threshold() {
+    for addresses in [
+        (None, None),
+        (Some("1 road"), Some("2 road")),
+        (Some("london"), None),
+    ] {
         let result = resolve(
             &input(vec![
-                observation(1, Some("john smith"), address, None, None),
+                observation(
+                    1,
+                    Some("gary lubner"),
+                    addresses.0,
+                    Some("Individual"),
+                    None,
+                ),
                 observation(
                     2,
-                    Some(if address.is_some() {
-                        "jon smith"
-                    } else {
-                        "john smith"
-                    }),
-                    address,
-                    None,
+                    Some("gary lubner"),
+                    addresses.1,
+                    Some("Individual"),
                     None,
                 ),
             ]),
-            0.9999,
+            0.01,
         );
-        assert_ne!(
+        assert_eq!(
             result.observations[0].identity_id,
             result.observations[1].identity_id
         );
         assert!(
             result
+                .observations
+                .iter()
+                .all(|row| matches!(row.identity_basis, IdentityBasis::DonorNameLink))
+        );
+        assert_eq!(result.pairs[0].probability.to_bits(), 0.01_f64.to_bits());
+        assert!(matches!(result.pairs[0].reason, PairReason::ExactDonorName));
+        assert_eq!(result.pairs[0].disposition, PairDisposition::Accepted);
+    }
+}
+#[test]
+fn fuzzy_missing_and_other_role_names_do_not_use_donor_rule() {
+    for (left, right) in [
+        (
+            observation(1, Some("john smith"), None, None, None),
+            observation(2, Some("jon smith"), None, None, None),
+        ),
+        (
+            observation(1, None, None, None, None),
+            observation(2, None, None, None, None),
+        ),
+        (
+            observation(1, Some("john smith"), None, None, None),
+            payer(observation(2, Some("john smith"), None, None, None)),
+        ),
+    ] {
+        let result = resolve(&input(vec![left, right]), 0.9999);
+        assert!(
+            result
                 .pairs
                 .iter()
-                .all(|edge| edge.disposition == PairDisposition::Review)
+                .all(|pair| pair.disposition == PairDisposition::Review)
         );
+        assert!(result.observations.iter().all(|row| matches!(
+            row.identity_basis,
+            IdentityBasis::ProvisionalSingleton | IdentityBasis::Unresolved
+        )));
     }
+}
+#[test]
+fn statistical_support_takes_precedence_and_mixed_components_are_honest() {
+    let result = resolve(
+        &input(vec![
+            observation(1, Some("john smith"), Some("1 road"), None, None),
+            observation(2, Some("john smith"), Some("1 road"), None, None),
+            observation(3, Some("john smith"), None, None, None),
+        ]),
+        0.9999,
+    );
+    assert!(result.observations.iter().all(|row| matches!(
+        row.identity_basis,
+        IdentityBasis::StatisticalAndDonorNameLink
+    )));
+    assert_eq!(
+        result
+            .observations
+            .iter()
+            .map(|row| &row.identity_id)
+            .collect::<BTreeSet<_>>()
+            .len(),
+        1
+    );
+    assert!(
+        result
+            .pairs
+            .iter()
+            .any(|pair| matches!(pair.reason, PairReason::ExactNameFullAddressThreshold))
+    );
+    assert!(
+        result
+            .pairs
+            .iter()
+            .any(|pair| matches!(pair.reason, PairReason::ExactDonorName))
+    );
 }
 #[test]
 fn ambiguous_company_attachment_does_not_bridge() {
@@ -340,8 +381,20 @@ fn sparse_addresses_never_support_automatic_links() {
     ] {
         let result = resolve(
             &input(vec![
-                observation(1, Some("john smith"), Some(address), None, None),
-                observation(2, Some("john smith"), Some(address), None, None),
+                payer(observation(
+                    1,
+                    Some("john smith"),
+                    Some(address),
+                    None,
+                    None,
+                )),
+                payer(observation(
+                    2,
+                    Some("john smith"),
+                    Some(address),
+                    None,
+                    None,
+                )),
             ]),
             0.9999,
         );
@@ -388,7 +441,7 @@ fn parent_cycles_and_true_or_absent_flags_never_inherit_payer() {
 }
 
 #[test]
-fn duplicate_occurrences_remain_separate_and_profile_grouping_does_not_merge_names() {
+fn duplicate_occurrences_remain_separate_when_name_identity_links() {
     let mut first = payment(1, None, None);
     let mut second = first.clone();
     second.funding_ordinal = 1;
@@ -416,11 +469,11 @@ fn duplicate_occurrences_remain_separate_and_profile_grouping_does_not_merge_nam
     assert_eq!(result.attributions.len(), 2);
     assert_eq!(result.observations.len(), 2);
     assert_eq!(result.pairs.len(), 1);
-    assert_ne!(
+    assert_eq!(
         result.observations[0].identity_id,
         result.observations[1].identity_id
     );
-    assert_eq!(result.pairs[0].disposition, PairDisposition::Review);
+    assert_eq!(result.pairs[0].disposition, PairDisposition::Accepted);
 }
 
 #[test]
@@ -549,13 +602,199 @@ fn indirect_links_cannot_join_distinct_company_components() {
             .iter()
             .filter(|pair| pair.disposition == PairDisposition::Accepted)
             .count(),
+        1
+    );
+    assert_eq!(
+        result
+            .pairs
+            .iter()
+            .filter(|pair| pair.disposition == PairDisposition::Review
+                && matches!(pair.reason, PairReason::CompetingCompanyAnchors))
+            .count(),
         2
+    );
+}
+
+fn resolve_edges(
+    observations: Vec<Observation>,
+    links: &[(usize, usize, f64)],
+) -> ResolvedDeclarations {
+    let input = input(observations);
+    let ids = input.observations.keys().cloned().collect::<Vec<_>>();
+    let scoring = ScoringInput {
+        version: 1,
+        candidate_budget: 100,
+        rows: ids
+            .iter()
+            .enumerate()
+            .map(|(index, id)| input::ComparisonRow {
+                key: format!("profile-{index}"),
+                name: input.observations[id].name_normalized.clone().unwrap(),
+                address: input.observations[id].address_normalized.clone(),
+                needs_resolution: company(&input.observations[id]).is_none(),
+            })
+            .collect(),
+        members: ids
+            .iter()
+            .enumerate()
+            .map(|(index, id)| (format!("profile-{index}"), vec![id.clone()]))
+            .collect(),
+    };
+    let pairs = links
+        .iter()
+        .map(|(a, b, probability)| ScoredPair {
+            left: format!("profile-{a}"),
+            right: format!("profile-{b}"),
+            probability: *probability,
+            name_level: 2,
+            address_level: 1,
+        })
+        .collect();
+    let scored =
+        ScoredPairs::checked(pairs, serde_json::json!({"calibrated": false}), &scoring).unwrap();
+    ResolvedDeclarations::from_scored(&input, &scoring, scored, "test-run").unwrap()
+}
+#[test]
+fn indirect_competing_anchors_abstain_under_reordered_ids() {
+    for ids in [[1, 2, 3, 4], [4, 1, 3, 2], [2, 4, 1, 3]] {
+        let observations = ids
+            .iter()
+            .enumerate()
+            .map(|(index, id)| {
+                observation(
+                    *id,
+                    Some("acme"),
+                    None,
+                    Some("Company"),
+                    match index {
+                        0 => Some("00000001"),
+                        3 => Some("00000002"),
+                        _ => None,
+                    },
+                )
+            })
+            .collect::<Vec<_>>();
+        let position = |role: usize| ids.iter().filter(|id| **id < ids[role]).count();
+        let links = [(0, 1), (1, 2), (2, 3)].map(|(a, b)| {
+            let (a, b) = (position(a), position(b));
+            (a.min(b), a.max(b), 0.01)
+        });
+        let result = resolve_edges(observations, &links);
+        let unanchored = result
+            .observations
+            .iter()
+            .filter(|row| matches!(row.identity_basis, IdentityBasis::DonorNameLink))
+            .collect::<Vec<_>>();
+        assert_eq!(unanchored.len(), 2);
+        assert_eq!(unanchored[0].identity_id, unanchored[1].identity_id);
+        assert_eq!(
+            result
+                .pairs
+                .iter()
+                .filter(|pair| matches!(pair.reason, PairReason::CompetingCompanyAnchors))
+                .count(),
+            2
+        );
+        assert_eq!(
+            result
+                .pairs
+                .iter()
+                .filter(|pair| pair.disposition == PairDisposition::Accepted)
+                .count(),
+            1
+        );
+    }
+}
+#[test]
+fn redundant_donor_name_edge_does_not_downgrade_statistical_component() {
+    let result = resolve_edges(
+        (1..=3)
+            .map(|id| observation(id, Some("john smith"), Some("1 road"), None, None))
+            .collect(),
+        &[(0, 1, 0.9999), (1, 2, 0.9999), (0, 2, 0.01)],
+    );
+    assert!(
+        result
+            .observations
+            .iter()
+            .all(|row| matches!(row.identity_basis, IdentityBasis::StatisticalLink))
     );
     assert!(
         result
             .pairs
             .iter()
-            .any(|pair| pair.disposition == PairDisposition::Rejected
-                && matches!(pair.reason, PairReason::ComponentIdentityConflict))
+            .any(|pair| matches!(pair.reason, PairReason::ExactDonorName))
+    );
+}
+#[test]
+fn unknown_donor_bridge_cannot_mix_person_and_organisation_components() {
+    let result = resolve_edges(
+        vec![
+            observation(1, Some("shared"), None, Some("Individual"), None),
+            observation(2, Some("shared"), None, None, None),
+            observation(3, Some("shared"), None, Some("Company"), None),
+        ],
+        &[(0, 1, 0.01), (1, 2, 0.01)],
+    );
+    assert_ne!(
+        result.observations[0].identity_id,
+        result.observations[2].identity_id
+    );
+    assert!(
+        result
+            .pairs
+            .iter()
+            .any(|pair| matches!(pair.reason, PairReason::ComponentIdentityConflict))
+    );
+}
+
+#[test]
+fn other_roles_keep_probability_and_address_requirements() {
+    for (address, probability, disposition) in [
+        (Some("1 road"), 0.01, PairDisposition::Review),
+        (Some("2 road"), 0.9999, PairDisposition::Rejected),
+        (Some("1 road"), 0.9999, PairDisposition::Accepted),
+    ] {
+        let result = resolve(
+            &input(vec![
+                observation(1, Some("john smith"), Some("1 road"), None, None),
+                payer(observation(2, Some("john smith"), address, None, None)),
+            ]),
+            probability,
+        );
+        assert_eq!(result.pairs[0].disposition, disposition);
+    }
+}
+#[test]
+fn donor_name_attachment_preserves_seeded_company_source_basis() {
+    let result = resolve(
+        &input(vec![
+            observation(1, Some("acme"), None, Some("Company"), Some("00000001")),
+            observation(
+                2,
+                Some("another captured name"),
+                None,
+                Some("Company"),
+                Some("00000001"),
+            ),
+            observation(3, Some("acme"), None, Some("Company"), None),
+        ]),
+        0.01,
+    );
+    assert!(
+        result.observations[..2]
+            .iter()
+            .all(|row| matches!(row.identity_basis, IdentityBasis::SourceReportedCompany))
+    );
+    assert!(matches!(
+        result.observations[2].identity_basis,
+        IdentityBasis::DonorNameLink
+    ));
+    assert!(
+        result
+            .observations
+            .iter()
+            .all(|row| row.identity_id.as_deref()
+                == Some("source-reported:companies-house:00000001"))
     );
 }
