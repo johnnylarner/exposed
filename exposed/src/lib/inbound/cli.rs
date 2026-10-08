@@ -42,6 +42,14 @@ pub enum DataCommands {
         /// YAML configuration with the ingestion `data_dir`.
         config: PathBuf,
     },
+    /// Copy the latest raw capture into a new ingestion run.
+    CopyLatestRaw {
+        /// YAML configuration with the ingestion `data_dir`.
+        config: PathBuf,
+        /// Destination ingestion key. Defaults to a fresh UUID-v7.
+        #[arg(long)]
+        ingestion_key: Option<IngestionKey>,
+    },
     Declarations {
         /// Stage to run: fetch, clean, resolve, or load.
         #[arg(value_parser = ["fetch", "clean", "resolve", "load"])]
@@ -74,6 +82,21 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
             let config = LoaderConfig::try_from(&config)?;
             match ExposedDataPipeline::latest_ingestion(&config.data_dir).await? {
                 Some((path, key)) => {
+                    println!("Ingestion key: {key}");
+                    println!("Path: {}", path.display());
+                }
+                None => println!("No ingestion runs found."),
+            }
+        }
+        DataCommands::CopyLatestRaw {
+            config,
+            ingestion_key,
+        } => {
+            let config = LoaderConfig::try_from(&config)?;
+            let key = ingestion_key.unwrap_or_default();
+            match ExposedDataPipeline::copy_latest_raw(&config.data_dir, key.clone()).await? {
+                Some((path, source_key)) => {
+                    println!("Source ingestion key: {source_key}");
                     println!("Ingestion key: {key}");
                     println!("Path: {}", path.display());
                 }

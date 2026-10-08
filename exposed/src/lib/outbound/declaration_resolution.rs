@@ -1,6 +1,7 @@
 use super::{
     ExposedDataPipeline,
     declaration_cleaning::{funders_schema, funding_schema, write_table},
+    file_system::publish_directory,
 };
 use crate::domain::{
     models::{
@@ -103,37 +104,6 @@ impl DeclarationResolutionStorage for ExposedDataPipeline {
         }
         publication
     }
-}
-
-#[cfg(any(target_os = "macos", target_os = "linux"))]
-fn publish_directory(staging: &Path, destination: &Path) -> std::io::Result<()> {
-    use std::{ffi::CString, os::unix::ffi::OsStrExt};
-    let staging = CString::new(staging.as_os_str().as_bytes())?;
-    let destination = CString::new(destination.as_os_str().as_bytes())?;
-    #[cfg(target_os = "macos")]
-    let result =
-        unsafe { libc::renamex_np(staging.as_ptr(), destination.as_ptr(), libc::RENAME_EXCL) };
-    #[cfg(target_os = "linux")]
-    let result = unsafe {
-        libc::renameat2(
-            libc::AT_FDCWD,
-            staging.as_ptr(),
-            libc::AT_FDCWD,
-            destination.as_ptr(),
-            libc::RENAME_NOREPLACE,
-        )
-    };
-    if result == 0 {
-        Ok(())
-    } else {
-        Err(std::io::Error::last_os_error())
-    }
-}
-#[cfg(not(any(target_os = "macos", target_os = "linux")))]
-fn publish_directory(_staging: &Path, _destination: &Path) -> std::io::Result<()> {
-    Err(std::io::Error::other(
-        "atomic resolution publication requires macOS or Linux",
-    ))
 }
 
 pub(super) fn read_table<T: DeserializeOwned>(
