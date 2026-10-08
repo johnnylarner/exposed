@@ -55,7 +55,7 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
     let member = MemberAsId::new(Uuid::from_u128(1), 1)?;
     let date = NaiveDate::from_ymd_opt(2026, 9, 7).unwrap();
     let mut captures = Vec::new();
-    for id in 1..=14 {
+    for id in 1..=16 {
         let (name, kind) = match id {
             1 | 2 => ("Example Charity", "Charity"),
             3..=6 => ("Gary Lubner", "Individual"),
@@ -67,6 +67,11 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
             12 => ("Unite the Union Parliamentary Staff Branch", "Trade Union"),
             13 => ("Northstar Consulting trading as Fletchers", "Company"),
             14 => ("Fletchers", "Company"),
+            15 => ("Carlton Club", "Unincorporated association"),
+            16 => (
+                "Carlton Club Political Committee",
+                "Unincorporated association",
+            ),
             _ => unreachable!(),
         };
         let address = match id {
@@ -75,6 +80,7 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
             6 => Some("30 Other Road, London SW1A 1AA"),
             7 => Some("1 Centenary Square, Birmingham, B1 1HQ"),
             8 => Some("1 Centenary Square Birmingham B1 1HQ"),
+            15 | 16 => Some("69 St James Street, London SW1A 1PJ"),
             _ => None,
         };
         let mut fields = vec![
@@ -149,14 +155,14 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
     );
     let output = root.join(key.to_string()).join("resolved/declarations");
     let observations = rows(&output.join("observation_resolution.parquet"))?;
-    assert_eq!(observations.len(), 14);
+    assert_eq!(observations.len(), 16);
     assert_eq!(
         observations
             .iter()
             .map(|r| r["identity_id"].as_str().unwrap())
             .collect::<BTreeSet<_>>()
             .len(),
-        5
+        7
     );
     for (name, basis, count) in [
         ("Example Charity", "statistical_link", 2),
@@ -223,19 +229,52 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
             .len(),
         1
     );
+    let distinct_organizations = observations
+        .iter()
+        .filter(|row| names[row["funder_id"].as_str().unwrap()].starts_with("Carlton Club"))
+        .collect::<Vec<_>>();
+    assert_eq!(distinct_organizations.len(), 2);
+    assert!(
+        distinct_organizations
+            .iter()
+            .all(|row| row["identity_basis"] == "provisional_singleton")
+    );
+    assert_eq!(
+        distinct_organizations
+            .iter()
+            .map(|row| row["identity_id"].as_str().unwrap())
+            .collect::<BTreeSet<_>>()
+            .len(),
+        2,
+        "sharing an address and organization-name root must not merge distinct organizations"
+    );
     let attribution = rows(&output.join("payment_attribution.parquet"))?;
-    assert_eq!(attribution.len(), 14);
+    assert_eq!(attribution.len(), 16);
     assert!(
         attribution
             .iter()
             .all(|row| row["attribution_basis"] == "donor")
     );
     let pairs = rows(&output.join("pair_decisions.parquet"))?;
-    assert_eq!(pairs.len(), 15);
-    assert!(pairs.iter().all(|pair| pair["disposition"] == "accepted"));
+    assert_eq!(pairs.len(), 16);
+    let negative_pair = pairs
+        .iter()
+        .find(|pair| {
+            names[pair["left_funder_id"].as_str().unwrap()].starts_with("Carlton Club")
+                && names[pair["right_funder_id"].as_str().unwrap()].starts_with("Carlton Club")
+        })
+        .expect("the real worker must score the shared-address organization pair");
+    assert_eq!(negative_pair["disposition"], "review");
+    assert_eq!(negative_pair["reason"], "insufficient_exact_evidence");
     for pair in &pairs {
         let left_name = names[pair["left_funder_id"].as_str().unwrap()];
         let right_name = names[pair["right_funder_id"].as_str().unwrap()];
+        if left_name.starts_with("Carlton Club") {
+            assert_ne!(left_name, right_name);
+            assert_eq!(pair["disposition"], "review");
+            continue;
+        }
+        assert_eq!(pair["disposition"], "accepted");
         if left_name == "Gary Lubner" {
             assert_eq!(left_name, right_name);
             assert_eq!(pair["reason"], "exact_donor_name");
