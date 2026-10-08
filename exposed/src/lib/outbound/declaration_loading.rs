@@ -289,7 +289,8 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
                     if observation.member_id != payment.member_id
                         || observation.declaration_id != expected_declaration_id
                         || observation.role != expected_role
-                        || selected_parent_declaration_id != payment.parent_declaration_id
+                        || (selected_parent_declaration_id.is_some()
+                            && selected_parent_declaration_id != payment.parent_declaration_id)
                         || (selected_parent_declaration_id.is_some() && observation.role != "payer")
                         || (selected_parent_declaration_id.is_none()
                             && observation.source_scope == "funding_entry"
@@ -395,8 +396,13 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
             group.sort_by(|left, right| left.funder_id.cmp(&right.funder_id));
             let company_number = group
                 .iter()
+                .filter(|row| row.donor_kind.as_deref() == Some("Company"))
                 .find_map(|row| row.donor_company_number.clone());
-            let kind = group.iter().find_map(|row| row.donor_kind.clone());
+            let kind = if company_number.is_some() {
+                Some("Company".to_owned())
+            } else {
+                group.iter().find_map(|row| row.donor_kind.clone())
+            };
             let names = group
                 .iter()
                 .find_map(|row| row.name_raw.as_ref().filter(|name| !name.trim().is_empty()));
@@ -730,6 +736,9 @@ fn sql_timestamp(value: DateTime<Utc>) -> Result<time::OffsetDateTime, EntityIng
 fn read_error(error: impl std::fmt::Display) -> EntityIngestionError {
     EntityIngestionError::IoError(EntitySearchPipelineError::ReadError(error.to_string()))
 }
+
+#[cfg(test)]
+mod tests;
 fn db_error(error: impl std::fmt::Display) -> EntityIngestionError {
     EntityIngestionError::DataError(error.to_string())
 }
