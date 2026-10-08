@@ -13,3 +13,6 @@ mod postgres;
 pub use file_system::ExposedDataPipeline;
 pub use parliament_api::ParliamentApiClient;
 pub use postgres::ExposedDatabase;
+
+mod declaration_resolution;
+pub use declaration_resolution::SplinkScorer;

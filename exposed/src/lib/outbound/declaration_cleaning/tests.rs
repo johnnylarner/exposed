@@ -60,3 +60,79 @@ fn top_level_financial_names_produce_only_funding_scoped_observations() -> anyho
     );
     Ok(())
 }
+
+#[test]
+fn public_addresses_stay_in_their_role_and_source_scope() -> anyhow::Result<()> {
+    let source = json!({"id":42,"category":{"id":3,"name":"Donations"},"versions":[{"register":{"id":820,"publishedDate":"2026-09-07"},"fields":[
+        {"name":"DonorName","value":"Root donor"},{"name":"DonorPublicAddress","value":" 1 ROOT Road "},
+        {"name":"PayerName","value":"Root payer"},{"name":"PayerPublicAddress","value":"Private address"},
+        {"name":"UltimatePayerName","value":"Root ultimate"},{"name":"UltimatePayerAddress","value":""},
+        {"name":"Donors","values":[[{"name":"Name","value":"Nested donor"},{"name":"PublicAddress","value":"2 Nested Road"}],[{"name":"Name","value":"Other donor"}]]}
+    ]}]});
+    let evidence = replay_declaration(source, chrono::Utc::now())?;
+    let cleaned = CleanedDeclarations::from_captures(&[CapturedMemberDeclarations::Populated {
+        member: MemberAsId::new(Uuid::from_u128(1), 4613)?,
+        declarations: vec![evidence],
+    }])?;
+    assert_eq!(cleaned.funders.len(), 5);
+    let address = |name: &str| {
+        &cleaned
+            .funders
+            .iter()
+            .find(|f| f.name.name_raw.as_deref() == Some(name))
+            .unwrap()
+            .address
+    };
+    assert_eq!(
+        address("Root donor").normalized.as_deref(),
+        Some("1 root road")
+    );
+    assert_eq!(
+        address("Root donor").source_field.as_deref(),
+        Some("DonorPublicAddress")
+    );
+    assert_eq!(
+        address("Root payer").raw.as_deref(),
+        Some("Private address")
+    );
+    assert!(address("Root payer").normalized.is_none());
+    assert_eq!(address("Root ultimate").raw.as_deref(), Some(""));
+    assert!(address("Root ultimate").normalized.is_none());
+    assert_eq!(
+        address("Nested donor").normalized.as_deref(),
+        Some("2 nested road")
+    );
+    assert_eq!(
+        address("Nested donor").source_field.as_deref(),
+        Some("PublicAddress")
+    );
+    assert!(address("Other donor").raw.is_none());
+    assert_eq!(cleaned.funding_entries.len(), 2);
+    Ok(())
+}
+
+#[tokio::test]
+async fn old_raw_projection_replays_addresses_without_new_raw_columns() -> anyhow::Result<()> {
+    use crate::domain::repositories::{
+        declaration_cleaning::DeclarationCleaningStorage, entity_ingestion::EntityIngestionStorage,
+    };
+    let tmp = TempDir::new()?;
+    let storage = ExposedDataPipeline::new_with_ingestion_key(
+        &tmp.path().to_path_buf(),
+        IngestionKey::default(),
+    )?;
+    let member = MemberAsId::new(Uuid::from_u128(1), 4613)?;
+    let source = json!({"id":42,"category":{"id":3,"name":"Donations"},"versions":[{"register":{"id":820,"publishedDate":"2026-09-07"},"fields":[{"name":"DonorName","value":"Donor"},{"name":"DonorPublicAddress","value":"1 Road"},{"name":"Value","value":"10"}]}]});
+    let evidence = replay_declaration(source, chrono::Utc::now())?;
+    storage
+        .write_raw_declarations(member, &[evidence.declaration().clone()])
+        .await?;
+    let captures = storage.read_captured_declarations().await?;
+    let cleaned = CleanedDeclarations::from_captures(&captures)?;
+    assert_eq!(
+        cleaned.funders[0].address.normalized.as_deref(),
+        Some("1 road")
+    );
+    assert_eq!(cleaned.funding_entries.len(), 1);
+    Ok(())
+}

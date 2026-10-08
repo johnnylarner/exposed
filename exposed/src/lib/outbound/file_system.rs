@@ -85,6 +85,36 @@ impl ExposedDataPipeline {
         })
     }
 
+    /// Opens an existing cleaned declaration dataset without requiring retained raw partitions.
+    ///
+    /// # Errors
+    /// Returns a read error when the cleaned declaration directory is missing.
+    pub fn open_cleaned_declarations(
+        root: &Path,
+        key: IngestionKey,
+    ) -> Result<Self, EntitySearchPipelineError> {
+        let root = path::absolute(root).map_err(|error| read_error(root, error))?;
+        let directory = root.join(key.to_string()).join("cleaned/declarations");
+        if !std::fs::metadata(&directory)
+            .map_err(|error| read_error(&directory, error))?
+            .is_dir()
+        {
+            return Err(read_error(
+                &directory,
+                "expected cleaned declaration directory",
+            ));
+        }
+        Ok(Self {
+            root,
+            key: PipelineKey::from(key),
+            fs_schema: FsSchema::default(),
+        })
+    }
+
+    pub(super) fn resolved_declarations_path(&self) -> PathBuf {
+        self.latest_run_path().join("resolved/declarations")
+    }
+
     pub(super) fn cleaned_declarations_path(&self) -> PathBuf {
         self.latest_run_path().join("cleaned/declarations")
     }
