@@ -101,6 +101,7 @@ fn run_clean(root: &Path, key: Option<&IngestionKey>) -> anyhow::Result<Output> 
         "data",
         "declarations",
         "clean",
+        "--config",
         "config.yaml",
     ]);
     if let Some(key) = key {
@@ -213,6 +214,7 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
         .args([
             "data",
             "copy-latest-raw",
+            "--config",
             "config.yaml",
             "--ingestion-key",
             &key.to_string(),
