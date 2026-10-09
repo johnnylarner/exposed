@@ -34,9 +34,10 @@ The goal of this project is to make declaration data easy to search, browse and 
 - Every PR that changes the UI must include desktop and mobile screenshots in
   its description. Capture the affected views from the running application on
   the PR branch after completing the changes.
-- Upload screenshots as GitHub attachments. Never commit PR screenshots to the
-  repository. Verify that the attachments render in the PR description before
-  marking the PR ready for review.
+- Upload screenshots as GitHub attachments with `gh pr create --attach` or
+  `gh pr edit --attach`. Use a GitHub CLI version that supports this flag. Never
+  commit PR screenshots to the repository. Verify that the attachments render
+  in the PR description before marking the PR ready for review.
 
 
 ## Ingest coding policy
