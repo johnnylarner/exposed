@@ -16,6 +16,18 @@ The goal of this project is to make declaration data easy to search, browse and 
 
 - Interactions with the database must use `sqlx` macros for compile-time query verification.
 
+- For Rust changes, read and apply the
+  [Rust domain development skill](.agents/skills/rust-domain-development/SKILL.md).
+- Before implementation, identify the domain states, invariants, and the type
+  that owns each rule. Parse external values into those types at boundaries and
+  retain typed values internally.
+- Use one canonical domain enum for each finite vocabulary. Do not duplicate
+  its variants in string allowlists. Use exhaustive matches where behavior
+  depends on a variant.
+- When a bug exposes duplicated domain rules, remove the duplication rather
+  than synchronizing the copies. Trace changes through producers, serialization,
+  consumers, and persistence together.
+
 ## Frontend coding policy
 
 - The frontend is largely in a prototype stage so changes can be made freely without much guidance.
