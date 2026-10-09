@@ -1,5 +1,6 @@
 //! Contains search entity models
 
+use serde::Serialize;
 use thiserror::Error;
 
 use crate::domain::models::{funder::Funder as FunderDetails, parliament_member::ParliamentMember};
@@ -8,11 +9,51 @@ const MAX_STRICTNESS: f32 = 1_f32;
 const MIN_STRICTNESS: f32 = 0_f32;
 const MIN_ENTRIES: u8 = 1;
 
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+/// Name that supplied a search result's winning score.
+pub enum SearchMatchSource {
+    /// The canonical name won, including equal scores.
+    Name,
+    /// An observed alias scored higher than the canonical name.
+    Alias {
+        /// Original observed spelling.
+        name: String,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+/// Canonical funder identity and its search match provenance.
+pub struct FunderSearchMatch {
+    funder: FunderDetails,
+    source: SearchMatchSource,
+}
+
+impl FunderSearchMatch {
+    #[must_use]
+    /// Creates a search result for a canonical identity.
+    pub const fn new(funder: FunderDetails, source: SearchMatchSource) -> Self {
+        Self { funder, source }
+    }
+
+    #[must_use]
+    /// Canonical funder.
+    pub const fn funder(&self) -> &FunderDetails {
+        &self.funder
+    }
+
+    #[must_use]
+    /// Winning match source.
+    pub const fn source(&self) -> &SearchMatchSource {
+        &self.source
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// Search entity kind
 pub enum Entity {
     /// Company entity
-    Funder(FunderDetails),
+    Funder(FunderSearchMatch),
     /// Member entitiy
     ParliamentMember(ParliamentMember),
 }
@@ -22,7 +63,7 @@ impl Entity {
     /// Entity name
     pub fn name(&self) -> &str {
         match self {
-            Self::Funder(kind) => kind.name(),
+            Self::Funder(kind) => kind.funder().name(),
             Self::ParliamentMember(mp) => mp.name(),
         }
     }
@@ -40,7 +81,7 @@ impl Entity {
     /// Funder kind
     pub fn funder_kind(&self) -> Option<&str> {
         match self {
-            Self::Funder(kind) => Some(kind.kind()),
+            Self::Funder(kind) => Some(kind.funder().kind()),
             Self::ParliamentMember(_) => None,
         }
     }
@@ -52,8 +93,8 @@ impl From<&ParliamentMember> for Entity {
     }
 }
 
-impl From<&FunderDetails> for Entity {
-    fn from(value: &FunderDetails) -> Self {
+impl From<&FunderSearchMatch> for Entity {
+    fn from(value: &FunderSearchMatch) -> Self {
         Self::Funder(value.clone())
     }
 }
@@ -117,7 +158,7 @@ impl EntitySearchRequest {
         if max_entries < MIN_ENTRIES {
             return Err(EntitySearchError::TooFewEntries);
         }
-        if strictness < MIN_STRICTNESS || strictness > MAX_STRICTNESS {
+        if !strictness.is_finite() || strictness < MIN_STRICTNESS || strictness > MAX_STRICTNESS {
             return Err(EntitySearchError::InvalidStrictness(strictness));
         }
         Ok(Self {
@@ -146,4 +187,18 @@ pub enum EntitySearchError {
     /// Invalid strictness value
     #[error("strictness must be between {MIN_STRICTNESS} and {MAX_STRICTNESS}; get {0}")]
     InvalidStrictness(f32),
+}
+
+#[cfg(test)]
+mod strictness {
+    use super::EntitySearchRequest;
+
+    #[test]
+    fn rejects_non_finite_thresholds() {
+        for threshold in [f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+            assert!(
+                EntitySearchRequest::new_with_strictness("West".into(), 10, threshold).is_err()
+            );
+        }
+    }
 }

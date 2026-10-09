@@ -10,7 +10,7 @@ use crate::{
             ParliamentMemberRepo, ParliamentMemberRepoError,
         },
     },
-    outbound::postgres::ExposedDatabase,
+    outbound::postgres::{ExposedDatabase, word_similarity_candidate_threshold},
 };
 
 impl ParliamentMemberRepo for ExposedDatabase {
@@ -40,7 +40,19 @@ impl ParliamentMemberRepo for ExposedDatabase {
         &self,
         req: &EntitySearchRequest,
     ) -> Result<Vec<(ParliamentMember, SearchSimilarity)>, ParliamentMemberRepoError> {
+        let mut tx = self
+            .pool()
+            .begin()
+            .await
+            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
         sqlx::query!(
+            "SELECT set_config('pg_trgm.word_similarity_threshold', $1, true)",
+            word_similarity_candidate_threshold(req.strictness())
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
+        let rows = sqlx::query!(
             "
             SELECT  
                 m.name,
@@ -48,35 +60,35 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 m.party_name,
                 m.party_id,
                 m.latest_membership_from as constituency,
-                 word_similarity($1, m.name) as similarity_score,
-                row_number() OVER (ORDER BY word_similarity($1, m.name) DESC) as rank
-            FROM members m
-            WHERE word_similarity($1, m.name) >= $2
-            ORDER BY similarity_score DESC
+                 word_similarity($1, m.name) as similarity_score
+            FROM exposed.members m
+            WHERE m.name %> $1 AND word_similarity($1, m.name) >= $2
+            ORDER BY similarity_score DESC, m.id
+            LIMIT $3
             ",
             req.term(),
-            req.strictness()
+            req.strictness(),
+            i64::from(req.max_entries())
         )
-        .fetch_all(self.pool())
+        .fetch_all(&mut *tx)
         .await
-        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?
-        .into_iter()
-        .take_while(|r| {
-            r.rank.unwrap_or_else(|| i64::from(req.max_entries() + 1))
-                <= i64::from(req.max_entries())
-        })
-        .map(|r| {
-            let member = ParliamentMember::new(
-                r.name,
-                r.parliament_member_id as u32,
-                r.party_name,
-                r.party_id as u32,
-                r.constituency,
-            );
-            let score = SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32));
-            Ok((member, score))
-        })
-        .collect()
+        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
+        tx.commit()
+            .await
+            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
+        rows.into_iter()
+            .map(|r| {
+                let member = ParliamentMember::new(
+                    r.name,
+                    r.parliament_member_id as u32,
+                    r.party_name,
+                    r.party_id as u32,
+                    r.constituency,
+                );
+                let score = SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32));
+                Ok((member, score))
+            })
+            .collect()
     }
 
     async fn upsert_members(
@@ -196,6 +208,63 @@ mod scoring {
         assert_eq!(results.len(), 1);
         assert_eq!(results.first().unwrap().0.name(), "John McDonnell");
 
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod threshold_scoring {
+    use crate::{
+        domain::{
+            models::entity_search::EntitySearchRequest,
+            repositories::parliament_member_repository::ParliamentMemberRepo,
+        },
+        outbound::postgres::ExposedDatabase,
+    };
+    use sqlx::PgPool;
+
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures("../../../../db/fixtures/add_members.sql")
+    )]
+    async fn inclusive_thresholds_are_local(pool: PgPool) -> sqlx::Result<()> {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(1)
+            .connect_with(pool.connect_options().as_ref().clone())
+            .await?;
+        sqlx::query!("SELECT word_similarity('initialize', 'initialize')")
+            .fetch_one(&pool)
+            .await?;
+        let initial = sqlx::query!(
+            "SELECT current_setting('pg_trgm.word_similarity_threshold') AS threshold"
+        )
+        .fetch_one(&pool)
+        .await?
+        .threshold;
+        let db = ExposedDatabase::from(pool.clone());
+        let boundary =
+            sqlx::query!("SELECT word_similarity('John McD', 'John McDonnell') AS score")
+                .fetch_one(&pool)
+                .await?
+                .score
+                .unwrap();
+        assert!(boundary > 0.0 && boundary < 1.0);
+        for (term, threshold, count) in [
+            ("zzzzzz", 0.0, 2),
+            ("John McDonnell", 1.0, 1),
+            ("John McD", boundary, 1),
+        ] {
+            let req = EntitySearchRequest::new_with_strictness(term.into(), 5, threshold).unwrap();
+            let results = db.get_members_by_text_search_score(&req).await.unwrap();
+            assert_eq!(results.len(), count);
+            let actual = sqlx::query!(
+                "SELECT current_setting('pg_trgm.word_similarity_threshold') AS threshold"
+            )
+            .fetch_one(&pool)
+            .await?
+            .threshold;
+            assert_eq!(actual, initial);
+        }
         Ok(())
     }
 }

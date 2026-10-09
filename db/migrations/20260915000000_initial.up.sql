@@ -133,3 +133,10 @@ CREATE OR REPLACE TRIGGER funder_aliases_set_updated_at
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();
+
+CREATE INDEX members_name_search_trigram_idx
+    ON exposed.members USING GIST (name exposed.gist_trgm_ops);
+CREATE INDEX funders_name_search_trigram_idx
+    ON exposed.funders USING GIST (funder_name exposed.gist_trgm_ops);
+CREATE INDEX funder_aliases_name_search_trigram_idx
+    ON exposed.funder_aliases USING GIST (funder_alias exposed.gist_trgm_ops);

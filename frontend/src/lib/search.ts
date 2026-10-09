@@ -16,9 +16,24 @@ export function readStrictness(value: string | null): number {
     : searchConfiguration.strictness;
 }
 
+export type SearchMatchSource =
+  { kind: "name" } | { kind: "alias"; name: string };
+
 export type Entity =
-  | { id: string; name: string; kind: "MP"; funderKind: null }
-  | { id: string; name: string; kind: "Funder"; funderKind: string | null };
+  | {
+      id: string;
+      name: string;
+      kind: "MP";
+      funderKind: null;
+      matchSource: { kind: "name" };
+    }
+  | {
+      id: string;
+      name: string;
+      kind: "Funder";
+      funderKind: string | null;
+      matchSource: SearchMatchSource;
+    };
 
 export function entityHref(entity: Pick<Entity, "kind" | "id">): string {
   const params = new URLSearchParams(window.location.search);
@@ -50,16 +65,43 @@ function readEntities(body: unknown): Entity[] {
     ) {
       throw new Error("Search returned an unexpected response. Try again.");
     }
+    const source = value.match_source;
+    if (!isRecord(source))
+      throw new Error("Search returned an unexpected match source. Try again.");
+    let matchSource: SearchMatchSource;
+    switch (source.kind) {
+      case "name":
+        matchSource = { kind: "name" };
+        break;
+      case "alias":
+        if (typeof source.name !== "string" || !source.name.trim())
+          throw new Error(
+            "Search returned an unexpected match source. Try again.",
+          );
+        matchSource = { kind: "alias", name: source.name };
+        break;
+      default:
+        throw new Error(
+          "Search returned an unexpected match source. Try again.",
+        );
+    }
     if (value.kind === "MP") {
       if (
         !/^[1-9]\d*$/u.test(value.id) ||
         Number(value.id) > 2147483647 ||
-        value.funder_kind !== null
+        value.funder_kind !== null ||
+        matchSource.kind !== "name"
       )
         throw new Error(
           "Search returned an unexpected MP identity. Try again.",
         );
-      return { id: value.id, name: value.name, kind: "MP", funderKind: null };
+      return {
+        id: value.id,
+        name: value.name,
+        kind: "MP",
+        funderKind: null,
+        matchSource,
+      };
     }
     if (
       !/^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/iu.test(
@@ -74,6 +116,7 @@ function readEntities(body: unknown): Entity[] {
       name: value.name,
       kind: "Funder",
       funderKind: value.funder_kind,
+      matchSource,
     };
   });
 }

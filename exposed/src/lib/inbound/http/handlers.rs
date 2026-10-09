@@ -9,7 +9,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     domain::{
-        models::entity_search::{Entity, EntitySearchError, EntitySearchRequest},
+        models::entity_search::{
+            Entity, EntitySearchError, EntitySearchRequest, SearchMatchSource,
+        },
         services::{entity_details::EntityDetailsService, entity_search::EntitySearchService},
     },
     inbound::http::{error::ApiError, state::AppState, success::ApiSuccess},
@@ -50,14 +52,19 @@ pub struct SearchEntity {
     name: String,
     kind: String,
     funder_kind: Option<String>,
+    match_source: SearchMatchSource,
 }
 
 impl From<&Entity> for SearchEntity {
     fn from(value: &Entity) -> Self {
         Self {
             id: match value {
-                Entity::Funder(funder) => funder.id().value().to_string(),
+                Entity::Funder(funder) => funder.funder().id().value().to_string(),
                 Entity::ParliamentMember(member) => member.member_id().to_string(),
+            },
+            match_source: match value {
+                Entity::Funder(funder) => funder.source().clone(),
+                Entity::ParliamentMember(_) => SearchMatchSource::Name,
             },
             name: value.name().to_string(),
             kind: value.kind().to_string(),
@@ -88,4 +95,47 @@ pub async fn search_entities<E: EntitySearchService, D: EntityDetailsService>(
         .await
         .map_err(ApiError::from)
         .map(|ref entities| ApiSuccess::new(StatusCode::OK, entities.as_slice().into()))
+}
+
+#[cfg(test)]
+mod search_source {
+    use super::{SearchEntity, SearchMatchSource};
+    use crate::domain::models::{
+        entity_search::{Entity, FunderSearchMatch},
+        funder::{Funder, FunderId, FunderKind},
+        parliament_member::ParliamentMember,
+    };
+
+    #[test]
+    fn serializes_search_provenance_and_canonical_identity() {
+        let source = SearchMatchSource::Alias {
+            name: "West Midlands".into(),
+        };
+        let result = Entity::Funder(FunderSearchMatch::new(
+            Funder::new(
+                FunderId::new(uuid::Uuid::nil()),
+                "Unite the Union".into(),
+                FunderKind::TradeUnion,
+            ),
+            source,
+        ));
+        let json = serde_json::to_value(SearchEntity::from(&result)).unwrap();
+        assert_eq!(json["name"], "Unite the Union");
+        assert_eq!(json["id"], uuid::Uuid::nil().to_string());
+        assert_eq!(
+            json["match_source"],
+            serde_json::json!({"kind": "alias", "name": "West Midlands"})
+        );
+        let mp = Entity::ParliamentMember(ParliamentMember::new(
+            "West Member".into(),
+            1,
+            "Party".into(),
+            1,
+            "Place".into(),
+        ));
+        assert_eq!(
+            serde_json::to_value(SearchEntity::from(&mp)).unwrap()["match_source"],
+            serde_json::json!({"kind": "name"})
+        );
+    }
 }

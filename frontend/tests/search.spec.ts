@@ -9,37 +9,49 @@ test("live search preserves API ranking, spelling, duplicates and entity context
       name: "john lewis partnership",
       kind: "Funder",
       funder_kind: "Company",
+      match_source: { kind: "name" },
     },
-    { id: "1", name: "John Cooper", kind: "MP", funder_kind: null },
+    {
+      id: "1",
+      name: "John Cooper",
+      kind: "MP",
+      funder_kind: null,
+      match_source: { kind: "name" },
+    },
     {
       id: "10000000-0000-0000-0000-000000000001",
       name: "John Kinder",
       kind: "Funder",
       funder_kind: "Individual",
+      match_source: { kind: "name" },
     },
     {
       id: "10000000-0000-0000-0000-000000000001",
       name: "john lewis partnership",
       kind: "Funder",
       funder_kind: "Company",
+      match_source: { kind: "name" },
     },
     {
       id: "10000000-0000-0000-0000-000000000001",
       name: "John Union",
       kind: "Funder",
       funder_kind: "Trade Union",
+      match_source: { kind: "name" },
     },
     {
       id: "10000000-0000-0000-0000-000000000001",
       name: "John Trust",
       kind: "Funder",
       funder_kind: "Not Specified",
+      match_source: { kind: "name" },
     },
     {
       id: "10000000-0000-0000-0000-000000000001",
       name: "John Foundation",
       kind: "Funder",
       funder_kind: null,
+      match_source: { kind: "name" },
     },
   ];
   const requests: URL[] = [];
@@ -138,6 +150,7 @@ test("a late response cannot replace a newer query or repopulate a cleared searc
             name: term === "John" ? "John Cooper" : "hsbc uk bank plc",
             kind: "Funder",
             funder_kind: "Company",
+            match_source: { kind: "name" },
           },
         ],
       },
@@ -206,6 +219,7 @@ test("search text and names containing markup or regular expression syntax remai
             name,
             kind: "Funder",
             funder_kind: "Company",
+            match_source: { kind: "name" },
           },
         ],
       },
@@ -231,6 +245,7 @@ test("keyboard search and long results remain usable on a narrow screen", async 
             name: "Association of Research and Public Interest Organisations of the United Kingdom",
             kind: "Funder",
             funder_kind: "Unincorporated association",
+            match_source: { kind: "name" },
           },
         ],
       },
@@ -255,4 +270,109 @@ test("keyboard search and long results remain usable on a narrow screen", async 
   ).toBe(true);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("searchbox")).toHaveValue("");
+});
+
+test("alias provenance preserves canonical navigation and escapes highlighted alias text on mobile", async ({
+  page,
+}) => {
+  const id = "10000000-0000-0000-0000-000000000009";
+  const alias =
+    'West Midlands <img src=x onerror="alert(1)"> ' + "Union".repeat(80);
+  await page.setViewportSize({ width: 360, height: 780 });
+  await page.route("**/api/search?*", (route) =>
+    route.fulfill({
+      json: {
+        entities: [
+          {
+            id,
+            name: "Unite the Union",
+            kind: "Funder",
+            funder_kind: "Trade Union",
+            match_source: { kind: "alias", name: alias },
+          },
+          {
+            id: "1",
+            name: "Westminster Member",
+            kind: "MP",
+            funder_kind: null,
+            match_source: { kind: "name" },
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/?q=West&strictness=0.5");
+  const link = page.locator(".entity-name").first();
+  await expect(link).toHaveText("Unite the Union");
+  await expect(link).toHaveAttribute(
+    "href",
+    `/funders/${id}?q=West&strictness=0.5`,
+  );
+  await expect(link).toHaveAccessibleDescription(`Matched alias: ${alias}`);
+  await expect(page.locator(".entity-alias")).toHaveText(
+    `Matched alias: ${alias}`,
+  );
+  await expect(page.locator(".entity-alias mark")).toHaveText("West");
+  await expect(page.locator(".entity-alias img")).toHaveCount(0);
+  await expect(page.locator(".entity-alias")).toHaveCount(1);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+for (const invalid of [
+  undefined,
+  null,
+  {},
+  { kind: "other" },
+  { kind: "alias", name: "" },
+  { kind: "alias", name: "   " },
+  { kind: "alias" },
+]) {
+  test(`rejects malformed match source ${JSON.stringify(invalid)}`, async ({
+    page,
+  }) => {
+    await page.route("**/api/search?*", (route) =>
+      route.fulfill({
+        json: {
+          entities: [
+            {
+              id: "10000000-0000-0000-0000-000000000009",
+              name: "Unite",
+              kind: "Funder",
+              funder_kind: "Trade Union",
+              match_source: invalid,
+            },
+          ],
+        },
+      }),
+    );
+    await page.goto("/?q=West");
+    await expect(page.getByRole("alert")).toContainText(
+      "unexpected match source",
+    );
+    await expect(page.locator(".entity-row")).toHaveCount(0);
+  });
+}
+
+test("rejects alias source for an MP", async ({ page }) => {
+  await page.route("**/api/search?*", (route) =>
+    route.fulfill({
+      json: {
+        entities: [
+          {
+            id: "1",
+            name: "West",
+            kind: "MP",
+            funder_kind: null,
+            match_source: { kind: "alias", name: "West Midlands" },
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/?q=West");
+  await expect(page.getByRole("alert")).toContainText("unexpected MP identity");
 });

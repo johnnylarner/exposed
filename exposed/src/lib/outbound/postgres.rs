@@ -27,6 +27,16 @@ impl ExposedDatabase {
     }
 }
 
+pub(super) fn word_similarity_candidate_threshold(strictness: f32) -> String {
+    if strictness == 0.0 {
+        return "0".into();
+    }
+    // pg_trgm's operator compares a double score before word_similarity rounds to real.
+    f64::from(strictness)
+        .midpoint(f64::from(strictness.next_down()))
+        .to_string()
+}
+
 #[cfg(test)]
 impl From<PgPool> for ExposedDatabase {
     fn from(value: PgPool) -> Self {

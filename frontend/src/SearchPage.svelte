@@ -308,11 +308,25 @@
         {#each searchState.entities as entity}
           <li class="entity-row">
             <EntityIndicator {entity} />
-            <a href={entityHref(entity)} class="entity-name"
-              >{#each highlightName(entity.name, searchState.term) as part}{#if part.matched}<mark
-                    >{part.text}</mark
-                  >{:else}{part.text}{/if}{/each}</a
-            >
+            <div class="entity-text">
+              <a
+                href={entityHref(entity)}
+                class="entity-name"
+                aria-describedby={entity.matchSource.kind === "alias"
+                  ? `matched-alias-${entity.id}`
+                  : undefined}
+                >{#each highlightName(entity.name, searchState.term) as part}{#if part.matched}<mark
+                      >{part.text}</mark
+                    >{:else}{part.text}{/if}{/each}</a
+              >
+              {#if entity.matchSource.kind === "alias"}
+                <span class="entity-alias" id={`matched-alias-${entity.id}`}
+                  >Matched alias: {#each highlightName(entity.matchSource.name, searchState.term) as part}{#if part.matched}<mark
+                        >{part.text}</mark
+                      >{:else}{part.text}{/if}{/each}</span
+                >
+              {/if}
+            </div>
             {#if entity.kind === "Funder"}
               <EntityIndicator {entity} detail="kind" />
             {/if}
