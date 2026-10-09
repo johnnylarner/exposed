@@ -39,14 +39,13 @@ fn run(stage: &str, config: &Path, key: &IngestionKey) -> std::process::Output {
         .arg("--ingestion-key")
         .arg(key.to_string())
         .env_remove("DATABASE_URL")
+        .env("PATH", "/nonexistent")
         .output()
         .unwrap()
 }
 #[tokio::test]
-#[ignore = "requires built CLI, SQLx compile-time database, and EXPOSED_RESOLUTION_PYTHON with pinned Splink"]
-async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_overwrite()
+async fn clean_then_resolve_with_native_weldrs_preserves_occurrences_and_refuses_overwrite()
 -> anyhow::Result<()> {
-    let python = std::env::var("EXPOSED_RESOLUTION_PYTHON")?;
     let temporary = tempfile::tempdir()?;
     let key = IngestionKey::default();
     let root = temporary.path().join("data");
@@ -116,14 +115,11 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
     }
     storage.write_raw_declarations(member, &captures).await?;
     let config = temporary.path().join("resolution.yaml");
-    let worker = Path::new(env!("CARGO_MANIFEST_DIR")).join("../resolution/worker.py");
     fs::write(
         &config,
         format!(
-            "data_dir: {}\nresolution_python: {}\nresolution_worker: {}\ncandidate_budget: 100\n",
-            serde_json::to_string(&root)?,
-            serde_json::to_string(&python)?,
-            serde_json::to_string(&worker)?
+            "data_dir: {}\ncandidate_budget: 100\n",
+            serde_json::to_string(&root)?
         ),
     )?;
     let source_key = key;
@@ -135,6 +131,7 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
         .arg("--ingestion-key")
         .arg(key.to_string())
         .env_remove("DATABASE_URL")
+        .env("PATH", "/nonexistent")
         .output()?;
     assert!(
         copied.status.success(),
@@ -166,6 +163,23 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
         })
         .collect::<BTreeMap<_, _>>();
     fs::remove_dir_all(root.join(key.to_string()).join("raw"))?;
+    let refusal_config = temporary.path().join("refusal.yaml");
+    fs::write(
+        &refusal_config,
+        format!(
+            "data_dir: {}\ncandidate_budget: 1\n",
+            serde_json::to_string(&root)?
+        ),
+    )?;
+    let refused = run("resolve", &refusal_config, &key);
+    assert!(!refused.status.success());
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("exceeds budget 1"));
+    assert!(
+        !root
+            .join(key.to_string())
+            .join("resolved/declarations")
+            .exists()
+    );
     let resolved = run("resolve", &config, &key);
     assert!(
         resolved.status.success(),
@@ -282,7 +296,7 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
             names[pair["left_funder_id"].as_str().unwrap()].starts_with("Carlton Club")
                 && names[pair["right_funder_id"].as_str().unwrap()].starts_with("Carlton Club")
         })
-        .expect("the real worker must score the shared-address organization pair");
+        .expect("the native scorer must score the shared-address organization pair");
     assert_eq!(negative_pair["disposition"], "review");
     assert_eq!(negative_pair["reason"], "insufficient_exact_evidence");
     for pair in &pairs {
@@ -312,7 +326,7 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
     }
     let manifest = fs::read(output.join("manifest.json"))?;
     let model: Value = serde_json::from_slice(&manifest)?;
-    assert_eq!(model["model"]["splink_version"], "4.0.17");
+    assert_eq!(model["model"]["weldrs_version"], "0.2.2");
     assert_eq!(model["model"]["calibrated"], false);
     assert_eq!(model["policy_version"], "funder-resolution-v3");
     assert_eq!(fs::read(cleaned.join("funders.parquet"))?, before);

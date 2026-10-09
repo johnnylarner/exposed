@@ -7,7 +7,7 @@ use crate::domain::models::{
     declaration_cleaning::SourceScope, declaration_ingestion::DeclarationId,
     parliament_member::MemberId,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 #[derive(Clone, Debug, Deserialize)]
 pub struct Observation {
     pub funder_id: FunderObservationId,
@@ -172,7 +172,6 @@ impl ResolutionInput {
             }
         }
         ScoringInput {
-            version: 2,
             candidate_budget,
             rows,
             members,
@@ -223,16 +222,14 @@ pub(super) fn is_root(pointer: &str) -> bool {
     pointer.split('/').count() == 4
 }
 
-/// Versioned feature rows supplied to the external statistical scorer.
-#[derive(Serialize)]
+/// Feature profiles supplied to the statistical scorer.
 pub struct ScoringInput {
-    pub(crate) version: u32,
     pub(crate) candidate_budget: usize,
     pub(crate) rows: Vec<ComparisonRow>,
-    #[serde(skip)]
     pub(super) members: BTreeMap<String, Vec<FunderObservationId>>,
 }
-#[derive(Serialize)]
+#[derive(Clone)]
+#[cfg_attr(test, derive(Deserialize))]
 pub struct ComparisonRow {
     pub key: String,
     pub name: String,
@@ -262,7 +259,7 @@ impl ScoredPairs {
     ) -> Result<Self, EntityIngestionError> {
         let mut seen = BTreeSet::new();
         if pairs.len() > input.candidate_budget {
-            return Err(invalid("worker exceeded candidate budget"));
+            return Err(invalid("scorer exceeded candidate budget"));
         }
         for pair in &pairs {
             if pair.left >= pair.right
@@ -271,7 +268,7 @@ impl ScoredPairs {
                 || !seen.insert((&pair.left, &pair.right))
             {
                 return Err(invalid(
-                    "worker returned duplicate, unordered, or unknown profile pair",
+                    "scorer returned duplicate, unordered, or unknown profile pair",
                 ));
             }
             if !pair.probability.is_finite()
@@ -280,7 +277,7 @@ impl ScoredPairs {
                 || !(-1..=1).contains(&pair.address_level)
             {
                 return Err(invalid(
-                    "worker returned invalid probability or comparison level",
+                    "scorer returned invalid probability or comparison level",
                 ));
             }
         }
