@@ -10,6 +10,13 @@ use bigdecimal::BigDecimal;
 use sqlx::PgPool;
 
 const FUNDER: &str = "10000000-0000-0000-0000-000000000001";
+const ALIASES: [&str; 5] = [
+    " Exact Funder ",
+    "EXACT FUNDER",
+    "Exact Funder",
+    "Exact Funder Ltd.",
+    "exact funder",
+];
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
 async fn recent_window_preserves_occurrences_and_empty_declarations(pool: PgPool) {
@@ -84,6 +91,7 @@ async fn exact_summaries_exclude_unknown_currencies_and_keep_local_coverage(pool
         .await
         .unwrap()
         .unwrap();
+    assert_eq!(raw.profile.aliases, ALIASES);
     assert!(
         raw.allocations
             .iter()
@@ -95,6 +103,7 @@ async fn exact_summaries_exclude_unknown_currencies_and_keep_local_coverage(pool
         .await
         .unwrap();
     assert_eq!(details.profile.company_number.as_deref(), Some("00123456"));
+    assert_eq!(details.profile.aliases, ALIASES);
     assert_eq!(details.entry_count, 25);
     assert_eq!(details.unknown_currency_count, 5);
     assert_eq!(
@@ -154,6 +163,12 @@ async fn empty_funders_are_distinct_from_missing_identities(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(details.entry_count, 0);
+    assert!(details.profile.aliases.is_empty());
+    let individual = service
+        .funder("10000000-0000-0000-0000-000000000004".parse().unwrap())
+        .await
+        .unwrap();
+    assert_eq!(individual.profile.aliases, ["Individual Funder"]);
     assert!(details.currencies.is_empty());
     assert!(matches!(
         service
@@ -222,6 +237,27 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
     assert_eq!(response.status(), reqwest::StatusCode::OK);
     let body: serde_json::Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
     assert_eq!(body["funder"]["id"], FUNDER);
+    assert_eq!(body["funder"]["aliases"], serde_json::json!(ALIASES));
+    for (id, aliases) in [
+        (
+            "10000000-0000-0000-0000-000000000002",
+            serde_json::json!([]),
+        ),
+        (
+            "10000000-0000-0000-0000-000000000004",
+            serde_json::json!(["Individual Funder"]),
+        ),
+    ] {
+        let response = client
+            .get(format!("{origin}/funders/{id}"))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        let profile: serde_json::Value =
+            serde_json::from_str(&response.text().await.unwrap()).unwrap();
+        assert_eq!(profile["funder"]["aliases"], aliases);
+    }
     assert_eq!(
         body["currencies"][0]["parties"][0]["amount"],
         serde_json::Value::Null
