@@ -15,6 +15,7 @@ fn run_copy(root: &Path, key: Option<&IngestionKey>) -> anyhow::Result<Output> {
     command.current_dir(root).env_remove("DATABASE_URL").args([
         "data",
         "copy-latest-raw",
+        "--config",
         "config.yaml",
     ]);
     if let Some(key) = key {

@@ -69,6 +69,7 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
         OsString::from("exposed-data"),
         "members".into(),
         "fetch".into(),
+        "--config".into(),
         path.into_os_string(),
         "--ingestion-key".into(),
         ingestion_key.to_string().into(),
@@ -84,6 +85,7 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
         .current_dir(tmp.path())
         .env("DATABASE_URL", url.as_str())
         .args(["data", "members", "load"])
+        .arg("--config")
         .arg(path)
         .args(["--ingestion-key", &ingestion_key.to_string()])
         .output()
@@ -131,6 +133,7 @@ async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Res
         .current_dir(tmp.path())
         .env_remove("DATABASE_URL")
         .args(["data", "declarations", "fetch"])
+        .arg("--config")
         .arg(path)
         .args(["--ingestion-key", &ingestion_key.to_string()])
         .output()?;
@@ -202,6 +205,7 @@ fn database_commands_require_environment_url() -> anyhow::Result<()> {
             .current_dir(tmp.path())
             .env_remove("DATABASE_URL")
             .args(args)
+            .arg("--config")
             .arg(&config)
             .output()?;
 
