@@ -855,3 +855,14 @@ mark {
     gap: 14px;
   }
 }
+
+.entity-text {
+  min-width: 0;
+}
+.entity-alias {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}

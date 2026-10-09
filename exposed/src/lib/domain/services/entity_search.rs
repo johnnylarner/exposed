@@ -5,8 +5,8 @@
 mod error;
 mod interface;
 
+use crate::domain::models::entity_search::FunderSearchMatch;
 use crate::domain::models::entity_search::{Entity, EntitySearchError, EntitySearchRequest};
-use crate::domain::models::funder::Funder;
 use crate::domain::models::parliament_member::ParliamentMember;
 use crate::domain::models::search_similarity::SearchSimilarity;
 use crate::domain::repositories::funder_repository::FunderRepo;
@@ -58,7 +58,7 @@ where
 /// search results together.
 fn merge_scores(
     mps: &[(ParliamentMember, SearchSimilarity)],
-    funders: &[(Funder, SearchSimilarity)],
+    funders: &[(FunderSearchMatch, SearchSimilarity)],
 ) -> Vec<Entity> {
     let mut scores = Vec::new();
 
@@ -67,7 +67,7 @@ fn merge_scores(
     // while function
     while l < mps.len() && r < funders.len() {
         let mp: &(ParliamentMember, SearchSimilarity) = mps.get(l).unwrap();
-        let fund: &(Funder, SearchSimilarity) = funders.get(r).unwrap();
+        let fund: &(FunderSearchMatch, SearchSimilarity) = funders.get(r).unwrap();
 
         match &mp.1.value().total_cmp(&fund.1.value()) {
             std::cmp::Ordering::Equal => {
@@ -104,7 +104,7 @@ fn merge_scores(
 mod merge_scores {
     use crate::domain::{
         models::{
-            entity_search::Entity,
+            entity_search::{Entity, FunderSearchMatch, SearchMatchSource},
             funder::{Funder, FunderKind},
             parliament_member::ParliamentMember,
             search_similarity::SearchSimilarity,
@@ -154,18 +154,24 @@ mod merge_scores {
     fn works_for_balanced_results() {
         let funders = vec![
             (
-                Funder::new(
-                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                    "heavenly ltd".into(),
-                    FunderKind::Company,
+                FunderSearchMatch::new(
+                    Funder::new(
+                        crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                        "heavenly ltd".into(),
+                        FunderKind::Company,
+                    ),
+                    SearchMatchSource::Name,
                 ),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                Funder::new(
-                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                    "canna ltd".into(),
-                    FunderKind::Company,
+                FunderSearchMatch::new(
+                    Funder::new(
+                        crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                        "canna ltd".into(),
+                        FunderKind::Company,
+                    ),
+                    SearchMatchSource::Name,
                 ),
                 SearchSimilarity::from(2_f32),
             ),
@@ -195,10 +201,13 @@ mod merge_scores {
         );
         assert_eq!(
             ranked.get(1).unwrap(),
-            &Entity::from(&Funder::new(
-                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                "heavenly ltd".into(),
-                FunderKind::Company
+            &Entity::from(&FunderSearchMatch::new(
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "heavenly ltd".into(),
+                    FunderKind::Company
+                ),
+                SearchMatchSource::Name
             ),)
         );
         assert_eq!(
@@ -213,10 +222,13 @@ mod merge_scores {
         );
         assert_eq!(
             ranked.get(3).unwrap(),
-            &Entity::from(&Funder::new(
-                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                "canna ltd".into(),
-                FunderKind::Company
+            &Entity::from(&FunderSearchMatch::new(
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "canna ltd".into(),
+                    FunderKind::Company
+                ),
+                SearchMatchSource::Name
             ),)
         );
     }
@@ -225,18 +237,24 @@ mod merge_scores {
     fn works_for_more_funders() {
         let funders = vec![
             (
-                Funder::new(
-                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                    "heavenly ltd".into(),
-                    FunderKind::Company,
+                FunderSearchMatch::new(
+                    Funder::new(
+                        crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                        "heavenly ltd".into(),
+                        FunderKind::Company,
+                    ),
+                    SearchMatchSource::Name,
                 ),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                Funder::new(
-                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                    "canna ltd".into(),
-                    FunderKind::Company,
+                FunderSearchMatch::new(
+                    Funder::new(
+                        crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                        "canna ltd".into(),
+                        FunderKind::Company,
+                    ),
+                    SearchMatchSource::Name,
                 ),
                 SearchSimilarity::from(2_f32),
             ),
@@ -260,18 +278,24 @@ mod merge_scores {
         );
         assert_eq!(
             ranked.get(1).unwrap(),
-            &Entity::from(&Funder::new(
-                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                "heavenly ltd".into(),
-                FunderKind::Company
+            &Entity::from(&FunderSearchMatch::new(
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "heavenly ltd".into(),
+                    FunderKind::Company
+                ),
+                SearchMatchSource::Name
             ),)
         );
         assert_eq!(
             ranked.get(2).unwrap(),
-            &Entity::from(&Funder::new(
-                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                "canna ltd".into(),
-                FunderKind::Company
+            &Entity::from(&FunderSearchMatch::new(
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "canna ltd".into(),
+                    FunderKind::Company
+                ),
+                SearchMatchSource::Name
             ),)
         );
     }
@@ -279,10 +303,13 @@ mod merge_scores {
     #[test]
     fn works_for_more_mps() {
         let funders = vec![(
-            Funder::new(
-                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                "canna ltd".into(),
-                FunderKind::Company,
+            FunderSearchMatch::new(
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "canna ltd".into(),
+                    FunderKind::Company,
+                ),
+                SearchMatchSource::Name,
             ),
             SearchSimilarity::from(2_f32),
         )];
@@ -320,11 +347,48 @@ mod merge_scores {
         );
         assert_eq!(
             ranked.get(2).unwrap(),
-            &Entity::from(&Funder::new(
-                crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
-                "canna ltd".into(),
-                FunderKind::Company,
+            &Entity::from(&FunderSearchMatch::new(
+                Funder::new(
+                    crate::domain::models::funder::FunderId::new(uuid::Uuid::nil()),
+                    "canna ltd".into(),
+                    FunderKind::Company,
+                ),
+                SearchMatchSource::Name
             ))
         );
+    }
+}
+
+#[cfg(test)]
+mod provenance {
+    use super::{FunderSearchMatch, ParliamentMember, SearchSimilarity, merge_scores};
+    use crate::domain::models::{
+        entity_search::{Entity, SearchMatchSource},
+        funder::{Funder, FunderId, FunderKind},
+    };
+
+    #[test]
+    fn retains_alias_source_when_interleaving_equal_scores() {
+        let source = SearchMatchSource::Alias {
+            name: "West Midlands".into(),
+        };
+        let funder = FunderSearchMatch::new(
+            Funder::new(
+                FunderId::new(uuid::Uuid::nil()),
+                "Unite".into(),
+                FunderKind::TradeUnion,
+            ),
+            source.clone(),
+        );
+        let mp = ParliamentMember::new("West Member".into(), 1, "Party".into(), 1, "Place".into());
+        let results = merge_scores(
+            &[(mp.clone(), SearchSimilarity::from(1.0))],
+            &[(funder, SearchSimilarity::from(1.0))],
+        );
+        assert_eq!(results[0], Entity::ParliamentMember(mp));
+        let Entity::Funder(result) = &results[1] else {
+            panic!("expected funder");
+        };
+        assert_eq!(result.source(), &source);
     }
 }
