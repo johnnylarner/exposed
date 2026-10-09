@@ -31,6 +31,12 @@ The goal of this project is to make declaration data easy to search, browse and 
 ## Frontend coding policy
 
 - The frontend is largely in a prototype stage so changes can be made freely without much guidance.
+- Every PR that changes the UI must include desktop and mobile screenshots in
+  its description. Capture the affected views from the running application on
+  the PR branch after completing the changes.
+- Upload screenshots as GitHub attachments. Never commit PR screenshots to the
+  repository. Verify that the attachments render in the PR description before
+  marking the PR ready for review.
 
 
 ## Ingest coding policy
