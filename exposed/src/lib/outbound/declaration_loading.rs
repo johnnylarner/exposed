@@ -23,6 +23,10 @@ use crate::domain::{
             DeclarationLoad, DeclarationLoadOutcome, DeclarationLoadSummary, LoadDeclaration,
             LoadFunder, LoadFundingEntry,
         },
+        declaration_resolution::{
+            AttributionBasis, AttributionDecision, IdentityBasis, ObservationResolution,
+            PairDecision, PaymentAttribution,
+        },
         entity_ingestion::EntityIngestionError,
     },
     repositories::{
@@ -43,15 +47,15 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
             &cleaned.join("funding_entries.parquet"),
             &declaration_cleaning::funding_schema(),
         )?;
-        let (identity_rows, _) = read_table::<IdentityRow>(
+        let (identity_rows, _) = read_table::<ObservationResolution>(
             &resolved.join("observation_resolution.parquet"),
             &declaration_resolution::observation_schema(),
         )?;
-        let (attribution_rows, _) = read_table::<AttributionRow>(
+        let (attribution_rows, _) = read_table::<PaymentAttribution>(
             &resolved.join("payment_attribution.parquet"),
             &declaration_resolution::attribution_schema(),
         )?;
-        let (pair_rows, _) = read_table::<PairRow>(
+        let (pair_rows, _) = read_table::<PairDecision>(
             &resolved.join("pair_decisions.parquet"),
             &declaration_resolution::pair_schema(),
         )?;
@@ -161,21 +165,22 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
         let identity_row_count = identity_rows.len();
         let mut identities = BTreeMap::new();
         for row in identity_rows {
-            let unresolved = row.identity_basis == "unresolved";
-            if !matches!(
-                row.identity_basis.as_str(),
-                "source_reported_company"
-                    | "statistical_link"
-                    | "donor_name_link"
-                    | "extracted_name_link"
-                    | "trade_union_family_link"
-                    | "statistical_and_donor_name_link"
-                    | "statistical_and_supporting_name_link"
-                    | "provisional_singleton"
-                    | "unresolved"
-            ) || unresolved != row.identity_id.is_none()
+            let unresolved = match row.identity_basis {
+                IdentityBasis::Unresolved => true,
+                IdentityBasis::SourceReportedCompany
+                | IdentityBasis::StatisticalLink
+                | IdentityBasis::DonorNameLink
+                | IdentityBasis::ExtractedNameLink
+                | IdentityBasis::TradeUnionFamilyLink
+                | IdentityBasis::StatisticalAndDonorNameLink
+                | IdentityBasis::StatisticalAndSupportingNameLink
+                | IdentityBasis::ProvisionalSingleton => false,
+            };
+            if unresolved != row.identity_id.is_none()
                 || row.identity_id.as_deref().is_some_and(str::is_empty)
-                || identities.insert(row.funder_id, row.identity_id).is_some()
+                || identities
+                    .insert(row.funder_id.as_str().to_owned(), row.identity_id)
+                    .is_some()
             {
                 return Err(data_error(
                     "invalid or duplicate resolved observation identity",
@@ -202,23 +207,10 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
             if row.left_funder_id == row.right_funder_id
                 || row.left_funder_id >= row.right_funder_id
                 || !pair_ids.insert((row.left_funder_id.as_str(), row.right_funder_id.as_str()))
-                || !observations.contains_key(&row.left_funder_id)
-                || !observations.contains_key(&row.right_funder_id)
+                || !observations.contains_key(row.left_funder_id.as_str())
+                || !observations.contains_key(row.right_funder_id.as_str())
                 || !row.probability.is_finite()
                 || !(0.0..=1.0).contains(&row.probability)
-                || !matches!(row.disposition.as_str(), "accepted" | "review" | "rejected")
-                || !matches!(
-                    row.reason.as_str(),
-                    "insufficient_exact_evidence"
-                        | "person_organisation_conflict"
-                        | "full_address_disagreement"
-                        | "competing_company_anchors"
-                        | "component_identity_conflict"
-                        | "exact_name_full_address_threshold"
-                        | "exact_donor_name"
-                        | "extracted_name_evidence"
-                        | "trade_union_family"
-                )
             {
                 return Err(data_error("invalid resolved pair decision"));
             }
@@ -226,10 +218,7 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
 
         let mut attributions = BTreeMap::new();
         for row in attribution_rows {
-            if !row.is_valid() {
-                return Err(data_error("invalid resolved payment attribution"));
-            }
-            let funding_id = row.funding_entry_id().to_owned();
+            let funding_id = row.funding_entry_id.as_str().to_owned();
             if attributions.insert(funding_id, row).is_some() {
                 return Err(data_error("duplicate funding attribution"));
             }
@@ -277,25 +266,24 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
                 parent_id,
                 unavailable_reason,
                 issues,
-            ) = match attribution {
-                AttributionRow::Selected {
+            ) = match attribution.decision {
+                AttributionDecision::Selected {
                     selected_funder_id,
                     attribution_basis,
                     selected_parent_declaration_id,
-                    issues,
-                    ..
                 } => {
-                    let observation = observations.get(&selected_funder_id).ok_or_else(|| {
-                        data_error("attribution references a missing observation")
-                    })?;
+                    let observation =
+                        observations
+                            .get(selected_funder_id.as_str())
+                            .ok_or_else(|| {
+                                data_error("attribution references a missing observation")
+                            })?;
                     let expected_declaration_id =
                         selected_parent_declaration_id.unwrap_or(payment.declaration_id);
-                    let expected_role = match attribution_basis.as_str() {
-                        "explicit_ultimate_payer" => "ultimate_payer",
-                        "parent_payer" => "payer",
-                        "donor" => "donor",
-                        "payer" => "payer",
-                        _ => return Err(data_error("unknown resolved attribution basis")),
+                    let expected_role = match attribution_basis {
+                        AttributionBasis::ExplicitUltimatePayer => "ultimate_payer",
+                        AttributionBasis::ParentPayer | AttributionBasis::Payer => "payer",
+                        AttributionBasis::Donor => "donor",
                     };
                     if observation.member_id != payment.member_id
                         || observation.declaration_id != expected_declaration_id
@@ -313,7 +301,7 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
                         ));
                     }
                     let identity_id = identities
-                        .get(&selected_funder_id)
+                        .get(selected_funder_id.as_str())
                         .ok_or_else(|| data_error("attribution references a missing observation"))?
                         .clone();
                     let identity_id = identity_id.ok_or_else(|| {
@@ -321,19 +309,22 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
                     })?;
                     selected_identity_ids.insert(identity_id.clone());
                     (
-                        Some(selected_funder_id),
+                        Some(selected_funder_id.as_str().to_owned()),
                         Some(identity_id),
                         Some(attribution_basis),
                         selected_parent_declaration_id,
                         None,
-                        issues,
+                        attribution.issues,
                     )
                 }
-                AttributionRow::Unavailable {
-                    unavailable_reason,
-                    issues,
-                    ..
-                } => (None, None, None, None, Some(unavailable_reason), issues),
+                AttributionDecision::Unavailable { unavailable_reason } => (
+                    None,
+                    None,
+                    None,
+                    None,
+                    Some(unavailable_reason),
+                    attribution.issues,
+                ),
             };
             funding_entries.push(LoadFundingEntry {
                 source_id: payment.funding_entry_id,
@@ -504,13 +495,6 @@ struct FunderRow {
     donor_company_number: Option<String>,
 }
 
-#[derive(Deserialize)]
-struct IdentityRow {
-    funder_id: String,
-    identity_id: Option<String>,
-    identity_basis: String,
-}
-
 #[derive(Deserialize, Clone)]
 struct CleanPaymentRow {
     funding_entry_id: String,
@@ -530,82 +514,6 @@ struct CleanPaymentRow {
     ultimate_payer_funder_id: Option<String>,
     #[serde(flatten)]
     funding: CapturedFundingEntry,
-}
-
-#[derive(Deserialize)]
-struct PairRow {
-    left_funder_id: String,
-    right_funder_id: String,
-    probability: f64,
-    disposition: String,
-    reason: String,
-}
-
-#[derive(Deserialize)]
-#[serde(tag = "attribution_status", rename_all = "snake_case")]
-enum AttributionRow {
-    Selected {
-        funding_entry_id: String,
-        selected_funder_id: String,
-        attribution_basis: String,
-        selected_parent_declaration_id: Option<u32>,
-        issues: Vec<String>,
-    },
-    Unavailable {
-        funding_entry_id: String,
-        unavailable_reason: String,
-        issues: Vec<String>,
-    },
-}
-impl AttributionRow {
-    fn funding_entry_id(&self) -> &str {
-        match self {
-            Self::Selected {
-                funding_entry_id, ..
-            }
-            | Self::Unavailable {
-                funding_entry_id, ..
-            } => funding_entry_id,
-        }
-    }
-
-    fn is_valid(&self) -> bool {
-        let valid_issues = |issues: &[String]| {
-            issues
-                .iter()
-                .all(|issue| issue == "explicit_ultimate_payer_with_parent_payer_same_flag")
-        };
-        match self {
-            Self::Selected {
-                attribution_basis,
-                issues,
-                ..
-            } => {
-                matches!(
-                    attribution_basis.as_str(),
-                    "explicit_ultimate_payer" | "parent_payer" | "donor" | "payer"
-                ) && valid_issues(issues)
-            }
-            Self::Unavailable {
-                unavailable_reason,
-                issues,
-                ..
-            } => {
-                matches!(
-                    unavailable_reason.as_str(),
-                    "explicit_ultimate_payer_unavailable"
-                        | "different_ultimate_payer_unnamed"
-                        | "parent_cycle"
-                        | "parent_payer_unavailable"
-                        | "parent_evidence_unavailable"
-                        | "parent_payer_ambiguous"
-                        | "donor_unavailable"
-                        | "payer_unavailable"
-                        | "no_supported_attribution"
-                ) && valid_issues(issues)
-            }
-        }
-    }
 }
 
 fn fingerprint_files(
@@ -738,6 +646,8 @@ impl DeclarationLoadRepository for ExposedDatabase {
                         .ok_or_else(|| data_error("resolved identity was not inserted"))
                 })
                 .transpose()?;
+            let attribution_basis = entry.attribution_basis.as_ref().map(AsRef::as_ref);
+            let unavailable_reason = entry.unavailable_reason.as_ref().map(AsRef::as_ref);
             sqlx::query!(
                 "INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency, payment_type, source_funding_entry_id, selected_observation_id, attribution_basis, selected_parent_declaration_id, unavailable_reason, attribution_issues) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
                 i32::try_from(entry.source_declaration_id).map_err(db_error)?,
@@ -747,9 +657,9 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 entry.payment_type,
                 entry.source_id,
                 entry.selected_observation_id,
-                entry.attribution_basis,
+                attribution_basis,
                 entry.selected_parent_declaration_id.map(i32::try_from).transpose().map_err(db_error)?,
-                entry.unavailable_reason,
+                unavailable_reason,
                 serde_json::to_value(&entry.issues).map_err(db_error)?
             ).execute(&mut *tx).await.map_err(db_error)?;
         }

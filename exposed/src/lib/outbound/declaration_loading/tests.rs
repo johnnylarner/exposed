@@ -2,7 +2,7 @@ use super::*;
 use crate::domain::{
     models::{
         declaration_ingestion::{CapturedDeclaration, MemberAsId},
-        declaration_resolution::{ScoredPair, ScoredPairs, ScoringInput},
+        declaration_resolution::{ScoredPair, ScoredPairs, ScoringInput, UnavailableReason},
         entity_ingestion::{EntityIngestionError, IngestionKey},
     },
     repositories::{
@@ -107,6 +107,13 @@ async fn resolved_test_run() -> anyhow::Result<(TempDir, DeclarationLoad)> {
                 {"name": "Value", "value": "50"}
             ]}]
         }),
+        json!({
+            "id": 6,
+            "category": {"id": 3, "name": "Donations"},
+            "versions": [{"register": {"id": 820, "publishedDate": "2026-09-07"}, "fields": [
+                {"name": "Value", "value": "20"}
+            ]}]
+        }),
     ]
     .into_iter()
     .map(|source| {
@@ -133,11 +140,34 @@ async fn explicit_ultimate_payer_on_child_declaration_is_loadable() -> anyhow::R
     let child_attribution = load
         .funding_entries
         .iter()
-        .find(|entry| entry.attribution_basis.as_deref() == Some("explicit_ultimate_payer"))
+        .find(|entry| {
+            matches!(
+                entry.attribution_basis,
+                Some(AttributionBasis::ExplicitUltimatePayer)
+            )
+        })
         .expect("the child payment selects its explicit ultimate payer");
 
     assert_eq!(child_attribution.source_declaration_id, 2);
     assert_eq!(child_attribution.selected_parent_declaration_id, None);
+    Ok(())
+}
+
+#[tokio::test]
+async fn unavailable_attribution_roundtrips_through_parquet() -> anyhow::Result<()> {
+    let (_temporary, load) = resolved_test_run().await?;
+    let entry = load
+        .funding_entries
+        .iter()
+        .find(|entry| entry.source_declaration_id == 6)
+        .expect("the unattributed payment remains in the load");
+    assert!(matches!(
+        entry.unavailable_reason,
+        Some(UnavailableReason::NoSupportedAttribution)
+    ));
+    assert!(entry.identity_id.is_none());
+    assert!(entry.attribution_basis.is_none());
+    assert!(entry.selected_observation_id.is_none());
     Ok(())
 }
 
@@ -251,7 +281,7 @@ async fn supporting_name_resolution_loads_and_rejects_unknown_labels() -> anyhow
         assert!(
             error
                 .to_string()
-                .contains("invalid or duplicate resolved observation identity"),
+                .contains("unknown variant `unknown_resolution_label`"),
             "{error}"
         );
     }
@@ -390,7 +420,7 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
                 .as_array()
                 .unwrap()
                 .iter()
-                .filter(|row| matches!(row["source_declaration_id"].as_u64(), Some(2 | 3 | 5)))
+                .filter(|row| matches!(row["source_declaration_id"].as_u64(), Some(2 | 3 | 5 | 6)))
                 .cloned()
                 .collect::<Vec<_>>()
         };
