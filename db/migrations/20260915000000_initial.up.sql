@@ -36,22 +36,13 @@ COMMENT ON COLUMN exposed.declarations.registration_date IS
 
 CREATE TABLE IF NOT EXISTS exposed.funders (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
-    funder_name TEXT NOT NULL,
+    funder_name TEXT NOT NULL UNIQUE,
     funder_kind TEXT,
     company_number TEXT,
-    resolution_identity_id TEXT UNIQUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT funders_company_number_status
         CHECK (company_number IS NULL OR funder_kind IS NOT DISTINCT FROM 'Company')
-);
-
-CREATE TABLE IF NOT EXISTS exposed.funder_aliases (
-    funder_id UUID NOT NULL REFERENCES exposed.funders (id),
-    funder_alias TEXT NOT NULL CHECK (length(trim(funder_alias)) > 0),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (funder_id, funder_alias)
 );
 
 COMMENT ON COLUMN exposed.funders.funder_kind IS
@@ -66,12 +57,6 @@ CREATE TABLE IF NOT EXISTS exposed.funding_entries (
     amount NUMERIC,
     currency TEXT,
     payment_type TEXT,
-    source_funding_entry_id TEXT UNIQUE,
-    selected_observation_id TEXT,
-    attribution_basis TEXT,
-    selected_parent_declaration_id INTEGER,
-    unavailable_reason TEXT,
-    attribution_issues JSONB NOT NULL DEFAULT '[]'::JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -83,15 +68,6 @@ CREATE INDEX IF NOT EXISTS funding_entries_funder_idx
 
 COMMENT ON COLUMN exposed.funding_entries.funder_id IS
     'Resolved identity selected by the reporting attribution policy; NULL when unavailable';
-
-CREATE TABLE IF NOT EXISTS exposed.declaration_load_runs (
-    ingestion_key UUID PRIMARY KEY,
-    fingerprint TEXT NOT NULL,
-    declarations BIGINT NOT NULL CHECK (declarations >= 0),
-    funders BIGINT NOT NULL CHECK (funders >= 0),
-    funding_entries BIGINT NOT NULL CHECK (funding_entries >= 0),
-    loaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
 
 CREATE OR REPLACE FUNCTION exposed.set_updated_at()
 RETURNS TRIGGER
@@ -127,16 +103,3 @@ CREATE OR REPLACE TRIGGER funders_set_updated_at
     FOR EACH ROW
     WHEN (OLD.* IS DISTINCT FROM NEW.*)
     EXECUTE FUNCTION exposed.set_updated_at();
-
-CREATE OR REPLACE TRIGGER funder_aliases_set_updated_at
-    BEFORE UPDATE ON exposed.funder_aliases
-    FOR EACH ROW
-    WHEN (OLD.* IS DISTINCT FROM NEW.*)
-    EXECUTE FUNCTION exposed.set_updated_at();
-
-CREATE INDEX members_name_search_trigram_idx
-    ON exposed.members USING GIST (name exposed.gist_trgm_ops);
-CREATE INDEX funders_name_search_trigram_idx
-    ON exposed.funders USING GIST (funder_name exposed.gist_trgm_ops);
-CREATE INDEX funder_aliases_name_search_trigram_idx
-    ON exposed.funder_aliases USING GIST (funder_alias exposed.gist_trgm_ops);

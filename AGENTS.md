@@ -67,10 +67,22 @@ The goal of this project is to make declaration data easy to search, browse and 
 
 ## Development database migrations
 
-- While the project is in development, keep one reversible baseline version in
-  `db/migrations/20260915000000_initial.up.sql` and its `.down.sql` counterpart.
-  Fold schema changes into this pair without adding migration versions.
-- For an existing database, inspect its applied schema and apply the necessary
-  changes in place to preserve imported data. SQLx rejects an edited baseline's
-  checksum; verify the live schema before updating its recorded checksum using
-  the procedure in `db/README.md` or reporting a migration complete.
+- Keep schema changes in `db/migrations` as SQLx versioned `.up.sql` and
+  `.down.sql` pairs. From the repository root, create a pair with
+  `sqlx migrate add --source db/migrations --reversible <name>`.
+- Keep applied migrations immutable. Add a new pair for each schema change;
+  do not fold changes into the baseline or put manual schema scripts in
+  `db/upgrades`.
+- From the repository root, apply migrations with
+  `sqlx migrate run --config sqlx.toml --source db/migrations`, inspect them with
+  `sqlx migrate info --config sqlx.toml --source db/migrations`, and revert the
+  latest version with
+  `sqlx migrate revert --config sqlx.toml --source db/migrations`.
+  Commands read the root `.env`; set `DATABASE_URL` to select another database.
+- SQLx owns each migration transaction. Do not add `BEGIN` or `COMMIT` to the
+  migration files. Keep each down migration limited to its up migration's changes.
+- Test forward upgrades with existing records and the full down/up cycle in an
+  isolated database. Preserve imported data when upgrading an existing database.
+- The one-time transition from the consolidated baseline requires schema and
+  data verification before aligning its checksum. Follow `db/README.md`;
+  changing the checksum alone does not apply schema changes.
