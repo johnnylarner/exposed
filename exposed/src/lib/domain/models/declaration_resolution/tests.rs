@@ -1,4 +1,5 @@
 use super::*;
+use crate::domain::models::parliament_member::MemberId;
 
 fn observation(
     id: u32,
@@ -8,12 +9,10 @@ fn observation(
     company: Option<&str>,
 ) -> Observation {
     Observation {
-        funder_id: serde_json::from_value(serde_json::json!(format!(
-            "00000000-0000-0000-0000-000000000001/{id}/1/declaration/donor"
-        )))
-        .unwrap(),
-        member_id: "00000000-0000-0000-0000-000000000001".into(),
-        declaration_id: id,
+        funder_id: serde_json::from_value(serde_json::json!(format!("1/{id}/1/declaration/donor")))
+            .unwrap(),
+        member_id: MemberId::new(1).unwrap(),
+        declaration_id: DeclarationId::new(id).unwrap(),
         register_id: 1,
         role: FunderRole::Donor,
         source_scope: "declaration".into(),
@@ -420,16 +419,13 @@ fn reordered_input_produces_identical_results() {
 }
 fn payment(id: u32, parent: Option<u32>, flag: Option<bool>) -> Payment {
     Payment {
-        funding_entry_id: serde_json::from_value(serde_json::json!(format!(
-            "00000000-0000-0000-0000-000000000001/{id}/1/funding/0"
-        )))
-        .unwrap(),
-        member_id: "00000000-0000-0000-0000-000000000001".into(),
-        parliament_member_id: 1,
-        declaration_id: id,
+        funding_entry_id: serde_json::from_value(serde_json::json!(format!("1/{id}/1/funding/0")))
+            .unwrap(),
+        member_id: MemberId::new(1).unwrap(),
+        declaration_id: DeclarationId::new(id).unwrap(),
         register_id: 1,
         funding_ordinal: 0,
-        parent_declaration_id: parent,
+        parent_declaration_id: parent.map(|id| DeclarationId::new(id).unwrap()),
         is_ultimate_payer_different: flag,
         donor_funder_id: None,
         payer_funder_id: None,
@@ -616,7 +612,7 @@ fn duplicate_occurrences_remain_separate_when_name_identity_links() {
 fn parent_payer_from_another_member_is_not_selected() {
     let mut payer = observation(1, Some("guardian"), None, None, None);
     payer.role = FunderRole::Payer;
-    payer.member_id = uuid::Uuid::from_u128(2).to_string();
+    payer.member_id = MemberId::new(2).unwrap();
     payer.funder_id = serde_json::from_value(serde_json::json!(format!(
         "{}/1/1/declaration/payer",
         payer.member_id

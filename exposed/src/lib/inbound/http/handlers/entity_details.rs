@@ -227,7 +227,7 @@ pub async fn member_details<E: EntitySearchService, D: EntityDetailsService>(
 ) -> Result<ApiSuccess<MemberDetailsResponse>, ApiError> {
     let id = id
         .parse::<MemberId>()
-        .map_err(ApiError::UnprocessibleEntity)?;
+        .map_err(|error| ApiError::UnprocessibleEntity(error.to_string()))?;
     let details = state.entity_details_service.member(id).await?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }

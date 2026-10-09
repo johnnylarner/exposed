@@ -1,9 +1,10 @@
 use super::*;
 use crate::domain::{
     models::{
-        declaration_ingestion::{CapturedDeclaration, MemberAsId},
+        declaration_ingestion::CapturedDeclaration,
         declaration_resolution::{ScoredPair, ScoredPairs, ScoringInput, UnavailableReason},
         entity_ingestion::{EntityIngestionError, IngestionKey},
+        parliament_member::MemberId,
     },
     repositories::{
         declaration_loading::DeclarationLoadStorage, declaration_resolution::FunderScorer,
@@ -67,7 +68,7 @@ async fn resolved_test_run() -> anyhow::Result<(TempDir, DeclarationLoad)> {
     let key = IngestionKey::default();
     let root = temporary.path().join("data");
     let storage = ExposedDataPipeline::new_with_ingestion_key(&root, key)?;
-    let member = MemberAsId::new(Uuid::from_u128(1), 4613)?;
+    let member = MemberId::new(4613)?;
     let fetched_at = Utc::now();
     let declarations = [
         json!({
@@ -148,7 +149,7 @@ async fn explicit_ultimate_payer_on_child_declaration_is_loadable() -> anyhow::R
         })
         .expect("the child payment selects its explicit ultimate payer");
 
-    assert_eq!(child_attribution.source_declaration_id, 2);
+    assert_eq!(child_attribution.source_declaration_id.value(), 2);
     assert_eq!(child_attribution.selected_parent_declaration_id, None);
     Ok(())
 }
@@ -159,7 +160,7 @@ async fn unavailable_attribution_roundtrips_through_parquet() -> anyhow::Result<
     let entry = load
         .funding_entries
         .iter()
-        .find(|entry| entry.source_declaration_id == 6)
+        .find(|entry| entry.source_declaration_id.value() == 6)
         .expect("the unattributed payment remains in the load");
     assert!(matches!(
         entry.unavailable_reason,
@@ -195,7 +196,7 @@ async fn supporting_name_resolution_loads_and_rejects_unknown_labels() -> anyhow
             &temporary.path().join("data"),
             IngestionKey::default(),
         )?;
-        let member = MemberAsId::new(Uuid::from_u128(1), 4613)?;
+        let member = MemberId::new(4613)?;
         let fetched_at = Utc::now();
         let bank_address = "1 Centenary Square Birmingham B1 1HQ";
         let declarations = [
@@ -258,7 +259,7 @@ async fn supporting_name_resolution_loads_and_rejects_unknown_labels() -> anyhow
             let identities = load
                 .funding_entries
                 .iter()
-                .filter(|entry| ids.contains(&entry.source_declaration_id))
+                .filter(|entry| ids.contains(&entry.source_declaration_id.value()))
                 .map(|entry| entry.identity_id.as_ref().expect("resolved funder"))
                 .collect::<BTreeSet<_>>();
             assert_eq!(identities.len(), 1);
@@ -359,9 +360,9 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
     load.ingestion_key = IngestionKey::default();
     load.fingerprint = "refreshed artifacts".to_owned();
     load.declarations
-        .retain(|declaration| matches!(declaration.source_declaration_id, 1 | 4));
+        .retain(|declaration| matches!(declaration.source_declaration_id.value(), 1 | 4));
     load.funding_entries
-        .retain(|entry| matches!(entry.source_declaration_id, 1 | 4));
+        .retain(|entry| matches!(entry.source_declaration_id.value(), 1 | 4));
     let retained = load
         .funding_entries
         .iter()
@@ -388,7 +389,7 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
     for declaration in &mut load.declarations {
         declaration.category_name = "Updated category".to_owned();
         declaration.fetched_at +=
-            chrono::Duration::seconds(if declaration.source_declaration_id == 1 {
+            chrono::Duration::seconds(if declaration.source_declaration_id.value() == 1 {
                 1
             } else {
                 -1
@@ -400,7 +401,7 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
     assert_eq!(database_snapshot(&pool).await?, before_refresh);
     for declaration in &mut load.declarations {
         declaration.fetched_at +=
-            chrono::Duration::seconds(if declaration.source_declaration_id == 1 {
+            chrono::Duration::seconds(if declaration.source_declaration_id.value() == 1 {
                 -1
             } else {
                 2
@@ -479,7 +480,7 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
     load.ingestion_key = IngestionKey::default();
     load.fingerprint = "declaration without funding".to_owned();
     load.declarations
-        .retain(|declaration| declaration.source_declaration_id == 1);
+        .retain(|declaration| declaration.source_declaration_id.value() == 1);
     load.funding_entries.clear();
     load.funders.clear();
     repository.load_declarations(&load).await?;

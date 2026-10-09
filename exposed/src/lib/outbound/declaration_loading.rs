@@ -17,8 +17,10 @@ use super::{
 };
 use crate::domain::{
     models::{
-        declaration_cleaning::CapturedMemberDeclarations,
-        declaration_ingestion::CapturedFundingEntry,
+        declaration_cleaning::{
+            CapturedMemberDeclarations, FunderRole, FundingEntryId, SourceScope,
+        },
+        declaration_ingestion::{CapturedFundingEntry, DeclarationId},
         declaration_loading::{
             DeclarationLoad, DeclarationLoadOutcome, DeclarationLoadSummary, LoadDeclaration,
             LoadFunder, LoadFundingEntry,
@@ -28,6 +30,7 @@ use crate::domain::{
             PairDecision, PaymentAttribution,
         },
         entity_ingestion::EntityIngestionError,
+        parliament_member::MemberId,
     },
     repositories::{
         declaration_loading::{DeclarationLoadRepository, DeclarationLoadStorage},
@@ -62,14 +65,16 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
         let manifest_bytes = fs::read(resolved.join("manifest.json")).map_err(read_error)?;
         let manifest: ResolutionManifest =
             serde_json::from_slice(&manifest_bytes).map_err(read_error)?;
-        if manifest.schema_version != 1
+        if manifest.schema_version != 2
             || !matches!(
                 manifest.policy_version.as_str(),
                 "funder-resolution-v2"
                     | crate::domain::models::declaration_resolution::POLICY_VERSION
             )
         {
-            return Err(data_error("unsupported resolved declaration manifest"));
+            return Err(data_error(
+                "unsupported resolved declaration manifest; capture a new ingestion run, then clean, resolve and load it",
+            ));
         }
         if manifest.input_sha256.get("funders.parquet") != Some(&funders_digest)
             || manifest.input_sha256.get("funding_entries.parquet") != Some(&payments_digest)
@@ -103,46 +108,42 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
         for path in &raw_paths {
             let partition =
                 declaration_cleaning::read_partition(path).map_err(EntityIngestionError::from)?;
-            if let CapturedMemberDeclarations::Populated {
+            let CapturedMemberDeclarations {
                 member,
                 declarations: rows,
-            } = partition
-            {
-                for evidence in rows {
-                    let declaration = evidence.declaration();
-                    let row = LoadDeclaration {
-                        source_declaration_id: declaration.id().value(),
-                        member_id: member.member_id(),
-                        parliament_member_id: member.parliament_member_id(),
-                        category_id: declaration.category_id(),
-                        category_name: declaration.category_name().to_owned(),
-                        register_id: declaration.register_id(),
-                        register_published_date: declaration.register_published_date(),
-                        parent_declaration_id: declaration.parent_id().map(|id| id.value()),
-                        fetched_at: declaration.fetched_at(),
-                        registration_date: declaration.registration_date(),
-                    };
-                    if declarations
-                        .insert(row.source_declaration_id, row)
-                        .is_some()
+            } = partition;
+            for evidence in rows {
+                let declaration = evidence.declaration();
+                let row = LoadDeclaration {
+                    source_declaration_id: declaration.id(),
+                    member_id: member,
+                    category_id: declaration.category_id(),
+                    category_name: declaration.category_name().to_owned(),
+                    register_id: declaration.register_id(),
+                    register_published_date: declaration.register_published_date(),
+                    parent_declaration_id: declaration.parent_id(),
+                    fetched_at: declaration.fetched_at(),
+                    registration_date: declaration.registration_date(),
+                };
+                if declarations
+                    .insert(row.source_declaration_id, row)
+                    .is_some()
+                {
+                    return Err(data_error(
+                        "duplicate source declaration across raw partitions",
+                    ));
+                }
+                for (ordinal, funding) in declaration.funding_entries().iter().enumerate() {
+                    let ordinal = u32::try_from(ordinal).map_err(db_error)?;
+                    let funding_id =
+                        SourceScope::new(member, declaration.id(), declaration.register_id())
+                            .funding_entry(ordinal)
+                            .as_str()
+                            .to_owned();
+                    if !expected_funding_ids.insert(funding_id.clone())
+                        || raw_funding.insert(funding_id, funding.clone()).is_some()
                     {
-                        return Err(data_error(
-                            "duplicate source declaration across raw partitions",
-                        ));
-                    }
-                    for (ordinal, funding) in declaration.funding_entries().iter().enumerate() {
-                        let ordinal = u32::try_from(ordinal).map_err(db_error)?;
-                        let funding_id = format!(
-                            "{}/{}/{}/funding/{ordinal}",
-                            member.member_id(),
-                            declaration.id().value(),
-                            declaration.register_id()
-                        );
-                        if !expected_funding_ids.insert(funding_id.clone())
-                            || raw_funding.insert(funding_id, funding.clone()).is_some()
-                        {
-                            return Err(data_error("duplicate raw funding occurrence"));
-                        }
+                        return Err(data_error("duplicate raw funding occurrence"));
                     }
                 }
             }
@@ -234,21 +235,20 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
             let declaration = declarations.get(&payment.declaration_id).ok_or_else(|| {
                 data_error("cleaned funding row references a missing declaration")
             })?;
-            if payment.member_id != declaration.member_id.to_string()
-                || payment.parliament_member_id != declaration.parliament_member_id
+            if payment.member_id != declaration.member_id
                 || payment.category_id != declaration.category_id
                 || payment.category_name != declaration.category_name
                 || payment.register_id != declaration.register_id
                 || payment.register_published_date != declaration.register_published_date
                 || payment.parent_declaration_id != declaration.parent_declaration_id
                 || payment.funding_entry_id
-                    != format!(
-                        "{}/{}/{}/funding/{}",
+                    != SourceScope::new(
                         declaration.member_id,
                         payment.declaration_id,
                         payment.register_id,
-                        payment.funding_ordinal
                     )
+                    .funding_entry(payment.funding_ordinal)
+                    .as_str()
                 || payment.fetched_at != declaration.fetched_at
                 || payment.registration_date != declaration.registration_date
             {
@@ -281,19 +281,25 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
                     let expected_declaration_id =
                         selected_parent_declaration_id.unwrap_or(payment.declaration_id);
                     let expected_role = match attribution_basis {
-                        AttributionBasis::ExplicitUltimatePayer => "ultimate_payer",
-                        AttributionBasis::ParentPayer | AttributionBasis::Payer => "payer",
-                        AttributionBasis::Donor => "donor",
+                        AttributionBasis::ExplicitUltimatePayer => FunderRole::UltimatePayer,
+                        AttributionBasis::ParentPayer | AttributionBasis::Payer => {
+                            FunderRole::Payer
+                        }
+                        AttributionBasis::Donor => FunderRole::Donor,
                     };
                     if observation.member_id != payment.member_id
                         || observation.declaration_id != expected_declaration_id
                         || observation.role != expected_role
                         || (selected_parent_declaration_id.is_some()
                             && selected_parent_declaration_id != payment.parent_declaration_id)
-                        || (selected_parent_declaration_id.is_some() && observation.role != "payer")
+                        || (selected_parent_declaration_id.is_some()
+                            && observation.role != FunderRole::Payer)
                         || (selected_parent_declaration_id.is_none()
                             && observation.source_scope == "funding_entry"
-                            && observation.funding_entry_id.as_deref()
+                            && observation
+                                .funding_entry_id
+                                .as_ref()
+                                .map(FundingEntryId::as_str)
                                 != Some(payment.funding_entry_id.as_str()))
                     {
                         return Err(data_error(
@@ -354,30 +360,42 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
             return Err(data_error("cleaned funding rows omit raw funding values"));
         }
         if observations.values().any(|row| {
-            !matches!(row.role.as_str(), "donor" | "payer" | "ultimate_payer")
-                || !matches!(row.source_scope.as_str(), "declaration" | "funding_entry")
-                || row.funder_id.is_empty()
-                || row.member_id.parse::<uuid::Uuid>().is_err()
-                || row.declaration_id == 0
+            !matches!(row.source_scope.as_str(), "declaration" | "funding_entry")
+                || row.funder_id
+                    != row
+                        .funding_entry_id
+                        .as_ref()
+                        .map_or_else(
+                            || {
+                                SourceScope::new(row.member_id, row.declaration_id, row.register_id)
+                                    .declaration_observation(row.role)
+                            },
+                            |id| id.observation(row.role),
+                        )
+                        .as_str()
                 || (row.source_scope == "declaration" && row.funding_entry_id.is_some())
                 || (row.source_scope == "funding_entry"
                     && row.funding_entry_id.as_ref().is_none_or(|id| {
-                        payments_by_id.get(id).is_none_or(|payment| {
+                        payments_by_id.get(id.as_str()).is_none_or(|payment| {
                             payment.member_id != row.member_id
+                                || payment.register_id != row.register_id
                                 || payment.declaration_id != row.declaration_id
-                                || match row.role.as_str() {
-                                    "donor" => payment.donor_funder_id.as_deref(),
-                                    "payer" => payment.payer_funder_id.as_deref(),
-                                    "ultimate_payer" => payment.ultimate_payer_funder_id.as_deref(),
-                                    _ => None,
+                                || match row.role {
+                                    FunderRole::Donor => payment.donor_funder_id.as_deref(),
+                                    FunderRole::Payer => payment.payer_funder_id.as_deref(),
+                                    FunderRole::UltimatePayer => {
+                                        payment.ultimate_payer_funder_id.as_deref()
+                                    }
                                 } != Some(row.funder_id.as_str())
                         })
                     }))
                 || (row.source_scope == "declaration"
-                    && !declarations.values().any(|declaration| {
-                        declaration.member_id.to_string() == row.member_id
-                            && declaration.source_declaration_id == row.declaration_id
-                    }))
+                    && declarations
+                        .get(&row.declaration_id)
+                        .is_none_or(|declaration| {
+                            declaration.member_id != row.member_id
+                                || declaration.register_id != row.register_id
+                        }))
         }) {
             return Err(data_error("invalid cleaned funder observation"));
         }
@@ -485,11 +503,13 @@ struct ResolutionManifest {
 #[derive(Deserialize)]
 struct FunderRow {
     funder_id: String,
-    member_id: String,
-    declaration_id: u32,
-    role: String,
+    #[serde(rename = "parliament_member_id")]
+    member_id: MemberId,
+    declaration_id: DeclarationId,
+    register_id: u32,
+    role: FunderRole,
     source_scope: String,
-    funding_entry_id: Option<String>,
+    funding_entry_id: Option<FundingEntryId>,
     name_raw: Option<String>,
     donor_kind: Option<String>,
     donor_company_number: Option<String>,
@@ -498,13 +518,13 @@ struct FunderRow {
 #[derive(Deserialize, Clone)]
 struct CleanPaymentRow {
     funding_entry_id: String,
-    member_id: String,
-    parliament_member_id: u32,
-    declaration_id: u32,
+    #[serde(rename = "parliament_member_id")]
+    member_id: MemberId,
+    declaration_id: DeclarationId,
     register_id: u32,
     category_id: u32,
     category_name: String,
-    parent_declaration_id: Option<u32>,
+    parent_declaration_id: Option<DeclarationId>,
     register_published_date: NaiveDate,
     funding_ordinal: u32,
     registration_date: Option<NaiveDate>,
@@ -592,8 +612,8 @@ impl DeclarationLoadRepository for ExposedDatabase {
         }
         for declaration in &load.declarations {
             let stored_member_id = sqlx::query!(
-                "SELECT parliament_member_id FROM exposed.members WHERE id = $1",
-                declaration.member_id
+                "SELECT id FROM exposed.members WHERE parliament_member_id = $1",
+                i32::try_from(declaration.member_id.value()).map_err(db_error)?
             )
             .fetch_optional(&mut *tx)
             .await
@@ -601,21 +621,14 @@ impl DeclarationLoadRepository for ExposedDatabase {
             .ok_or_else(|| {
                 data_error(format!(
                     "member {} must be loaded before declarations",
-                    declaration.parliament_member_id
+                    declaration.member_id
                 ))
-            })?;
-            if stored_member_id.parliament_member_id
-                != i32::try_from(declaration.parliament_member_id).map_err(db_error)?
-            {
-                return Err(data_error(format!(
-                    "stored member UUID does not match Parliament member {}",
-                    declaration.parliament_member_id
-                )));
-            }
+            })?
+            .id;
             let inserted = sqlx::query!(
                 "INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (source_declaration_id) DO UPDATE SET member_id = EXCLUDED.member_id, category_id = EXCLUDED.category_id, category_name = EXCLUDED.category_name, fetched_at = EXCLUDED.fetched_at, registration_date = EXCLUDED.registration_date WHERE exposed.declarations.fetched_at <= EXCLUDED.fetched_at RETURNING source_declaration_id",
-                i32::try_from(declaration.source_declaration_id).map_err(db_error)?,
-                declaration.member_id,
+                i32::try_from(declaration.source_declaration_id.value()).map_err(db_error)?,
+                stored_member_id,
                 i32::try_from(declaration.category_id).map_err(db_error)?,
                 declaration.category_name,
                 sql_timestamp(declaration.fetched_at)?,
@@ -629,7 +642,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
             }
             sqlx::query!(
                 "DELETE FROM exposed.funding_entries WHERE source_declaration_id = $1",
-                i32::try_from(declaration.source_declaration_id).map_err(db_error)?
+                i32::try_from(declaration.source_declaration_id.value()).map_err(db_error)?
             )
             .execute(&mut *tx)
             .await
@@ -650,7 +663,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
             let unavailable_reason = entry.unavailable_reason.as_ref().map(AsRef::as_ref);
             sqlx::query!(
                 "INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency, payment_type, source_funding_entry_id, selected_observation_id, attribution_basis, selected_parent_declaration_id, unavailable_reason, attribution_issues) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
-                i32::try_from(entry.source_declaration_id).map_err(db_error)?,
+                i32::try_from(entry.source_declaration_id.value()).map_err(db_error)?,
                 funder_id,
                 entry.amount,
                 entry.currency,
@@ -658,7 +671,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 entry.source_id,
                 entry.selected_observation_id,
                 attribution_basis,
-                entry.selected_parent_declaration_id.map(i32::try_from).transpose().map_err(db_error)?,
+                entry.selected_parent_declaration_id.map(|id| i32::try_from(id.value())).transpose().map_err(db_error)?,
                 unavailable_reason,
                 serde_json::to_value(&entry.issues).map_err(db_error)?
             ).execute(&mut *tx).await.map_err(db_error)?;

@@ -1,11 +1,12 @@
 //! Deserialize and project the Interests API response.
 
+use crate::domain::models::parliament_member::MemberId;
 use chrono::Utc;
 use serde::Deserialize;
 use serde_json::Value;
 
 use super::{ApiError, ParliamentApiClient};
-use crate::domain::models::declaration_ingestion::{CapturedDeclaration, MemberAsId};
+use crate::domain::models::declaration_ingestion::CapturedDeclaration;
 use crate::outbound::declaration_source::decode_declaration;
 
 const INTERESTS_URL: &str = "https://interests-api.parliament.uk/api/v2/Interests";
@@ -13,14 +14,14 @@ const INTERESTS_URL: &str = "https://interests-api.parliament.uk/api/v2/Interest
 impl ParliamentApiClient {
     pub(super) async fn capture_declarations(
         &self,
-        member: MemberAsId,
+        member: MemberId,
     ) -> Result<Vec<CapturedDeclaration>, ApiError> {
         let mut declarations = Vec::new();
         let mut offset = 0;
         loop {
             let url = format!(
                 "{INTERESTS_URL}?MemberId={}&Type=Commons&ExcludeExpired=false&ExpandChildInterests=false&Skip={offset}&Take={}",
-                member.parliament_member_id(),
+                member.value(),
                 self.batch_size,
             );
             let bytes = self.client.get(url).send().await?.bytes().await?;

@@ -1,3 +1,4 @@
+use exposed::domain::models::parliament_member::MemberId;
 use std::{
     collections::HashSet,
     fs::{self, File},
@@ -13,9 +14,7 @@ use chrono::{DateTime, NaiveDate};
 use exposed::{
     domain::{
         models::{
-            declaration_ingestion::{
-                CapturedDeclaration, CapturedFundingEntry, DeclarationId, MemberAsId,
-            },
+            declaration_ingestion::{CapturedDeclaration, CapturedFundingEntry, DeclarationId},
             entity_ingestion::IngestionKey,
         },
         repositories::entity_ingestion::EntityIngestionStorage,
@@ -25,7 +24,6 @@ use exposed::{
 use parquet::arrow::{ArrowWriter, arrow_reader::ParquetRecordBatchReaderBuilder};
 use serde_json::{Value, json};
 use tempfile::TempDir;
-use uuid::Uuid;
 
 fn funding(name: Option<&str>, amount: Option<&str>) -> CapturedFundingEntry {
     CapturedFundingEntry::new(
@@ -141,7 +139,7 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
     let key = IngestionKey::default();
     let storage =
         ExposedDataPipeline::new_with_ingestion_key(&tmp.path().join("data"), key.clone())?;
-    let member = MemberAsId::new(Uuid::from_u128(1), 4613)?;
+    let member = MemberId::new(4613)?;
     let complete = CapturedFundingEntry::new(
         Some("Ultimate Ltd".into()),
         Some("Labour Together Limited".into()),
@@ -196,14 +194,14 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
     ];
     storage.write_raw_declarations(member, &captures).await?;
     storage
-        .write_raw_declarations(MemberAsId::new(Uuid::from_u128(2), 5030)?, &[])
+        .write_raw_declarations(MemberId::new(5030)?, &[])
         .await?;
     let raw_path = tmp
         .path()
         .join("data")
         .join(key.to_string())
         .join("raw/declarations")
-        .join(format!("{}.parquet", member.member_id()));
+        .join(format!("{}.parquet", member.value()));
     let before = fs::read(&raw_path)?;
     let key = IngestionKey::default();
     fs::write(tmp.path().join(".env"), "")?;
@@ -226,7 +224,7 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
         .join("data")
         .join(key.to_string())
         .join("raw/declarations")
-        .join(format!("{}.parquet", member.member_id()));
+        .join(format!("{}.parquet", member.value()));
     assert_eq!(fs::read(&copied_raw)?, before);
     let output = run_clean(tmp.path(), Some(&key))?;
     let stdout = assert_success(&output);
@@ -364,7 +362,7 @@ async fn more_than_one_arrow_batch_keeps_every_row_and_repeatable_id() -> anyhow
             .map(|id| declaration(id, vec![funding(Some("Same donor"), Some("1"))], vec![]))
             .collect::<anyhow::Result<Vec<_>>>()?;
         storage
-            .write_raw_declarations(MemberAsId::new(Uuid::from_u128(1), 4613)?, &captures)
+            .write_raw_declarations(MemberId::new(4613)?, &captures)
             .await?;
         assert_success(&run_clean(tmp.path(), Some(&key))?);
         let entries = read_table(&cleaned_path(tmp.path(), &key).join("funding_entries.parquet"))?;
@@ -399,7 +397,7 @@ async fn rejects_malformed_sources_and_funding_projection_disagreements_before_p
         let key = IngestionKey::default();
         let storage =
             ExposedDataPipeline::new_with_ingestion_key(&tmp.path().join("data"), key.clone())?;
-        let member = MemberAsId::new(Uuid::from_u128(1), 4613)?;
+        let member = MemberId::new(4613)?;
         let valid = declaration(42, vec![funding(Some("Original"), Some("10"))], vec![])?;
         let source = if malformed_source {
             "{".to_owned()
@@ -425,7 +423,7 @@ async fn rejects_malformed_sources_and_funding_projection_disagreements_before_p
         assert!(!cleaned_path(tmp.path(), &key).exists());
         assert!(
             String::from_utf8_lossy(&output.stderr)
-                .contains(&format!("{}.parquet", member.member_id()))
+                .contains(&format!("{}.parquet", member.value()))
         );
     }
     Ok(())
@@ -439,7 +437,7 @@ async fn empty_valid_partitions_produce_two_empty_tables_but_invalid_empty_schem
         let key = IngestionKey::default();
         let storage =
             ExposedDataPipeline::new_with_ingestion_key(&tmp.path().join("data"), key.clone())?;
-        let member = MemberAsId::new(Uuid::from_u128(1), 4613)?;
+        let member = MemberId::new(4613)?;
         storage.write_raw_declarations(member, &[]).await?;
         if !valid {
             let path = tmp
@@ -447,7 +445,7 @@ async fn empty_valid_partitions_produce_two_empty_tables_but_invalid_empty_schem
                 .join("data")
                 .join(key.to_string())
                 .join("raw/declarations")
-                .join(format!("{}.parquet", member.member_id()));
+                .join(format!("{}.parquet", member.value()));
             ArrowWriter::try_new(
                 File::create(path)?,
                 std::sync::Arc::new(arrow::datatypes::Schema::empty()),
@@ -466,7 +464,7 @@ async fn empty_valid_partitions_produce_two_empty_tables_but_invalid_empty_schem
             }
         } else {
             assert!(!output.status.success());
-            assert!(String::from_utf8_lossy(&output.stderr).contains("schema"));
+            assert!(String::from_utf8_lossy(&output.stderr).contains("format"));
             assert!(!cleaned_path(tmp.path(), &key).exists());
         }
     }
@@ -480,7 +478,7 @@ async fn reordered_raw_columns_and_abandoned_staging_do_not_change_cleaning() ->
     let key = IngestionKey::default();
     let storage =
         ExposedDataPipeline::new_with_ingestion_key(&tmp.path().join("data"), key.clone())?;
-    let member = MemberAsId::new(Uuid::from_u128(1), 4613)?;
+    let member = MemberId::new(4613)?;
     storage
         .write_raw_declarations(
             member,
@@ -496,7 +494,7 @@ async fn reordered_raw_columns_and_abandoned_staging_do_not_change_cleaning() ->
         .join("data")
         .join(key.to_string())
         .join("raw/declarations")
-        .join(format!("{}.parquet", member.member_id()));
+        .join(format!("{}.parquet", member.value()));
     let reader = ParquetRecordBatchReaderBuilder::try_new(File::open(&raw)?)?.build()?;
     let batches = reader.collect::<Result<Vec<_>, _>>()?;
     let order = (0..batches[0].num_columns()).rev().collect::<Vec<_>>();

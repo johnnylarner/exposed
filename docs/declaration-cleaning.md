@@ -15,6 +15,23 @@ Raw fetch has no completion marker. Successful cleaning describes the member
 partitions present when the command reads them. It does not establish that the
 full intended cohort was fetched. Run it after acquisition has stopped.
 
+## Source identities
+
+Raw declaration partitions use canonical numeric filenames such as `4613.parquet`.
+The filename retains the member identity even when the partition contains no rows.
+Raw and cleaned tables contain `parliament_member_id: UInt32`, with no database
+`member_id` column. `MemberId` rejects zero and values above `i32::MAX`.
+`DeclarationId` retains positive source declaration IDs, including parent references.
+
+`CapturedMemberDeclarations` holds one `MemberId` and its declarations. Cleaning
+and resolution preserve source identities. The database loader looks up the current
+local member UUID by Parliament ID inside its transaction. Rebuilding the database
+does not change these artifacts or their source occurrence and observation keys.
+
+The format rejects old UUID filenames, including empty partitions, old member UUID
+columns, and mismatched row identities. Recovery requires a new capture followed by
+cleaning and resolution. A copied legacy run cannot be upgraded by cleaning it.
+
 ## Funding occurrences
 
 `funding_entries.parquet` has one row per actual funding occurrence in the latest
@@ -23,12 +40,12 @@ The complete retained `source_json` distinguishes a declaration with no funding
 from a genuine all-null funding occurrence. The cleaner checks declaration
 metadata and the funding-value multiset against the raw Parquet projection.
 
-Each row retains member and Parliament member IDs, declaration and parent IDs,
+Each row retains the Parliament member ID, declaration and parent IDs,
 category, selected register, dates, original funding names, donor kind, company
 number, amount, currency, payment type, and the ultimate-payer flag. Amounts and
 company numbers remain source strings.
 
-`funding_entry_id` is `<member UUID>/<declaration ID>/<register ID>/funding/<ordinal>`.
+`funding_entry_id` is `<Parliament member ID>/<declaration ID>/<register ID>/funding/<ordinal>`.
 `funding_ordinal` is zero-based order in the replayed source. IDs are independent
 of cleaned names and repeat across identical captures. A changed source order
 changes the corresponding occurrence identities.
@@ -47,7 +64,7 @@ scope, and a JSON pointer into the declaration's retained raw source.
 | Scope | Identity | Funding reference |
 | --- | --- | --- |
 | `funding_entry` | `<funding_entry_id>/<role>` | Non-null funding ID and ordinal. |
-| `declaration` | `<member UUID>/<declaration ID>/<register ID>/declaration/<role>` | Null funding ID and ordinal. |
+| `declaration` | `<Parliament member ID>/<declaration ID>/<register ID>/declaration/<role>` | Null funding ID and ordinal. |
 
 Declaration observations retain latest top-level names and donor metadata when
 those fields have no `Value` or `PaymentType` funding anchor. They can coexist
@@ -126,9 +143,7 @@ lowercase, and collapsed whitespace. Explicit private, withheld, confidential,
 and not-provided placeholders have no usable normalized value.
 `address_source_field` records the source field name. `address_match_quality`
 records `unavailable`, `partial`, or `numbered_street`. The last requires a numeric
-house or building token and a street designation. The raw Parquet projection is
-unchanged, so old captures can be replayed by this cleaner.
+house or building token and a street designation. Address evidence comes from retained source JSON.
 
-The [resolver](funder-resolution-design.md) requires this cleaned schema. Older
-cleaned results remain immutable and require a fresh clean run from retained raw
-capture before resolution.
+The [resolver](funder-resolution-design.md) requires this cleaned schema. Old artifacts containing database member UUIDs are unsupported. Capture a new
+ingestion run, then clean, resolve, and load that run. Old files remain unchanged.

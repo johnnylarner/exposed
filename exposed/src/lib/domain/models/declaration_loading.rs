@@ -2,11 +2,12 @@
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, Utc};
-use uuid::Uuid;
 
 use super::{
+    declaration_ingestion::DeclarationId,
     declaration_resolution::{AttributionBasis, AttributionIssue, UnavailableReason},
     entity_ingestion::{EntityIngestionError, IngestionKey},
+    parliament_member::MemberId,
 };
 
 /// All rows needed to publish one resolved run in the application database.
@@ -20,14 +21,13 @@ pub struct DeclarationLoad {
 
 /// One source declaration and its existing member identity.
 pub struct LoadDeclaration {
-    pub(crate) source_declaration_id: u32,
-    pub(crate) member_id: Uuid,
-    pub(crate) parliament_member_id: u32,
+    pub(crate) source_declaration_id: DeclarationId,
+    pub(crate) member_id: MemberId,
     pub(crate) category_id: u32,
     pub(crate) category_name: String,
     pub(crate) register_id: u32,
     pub(crate) register_published_date: NaiveDate,
-    pub(crate) parent_declaration_id: Option<u32>,
+    pub(crate) parent_declaration_id: Option<DeclarationId>,
     pub(crate) fetched_at: DateTime<Utc>,
     pub(crate) registration_date: Option<NaiveDate>,
 }
@@ -44,11 +44,11 @@ pub struct LoadFunder {
 /// One source funding occurrence and its independent attribution decision.
 pub struct LoadFundingEntry {
     pub(crate) source_id: String,
-    pub(crate) source_declaration_id: u32,
+    pub(crate) source_declaration_id: DeclarationId,
     pub(crate) identity_id: Option<String>,
     pub(crate) selected_observation_id: Option<String>,
     pub(crate) attribution_basis: Option<AttributionBasis>,
-    pub(crate) selected_parent_declaration_id: Option<u32>,
+    pub(crate) selected_parent_declaration_id: Option<DeclarationId>,
     pub(crate) unavailable_reason: Option<UnavailableReason>,
     pub(crate) issues: Vec<AttributionIssue>,
     pub(crate) amount: Option<BigDecimal>,
@@ -100,13 +100,7 @@ impl DeclarationLoad {
             .collect::<std::collections::BTreeSet<_>>();
         if declaration_ids.len() != declarations.len()
             || declarations.iter().any(|row| {
-                row.source_declaration_id == 0
-                    || row.member_id.is_nil()
-                    || row.parliament_member_id == 0
-                    || row.category_id == 0
-                    || row.category_name.trim().is_empty()
-                    || row.register_id == 0
-                    || row.parent_declaration_id == Some(0)
+                row.category_id == 0 || row.category_name.trim().is_empty() || row.register_id == 0
             })
         {
             return Err(invalid("invalid or duplicate declaration load row"));

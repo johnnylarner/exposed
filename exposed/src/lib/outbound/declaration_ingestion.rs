@@ -1,5 +1,6 @@
 //! Parquet storage for captured declarations.
 
+use crate::domain::models::parliament_member::MemberId;
 use std::{path::PathBuf, sync::Arc};
 
 use arrow::{
@@ -13,9 +14,7 @@ use tokio::fs;
 
 use super::file_system::ExposedDataPipeline;
 use crate::domain::{
-    models::declaration_ingestion::{
-        CapturedDeclaration, CapturedFundingEntry, DeclarationId, MemberAsId,
-    },
+    models::declaration_ingestion::{CapturedDeclaration, CapturedFundingEntry, DeclarationId},
     repositories::entity_ingestion::EntitySearchPipelineError,
 };
 
@@ -29,7 +28,7 @@ impl ExposedDataPipeline {
 
     pub(super) async fn write_declaration_partition(
         &self,
-        member: MemberAsId,
+        member: MemberId,
         declarations: &[CapturedDeclaration],
     ) -> Result<(), EntitySearchPipelineError> {
         let directory = self.declarations_path();
@@ -45,8 +44,7 @@ impl ExposedDataPipeline {
             .flat_map(|declaration| {
                 if declaration.funding_entries().is_empty() {
                     return vec![DeclarationRecord::new_without_funding_entry(
-                        member.member_id().to_string(),
-                        member.parliament_member_id(),
+                        member.value(),
                         declaration.id().value(),
                         declaration.parent_id().map(DeclarationId::value),
                         declaration.category_id(),
@@ -62,8 +60,7 @@ impl ExposedDataPipeline {
                 let mut subrecords = Vec::with_capacity(declaration.funding_entries().len());
                 for entry in declaration.funding_entries() {
                     subrecords.push(DeclarationRecord::new_with_funding_entry(
-                        member.member_id().to_string(),
-                        member.parliament_member_id(),
+                        member.value(),
                         declaration.id().value(),
                         declaration.parent_id().map(DeclarationId::value),
                         declaration.category_id(),
@@ -92,8 +89,8 @@ impl ExposedDataPipeline {
     }
 }
 
-fn member_filename(member: MemberAsId) -> String {
-    format!("{}.parquet", member.member_id())
+fn member_filename(member: MemberId) -> String {
+    format!("{}.parquet", member.value())
 }
 
 fn write_error(error: impl std::fmt::Display) -> EntitySearchPipelineError {
@@ -102,7 +99,6 @@ fn write_error(error: impl std::fmt::Display) -> EntitySearchPipelineError {
 
 pub(super) fn declarations_schema() -> Schema {
     Schema::new(vec![
-        Field::new("member_id", DataType::Utf8, false),
         Field::new("parliament_member_id", DataType::UInt32, false),
         Field::new("declaration_id", DataType::UInt32, false),
         Field::new("parent_declaration_id", DataType::UInt32, true),
@@ -131,7 +127,6 @@ pub(super) fn declarations_schema() -> Schema {
 
 #[derive(Serialize)]
 struct DeclarationRecord {
-    member_id: String,
     parliament_member_id: u32,
     declaration_id: u32,
     parent_declaration_id: Option<u32>,
@@ -149,7 +144,6 @@ struct DeclarationRecord {
 impl DeclarationRecord {
     #[allow(clippy::too_many_arguments)]
     const fn new_with_funding_entry(
-        member_id: String,
         parliament_member_id: u32,
         declaration_id: u32,
         parent_declaration_id: Option<u32>,
@@ -163,7 +157,6 @@ impl DeclarationRecord {
         source_json: String,
     ) -> Self {
         Self {
-            member_id,
             parliament_member_id,
             declaration_id,
             parent_declaration_id,
@@ -180,7 +173,6 @@ impl DeclarationRecord {
 
     #[allow(clippy::too_many_arguments)]
     const fn new_without_funding_entry(
-        member_id: String,
         parliament_member_id: u32,
         declaration_id: u32,
         parent_declaration_id: Option<u32>,
@@ -193,7 +185,6 @@ impl DeclarationRecord {
         source_json: String,
     ) -> Self {
         Self {
-            member_id,
             parliament_member_id,
             declaration_id,
             parent_declaration_id,

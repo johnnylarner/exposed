@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use crate::{
     domain::{
         models::{
-            declaration_ingestion::{CapturedDeclaration, MemberAsId},
+            declaration_ingestion::CapturedDeclaration,
             entity_ingestion::IngestionKey,
-            parliament_member::ParliamentMember,
+            parliament_member::{MemberId, ParliamentMember},
         },
         repositories::entity_ingestion::{EntityIngestionStorage, EntitySearchPipelineError},
     },
@@ -23,7 +23,7 @@ mod tests;
 impl EntityIngestionStorage for ExposedDataPipeline {
     async fn write_raw_declarations(
         &self,
-        member: MemberAsId,
+        member: MemberId,
         declarations: &[CapturedDeclaration],
     ) -> Result<(), EntitySearchPipelineError> {
         self.write_declaration_partition(member, declarations).await
@@ -91,7 +91,7 @@ impl EntityIngestionStorage for ExposedDataPipeline {
 
 #[derive(Deserialize, Serialize)]
 struct MemberRecord {
-    parliament_member_id: u32,
+    parliament_member_id: MemberId,
     name: String,
     party_id: u32,
     party_name: String,

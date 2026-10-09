@@ -12,7 +12,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize, PartialEq, Eq)]
 pub struct DeclarationFunding {
     pub declaration_id: u32,
-    pub member_id: String,
+    pub parliament_member_id: u32,
     #[serde(flatten)]
     pub funding_entry: FundingEntry,
 }

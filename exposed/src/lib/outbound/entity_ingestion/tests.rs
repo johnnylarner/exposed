@@ -2,7 +2,10 @@ use tempfile::TempDir;
 
 use super::ExposedDataPipeline;
 use crate::domain::{
-    models::{entity_ingestion::IngestionKey, parliament_member::ParliamentMember},
+    models::{
+        entity_ingestion::IngestionKey,
+        parliament_member::{MemberId, ParliamentMember},
+    },
     repositories::entity_ingestion::EntityIngestionStorage,
 };
 
@@ -18,7 +21,7 @@ async fn preserves_members_across_multiple_parquet_batches() -> anyhow::Result<(
         .map(|id| {
             ParliamentMember::new(
                 format!("Member {id}"),
-                id,
+                MemberId::new(id).unwrap(),
                 "Example party".into(),
                 7,
                 "Example constituency".into(),

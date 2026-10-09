@@ -164,7 +164,7 @@ impl EntityDetailsRepo for ExposedDatabase {
                     .parliament_member_id
                     .to_string()
                     .parse::<MemberId>()
-                    .map_err(EntityDetailsRepoError::DatabaseError)?;
+                    .map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?;
                 Ok(RecipientAllocation {
                     member: MemberProfile {
                         id,
