@@ -167,7 +167,10 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
                 "source_reported_company"
                     | "statistical_link"
                     | "donor_name_link"
+                    | "extracted_name_link"
+                    | "trade_union_family_link"
                     | "statistical_and_donor_name_link"
+                    | "statistical_and_supporting_name_link"
                     | "provisional_singleton"
                     | "unresolved"
             ) || unresolved != row.identity_id.is_none()
@@ -213,6 +216,8 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
                         | "component_identity_conflict"
                         | "exact_name_full_address_threshold"
                         | "exact_donor_name"
+                        | "extracted_name_evidence"
+                        | "trade_union_family"
                 )
             {
                 return Err(data_error("invalid resolved pair decision"));
