@@ -21,7 +21,7 @@ use crate::{
         DataConfig, DeclarationFetcherConfig, DeclarationResolverConfig, FetcherConfig,
         LoaderConfig,
     },
-    outbound::{ExposedDataPipeline, ExposedDatabase, ParliamentApiClient, SplinkScorer},
+    outbound::{DuckDbFunderScorer, ExposedDataPipeline, ExposedDatabase, ParliamentApiClient},
 };
 
 pub mod config;
@@ -130,7 +130,7 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                     &config.data_dir,
                     ingestion_key.clone(),
                 )?;
-                let scorer = SplinkScorer::new(config.resolution_python, config.resolution_worker)?;
+                let scorer = DuckDbFunderScorer::new()?;
                 let summary =
                     DeclarationResolverService::new(storage, scorer, config.candidate_budget)
                         .resolve_declarations()

@@ -5,14 +5,11 @@ use super::{
 };
 use crate::domain::{
     models::{
-        declaration_resolution::{
-            Observation, Payment, ResolutionInput, ResolvedDeclarations, ScoredPair, ScoredPairs,
-            ScoringInput,
-        },
+        declaration_resolution::{Observation, Payment, ResolutionInput, ResolvedDeclarations},
         entity_ingestion::EntityIngestionError,
     },
     repositories::{
-        declaration_resolution::{DeclarationResolutionStorage, FunderScorer},
+        declaration_resolution::DeclarationResolutionStorage,
         entity_ingestion::EntitySearchPipelineError,
     },
 };
@@ -21,14 +18,9 @@ use arrow::{
     json::ArrayWriter,
 };
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
-use std::{
-    collections::BTreeMap,
-    path::{Path, PathBuf},
-    process::Command,
-    sync::Arc,
-};
+use std::{collections::BTreeMap, path::Path, sync::Arc};
 use tokio::fs;
 use uuid::Uuid;
 
@@ -137,76 +129,6 @@ pub(super) fn read_table<T: DeserializeOwned>(
     Ok((rows, digest))
 }
 
-/// Python subprocess adapter for the pinned Splink worker.
-pub struct SplinkScorer {
-    python: PathBuf,
-    worker: PathBuf,
-}
-impl SplinkScorer {
-    /// Selects the interpreter and the separately installed worker script.
-    ///
-    /// # Errors
-    /// Returns an error when the configured worker cannot be read.
-    pub fn new(python: PathBuf, worker: PathBuf) -> Result<Self, EntityIngestionError> {
-        if !worker.is_file() {
-            return Err(EntityIngestionError::DataError(format!(
-                "Splink worker missing at {}; configure resolution_worker",
-                worker.display()
-            )));
-        }
-        Ok(Self { python, worker })
-    }
-}
-#[derive(Deserialize)]
-struct WorkerOutput {
-    version: u32,
-    model: serde_json::Value,
-    pairs: Vec<ScoredPair>,
-}
-impl FunderScorer for SplinkScorer {
-    async fn score(&self, input: &ScoringInput) -> Result<ScoredPairs, EntityIngestionError> {
-        let encoded = serde_json::to_vec(input)
-            .map_err(|e| EntityIngestionError::DataError(e.to_string()))?;
-        let python = self.python.clone();
-        let worker = self.worker.clone();
-        let output=tokio::task::spawn_blocking(move || -> Result<WorkerOutput,EntityIngestionError> {
-            let temporary=tempfile::tempdir().map_err(|e|EntityIngestionError::DataError(e.to_string()))?;
-            let request=temporary.path().join("input.json"); let response=temporary.path().join("output.json");
-            std::fs::write(&request,encoded).map_err(|e|EntityIngestionError::DataError(e.to_string()))?;
-            let process=Command::new(&python).arg(&worker).arg(&request).arg(&response).env("PYTHONDONTWRITEBYTECODE","1").output().map_err(|e|EntityIngestionError::DataError(format!("cannot run Splink interpreter {}: {e}; install resolution dependencies before running resolve",python.display())))?;
-            if !process.status.success() { return Err(EntityIngestionError::DataError(format!("Splink worker failed ({}): {}",process.status,String::from_utf8_lossy(&process.stderr)))); }
-            let bytes=std::fs::read(&response).map_err(|e|EntityIngestionError::DataError(format!("Splink worker output missing: {e}")))?;
-            serde_json::from_slice(&bytes).map_err(|e|EntityIngestionError::DataError(format!("invalid Splink worker output: {e}")))
-        }).await.map_err(|e|EntityIngestionError::DataError(e.to_string()))??;
-        let expected: serde_json::Value = serde_json::from_str(include_str!(concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/../resolution/exposed_resolution/model.json"
-        )))
-        .map_err(|error| {
-            EntityIngestionError::DataError(format!("invalid bundled frozen model: {error}"))
-        })?;
-        if output.version != 1
-            || [
-                "model_version",
-                "splink_version",
-                "duckdb_version",
-                "calibrated",
-                "settings",
-            ]
-            .iter()
-            .any(|key| output.model[*key] != expected[*key])
-            || output.model["python_version"]
-                .as_str()
-                .is_none_or(str::is_empty)
-        {
-            return Err(EntityIngestionError::DataError(
-                "unsupported Splink protocol, frozen model, or runtime version".into(),
-            ));
-        }
-
-        ScoredPairs::checked(output.pairs, output.model, input)
-    }
-}
 fn text(name: &str, nullable: bool) -> Field {
     Field::new(name, DataType::Utf8, nullable)
 }

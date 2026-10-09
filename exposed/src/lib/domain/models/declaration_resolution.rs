@@ -21,7 +21,7 @@ mod input;
 use attribution::attribute;
 #[cfg(test)]
 use identity::company;
-pub(crate) use input::{Observation, Payment, ScoredPair};
+pub(crate) use input::{ComparisonRow, Observation, Payment, ScoredPair};
 pub use input::{ResolutionInput, ScoredPairs, ScoringInput};
 
 /// Evidence basis of an assigned identity, independent of reporting attribution.

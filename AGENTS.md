@@ -15,6 +15,10 @@ The goal of this project is to make declaration data easy to search, browse and 
   - Service layer abstractions
 
 - Interactions with the database must use `sqlx` macros for compile-time query verification.
+- Offline declaration resolution has an approved exception: its embedded DuckDB
+  adapter executes bundled SQL generated from the frozen Splink model. Keep this
+  exception within the resolution scorer. PostgreSQL interactions still require
+  `sqlx` macros.
 
 - For Rust changes, read and apply the
   [Rust domain development skill](.agents/skills/rust-domain-development/SKILL.md).

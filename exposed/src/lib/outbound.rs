@@ -15,7 +15,8 @@ pub use parliament_api::ParliamentApiClient;
 pub use postgres::ExposedDatabase;
 
 mod declaration_resolution;
-pub use declaration_resolution::SplinkScorer;
+mod funder_scoring;
+pub use funder_scoring::DuckDbFunderScorer;
 
 mod declaration_loading;
 
