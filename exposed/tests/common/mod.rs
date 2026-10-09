@@ -16,6 +16,13 @@ pub use declarations::{DeclarationFunding, FundingEntry, read_declaration_fundin
 
 pub struct Guard {
     port: u16,
+    server: tokio::task::JoinHandle<()>,
+}
+
+impl Drop for Guard {
+    fn drop(&mut self) {
+        self.server.abort();
+    }
 }
 
 pub async fn search_entities(
@@ -51,16 +58,14 @@ pub async fn search_entities(
     }
 }
 
-pub async fn start_app() -> anyhow::Result<Guard> {
-    let config = ServerConfig::from_env()?;
+pub async fn start_app(config: ServerConfig) -> anyhow::Result<Guard> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();
-    let _handle = tokio::task::spawn(async move {
+    let server = tokio::task::spawn(async move {
         let _ = serve_exposed(&config, listener).await;
-        println!("started");
     });
 
-    Ok(Guard { port })
+    Ok(Guard { port, server })
 }
 
 pub fn cli_fetcher_config(tmp: &TempDir) -> (NamedTempFile<File>, PathBuf) {

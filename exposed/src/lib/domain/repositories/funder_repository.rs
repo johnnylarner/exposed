@@ -1,7 +1,8 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    entity_search::EntitySearchRequest, funder::Funder, search_similarity::SearchSimilarity,
+    entity_search::{EntitySearchRequest, FunderSearchMatch},
+    search_similarity::SearchSimilarity,
 };
 
 /// Allows users to search the databse using free text.
@@ -10,7 +11,7 @@ pub trait FunderRepo: Clone + Send + Sync + 'static {
     fn get_funders_by_text_search_score(
         &self,
         term: &EntitySearchRequest,
-    ) -> impl Future<Output = Result<Vec<(Funder, SearchSimilarity)>, FunderRepoError>> + Send;
+    ) -> impl Future<Output = Result<Vec<(FunderSearchMatch, SearchSimilarity)>, FunderRepoError>> + Send;
 }
 
 /// Errors that can occur when interacting with the repo

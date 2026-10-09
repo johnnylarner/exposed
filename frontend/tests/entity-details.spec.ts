@@ -150,12 +150,19 @@ async function mockDetails(context: BrowserContext) {
     route.fulfill({
       json: {
         entities: [
-          { id: "1", name: member.name, kind: "MP", funder_kind: null },
+          {
+            id: "1",
+            name: member.name,
+            kind: "MP",
+            funder_kind: null,
+            match_source: { kind: "name" },
+          },
           {
             id: funderId,
             name: "Exact Funder",
             kind: "Funder",
             funder_kind: "Company",
+            match_source: { kind: "name" },
           },
         ],
       },

@@ -1,9 +1,4 @@
-//! Integration test for the entity seacrh endpoint.
-//! This test suite expects a pre-loaded database.
-//!
-//!
-
-use std::{collections::HashMap, ffi::OsString, fs, process::Command, time::Duration};
+use std::{collections::HashMap, ffi::OsString, fs, process::Command};
 
 use anyhow::Context;
 use clap::Parser;
@@ -17,7 +12,6 @@ use exposed::{
 };
 use sqlx::{ConnectOptions, PgPool};
 use tempfile::TempDir;
-use tokio::time;
 
 use crate::common::{
     DeclarationFunding, FundingEntry, cli_declaration_fetcher_config, cli_fetcher_config,
@@ -26,25 +20,43 @@ use crate::common::{
 
 mod common;
 
-#[tokio::test]
-async fn shows_no_hsbc_duplicates() {
-    let app = start_app().await.unwrap();
-    time::sleep(Duration::from_secs(2)).await;
-
-    let known_duplicate = EntitySearchRequest::new_with_strictness("HSBC".into(), 10, 0.9).unwrap();
-    let entities = search_entities(&app, &known_duplicate).await.unwrap();
-
-    let mut duplicates: HashMap<String, usize> = HashMap::new();
-    for e in entities.into_iter() {
-        duplicates
-            .entry(e.get("name").unwrap().as_str().unwrap().into())
-            .and_modify(|count| *count += 1)
-            .or_insert(1);
+#[sqlx::test(migrations = "../db/migrations")]
+async fn search_retains_canonical_identity_and_alias_provenance(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    let id = uuid::Uuid::from_u128(1);
+    sqlx::query!("INSERT INTO exposed.funders (id, funder_name, funder_kind) VALUES ($1, 'Northstar', 'Company')", id).execute(&pool).await?;
+    for alias in ["Fletchers", "Fletchers Group"] {
+        sqlx::query!(
+            "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, $2)",
+            id,
+            alias
+        )
+        .execute(&pool)
+        .await?;
     }
-
-    assert_eq!(duplicates.get("HSBC UK Bank plc"), Some(&1));
-    assert_eq!(duplicates.get("HSBC UK Bank PLC"), Some(&1));
-    assert_eq!(duplicates.get("HSBC UK (Ian Stuart, CEO)"), Some(&1));
+    let app = start_app(exposed::inbound::http::config::ServerConfig {
+        connection_string: pool.connect_options().to_url_lossy().into(),
+    })
+    .await?;
+    let req = EntitySearchRequest::new_strict("Fletchers".into(), 10)?;
+    let results = search_entities(&app, &req).await?;
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0]["id"], id.to_string());
+    assert_eq!(results[0]["name"], "Northstar");
+    assert_eq!(
+        results[0]["match_source"],
+        serde_json::json!({"kind": "alias", "name": "Fletchers"})
+    );
+    let req = EntitySearchRequest::new_strict("Northstar".into(), 10)?;
+    let results = search_entities(&app, &req).await?;
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0]["id"], id.to_string());
+    assert_eq!(
+        results[0]["match_source"],
+        serde_json::json!({"kind": "name"})
+    );
+    Ok(())
 }
 
 #[sqlx::test(migrations = "../db/migrations")]
