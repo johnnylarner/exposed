@@ -1,0 +1,701 @@
+{
+  "capture_ingestion": "01a120ef-db40-7183-b9b1-70b941ae6f52",
+  "input_sha256": {
+    "funders.parquet": "57430c262cb37d6c1210695b0edfb0ee8c6895202a2e942a8f2eaebf2baaaec3",
+    "funding_entries.parquet": "aac16a6bbf408e71b3b315d016aa0cc3cdb0759b4af24f253e061b89c1505ba0"
+  },
+  "relative_tolerance": 1e-12,
+  "probability_scale_floor": 1e-12,
+  "model_version": "funder-frozen-v2",
+  "model_calibrated": false,
+  "runs": [
+    {
+      "distance_engine": "scalar-character",
+      "cases": 43,
+      "variants": [
+        {
+          "variant": "Stock",
+          "score_pairs": 91,
+          "candidate_differences": 0,
+          "level_differences": 28,
+          "score_differences": 28,
+          "maximum_absolute_probability_delta": 0.07735428986200321,
+          "policy_cases": 20,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        },
+        {
+          "variant": "NullNeutral",
+          "score_pairs": 91,
+          "candidate_differences": 0,
+          "level_differences": 3,
+          "score_differences": 3,
+          "maximum_absolute_probability_delta": 0.000443281209726505,
+          "policy_cases": 20,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        },
+        {
+          "variant": "SplinkCompatible",
+          "score_pairs": 91,
+          "candidate_differences": 0,
+          "level_differences": 2,
+          "score_differences": 2,
+          "maximum_absolute_probability_delta": 0.000443281209726505,
+          "policy_cases": 20,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        }
+      ],
+      "local_capture": null
+    },
+    {
+      "distance_engine": "simd-byte",
+      "cases": 43,
+      "variants": [
+        {
+          "variant": "Stock",
+          "score_pairs": 91,
+          "candidate_differences": 0,
+          "level_differences": 25,
+          "score_differences": 25,
+          "maximum_absolute_probability_delta": 0.07735428986200321,
+          "policy_cases": 20,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        },
+        {
+          "variant": "NullNeutral",
+          "score_pairs": 91,
+          "candidate_differences": 0,
+          "level_differences": 0,
+          "score_differences": 0,
+          "maximum_absolute_probability_delta": 1.3877787807814457e-16,
+          "policy_cases": 20,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        },
+        {
+          "variant": "SplinkCompatible",
+          "score_pairs": 91,
+          "candidate_differences": 0,
+          "level_differences": 0,
+          "score_differences": 0,
+          "maximum_absolute_probability_delta": 1.3877787807814457e-16,
+          "policy_cases": 20,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        }
+      ],
+      "local_capture": null
+    },
+    {
+      "distance_engine": "scalar-character",
+      "cases": 44,
+      "variants": [
+        {
+          "variant": "Stock",
+          "score_pairs": 117666,
+          "candidate_differences": 0,
+          "level_differences": 15477,
+          "score_differences": 15477,
+          "maximum_absolute_probability_delta": 0.8922711627168374,
+          "policy_cases": 21,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        },
+        {
+          "variant": "NullNeutral",
+          "score_pairs": 117666,
+          "candidate_differences": 0,
+          "level_differences": 91,
+          "score_differences": 91,
+          "maximum_absolute_probability_delta": 0.8922711627168374,
+          "policy_cases": 21,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        },
+        {
+          "variant": "SplinkCompatible",
+          "score_pairs": 117666,
+          "candidate_differences": 0,
+          "level_differences": 11,
+          "score_differences": 11,
+          "maximum_absolute_probability_delta": 0.000443281209726505,
+          "policy_cases": 21,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        }
+      ],
+      "local_capture": {
+        "variants": [
+          {
+            "variant": "Stock",
+            "score_pairs": 117575,
+            "score_differences": 15449,
+            "level_differences": 15449,
+            "maximum_absolute_probability_delta": 0.8922711627168374,
+            "policy": {
+              "equal": true,
+              "splink": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs_budget_outcome": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              }
+            }
+          },
+          {
+            "variant": "NullNeutral",
+            "score_pairs": 117575,
+            "score_differences": 88,
+            "level_differences": 88,
+            "maximum_absolute_probability_delta": 0.8922711627168374,
+            "policy": {
+              "equal": true,
+              "splink": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs_budget_outcome": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              }
+            }
+          },
+          {
+            "variant": "SplinkCompatible",
+            "score_pairs": 117575,
+            "score_differences": 9,
+            "level_differences": 9,
+            "maximum_absolute_probability_delta": 0.000443281209726505,
+            "policy": {
+              "equal": true,
+              "splink": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs_budget_outcome": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "distance_engine": "simd-byte",
+      "cases": 44,
+      "variants": [
+        {
+          "variant": "Stock",
+          "score_pairs": 117666,
+          "candidate_differences": 0,
+          "level_differences": 15387,
+          "score_differences": 15387,
+          "maximum_absolute_probability_delta": 0.07735428986200321,
+          "policy_cases": 21,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        },
+        {
+          "variant": "NullNeutral",
+          "score_pairs": 117666,
+          "candidate_differences": 0,
+          "level_differences": 0,
+          "score_differences": 0,
+          "maximum_absolute_probability_delta": 1.3877787807814457e-16,
+          "policy_cases": 21,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        },
+        {
+          "variant": "SplinkCompatible",
+          "score_pairs": 117666,
+          "candidate_differences": 0,
+          "level_differences": 0,
+          "score_differences": 0,
+          "maximum_absolute_probability_delta": 1.3877787807814457e-16,
+          "policy_cases": 21,
+          "policy_differences": 0,
+          "direct_vs_lazy_differences": 0,
+          "reversed_input_differences": 0
+        }
+      ],
+      "local_capture": {
+        "variants": [
+          {
+            "variant": "Stock",
+            "score_pairs": 117575,
+            "score_differences": 15362,
+            "level_differences": 15362,
+            "maximum_absolute_probability_delta": 0.07735428986200321,
+            "policy": {
+              "equal": true,
+              "splink": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs_budget_outcome": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              }
+            }
+          },
+          {
+            "variant": "NullNeutral",
+            "score_pairs": 117575,
+            "score_differences": 0,
+            "level_differences": 0,
+            "maximum_absolute_probability_delta": 1.3877787807814457e-16,
+            "policy": {
+              "equal": true,
+              "splink": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs_budget_outcome": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              }
+            }
+          },
+          {
+            "variant": "SplinkCompatible",
+            "score_pairs": 117575,
+            "score_differences": 0,
+            "level_differences": 0,
+            "maximum_absolute_probability_delta": 1.3877787807814457e-16,
+            "policy": {
+              "equal": true,
+              "splink": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              },
+              "weldrs_budget_outcome": {
+                "attribution_statuses": {
+                  "selected": 8555,
+                  "unavailable": 40
+                },
+                "dispositions": {
+                  "accepted": 24611,
+                  "rejected": 52205,
+                  "review": 153070
+                },
+                "identity_bases": {
+                  "donor_name_link": 2232,
+                  "extracted_name_link": 9,
+                  "provisional_singleton": 2496,
+                  "source_reported_company": 2161,
+                  "statistical_and_donor_name_link": 532,
+                  "statistical_and_supporting_name_link": 12,
+                  "statistical_link": 227,
+                  "trade_union_family_link": 104,
+                  "unresolved": 213
+                },
+                "observations": 7986,
+                "pair_decisions": 229886,
+                "payments": 8595
+              }
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
