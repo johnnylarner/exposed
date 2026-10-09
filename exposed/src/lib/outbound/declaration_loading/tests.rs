@@ -313,6 +313,9 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
         DeclarationLoadOutcome::AlreadyLoaded
     ));
     assert_eq!(database_snapshot(&pool).await?, original);
+    load.fingerprint = "changed artifacts under the same key".to_owned();
+    assert!(repository.load_declarations(&load).await.is_err());
+    assert_eq!(database_snapshot(&pool).await?, original);
 
     sqlx::query!("INSERT INTO exposed.funders (funder_name) VALUES ('Legacy orphan')")
         .execute(&pool)
@@ -352,14 +355,35 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
             funder.identity_id = new_identity;
         }
     }
-    assert!(repository.load_declarations(&load).await.is_err());
+    for declaration in &mut load.declarations {
+        declaration.category_name = "Updated category".to_owned();
+        declaration.fetched_at +=
+            chrono::Duration::seconds(if declaration.source_declaration_id == 1 {
+                1
+            } else {
+                -1
+            });
+    }
+    let error = repository.load_declarations(&load).await.unwrap_err();
+    assert!(error.to_string().contains("declaration 4"), "{error}");
+    assert!(error.to_string().contains("newer capture time"), "{error}");
     assert_eq!(database_snapshot(&pool).await?, before_refresh);
     for declaration in &mut load.declarations {
-        declaration.fetched_at += chrono::Duration::seconds(1);
+        declaration.fetched_at +=
+            chrono::Duration::seconds(if declaration.source_declaration_id == 1 {
+                -1
+            } else {
+                2
+            });
     }
     repository.load_declarations(&load).await?;
     let refreshed = database_snapshot(&pool).await?;
     assert_eq!(refreshed["members"], original["members"]);
+    for declaration in refreshed["declarations"].as_array().unwrap() {
+        if matches!(declaration["source_declaration_id"].as_u64(), Some(1 | 4)) {
+            assert_eq!(declaration["category_name"], "Updated category");
+        }
+    }
     for table in ["declarations", "entries"] {
         let untouched = |snapshot: &serde_json::Value| {
             snapshot[table]
@@ -426,7 +450,6 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
     load.fingerprint = "declaration without funding".to_owned();
     load.declarations
         .retain(|declaration| declaration.source_declaration_id == 1);
-    load.declarations[0].fetched_at += chrono::Duration::seconds(1);
     load.funding_entries.clear();
     load.funders.clear();
     repository.load_declarations(&load).await?;
