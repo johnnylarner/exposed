@@ -257,3 +257,11 @@ schema, audit defaults and change triggers, timezone-independent imports,
 up/down/up cycles, repeat runs with data present, checksum mismatch detection,
 and adopting an existing schema without losing records. They never reset the
 application database.
+
+### Add search trigram indexes in place
+
+Apply `psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f db/upgrades/search_trigram_indexes.sql`
+to add the three GiST search indexes without changing imported records. The script
+is safe to rerun. Compare index definitions with the edited baseline and verify
+that records are unchanged before updating the baseline checksum using the
+procedure above.
