@@ -8,15 +8,13 @@ use chrono::{NaiveDate, Utc};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
 use serde_json::Value;
 use tempfile::TempDir;
-use uuid::Uuid;
 
 use super::{ExposedDataPipeline, member_filename};
 use crate::domain::{
     models::{
-        declaration_ingestion::{
-            CapturedDeclaration, CapturedFundingEntry, DeclarationId, MemberAsId,
-        },
+        declaration_ingestion::{CapturedDeclaration, CapturedFundingEntry, DeclarationId},
         entity_ingestion::IngestionKey,
+        parliament_member::MemberId,
     },
     repositories::entity_ingestion::EntityIngestionStorage,
 };
@@ -28,7 +26,7 @@ async fn writes_a_readable_empty_member_file() -> anyhow::Result<()> {
         &tmp.path().to_path_buf(),
         IngestionKey::default(),
     )?;
-    let member = MemberAsId::new(Uuid::from_u128(1), 512)?;
+    let member = MemberId::new(512)?;
     let directory = storage.declarations_path();
 
     storage.write_raw_declarations(member, &[]).await?;
@@ -49,7 +47,16 @@ async fn writes_a_readable_empty_member_file() -> anyhow::Result<()> {
         schema.field_with_name("source_json")?.data_type(),
         &DataType::Utf8
     );
+    assert!(schema.field_with_name("member_id").is_err());
+    assert_eq!(
+        schema.field_with_name("parliament_member_id")?.data_type(),
+        &DataType::UInt32
+    );
     assert_eq!(reader.build()?.count(), 0);
+    let capture =
+        crate::outbound::declaration_cleaning::read_partition(&directory.join("512.parquet"))?;
+    assert_eq!(capture.member, member);
+    assert!(capture.declarations.is_empty());
 
     Ok(())
 }
@@ -71,10 +78,7 @@ async fn flattens_funding_entries_into_separate_rows() -> anyhow::Result<()> {
         &tmp.path().to_path_buf(),
         IngestionKey::default(),
     )?;
-    let members = [
-        MemberAsId::new(Uuid::from_u128(1), 4613)?,
-        MemberAsId::new(Uuid::from_u128(2), 5030)?,
-    ];
+    let members = [MemberId::new(4613)?, MemberId::new(5030)?];
     let funding =
         [("First donor", "2000.00"), ("Second donor", "3000.00")].map(|(name, amount)| {
             CapturedFundingEntry::new(
@@ -124,8 +128,11 @@ async fn flattens_funding_entries_into_separate_rows() -> anyhow::Result<()> {
         let [first_funding, second_funding, nonfinancial] = records.as_slice() else {
             panic!("expected one record per declaration")
         };
-        assert_eq!(first_funding["member_id"], member.member_id().to_string());
-        assert_eq!(first_funding["member_id"], second_funding["member_id"]);
+        assert_eq!(first_funding["parliament_member_id"], member.value());
+        assert_eq!(
+            first_funding["parliament_member_id"],
+            second_funding["parliament_member_id"]
+        );
 
         assert_eq!(first_funding["declaration_id"], 42);
         assert_eq!(
@@ -157,7 +164,7 @@ async fn flattens_funding_entries_into_separate_rows() -> anyhow::Result<()> {
         assert_eq!(first_funding["currency"], "GBP");
         assert_eq!(second_funding["currency"], "GBP");
 
-        assert_eq!(nonfinancial["member_id"], member.member_id().to_string());
+        assert_eq!(nonfinancial["parliament_member_id"], member.value());
         assert_eq!(nonfinancial["declaration_id"], 43);
         assert_eq!(nonfinancial["amount"], serde_json::Value::Null);
     }

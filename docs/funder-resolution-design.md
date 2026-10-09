@@ -14,7 +14,7 @@ Cleaned observations retain `address_raw`, `address_normalized`, `address_source
 
 `address_match_quality` is `unavailable`, `partial`, or `numbered_street`. The statistical rule requires a numeric house or building token and an explicit street designation. A postcode alone, a place name, or a named premise without a street number remains partial. Some valid international and named-premises addresses therefore require review.
 
-The resolver rejects older cleaned schemas with an instruction to clean retained raw capture into a fresh ingestion run. It checks unique IDs, member and declaration identities, source scopes, role ownership, and reciprocal observation links before scoring. Archived raw files are not needed to resolve a valid cleaned pair.
+The resolver rejects old member UUID artifacts with an instruction to capture a new ingestion run, then clean and resolve it. It checks unique IDs, member and declaration identities, source scopes, role ownership, and reciprocal observation links before scoring. Archived raw files are not needed to resolve a valid cleaned pair.
 
 ## Source-reported company anchors
 
@@ -97,3 +97,8 @@ Rust policy tests cover noncompany identities, exact full-address support, addre
 `resolution/tests/test_worker.py` uses the actual pinned Splink package. The ignored Rust integration test `declaration_resolution_cli` creates raw evidence, runs the real `clean` and `resolve` commands, inspects resulting Parquet rows, and checks input immutability and output refusal. It requires the installed worker and a build environment that can satisfy existing SQLx macros. See the [runtime setup](../resolution/README.md) for both commands.
 
 Verification runs the complete Rust library suite with an isolated PostgreSQL database, the real pinned Splink worker tests, and the clean-to-resolve CLI integration test. The CLI fixture verifies statistical charity links and Gary Lubner donor links across missing and disagreeing addresses with real probabilities below 0.999. It joins results to source names to check group membership and pair endpoints, and verifies unchanged cleaned observations and funding occurrences and refusal to overwrite results.
+
+The resolved manifest uses schema version 2 for source-only member identities.
+Observation and occurrence keys contain numeric Parliament member IDs. Database
+member UUIDs never enter resolution artifacts. Loading resolves those source IDs
+to the destination database member UUIDs inside the load transaction.

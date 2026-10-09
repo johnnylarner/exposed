@@ -26,9 +26,8 @@ use super::{
 use crate::domain::{
     models::{
         declaration_cleaning::{CapturedMemberDeclarations, CleanedDeclarations},
-        declaration_ingestion::{
-            CapturedDeclaration, CapturedFundingEntry, DeclarationId, MemberAsId,
-        },
+        declaration_ingestion::{CapturedDeclaration, CapturedFundingEntry, DeclarationId},
+        parliament_member::MemberId,
     },
     repositories::{
         declaration_cleaning::DeclarationCleaningStorage,
@@ -112,10 +111,9 @@ impl DeclarationCleaningStorage for ExposedDataPipeline {
 
 #[derive(Deserialize)]
 struct RawDeclarationRecord {
-    member_id: Uuid,
-    parliament_member_id: u32,
-    declaration_id: u32,
-    parent_declaration_id: Option<u32>,
+    parliament_member_id: MemberId,
+    declaration_id: DeclarationId,
+    parent_declaration_id: Option<DeclarationId>,
     category_id: u32,
     category_name: String,
     register_id: u32,
@@ -129,8 +127,8 @@ struct RawDeclarationRecord {
 
 impl RawDeclarationRecord {
     fn matches(&self, declaration: &CapturedDeclaration) -> bool {
-        self.declaration_id == declaration.id().value()
-            && self.parent_declaration_id == declaration.parent_id().map(DeclarationId::value)
+        self.declaration_id == declaration.id()
+            && self.parent_declaration_id == declaration.parent_id()
             && self.category_id == declaration.category_id()
             && self.category_name == declaration.category_name()
             && self.register_id == declaration.register_id()
@@ -143,32 +141,34 @@ impl RawDeclarationRecord {
 pub(super) fn read_partition(
     path: &Path,
 ) -> Result<CapturedMemberDeclarations, EntitySearchPipelineError> {
-    let member_id = path
+    let filename = path
         .file_stem()
         .and_then(|name| name.to_str())
-        .ok_or_else(|| read_error("partition filename must contain a member UUID"))?
-        .parse::<Uuid>()
-        .map_err(read_error)?;
-    if member_id.is_nil() {
-        return Err(read_error("partition member UUID must not be nil"));
+        .ok_or_else(|| read_error("missing partition filename"))?;
+    let member = filename.parse::<MemberId>().map_err(|_| read_error("unsupported member identity format; capture a new ingestion run, then clean, resolve and load it"))?;
+    if filename != member.to_string() {
+        return Err(read_error(
+            "partition filename must be a canonical Parliament member ID; capture a new ingestion run",
+        ));
     }
     let reader = ParquetRecordBatchReaderBuilder::try_new(File::open(path).map_err(read_error)?)
         .map_err(read_error)?;
-    if declarations_schema().fields().iter().any(|required| {
-        reader
-            .schema()
-            .field_with_name(required.name())
-            .map_or(true, |actual| {
-                actual.data_type() != required.data_type()
-                    || actual.is_nullable() != required.is_nullable()
-            })
-    }) {
+    if reader.schema().field_with_name("member_id").is_ok()
+        || declarations_schema().fields().iter().any(|required| {
+            reader
+                .schema()
+                .field_with_name(required.name())
+                .map_or(true, |actual| {
+                    actual.data_type() != required.data_type()
+                        || actual.is_nullable() != required.is_nullable()
+                })
+        })
+    {
         return Err(read_error(
-            "raw declaration schema does not match the captured format",
+            "unsupported raw declaration identity format; capture a new ingestion run, then clean, resolve and load it",
         ));
     }
-    let mut groups = BTreeMap::<u32, Vec<RawDeclarationRecord>>::new();
-    let mut member = None;
+    let mut groups = BTreeMap::<DeclarationId, Vec<RawDeclarationRecord>>::new();
     for batch in reader.build().map_err(read_error)? {
         let mut json = ArrayWriter::new(Vec::new());
         json.write(&batch.map_err(read_error)?)
@@ -177,20 +177,14 @@ pub(super) fn read_partition(
         let rows: Vec<RawDeclarationRecord> =
             serde_json::from_slice(&json.into_inner()).map_err(read_error)?;
         for row in rows {
-            let identity =
-                MemberAsId::new(row.member_id, row.parliament_member_id).map_err(read_error)?;
-            if row.member_id != member_id || member.is_some_and(|member| member != identity) {
+            if row.parliament_member_id != member {
                 return Err(read_error(
                     "partition member identity disagrees with its rows",
                 ));
             }
-            member = Some(identity);
             groups.entry(row.declaration_id).or_default().push(row);
         }
     }
-    let Some(member) = member else {
-        return Ok(CapturedMemberDeclarations::Empty { member_id });
-    };
     let mut declarations = Vec::with_capacity(groups.len());
     for (id, rows) in groups {
         let first = &rows[0];
@@ -219,10 +213,7 @@ pub(super) fn read_partition(
         }
         declarations.push(evidence);
     }
-    Ok(CapturedMemberDeclarations::Populated {
-        member,
-        declarations,
-    })
+    CapturedMemberDeclarations::new(member, declarations).map_err(read_error)
 }
 
 fn funding_counts<'a>(
@@ -279,7 +270,7 @@ pub(super) fn funders_schema() -> Schema {
     let list = |name| Field::new(name, DataType::List(Arc::new(text("item", false))), false);
     Schema::new(vec![
         text("funder_id", false),
-        text("member_id", false),
+        Field::new("parliament_member_id", DataType::UInt32, false),
         Field::new("declaration_id", DataType::UInt32, false),
         Field::new("register_id", DataType::UInt32, false),
         text("role", false),

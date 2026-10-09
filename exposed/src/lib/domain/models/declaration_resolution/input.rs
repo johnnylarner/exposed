@@ -3,12 +3,17 @@ use super::{
     AddressMatchQuality, BTreeMap, BTreeSet, EntityIngestionError, FunderObservationId, FunderRole,
     FundingEntryId, invalid,
 };
+use crate::domain::models::{
+    declaration_cleaning::SourceScope, declaration_ingestion::DeclarationId,
+    parliament_member::MemberId,
+};
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize)]
 pub struct Observation {
     pub funder_id: FunderObservationId,
-    pub member_id: String,
-    pub declaration_id: u32,
+    #[serde(rename = "parliament_member_id")]
+    pub member_id: MemberId,
+    pub declaration_id: DeclarationId,
     pub register_id: u32,
     pub role: FunderRole,
     pub source_scope: String,
@@ -28,12 +33,12 @@ pub struct Observation {
 #[derive(Clone, Debug, Deserialize)]
 pub struct Payment {
     pub funding_entry_id: FundingEntryId,
-    pub member_id: String,
-    pub parliament_member_id: u32,
-    pub declaration_id: u32,
+    #[serde(rename = "parliament_member_id")]
+    pub member_id: MemberId,
+    pub declaration_id: DeclarationId,
     pub register_id: u32,
     pub funding_ordinal: u32,
-    pub parent_declaration_id: Option<u32>,
+    pub parent_declaration_id: Option<DeclarationId>,
     pub is_ultimate_payer_different: Option<bool>,
     pub donor_funder_id: Option<FunderObservationId>,
     pub payer_funder_id: Option<FunderObservationId>,
@@ -58,10 +63,9 @@ impl ResolutionInput {
             payments: BTreeMap::new(),
             digests,
         };
-        let mut members = BTreeMap::new();
         let mut declarations = BTreeMap::new();
         for payment in payments {
-            check_payment(&payment, &mut members, &mut declarations)?;
+            check_payment(&payment, &mut declarations)?;
             if input
                 .payments
                 .insert(payment.funding_entry_id.clone(), payment)
@@ -284,44 +288,30 @@ impl ScoredPairs {
     }
 }
 
-type DeclarationMetadata = BTreeMap<(String, u32), (u32, Option<u32>)>;
+type DeclarationMetadata = BTreeMap<(MemberId, DeclarationId), (u32, Option<DeclarationId>)>;
 fn check_payment(
     payment: &Payment,
-    members: &mut BTreeMap<String, u32>,
     declarations: &mut DeclarationMetadata,
 ) -> Result<(), EntityIngestionError> {
-    if uuid::Uuid::parse_str(&payment.member_id).map_or(true, |id| id.is_nil()) {
-        return Err(invalid("invalid payment member UUID"));
-    }
-    if payment.declaration_id == 0 || payment.register_id == 0 || payment.parliament_member_id == 0
-    {
-        return Err(invalid("zero cleaned declaration identity"));
-    }
-    if members
-        .insert(payment.member_id.clone(), payment.parliament_member_id)
-        .is_some_and(|id| id != payment.parliament_member_id)
-    {
-        return Err(invalid(
-            "member identity disagrees between cleaned occurrences",
-        ));
+    if payment.register_id == 0 {
+        return Err(invalid("zero register identity"));
     }
     let metadata = (payment.register_id, payment.parent_declaration_id);
     if declarations
-        .insert(
-            (payment.member_id.clone(), payment.declaration_id),
-            metadata,
-        )
+        .insert((payment.member_id, payment.declaration_id), metadata)
         .is_some_and(|old| old != metadata)
     {
         return Err(invalid(
             "declaration metadata disagrees between cleaned occurrences",
         ));
     }
-    let expected = format!(
-        "{}/{}/{}/funding/{}",
-        payment.member_id, payment.declaration_id, payment.register_id, payment.funding_ordinal
-    );
-    if payment.funding_entry_id.as_str() != expected {
+    let expected = SourceScope::new(
+        payment.member_id,
+        payment.declaration_id,
+        payment.register_id,
+    )
+    .funding_entry(payment.funding_ordinal);
+    if payment.funding_entry_id != expected {
         return Err(invalid(
             "funding occurrence ID disagrees with its source identity",
         ));
@@ -333,10 +323,7 @@ fn check_observation(
     input: &ResolutionInput,
     declarations: &mut DeclarationMetadata,
 ) -> Result<(), EntityIngestionError> {
-    if uuid::Uuid::parse_str(&observation.member_id).map_or(true, |id| id.is_nil())
-        || observation.declaration_id == 0
-        || observation.register_id == 0
-    {
+    if observation.register_id == 0 {
         return Err(invalid("invalid cleaned observation identity"));
     }
     check_scope(observation, input)?;
@@ -363,27 +350,24 @@ fn check_observation(
     {
         return Err(invalid("empty normalized comparison evidence"));
     }
-    let role_suffix = match observation.role {
-        FunderRole::Donor => "donor",
-        FunderRole::Payer => "payer",
-        FunderRole::UltimatePayer => "ultimate_payer",
-    };
-    let scope = observation.funding_entry_id.as_ref().map_or_else(
+    let expected = observation.funding_entry_id.as_ref().map_or_else(
         || {
-            format!(
-                "{}/{}/{}/declaration",
-                observation.member_id, observation.declaration_id, observation.register_id
+            SourceScope::new(
+                observation.member_id,
+                observation.declaration_id,
+                observation.register_id,
             )
+            .declaration_observation(observation.role)
         },
-        |id| id.as_str().to_owned(),
+        |id| id.observation(observation.role),
     );
-    if observation.funder_id.as_str() != format!("{scope}/{role_suffix}") {
+    if observation.funder_id != expected {
         return Err(invalid(
             "funder observation ID disagrees with source scope and role",
         ));
     }
     let metadata = declarations
-        .entry((observation.member_id.clone(), observation.declaration_id))
+        .entry((observation.member_id, observation.declaration_id))
         .or_insert((observation.register_id, None));
     if metadata.0 != observation.register_id {
         return Err(invalid("observation declaration register mismatch"));

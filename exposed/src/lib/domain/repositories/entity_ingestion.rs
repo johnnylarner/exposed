@@ -1,9 +1,9 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    declaration_ingestion::{CapturedDeclaration, MemberAsId},
+    declaration_ingestion::CapturedDeclaration,
     entity_ingestion::IngestionKey,
-    parliament_member::ParliamentMember,
+    parliament_member::{MemberId, ParliamentMember},
 };
 
 /// Set of I/O methods for data in the entity search pipeline
@@ -12,7 +12,7 @@ pub trait EntityIngestionStorage: Clone + Send + Sync + 'static {
     /// Each record contains the declaration and its nested funding entries.
     fn write_raw_declarations(
         &self,
-        member: MemberAsId,
+        member: MemberId,
         declarations: &[CapturedDeclaration],
     ) -> impl Future<Output = Result<(), EntitySearchPipelineError>> + Send;
 

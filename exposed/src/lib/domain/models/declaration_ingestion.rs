@@ -4,47 +4,12 @@ use std::num::NonZeroU32;
 
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 use super::entity_ingestion::EntityIngestionError;
 
-/// An existing database member and their Parliament identity.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct MemberAsId {
-    member_id: Uuid,
-    parliament_member_id: NonZeroU32,
-}
-
-impl MemberAsId {
-    /// Associates a non-nil database UUID with a positive Parliament ID.
-    ///
-    /// # Errors
-    /// Returns an error if either identity is missing.
-    pub fn new(member_id: Uuid, parliament_member_id: u32) -> Result<Self, EntityIngestionError> {
-        if member_id.is_nil() {
-            return Err(invalid("stored member UUID must not be nil"));
-        }
-        Ok(Self {
-            member_id,
-            parliament_member_id: positive_id(parliament_member_id)?,
-        })
-    }
-
-    /// Existing database identity.
-    #[must_use]
-    pub const fn member_id(&self) -> Uuid {
-        self.member_id
-    }
-
-    /// Parliament identity used for acquisition.
-    #[must_use]
-    pub const fn parliament_member_id(&self) -> u32 {
-        self.parliament_member_id.get()
-    }
-}
-
 /// A positive source declaration identity, also used for parent references.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct DeclarationId(NonZeroU32);
 
 impl DeclarationId {
@@ -273,4 +238,10 @@ fn positive_id(id: u32) -> Result<NonZeroU32, EntityIngestionError> {
 
 fn invalid(message: &str) -> EntityIngestionError {
     EntityIngestionError::DataError(message.to_string())
+}
+
+impl std::fmt::Display for DeclarationId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.value().fmt(f)
+    }
 }

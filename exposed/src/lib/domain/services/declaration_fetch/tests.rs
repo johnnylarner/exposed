@@ -6,14 +6,13 @@
 use std::{sync::Arc, time::Duration};
 
 use tokio::sync::{Semaphore, mpsc};
-use uuid::Uuid;
 
 use super::*;
 use crate::domain::{
     models::{
-        declaration_ingestion::{CapturedDeclaration, MemberAsId},
+        declaration_ingestion::CapturedDeclaration,
         entity_search::EntitySearchRequest,
-        parliament_member::ParliamentMember,
+        parliament_member::{MemberId, ParliamentMember},
         search_similarity::SearchSimilarity,
     },
     repositories::{
@@ -24,7 +23,7 @@ use crate::domain::{
 
 #[derive(Clone)]
 struct Fake {
-    members: Vec<MemberAsId>,
+    members: Vec<MemberId>,
     key: IngestionKey,
     started: mpsc::UnboundedSender<u32>,
     writes: mpsc::UnboundedSender<u32>,
@@ -33,7 +32,7 @@ struct Fake {
 }
 
 impl ParliamentMemberRepo for Fake {
-    async fn get_stored_member_ids(&self) -> Result<Vec<MemberAsId>, ParliamentMemberRepoError> {
+    async fn get_stored_member_ids(&self) -> Result<Vec<MemberId>, ParliamentMemberRepoError> {
         Ok(self.members.clone())
     }
     async fn get_members_by_text_search_score(
@@ -56,9 +55,9 @@ impl ParliamentApi for Fake {
     }
     async fn get_declarations(
         &self,
-        member: MemberAsId,
+        member: MemberId,
     ) -> Result<Vec<CapturedDeclaration>, ParliamentApiError> {
-        self.started.send(member.parliament_member_id()).unwrap();
+        self.started.send(member.value()).unwrap();
         Ok(Vec::new())
     }
 }
@@ -66,14 +65,14 @@ impl ParliamentApi for Fake {
 impl EntityIngestionStorage for Fake {
     async fn write_raw_declarations(
         &self,
-        member: MemberAsId,
+        member: MemberId,
         _: &[CapturedDeclaration],
     ) -> Result<(), EntitySearchPipelineError> {
         self.permits.acquire().await.unwrap().forget();
         if self.fail {
             return Err(EntitySearchPipelineError::WriteError("failed".into()));
         }
-        self.writes.send(member.parliament_member_id()).unwrap();
+        self.writes.send(member.value()).unwrap();
         Ok(())
     }
     fn ingestion_key(&self) -> IngestionKey {
@@ -113,9 +112,7 @@ fn fixture(
     let (writes, saved) = mpsc::unbounded_channel();
     (
         Fake {
-            members: (1..=count)
-                .map(|id| MemberAsId::new(Uuid::now_v7(), id).unwrap())
-                .collect(),
+            members: (1..=count).map(|id| MemberId::new(id).unwrap()).collect(),
             key: IngestionKey::default(),
             started,
             writes,
