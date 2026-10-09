@@ -1,6 +1,6 @@
 # Declaration funder resolution
 
-`exposed data --config CONFIG declarations resolve --ingestion-key UUID` reads the two cleaned declaration tables and writes identity, attribution, and candidate decisions. Rust owns the policy. A separately installed Python worker uses Splink 4.0.17 with DuckDB 1.4.4 to score feature profiles. The command does not contact Companies House, install packages, or require a runtime database connection.
+`exposed data declarations resolve --config CONFIG --ingestion-key UUID` reads the two cleaned declaration tables and writes identity, attribution, and candidate decisions. Rust owns the policy. A separately installed Python worker uses Splink 4.0.17 with DuckDB 1.4.4 to score feature profiles. The command does not contact Companies House, install packages, or require a runtime database connection.
 
 Resolution answers two independent questions. Observation resolution assigns an identity to each source role. Payment attribution chooses the source role used to report one funding occurrence. Resolving a donor does not make that donor the ultimate source of the payment.
 

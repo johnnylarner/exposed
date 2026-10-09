@@ -29,10 +29,6 @@ pub mod config;
 /// CLI Data Args
 #[derive(Parser)]
 pub struct DataArgs {
-    /// Required YAML configuration for the data command.
-    // Clap forbids required globals; the PathBuf decoder rejects a missing config.
-    #[arg(long, global = true, required = false)]
-    config: PathBuf,
     #[command(subcommand)]
     command: DataCommands,
 }
@@ -42,9 +38,16 @@ pub struct DataArgs {
 #[allow(missing_docs)]
 pub enum DataCommands {
     /// Show the latest ingestion key and directory path.
-    Latest,
+    Latest {
+        /// YAML configuration with the ingestion `data_dir`.
+        #[arg(long)]
+        config: PathBuf,
+    },
     /// Copy the latest raw capture into a new ingestion run.
     CopyLatestRaw {
+        /// YAML configuration with the ingestion `data_dir`.
+        #[arg(long)]
+        config: PathBuf,
         /// Destination ingestion key. Defaults to a fresh UUID-v7.
         #[arg(long)]
         ingestion_key: Option<IngestionKey>,
@@ -53,12 +56,17 @@ pub enum DataCommands {
         /// Stage to run: fetch, clean, resolve, or load.
         #[arg(value_parser = ["fetch", "clean", "resolve", "load"])]
         stage: String,
+        /// YAML configuration containing the declaration `data_dir`.
+        #[arg(long)]
+        config: PathBuf,
         /// Ingestion run to clean, resolve, or load.
         #[arg(long)]
         ingestion_key: Option<IngestionKey>,
     },
     Members {
         stage: String,
+        #[arg(long)]
+        config: PathBuf,
         #[arg(long)]
         ingestion_key: Option<IngestionKey>,
     },
@@ -74,8 +82,8 @@ pub enum DataCommands {
 /// - Service level failures
 pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
     match args.command {
-        DataCommands::Latest => {
-            let config = LoaderConfig::try_from(&args.config)?;
+        DataCommands::Latest { config } => {
+            let config = LoaderConfig::try_from(&config)?;
             match ExposedDataPipeline::latest_ingestion(&config.data_dir).await? {
                 Some((path, key)) => {
                     println!("Ingestion key: {key}");
@@ -84,8 +92,11 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                 None => println!("No ingestion runs found."),
             }
         }
-        DataCommands::CopyLatestRaw { ingestion_key } => {
-            let config = LoaderConfig::try_from(&args.config)?;
+        DataCommands::CopyLatestRaw {
+            config,
+            ingestion_key,
+        } => {
+            let config = LoaderConfig::try_from(&config)?;
             let key = ingestion_key.unwrap_or_default();
             match ExposedDataPipeline::copy_latest_raw(&config.data_dir, key.clone()).await? {
                 Some((path, source_key)) => {
@@ -98,10 +109,11 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
         }
         DataCommands::Declarations {
             stage,
+            config,
             ingestion_key,
         } => match DeclarationIngestionStage::from_str(&stage)? {
             DeclarationIngestionStage::Fetch => {
-                let config = DeclarationFetcherConfig::try_from(&args.config)?;
+                let config = DeclarationFetcherConfig::try_from(&config)?;
                 let data_config = DataConfig::from_env()?;
                 let api = ParliamentApiClient::new(config.batch_size)?;
                 let db = ExposedDatabase::new(&data_config.connection_string).await;
@@ -117,7 +129,7 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                 let ingestion_key = ingestion_key.ok_or_else(|| {
                     anyhow::anyhow!("declarations resolve requires --ingestion-key")
                 })?;
-                let config = DeclarationResolverConfig::try_from(&args.config)?;
+                let config = DeclarationResolverConfig::try_from(&config)?;
                 let storage = ExposedDataPipeline::open_cleaned_declarations(
                     &config.data_dir,
                     ingestion_key.clone(),
@@ -142,7 +154,7 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
             DeclarationIngestionStage::Load => {
                 let ingestion_key = ingestion_key
                     .ok_or_else(|| anyhow::anyhow!("declarations load requires --ingestion-key"))?;
-                let config = LoaderConfig::try_from(&args.config)?;
+                let config = LoaderConfig::try_from(&config)?;
                 let data_config = DataConfig::from_env()?;
                 let storage = ExposedDataPipeline::open_resolved_declarations(
                     &config.data_dir,
@@ -168,7 +180,7 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                 let ingestion_key = ingestion_key.ok_or_else(|| {
                     anyhow::anyhow!("declarations clean requires --ingestion-key")
                 })?;
-                let config = LoaderConfig::try_from(&args.config)?;
+                let config = LoaderConfig::try_from(&config)?;
                 let fs = ExposedDataPipeline::open_existing_declarations(
                     &config.data_dir,
                     ingestion_key.clone(),
@@ -192,13 +204,14 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
         },
         DataCommands::Members {
             stage,
+            config,
             ingestion_key,
         } => {
             let stage = MemberIngestionStage::from_str(&stage)?;
             let ingestion_key = ingestion_key.unwrap_or_default();
             match stage {
                 MemberIngestionStage::Fetch => {
-                    let config = FetcherConfig::try_from(&args.config)?;
+                    let config = FetcherConfig::try_from(&config)?;
                     let api = ParliamentApiClient::new(config.batch_size)?;
                     let fs = ExposedDataPipeline::new_with_ingestion_key(
                         &config.data_dir,
@@ -210,7 +223,7 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                     service.fetch_members(&req).await?;
                 }
                 MemberIngestionStage::Load => {
-                    let config = LoaderConfig::try_from(&args.config)?;
+                    let config = LoaderConfig::try_from(&config)?;
                     let data_config = DataConfig::from_env()?;
                     let fs = ExposedDataPipeline::new_with_ingestion_key(
                         &config.data_dir,

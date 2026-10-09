@@ -7,15 +7,15 @@ To fetch and load members, use the same ingestion key for both stages:
 ```sh
 test -f .env || cp .env.example .env
 ingestion_key=$(uuidgen)
-cargo run --package exposed --bin exposed -- data --config exposed/config/cli-dev.yaml members fetch --ingestion-key "$ingestion_key"
-cargo run --package exposed --bin exposed -- data --config exposed/config/cli-dev.yaml members load --ingestion-key "$ingestion_key"
-cargo run --package exposed --bin exposed -- data --config exposed/config/declarations-dev.yaml declarations fetch
+cargo run --package exposed --bin exposed -- data members fetch --config exposed/config/cli-dev.yaml --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data members load --config exposed/config/cli-dev.yaml --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data declarations fetch --config exposed/config/declarations-dev.yaml
 ```
 
 To inspect the latest stored ingestion run, use either fetch configuration:
 
 ```sh
-cargo run --package exposed --bin exposed -- data --config exposed/config/cli-dev.yaml latest
+cargo run --package exposed --bin exposed -- data latest --config exposed/config/cli-dev.yaml
 ```
 
 The command prints the ingestion key and absolute path of the most recently
@@ -30,8 +30,8 @@ To reprocess the latest raw capture in a new run, copy it with a fresh ingestion
 
 ```sh
 ingestion_key=$(uuidgen)
-cargo run --package exposed --bin exposed -- data --config exposed/config/declarations-dev.yaml copy-latest-raw --ingestion-key "$ingestion_key"
-cargo run --package exposed --bin exposed -- data --config exposed/config/declarations-dev.yaml declarations clean --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data copy-latest-raw --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data declarations clean --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 ```
 
 Omit `--ingestion-key` to generate a UUID-v7. The command prints the source key,
@@ -50,7 +50,7 @@ To split a captured declaration run into funding occurrences and funder
 observations, provide its ingestion key explicitly:
 
 ```sh
-cargo run --package exposed --bin exposed -- data --config exposed/config/declarations-dev.yaml declarations clean --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data declarations clean --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 ```
 
 Cleaning runs offline and requires only `data_dir` in the configuration. It writes
@@ -137,7 +137,7 @@ the API to check retry behavior. See the
 Install the pinned Python worker with the [resolution setup](resolution/README.md). Then resolve a cleaned run from the repository root:
 
 ```sh
-cargo run --package exposed --bin exposed -- data --config exposed/config/declaration-resolution-dev.yaml declarations resolve --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data declarations resolve --config exposed/config/declaration-resolution-dev.yaml --ingestion-key "$ingestion_key"
 ```
 
 The command writes observation identities, one attribution per funding occurrence,
@@ -151,7 +151,7 @@ provisional identities. See the [resolution policy](docs/funder-resolution-desig
 Load a resolved run into the searchable database after its members have been loaded:
 
 ```sh
-cargo run --package exposed --bin exposed -- data --config exposed/config/declarations-dev.yaml declarations load --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- data declarations load --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 ```
 
 The loader includes declarations with no funding occurrences. It replaces only
