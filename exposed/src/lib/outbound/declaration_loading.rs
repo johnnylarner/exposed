@@ -705,7 +705,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 )));
             }
             let inserted = sqlx::query!(
-                "INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (source_declaration_id) DO UPDATE SET member_id = EXCLUDED.member_id, category_id = EXCLUDED.category_id, category_name = EXCLUDED.category_name, fetched_at = EXCLUDED.fetched_at, registration_date = EXCLUDED.registration_date WHERE exposed.declarations.fetched_at < EXCLUDED.fetched_at RETURNING source_declaration_id",
+                "INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (source_declaration_id) DO UPDATE SET member_id = EXCLUDED.member_id, category_id = EXCLUDED.category_id, category_name = EXCLUDED.category_name, fetched_at = EXCLUDED.fetched_at, registration_date = EXCLUDED.registration_date WHERE exposed.declarations.fetched_at <= EXCLUDED.fetched_at RETURNING source_declaration_id",
                 i32::try_from(declaration.source_declaration_id).map_err(db_error)?,
                 declaration.member_id,
                 i32::try_from(declaration.category_id).map_err(db_error)?,
@@ -715,7 +715,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
             ).fetch_optional(&mut *tx).await.map_err(db_error)?;
             if inserted.is_none() {
                 return Err(data_error(format!(
-                    "declaration {} is already loaded at an equal or newer capture time",
+                    "declaration {} is already loaded at a newer capture time",
                     declaration.source_declaration_id
                 )));
             }
