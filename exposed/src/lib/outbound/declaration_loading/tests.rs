@@ -33,7 +33,7 @@ fn canonical_funder_name_prefers_the_most_reported_source_spelling() {
 }
 
 #[derive(Clone, Copy)]
-struct TestScorer;
+struct TestScorer(f64);
 
 impl FunderScorer for TestScorer {
     async fn score(&self, input: &ScoringInput) -> Result<ScoredPairs, EntityIngestionError> {
@@ -51,7 +51,7 @@ impl FunderScorer for TestScorer {
                     ScoredPair {
                         left: left.key.clone(),
                         right: right.key.clone(),
-                        probability: 0.5,
+                        probability: self.0,
                         name_level: 0,
                         address_level: -1,
                     }
@@ -120,7 +120,7 @@ async fn resolved_test_run() -> anyhow::Result<(TempDir, DeclarationLoad)> {
     DeclarationCleanerService::new(storage.clone())
         .clean_declarations()
         .await?;
-    DeclarationResolverService::new(storage.clone(), TestScorer, 100)
+    DeclarationResolverService::new(storage.clone(), TestScorer(0.5), 100)
         .resolve_declarations()
         .await?;
     let load = storage.read_declaration_load().await?;
@@ -151,6 +151,110 @@ async fn company_number_uses_the_matching_company_kind() -> anyhow::Result<()> {
         .expect("the resolved identity retains its reported company number");
 
     assert_eq!(company.kind.as_deref(), Some("Company"));
+    Ok(())
+}
+
+#[tokio::test]
+async fn supporting_name_resolution_loads_and_rejects_unknown_labels() -> anyhow::Result<()> {
+    for (probability, expected_basis) in [
+        (0.5, "extracted_name_link"),
+        (0.9999, "statistical_and_supporting_name_link"),
+    ] {
+        let temporary = tempfile::tempdir()?;
+        let storage = ExposedDataPipeline::new_with_ingestion_key(
+            &temporary.path().join("data"),
+            IngestionKey::default(),
+        )?;
+        let member = MemberAsId::new(Uuid::from_u128(1), 4613)?;
+        let fetched_at = Utc::now();
+        let bank_address = "1 Centenary Square Birmingham B1 1HQ";
+        let declarations = [
+            ("Unite Union", "Trade Union", ""),
+            ("Unite West Midlands", "Trade Union", ""),
+            ("HSBC UK (Ian Stuart, CEO)", "Company", bank_address),
+            ("HSBC UK Bank plc", "Company", bank_address),
+            ("HSBC UK Bank plc", "Company", bank_address),
+        ]
+        .into_iter()
+        .enumerate()
+        .map(|(index, (name, kind, address))| {
+            super::super::declaration_source::replay_declaration(json!({
+                "id": index + 1,
+                "category": {"id": 3, "name": "Donations"},
+                "versions": [{"register": {"id": 820, "publishedDate": "2026-09-07"}, "fields": [
+                    {"name": "DonorName", "value": name},
+                    {"name": "DonorStatus", "value": kind},
+                    {"name": "DonorPublicAddress", "value": address},
+                    {"name": "Value", "value": "20"}
+                ]}]
+            }), fetched_at).map(|evidence| evidence.declaration().clone())
+        })
+        .collect::<Result<Vec<CapturedDeclaration>, _>>()?;
+        storage
+            .write_raw_declarations(member, &declarations)
+            .await?;
+        DeclarationCleanerService::new(storage.clone())
+            .clean_declarations()
+            .await?;
+        DeclarationResolverService::new(storage.clone(), TestScorer(probability), 100)
+            .resolve_declarations()
+            .await?;
+
+        let resolved = storage.resolved_declarations_path();
+        let identity_path = resolved.join("observation_resolution.parquet");
+        let pair_path = resolved.join("pair_decisions.parquet");
+        let (identities, _) = read_table::<serde_json::Value>(
+            &identity_path,
+            &declaration_resolution::observation_schema(),
+        )?;
+        let (pairs, _) =
+            read_table::<serde_json::Value>(&pair_path, &declaration_resolution::pair_schema())?;
+        for basis in ["trade_union_family_link", expected_basis] {
+            assert!(
+                identities.iter().any(|row| row["identity_basis"] == basis),
+                "missing {basis}"
+            );
+        }
+        for reason in ["trade_union_family", "extracted_name_evidence"] {
+            assert!(
+                pairs.iter().any(|row| row["reason"] == reason),
+                "missing {reason}"
+            );
+        }
+        let load = storage.read_declaration_load().await?;
+        assert_eq!(load.funders.len(), 2);
+        assert_eq!(load.funding_entries.len(), 5);
+        for ids in [&[1, 2][..], &[3, 4, 5][..]] {
+            let identities = load
+                .funding_entries
+                .iter()
+                .filter(|entry| ids.contains(&entry.source_declaration_id))
+                .map(|entry| entry.identity_id.as_ref().expect("resolved funder"))
+                .collect::<BTreeSet<_>>();
+            assert_eq!(identities.len(), 1);
+        }
+
+        let mut malformed = identities;
+        malformed[0]["identity_basis"] = json!("unknown_resolution_label");
+        fs::remove_file(&identity_path)?;
+        declaration_cleaning::write_table(
+            &identity_path,
+            declaration_resolution::observation_schema(),
+            &malformed,
+        )
+        .await?;
+        let error = storage
+            .read_declaration_load()
+            .await
+            .err()
+            .expect("unknown label rejected");
+        assert!(
+            error
+                .to_string()
+                .contains("invalid or duplicate resolved observation identity"),
+            "{error}"
+        );
+    }
     Ok(())
 }
 
