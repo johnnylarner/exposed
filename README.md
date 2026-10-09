@@ -87,6 +87,28 @@ is not ready yet.
 Use `docker compose stop frontend exposed` to stop the app and keep the caches.
 `make db-start` and `make db-stop` control only PostgreSQL.
 
+### Refresh the search regression database
+
+To replace `exposed_search_regression` with a fresh clone of `exposed`, stop the
+app and disconnect other clients from `exposed`. Run from the repository root:
+
+```sh
+docker compose stop exposed
+./scripts/refresh-search-regression-db.sh
+docker compose start exposed
+```
+
+The script requires Docker Compose and a running `postgres` service. You can
+invoke the script by its path from any directory. It uses the repository's
+Compose file and honors `COMPOSE_PROJECT_NAME`.
+
+Each refresh deletes the previous target and terminates its connections. If the
+source is busy and cloning fails, the previous target remains unchanged. The
+script never terminates source connections or changes `exposed`. It reserves
+`exposed_search_regression_stage` as disposable storage and deletes any stale
+stage before cloning. Concurrent refresh attempts fail without changing either
+database. The script does not stop or restart the app.
+
 The Compose project is named `exposed`. When testing a frontend-only change in a
 worktree against an already running API, use
 `docker compose up --build -d --no-deps frontend` to avoid recreating the backend
