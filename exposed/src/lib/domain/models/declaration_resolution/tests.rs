@@ -936,3 +936,64 @@ fn donor_name_attachment_preserves_seeded_company_source_basis() {
                 == Some("source-reported:companies-house:00000001"))
     );
 }
+
+#[test]
+fn resolution_vocabularies_reject_unknown_labels() {
+    let unknown = serde_json::json!("unknown_resolution_label");
+    assert!(serde_json::from_value::<IdentityBasis>(unknown.clone()).is_err());
+    assert!(serde_json::from_value::<PairDisposition>(unknown.clone()).is_err());
+    assert!(serde_json::from_value::<PairReason>(unknown.clone()).is_err());
+    assert!(serde_json::from_value::<AttributionBasis>(unknown.clone()).is_err());
+    assert!(serde_json::from_value::<UnavailableReason>(unknown.clone()).is_err());
+    assert!(serde_json::from_value::<AttributionIssue>(unknown).is_err());
+}
+
+#[test]
+fn resolution_records_roundtrip_the_writer_contract() {
+    let identity = serde_json::json!({
+        "funder_id": "observation", "identity_id": "identity",
+        "identity_basis": "statistical_and_supporting_name_link"
+    });
+    let decoded: ObservationResolution = serde_json::from_value(identity.clone()).unwrap();
+    assert_eq!(serde_json::to_value(decoded).unwrap(), identity);
+    let pair = serde_json::json!({
+        "left_funder_id": "left", "right_funder_id": "right",
+        "probability": 0.999, "name_level": 3, "address_level": 2,
+        "disposition": "accepted", "reason": "extracted_name_evidence"
+    });
+    let decoded: PairDecision = serde_json::from_value(pair.clone()).unwrap();
+    assert_eq!(serde_json::to_value(decoded).unwrap(), pair);
+    for attribution in [
+        serde_json::json!({
+            "funding_entry_id": "funding", "attribution_status": "selected",
+            "selected_funder_id": "observation", "attribution_basis": "parent_payer",
+            "selected_parent_declaration_id": 7,
+            "issues": ["explicit_ultimate_payer_with_parent_payer_same_flag"]
+        }),
+        serde_json::json!({
+            "funding_entry_id": "funding", "attribution_status": "unavailable",
+            "unavailable_reason": "parent_evidence_unavailable", "issues": []
+        }),
+    ] {
+        let decoded: PaymentAttribution = serde_json::from_value(attribution.clone()).unwrap();
+        assert_eq!(serde_json::to_value(decoded).unwrap(), attribution);
+    }
+}
+
+#[test]
+fn attribution_sql_scalars_match_the_serialized_labels() {
+    use strum::IntoEnumIterator;
+
+    for basis in AttributionBasis::iter() {
+        assert_eq!(
+            serde_json::to_value(basis).unwrap(),
+            serde_json::json!(basis.as_ref())
+        );
+    }
+    for reason in UnavailableReason::iter() {
+        assert_eq!(
+            serde_json::to_value(reason).unwrap(),
+            serde_json::json!(reason.as_ref())
+        );
+    }
+}

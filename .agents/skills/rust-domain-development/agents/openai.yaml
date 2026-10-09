@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rust domain development"
+  short_description: "Model Rust domains and enforce boundary contracts"
+  default_prompt: "Use $rust-domain-development to implement this Rust change with shared domain types and checked boundaries."

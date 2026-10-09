@@ -4,7 +4,10 @@ use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, Utc};
 use uuid::Uuid;
 
-use super::entity_ingestion::{EntityIngestionError, IngestionKey};
+use super::{
+    declaration_resolution::{AttributionBasis, AttributionIssue, UnavailableReason},
+    entity_ingestion::{EntityIngestionError, IngestionKey},
+};
 
 /// All rows needed to publish one resolved run in the application database.
 pub struct DeclarationLoad {
@@ -44,10 +47,10 @@ pub struct LoadFundingEntry {
     pub(crate) source_declaration_id: u32,
     pub(crate) identity_id: Option<String>,
     pub(crate) selected_observation_id: Option<String>,
-    pub(crate) attribution_basis: Option<String>,
+    pub(crate) attribution_basis: Option<AttributionBasis>,
     pub(crate) selected_parent_declaration_id: Option<u32>,
-    pub(crate) unavailable_reason: Option<String>,
-    pub(crate) issues: Vec<String>,
+    pub(crate) unavailable_reason: Option<UnavailableReason>,
+    pub(crate) issues: Vec<AttributionIssue>,
     pub(crate) amount: Option<BigDecimal>,
     pub(crate) currency: Option<String>,
     pub(crate) payment_type: Option<String>,
@@ -140,13 +143,15 @@ impl DeclarationLoad {
                 || row.attribution_basis.is_some() != selected
                 || row.unavailable_reason.is_some() != !selected
                 || row.selected_parent_declaration_id.is_some()
-                    != (row.attribution_basis.as_deref() == Some("parent_payer"))
-                || row.attribution_basis.as_deref().is_some_and(|basis| {
-                    !matches!(
-                        basis,
-                        "explicit_ultimate_payer" | "parent_payer" | "donor" | "payer"
-                    )
-                })
+                    != match row.attribution_basis {
+                        Some(AttributionBasis::ParentPayer) => true,
+                        Some(
+                            AttributionBasis::ExplicitUltimatePayer
+                            | AttributionBasis::Donor
+                            | AttributionBasis::Payer,
+                        )
+                        | None => false,
+                    }
             {
                 return Err(invalid(
                     "incoherent funding attribution in declaration load",

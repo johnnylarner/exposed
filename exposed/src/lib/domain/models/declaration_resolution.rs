@@ -4,8 +4,9 @@ use super::{
     declaration_cleaning::{AddressMatchQuality, FunderObservationId, FunderRole, FundingEntryId},
     entity_ingestion::EntityIngestionError,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+use strum::AsRefStr;
 
 pub(crate) const POLICY_VERSION: &str = "funder-resolution-v3";
 pub(crate) const AUTOMATIC_THRESHOLD: f64 = 0.999;
@@ -24,7 +25,7 @@ pub(crate) use input::{Observation, Payment, ScoredPair};
 pub use input::{ResolutionInput, ScoredPairs, ScoringInput};
 
 /// Evidence basis of an assigned identity, independent of reporting attribution.
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum IdentityBasis {
     /// An accepted captured company number, without registry verification.
@@ -47,14 +48,14 @@ pub enum IdentityBasis {
     Unresolved,
 }
 /// One outcome for each input source-role observation.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct ObservationResolution {
     pub(crate) funder_id: FunderObservationId,
     pub(crate) identity_id: Option<String>,
     pub(crate) identity_basis: IdentityBasis,
 }
 /// Policy disposition of one statistical candidate edge.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PairDisposition {
     /// The edge passed its evidence rule and component constraints.
@@ -65,7 +66,7 @@ pub enum PairDisposition {
     Rejected,
 }
 /// Evidence reason for a candidate disposition.
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum PairReason {
     /// The initial exact name and numbered-street rule is not satisfied.
@@ -88,7 +89,7 @@ pub enum PairReason {
     TradeUnionFamily,
 }
 /// A scored edge retained for inspection, including rejected evidence.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PairDecision {
     pub(crate) left_funder_id: FunderObservationId,
     pub(crate) right_funder_id: FunderObservationId,
@@ -99,8 +100,10 @@ pub struct PairDecision {
     pub(crate) reason: PairReason,
 }
 /// Source role used for one payment's reporting decision.
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, AsRefStr)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[cfg_attr(test, derive(strum::EnumIter))]
 pub enum AttributionBasis {
     /// An explicitly named ultimate payer.
     ExplicitUltimatePayer,
@@ -112,8 +115,10 @@ pub enum AttributionBasis {
     Payer,
 }
 /// Evidence that prevents supported reporting attribution.
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, AsRefStr)]
 #[serde(rename_all = "snake_case")]
+#[strum(serialize_all = "snake_case")]
+#[cfg_attr(test, derive(strum::EnumIter))]
 pub enum UnavailableReason {
     /// An explicit ultimate role has no usable name.
     ExplicitUltimatePayerUnavailable,
@@ -135,14 +140,14 @@ pub enum UnavailableReason {
     NoSupportedAttribution,
 }
 /// A disagreement between source fields, without an entity-distinction claim.
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AttributionIssue {
     /// A named ultimate role occurs with the same-parent-payer flag.
     ExplicitUltimatePayerWithParentPayerSameFlag,
 }
 /// A selected source role, or an explicit reporting failure.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "attribution_status", rename_all = "snake_case")]
 pub enum AttributionDecision {
     /// One supported observation and its source basis.
@@ -161,7 +166,7 @@ pub enum AttributionDecision {
     },
 }
 /// Exactly one attribution row for one funding occurrence.
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct PaymentAttribution {
     pub(crate) funding_entry_id: FundingEntryId,
     #[serde(flatten)]
