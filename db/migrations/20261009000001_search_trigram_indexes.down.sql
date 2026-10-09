@@ -1,0 +1,3 @@
+DROP INDEX exposed.funder_aliases_name_search_trigram_idx;
+DROP INDEX exposed.funders_name_search_trigram_idx;
+DROP INDEX exposed.members_name_search_trigram_idx;
