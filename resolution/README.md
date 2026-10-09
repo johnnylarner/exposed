@@ -26,7 +26,7 @@ Resolve an existing cleaned run:
 cargo run --package exposed --bin exposed -- data declarations resolve --config exposed/config/declaration-resolution-dev.yaml --ingestion-key UUID
 ```
 
-The command prints the output path and counts. The bundle contains observation resolutions, payment attributions, candidate decisions, and a manifest. It refuses an existing bundle. Older cleaned schemas require cleaning retained raw capture into a fresh run. Raw files are not needed after the current cleaner has produced the checked pair.
+The command prints the output path and counts. The bundle contains observation resolutions, payment attributions, candidate decisions, and a manifest. It refuses an existing bundle. Old member UUID artifacts require a new capture, followed by cleaning and resolution. Raw files are not needed after the current cleaner has produced the checked pair.
 
 Run worker integration tests against actual Splink:
 
@@ -43,3 +43,8 @@ EXPOSED_RESOLUTION_PYTHON="$PWD/resolution/.venv/bin/python" cargo test --packag
 This test builds and invokes the current CLI, cleans retained raw evidence, and resolves two charity observations with statistical support and four Gary Lubner donor observations with missing or disagreeing addresses. It checks the actual names in each identity, the real Splink scores, and refusal to overwrite the result. It removes raw evidence before resolution to verify that the resolver reads only cleaned inputs.
 
 Policy `funder-resolution-v3` uses cleaner-extracted aliases and organization-name evidence, punctuation-normalized numbered-street addresses, and typed candidate keys for aliases and `Unite` trade unions. HSBC's CEO-annotated bank name can link to its legal bank name when distinctive organization terms and the numbered-street address agree. Regional and branch spellings with an explicit `Trade Union` kind and the `Unite` root can resolve to one funder identity. Person/organization conflicts and competing company numbers still block merges; ambiguous fuzzy names stay review candidates. Each named singleton receives a separate provisional run-local identity. See the [resolution policy](../docs/funder-resolution-design.md) for attribution and repeat behavior.
+
+The resolved manifest uses schema version 2 for source-only member identities.
+Observation and occurrence keys contain numeric Parliament member IDs. Database
+member UUIDs never enter resolution artifacts. Loading resolves those source IDs
+to the destination database member UUIDs inside the load transaction.

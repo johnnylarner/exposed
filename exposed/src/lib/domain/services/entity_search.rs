@@ -106,7 +106,7 @@ mod merge_scores {
         models::{
             entity_search::{Entity, FunderSearchMatch, SearchMatchSource},
             funder::{Funder, FunderKind},
-            parliament_member::ParliamentMember,
+            parliament_member::{MemberId, ParliamentMember},
             search_similarity::SearchSimilarity,
         },
         services::entity_search::merge_scores,
@@ -117,11 +117,23 @@ mod merge_scores {
         let funders = Vec::new();
         let mps = vec![
             (
-                ParliamentMember::new("johnny larner".into(), 1, String::new(), 1, String::new()),
+                ParliamentMember::new(
+                    "johnny larner".into(),
+                    MemberId::new(1).unwrap(),
+                    String::new(),
+                    1,
+                    String::new(),
+                ),
                 SearchSimilarity::from(1_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 1, String::new(), 1, String::new()),
+                ParliamentMember::new(
+                    "hades".into(),
+                    MemberId::new(1).unwrap(),
+                    String::new(),
+                    1,
+                    String::new(),
+                ),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -131,7 +143,7 @@ mod merge_scores {
             ranked.first().unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "johnny larner".into(),
-                1,
+                MemberId::new(1).unwrap(),
                 String::new(),
                 1,
                 String::new(),
@@ -142,7 +154,7 @@ mod merge_scores {
             ranked.get(1).unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "hades".into(),
-                1,
+                MemberId::new(1).unwrap(),
                 String::new(),
                 1,
                 String::new(),
@@ -178,11 +190,23 @@ mod merge_scores {
         ];
         let mps = vec![
             (
-                ParliamentMember::new("johnny larner".into(), 1, String::new(), 1, String::new()),
+                ParliamentMember::new(
+                    "johnny larner".into(),
+                    MemberId::new(1).unwrap(),
+                    String::new(),
+                    1,
+                    String::new(),
+                ),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 1, String::new(), 1, String::new()),
+                ParliamentMember::new(
+                    "hades".into(),
+                    MemberId::new(1).unwrap(),
+                    String::new(),
+                    1,
+                    String::new(),
+                ),
                 SearchSimilarity::from(3_f32),
             ),
         ];
@@ -193,7 +217,7 @@ mod merge_scores {
             ranked.first().unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "johnny larner".into(),
-                1,
+                MemberId::new(1).unwrap(),
                 String::new(),
                 1,
                 String::new(),
@@ -214,7 +238,7 @@ mod merge_scores {
             ranked.get(2).unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "hades".into(),
-                1,
+                MemberId::new(1).unwrap(),
                 String::new(),
                 1,
                 String::new(),
@@ -260,7 +284,13 @@ mod merge_scores {
             ),
         ];
         let mps = vec![(
-            ParliamentMember::new("johnny larner".into(), 1, String::new(), 1, String::new()),
+            ParliamentMember::new(
+                "johnny larner".into(),
+                MemberId::new(1).unwrap(),
+                String::new(),
+                1,
+                String::new(),
+            ),
             SearchSimilarity::from(4_f32),
         )];
 
@@ -270,7 +300,7 @@ mod merge_scores {
             ranked.first().unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "johnny larner".into(),
-                1,
+                MemberId::new(1).unwrap(),
                 String::new(),
                 1,
                 String::new(),
@@ -315,11 +345,23 @@ mod merge_scores {
         )];
         let mps = vec![
             (
-                ParliamentMember::new("johnny larner".into(), 1, String::new(), 1, String::new()),
+                ParliamentMember::new(
+                    "johnny larner".into(),
+                    MemberId::new(1).unwrap(),
+                    String::new(),
+                    1,
+                    String::new(),
+                ),
                 SearchSimilarity::from(4_f32),
             ),
             (
-                ParliamentMember::new("hades".into(), 1, String::new(), 1, String::new()),
+                ParliamentMember::new(
+                    "hades".into(),
+                    MemberId::new(1).unwrap(),
+                    String::new(),
+                    1,
+                    String::new(),
+                ),
                 SearchSimilarity::from(2_f32),
             ),
         ];
@@ -329,7 +371,7 @@ mod merge_scores {
             ranked.first().unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "johnny larner".into(),
-                1,
+                MemberId::new(1).unwrap(),
                 String::new(),
                 1,
                 String::new(),
@@ -339,7 +381,7 @@ mod merge_scores {
             ranked.get(1).unwrap(),
             &Entity::from(&ParliamentMember::new(
                 "hades".into(),
-                1,
+                MemberId::new(1).unwrap(),
                 String::new(),
                 1,
                 String::new(),
@@ -362,6 +404,7 @@ mod merge_scores {
 #[cfg(test)]
 mod provenance {
     use super::{FunderSearchMatch, ParliamentMember, SearchSimilarity, merge_scores};
+    use crate::domain::models::parliament_member::MemberId;
     use crate::domain::models::{
         entity_search::{Entity, SearchMatchSource},
         funder::{Funder, FunderId, FunderKind},
@@ -380,7 +423,13 @@ mod provenance {
             ),
             source.clone(),
         );
-        let mp = ParliamentMember::new("West Member".into(), 1, "Party".into(), 1, "Place".into());
+        let mp = ParliamentMember::new(
+            "West Member".into(),
+            MemberId::new(1).unwrap(),
+            "Party".into(),
+            1,
+            "Place".into(),
+        );
         let results = merge_scores(
             &[(mp.clone(), SearchSimilarity::from(1.0))],
             &[(funder, SearchSimilarity::from(1.0))],

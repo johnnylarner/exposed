@@ -114,13 +114,18 @@ pub(super) fn read_table<T: DeserializeOwned>(
     let digest = format!("{:x}", Sha256::digest(&bytes));
     let reader =
         ParquetRecordBatchReaderBuilder::try_new(bytes::Bytes::from(bytes)).map_err(read_error)?;
+    if reader.schema().field_with_name("member_id").is_ok() {
+        return Err(read_error(
+            "unsupported member identity format; capture a new ingestion run, then clean, resolve and load it",
+        ));
+    }
     for required in expected.fields() {
-        let actual=reader.schema().field_with_name(required.name()).map_err(|_|read_error("cleaned declarations lack the resolution schema; clean the retained raw capture into a fresh ingestion run"))?;
+        let actual=reader.schema().field_with_name(required.name()).map_err(|_|read_error("unsupported declaration artifact format; capture a new ingestion run, then clean, resolve and load it"))?;
         if actual.data_type() != required.data_type()
             || actual.is_nullable() != required.is_nullable()
         {
             return Err(read_error(format!(
-                "cleaned field {} has an incompatible type; clean retained raw into a fresh run",
+                "cleaned field {} has an incompatible type; capture a new ingestion run, then clean, resolve and load it",
                 required.name()
             )));
         }

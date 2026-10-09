@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ffi::OsString, fs, process::Command};
+use std::{ffi::OsString, fs, process::Command};
 
 use anyhow::Context;
 use clap::Parser;
@@ -111,19 +111,16 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Result<()> {
-    let members = sqlx::query!(
+    sqlx::query!(
         "INSERT INTO exposed.members
             (parliament_member_id, name, party_id, party_name, latest_house,
              latest_membership_from, is_current_commons)
          VALUES (4613, 'Alex Burghart', 4, 'Conservative', 1, 'Brentwood and Ongar', true),
                 (5030, 'Dr Simon Opher', 15, 'Labour', 1, 'Stroud', true)
-         RETURNING id, parliament_member_id"
+"
     )
-    .fetch_all(&pool)
-    .await?
-    .into_iter()
-    .map(|member| (member.parliament_member_id, member.id))
-    .collect::<HashMap<_, _>>();
+    .execute(&pool)
+    .await?;
     let ingestion_key = IngestionKey::default();
     let tmp = TempDir::new()?;
     let url = pool.connect_options().to_url_lossy();
@@ -152,7 +149,7 @@ async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Res
         individual_donation,
         &DeclarationFunding {
             declaration_id: 16901,
-            member_id: members[&4613].to_string(),
+            parliament_member_id: 4613,
             funding_entry: FundingEntry {
                 donor_name: Some("David Robert Meller".into()),
                 amount: Some("2000.00".into()),
@@ -172,7 +169,7 @@ async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Res
         company_donation,
         &DeclarationFunding {
             declaration_id: 16863,
-            member_id: members[&5030].to_string(),
+            parliament_member_id: 5030,
             funding_entry: FundingEntry {
                 donor_name: Some("Labour Together Limited".into()),
                 amount: Some("5000.00".into()),

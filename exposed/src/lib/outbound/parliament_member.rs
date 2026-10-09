@@ -3,8 +3,9 @@
 use crate::{
     domain::{
         models::{
-            declaration_ingestion::MemberAsId, entity_search::EntitySearchRequest,
-            parliament_member::ParliamentMember, search_similarity::SearchSimilarity,
+            entity_search::EntitySearchRequest,
+            parliament_member::{MemberId, ParliamentMember},
+            search_similarity::SearchSimilarity,
         },
         repositories::parliament_member_repository::{
             ParliamentMemberRepo, ParliamentMemberRepoError,
@@ -14,12 +15,12 @@ use crate::{
 };
 
 impl ParliamentMemberRepo for ExposedDatabase {
-    async fn get_stored_member_ids(&self) -> Result<Vec<MemberAsId>, ParliamentMemberRepoError> {
+    async fn get_stored_member_ids(&self) -> Result<Vec<MemberId>, ParliamentMemberRepoError> {
         sqlx::query!(
             "
-            SELECT id, parliament_member_id
+            SELECT parliament_member_id
             FROM exposed.members
-            ORDER BY parliament_member_id, id
+            ORDER BY parliament_member_id
             "
         )
         .fetch_all(self.pool())
@@ -29,13 +30,12 @@ impl ParliamentMemberRepo for ExposedDatabase {
         .map(|row| {
             let parliament_id = u32::try_from(row.parliament_member_id)
                 .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
-            MemberAsId::new(row.id, parliament_id)
+            MemberId::new(parliament_id)
                 .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))
         })
         .collect()
     }
 
-    #[allow(clippy::cast_sign_loss)]
     async fn get_members_by_text_search_score(
         &self,
         req: &EntitySearchRequest,
@@ -80,9 +80,14 @@ impl ParliamentMemberRepo for ExposedDatabase {
             .map(|r| {
                 let member = ParliamentMember::new(
                     r.name,
-                    r.parliament_member_id as u32,
+                    MemberId::new(
+                        u32::try_from(r.parliament_member_id)
+                            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
+                    )
+                    .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
                     r.party_name,
-                    r.party_id as u32,
+                    u32::try_from(r.party_id)
+                        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
                     r.constituency,
                 );
                 let score = SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32));
@@ -122,7 +127,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
                is_current_commons = EXCLUDED.is_current_commons
            RETURNING id
             ",
-                m.member_id().cast_signed(),
+                m.member_id().value().cast_signed(),
                 m.name(),
                 m.party_id().cast_signed(),
                 m.party_name(),

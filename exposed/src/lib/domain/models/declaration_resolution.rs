@@ -2,6 +2,7 @@
 
 use super::{
     declaration_cleaning::{AddressMatchQuality, FunderObservationId, FunderRole, FundingEntryId},
+    declaration_ingestion::DeclarationId,
     entity_ingestion::EntityIngestionError,
 };
 use serde::{Deserialize, Serialize};
@@ -157,7 +158,7 @@ pub enum AttributionDecision {
         /// Source role used by the attribution policy.
         attribution_basis: AttributionBasis,
         /// Immediate parent only when a parent payer was selected.
-        selected_parent_declaration_id: Option<u32>,
+        selected_parent_declaration_id: Option<DeclarationId>,
     },
     /// An explicit reason no source observation could be selected.
     Unavailable {
@@ -208,7 +209,7 @@ impl ResolvedDeclarations {
             .values()
             .map(|payment| attribute(input, payment))
             .collect::<Vec<_>>();
-        let manifest = serde_json::json!({ "schema_version":1, "rust_package_version":env!("CARGO_PKG_VERSION"), "policy_version":POLICY_VERSION, "automatic_threshold":AUTOMATIC_THRESHOLD,
+        let manifest = serde_json::json!({ "schema_version":2, "rust_package_version":env!("CARGO_PKG_VERSION"), "policy_version":POLICY_VERSION, "automatic_threshold":AUTOMATIC_THRESHOLD,
             "input_sha256":input.digests, "model":scored.model, "scoring_profiles":scoring.rows.len(), "observations":observations.len(), "payments":attributions.len(),
             "pair_decisions":pairs.len(), "accepted_pairs":pairs.iter().filter(|p|p.disposition==PairDisposition::Accepted).count(),
             "review_pairs":pairs.iter().filter(|p|p.disposition==PairDisposition::Review).count(), "candidate_budget":scoring.candidate_budget,

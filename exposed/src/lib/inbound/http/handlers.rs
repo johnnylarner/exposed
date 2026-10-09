@@ -103,7 +103,7 @@ mod search_source {
     use crate::domain::models::{
         entity_search::{Entity, FunderSearchMatch},
         funder::{Funder, FunderId, FunderKind},
-        parliament_member::ParliamentMember,
+        parliament_member::{MemberId, ParliamentMember},
     };
 
     #[test]
@@ -128,7 +128,7 @@ mod search_source {
         );
         let mp = Entity::ParliamentMember(ParliamentMember::new(
             "West Member".into(),
-            1,
+            MemberId::new(1).unwrap(),
             "Party".into(),
             1,
             "Place".into(),

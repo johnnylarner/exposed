@@ -1,8 +1,8 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    declaration_ingestion::{CapturedDeclaration, MemberAsId},
-    parliament_member::ParliamentMember,
+    declaration_ingestion::CapturedDeclaration,
+    parliament_member::{MemberId, ParliamentMember},
 };
 
 /// Allows users to interact with the UK Parliament API.
@@ -15,7 +15,7 @@ pub trait ParliamentApi: Clone + Send + Sync + 'static {
     /// Uses each declaration's latest publication and returns children as separate declarations.
     fn get_declarations(
         &self,
-        member: MemberAsId,
+        member: MemberId,
     ) -> impl Future<Output = Result<Vec<CapturedDeclaration>, ParliamentApiError>> + Send;
 }
 

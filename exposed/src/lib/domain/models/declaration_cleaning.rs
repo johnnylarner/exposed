@@ -3,28 +3,42 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
 use unicode_normalization::UnicodeNormalization;
-use uuid::Uuid;
 
 use super::{
-    declaration_ingestion::{CapturedDeclaration, CapturedFundingEntry, DeclarationId, MemberAsId},
+    declaration_ingestion::{CapturedDeclaration, CapturedFundingEntry, DeclarationId},
     entity_ingestion::EntityIngestionError,
     funder_name::FunderNameFeatures,
+    parliament_member::MemberId,
 };
 
-/// One existing member's replayed source declarations.
-pub enum CapturedMemberDeclarations {
-    /// An empty member partition has no projected Parliament identity.
-    Empty {
-        /// Stored member UUID from the partition filename.
-        member_id: Uuid,
-    },
-    /// A populated member partition with checked identities.
-    Populated {
-        /// Stored member identity from the raw partition.
-        member: MemberAsId,
-        /// Unique declarations in deterministic source-ID order.
-        declarations: Vec<DeclarationEvidence>,
-    },
+/// One source member's replayed declarations, including an empty partition.
+pub struct CapturedMemberDeclarations {
+    pub(crate) member: MemberId,
+    pub(crate) declarations: Vec<DeclarationEvidence>,
+}
+impl CapturedMemberDeclarations {
+    /// Retains unique declarations in source identity order.
+    ///
+    /// # Errors
+    /// Rejects repeated source declaration identities.
+    pub fn new(
+        member: MemberId,
+        mut declarations: Vec<DeclarationEvidence>,
+    ) -> Result<Self, EntityIngestionError> {
+        declarations.sort_by_key(|row| row.declaration.id());
+        if declarations
+            .windows(2)
+            .any(|rows| rows[0].declaration.id() == rows[1].declaration.id())
+        {
+            return Err(EntityIngestionError::DataError(
+                "duplicate source declaration identity".into(),
+            ));
+        }
+        Ok(Self {
+            member,
+            declarations,
+        })
+    }
 }
 
 /// Top-level names not represented by a top-level funding occurrence.
@@ -219,12 +233,51 @@ pub struct FundingEntryId(String);
 #[serde(transparent)]
 pub struct FunderObservationId(String);
 
+#[derive(Clone, Copy)]
+pub(crate) struct SourceScope {
+    member: MemberId,
+    declaration: DeclarationId,
+    register: u32,
+}
+impl SourceScope {
+    pub(crate) const fn new(member: MemberId, declaration: DeclarationId, register: u32) -> Self {
+        Self {
+            member,
+            declaration,
+            register,
+        }
+    }
+    fn prefix(self) -> String {
+        format!(
+            "{}/{}/{}",
+            self.member,
+            self.declaration.value(),
+            self.register
+        )
+    }
+    fn declaration_scope(self) -> String {
+        format!("{}/declaration", self.prefix())
+    }
+    pub(crate) fn funding_entry(self, ordinal: u32) -> FundingEntryId {
+        FundingEntryId(format!("{}/funding/{ordinal}", self.prefix()))
+    }
+    pub(crate) fn declaration_observation(self, role: FunderRole) -> FunderObservationId {
+        FunderObservationId::for_scope(&self.declaration_scope(), role)
+    }
+}
+
 impl FundingEntryId {
+    pub(crate) fn observation(&self, role: FunderRole) -> FunderObservationId {
+        FunderObservationId::for_scope(&self.0, role)
+    }
     pub(crate) fn as_str(&self) -> &str {
         &self.0
     }
 }
 impl FunderObservationId {
+    fn for_scope(scope: &str, role: FunderRole) -> Self {
+        Self(format!("{scope}/{}", role.suffix()))
+    }
     pub(crate) fn as_str(&self) -> &str {
         &self.0
     }
@@ -276,8 +329,9 @@ pub enum FunderObservationSource {
 #[derive(Debug, Serialize)]
 pub struct FunderObservation {
     pub(crate) funder_id: FunderObservationId,
-    pub(crate) member_id: String,
-    pub(crate) declaration_id: u32,
+    #[serde(rename = "parliament_member_id")]
+    pub(crate) member_id: MemberId,
+    pub(crate) declaration_id: DeclarationId,
     pub(crate) register_id: u32,
     pub(crate) role: FunderRole,
     #[serde(flatten)]
@@ -294,12 +348,12 @@ pub struct FunderObservation {
 #[derive(Debug, Serialize)]
 pub struct CleanedFundingEntry {
     pub(crate) funding_entry_id: FundingEntryId,
-    pub(crate) member_id: String,
-    pub(crate) parliament_member_id: u32,
-    pub(crate) declaration_id: u32,
+    #[serde(rename = "parliament_member_id")]
+    pub(crate) member_id: MemberId,
+    pub(crate) declaration_id: DeclarationId,
     pub(crate) register_id: u32,
     pub(crate) funding_ordinal: u32,
-    pub(crate) parent_declaration_id: Option<u32>,
+    pub(crate) parent_declaration_id: Option<DeclarationId>,
     pub(crate) category_id: u32,
     pub(crate) category_name: String,
     pub(crate) register_published_date: NaiveDate,
@@ -350,22 +404,14 @@ impl CleanedDeclarations {
         let mut funders = Vec::new();
         let mut declaration_count = 0;
         for capture in captures {
-            let CapturedMemberDeclarations::Populated {
+            let CapturedMemberDeclarations {
                 member,
                 declarations,
-            } = capture
-            else {
-                continue;
-            };
+            } = capture;
             declaration_count += declarations.len();
             for evidence in declarations {
                 let declaration = &evidence.declaration;
-                let scope_id = format!(
-                    "{}/{}/{}",
-                    member.member_id(),
-                    declaration.id().value(),
-                    declaration.register_id()
-                );
+                let scope = SourceScope::new(*member, declaration.id(), declaration.register_id());
                 if let Some(names) = &evidence.declaration_funders {
                     let source = || FunderObservationSource::Declaration {
                         source_pointer: evidence.declaration_source_pointer.clone(),
@@ -374,7 +420,7 @@ impl CleanedDeclarations {
                         &mut funders,
                         *member,
                         declaration,
-                        &format!("{scope_id}/declaration"),
+                        &scope.declaration_scope(),
                         source,
                         names.donor_name.as_deref(),
                         names.payer_name.as_deref(),
@@ -387,7 +433,7 @@ impl CleanedDeclarations {
                 for (ordinal, (funding, pointer)) in evidence.funding_occurrences().enumerate() {
                     let ordinal = u32::try_from(ordinal)
                         .map_err(|error| EntityIngestionError::DataError(error.to_string()))?;
-                    let id = FundingEntryId(format!("{scope_id}/funding/{ordinal}"));
+                    let id = scope.funding_entry(ordinal);
                     let source = || FunderObservationSource::FundingEntry {
                         funding_entry_id: id.clone(),
                         funding_ordinal: ordinal,
@@ -408,12 +454,11 @@ impl CleanedDeclarations {
                     );
                     funding_entries.push(CleanedFundingEntry {
                         funding_entry_id: id,
-                        member_id: member.member_id().to_string(),
-                        parliament_member_id: member.parliament_member_id(),
-                        declaration_id: declaration.id().value(),
+                        member_id: *member,
+                        declaration_id: declaration.id(),
                         register_id: declaration.register_id(),
                         funding_ordinal: ordinal,
-                        parent_declaration_id: declaration.parent_id().map(DeclarationId::value),
+                        parent_declaration_id: declaration.parent_id(),
                         category_id: declaration.category_id(),
                         category_name: declaration.category_name().to_owned(),
                         register_published_date: declaration.register_published_date(),
@@ -444,7 +489,7 @@ impl CleanedDeclarations {
 #[allow(clippy::too_many_arguments)]
 fn add_roles(
     funders: &mut Vec<FunderObservation>,
-    member: MemberAsId,
+    member: MemberId,
     declaration: &CapturedDeclaration,
     scope_id: &str,
     source: impl Fn() -> FunderObservationSource,
@@ -464,11 +509,11 @@ fn add_roles(
         if name.is_none() && kind.is_none() && company.is_none() {
             return None;
         }
-        let id = FunderObservationId(format!("{scope_id}/{}", role.suffix()));
+        let id = FunderObservationId::for_scope(scope_id, role);
         funders.push(FunderObservation {
             funder_id: id.clone(),
-            member_id: member.member_id().to_string(),
-            declaration_id: declaration.id().value(),
+            member_id: member,
+            declaration_id: declaration.id(),
             register_id: declaration.register_id(),
             role,
             source: source(),

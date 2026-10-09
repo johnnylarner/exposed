@@ -9,9 +9,9 @@ use reqwest::Client;
 
 use crate::domain::{
     models::{
-        declaration_ingestion::{CapturedDeclaration, MemberAsId},
+        declaration_ingestion::CapturedDeclaration,
         entity_ingestion::EntityIngestionError,
-        parliament_member::ParliamentMember,
+        parliament_member::{MemberId, ParliamentMember},
     },
     repositories::parliament_api::{ParliamentApi as Interface, ParliamentApiError},
 };
@@ -75,23 +75,24 @@ impl Interface for ParliamentApiClient {
             }
         }
 
-        Ok(members
+        members
             .into_iter()
             .map(|m| {
-                ParliamentMember::new(
+                Ok(ParliamentMember::new(
                     m.value.name,
-                    m.value.id,
+                    MemberId::new(m.value.id)
+                        .map_err(|e| ApiError::ResponseError(e.to_string()))?,
                     m.value.party.name,
                     m.value.party.id,
                     m.value.membership.membership_from,
-                )
+                ))
             })
-            .collect())
+            .collect()
     }
 
     async fn get_declarations(
         &self,
-        member: MemberAsId,
+        member: MemberId,
     ) -> Result<Vec<CapturedDeclaration>, ParliamentApiError> {
         self.capture_declarations(member).await.map_err(Into::into)
     }

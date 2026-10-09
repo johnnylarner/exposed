@@ -1,11 +1,10 @@
 use arrow::json::ArrayWriter;
 use chrono::{NaiveDate, Utc};
+use exposed::domain::models::parliament_member::MemberId;
 use exposed::{
     domain::{
         models::{
-            declaration_ingestion::{
-                CapturedDeclaration, CapturedFundingEntry, DeclarationId, MemberAsId,
-            },
+            declaration_ingestion::{CapturedDeclaration, CapturedFundingEntry, DeclarationId},
             entity_ingestion::IngestionKey,
         },
         repositories::entity_ingestion::EntityIngestionStorage,
@@ -20,7 +19,6 @@ use std::{
     path::Path,
     process::Command,
 };
-use uuid::Uuid;
 
 fn rows(path: &Path) -> anyhow::Result<Vec<Value>> {
     let reader = ParquetRecordBatchReaderBuilder::try_new(fs::File::open(path)?)?.build()?;
@@ -53,7 +51,7 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
     let key = IngestionKey::default();
     let root = temporary.path().join("data");
     let storage = ExposedDataPipeline::new_with_ingestion_key(&root, key.clone())?;
-    let member = MemberAsId::new(Uuid::from_u128(1), 1)?;
+    let member = MemberId::new(1)?;
     let date = NaiveDate::from_ymd_opt(2026, 9, 7).unwrap();
     let mut captures = Vec::new();
     for id in 1..=16 {
