@@ -167,7 +167,10 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
                 "source_reported_company"
                     | "statistical_link"
                     | "donor_name_link"
+                    | "extracted_name_link"
+                    | "trade_union_family_link"
                     | "statistical_and_donor_name_link"
+                    | "statistical_and_supporting_name_link"
                     | "provisional_singleton"
                     | "unresolved"
             ) || unresolved != row.identity_id.is_none()
@@ -213,6 +216,8 @@ impl DeclarationLoadStorage for ExposedDataPipeline {
                         | "component_identity_conflict"
                         | "exact_name_full_address_threshold"
                         | "exact_donor_name"
+                        | "extracted_name_evidence"
+                        | "trade_union_family"
                 )
             {
                 return Err(data_error("invalid resolved pair decision"));
@@ -700,7 +705,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 )));
             }
             let inserted = sqlx::query!(
-                "INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (source_declaration_id) DO UPDATE SET member_id = EXCLUDED.member_id, category_id = EXCLUDED.category_id, category_name = EXCLUDED.category_name, fetched_at = EXCLUDED.fetched_at, registration_date = EXCLUDED.registration_date WHERE exposed.declarations.fetched_at < EXCLUDED.fetched_at RETURNING source_declaration_id",
+                "INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (source_declaration_id) DO UPDATE SET member_id = EXCLUDED.member_id, category_id = EXCLUDED.category_id, category_name = EXCLUDED.category_name, fetched_at = EXCLUDED.fetched_at, registration_date = EXCLUDED.registration_date WHERE exposed.declarations.fetched_at <= EXCLUDED.fetched_at RETURNING source_declaration_id",
                 i32::try_from(declaration.source_declaration_id).map_err(db_error)?,
                 declaration.member_id,
                 i32::try_from(declaration.category_id).map_err(db_error)?,
@@ -710,7 +715,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
             ).fetch_optional(&mut *tx).await.map_err(db_error)?;
             if inserted.is_none() {
                 return Err(data_error(format!(
-                    "declaration {} is already loaded at an equal or newer capture time",
+                    "declaration {} is already loaded at a newer capture time",
                     declaration.source_declaration_id
                 )));
             }
