@@ -32,24 +32,6 @@ async fn publication_is_complete_and_refuses_existing_result() {
     );
 }
 
-#[tokio::test]
-async fn worker_process_failure_does_not_publish_or_fake_scores() {
-    let directory = tempfile::tempdir().unwrap();
-    let worker = directory.path().join("worker.py");
-    fs::write(&worker, "raise RuntimeError('intentional process failure')")
-        .await
-        .unwrap();
-    let scorer = SplinkScorer::new(PathBuf::from("python3"), worker).unwrap();
-    let input = ResolutionInput::new(vec![], vec![], BTreeMap::new()).unwrap();
-    let error = scorer
-        .score(&input.scoring_input(10))
-        .await
-        .err()
-        .unwrap()
-        .to_string();
-    assert!(error.contains("intentional process failure"));
-}
-
 #[test]
 fn atomic_directory_publication_refuses_an_existing_empty_directory() {
     let temporary = tempfile::tempdir().unwrap();
@@ -61,22 +43,6 @@ fn atomic_directory_publication_refuses_an_existing_empty_directory() {
     assert!(publish_directory(&staging, &destination).is_err());
     assert!(staging.join("evidence").is_file());
     assert_eq!(std::fs::read_dir(&destination).unwrap().count(), 0);
-}
-
-#[tokio::test]
-async fn malformed_worker_output_is_rejected_at_the_process_boundary() {
-    let temporary = tempfile::tempdir().unwrap();
-    let path = temporary.path().join("worker.py");
-    for content in ["not json", r#"{"version":99,"model":{},"pairs":[]}"#] {
-        std::fs::write(
-            &path,
-            format!("import sys\nwith open(sys.argv[2], 'w') as f: f.write({content:?})\n"),
-        )
-        .unwrap();
-        let scorer = SplinkScorer::new(PathBuf::from("python3"), path.clone()).unwrap();
-        let input = ResolutionInput::new(vec![], vec![], BTreeMap::new()).unwrap();
-        assert!(scorer.score(&input.scoring_input(10)).await.is_err());
-    }
 }
 
 #[tokio::test]

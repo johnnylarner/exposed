@@ -134,7 +134,7 @@ the API to check retry behavior. See the
 
 ## Resolve declaration funders
 
-Install the pinned Python worker with the [resolution setup](resolution/README.md). Then resolve a cleaned run from the repository root:
+Resolution uses the native SIMD scorer from `weldrs` 0.2.2 and requires no Python setup. Configure the data directory and candidate budget using the [resolution guide](resolution/README.md), then resolve a cleaned run from the repository root:
 
 ```sh
 cargo run --package exposed --bin exposed -- data declarations resolve --config exposed/config/declaration-resolution-dev.yaml --ingestion-key "$ingestion_key"
@@ -142,7 +142,7 @@ cargo run --package exposed --bin exposed -- data declarations resolve --config 
 
 The command writes observation identities, one attribution per funding occurrence,
 statistical candidate decisions, and a manifest under `resolved/declarations`.
-Company anchors use captured source numbers. Splink supplies uncalibrated scores
+Company anchors use captured source numbers. The frozen native model supplies uncalibrated scores
 for observations without eligible company IDs, including noncompanies. Initial
 automatic links require exact names and complete usable addresses. Name-only and
 fuzzy candidates remain for review, while named singletons receive separate

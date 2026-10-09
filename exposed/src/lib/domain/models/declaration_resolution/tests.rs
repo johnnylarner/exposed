@@ -702,7 +702,6 @@ fn indirect_links_cannot_join_distinct_company_components() {
         .map(|(row, id)| (row.key.clone(), vec![id.clone()]))
         .collect();
     let scoring = ScoringInput {
-        version: 2,
         candidate_budget: 10,
         rows,
         members,
@@ -755,7 +754,6 @@ fn resolve_edges(
     let input = input(observations);
     let ids = input.observations.keys().cloned().collect::<Vec<_>>();
     let scoring = ScoringInput {
-        version: 2,
         candidate_budget: 100,
         rows: ids
             .iter()

@@ -92,17 +92,9 @@ pub enum CliConfigError {
 pub struct DeclarationResolverConfig {
     /// Root directory containing the existing ingestion run.
     pub data_dir: PathBuf,
-    /// Python executable in the separately installed resolution environment.
-    pub resolution_python: PathBuf,
-    /// Worker path, relative to the invocation directory when not absolute.
-    #[serde(default = "default_resolution_worker")]
-    pub resolution_worker: PathBuf,
     /// Maximum profile candidates and expanded observation pairs.
     #[serde(default = "default_candidate_budget")]
     pub candidate_budget: usize,
-}
-fn default_resolution_worker() -> PathBuf {
-    PathBuf::from("resolution/worker.py")
 }
 const fn default_candidate_budget() -> usize {
     1_000_000
@@ -114,10 +106,6 @@ impl TryFrom<&PathBuf> for DeclarationResolverConfig {
         anyhow::ensure!(
             config.candidate_budget > 0,
             "candidate_budget must be positive"
-        );
-        anyhow::ensure!(
-            !config.resolution_python.as_os_str().is_empty(),
-            "resolution_python must be configured"
         );
         Ok(config)
     }

@@ -161,11 +161,7 @@ async fn assert_no_import(pool: &PgPool) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn write_resolved_fixture(
-    root: &Path,
-    key: &IngestionKey,
-    python: &str,
-) -> anyhow::Result<()> {
+async fn write_resolved_fixture(root: &Path, key: &IngestionKey) -> anyhow::Result<()> {
     let storage = ExposedDataPipeline::new_with_ingestion_key(&root.join("data"), key.clone())?;
     storage
         .write_raw_declarations(
@@ -179,14 +175,7 @@ async fn write_resolved_fixture(
     fs::write(root.join(".env"), "")?;
     fs::write(
         root.join("config.yaml"),
-        format!(
-            "data_dir: ./data\nresolution_python: {}\nresolution_worker: {}\ncandidate_budget: 1000000\n",
-            serde_json::to_string(python)?,
-            serde_json::to_string(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/../resolution/worker.py"
-            ))?
-        ),
+        "data_dir: ./data\ncandidate_budget: 1000000\n",
     )?;
     for stage in ["clean", "resolve"] {
         let output = cli(stage, root, key, None)?;
@@ -268,18 +257,16 @@ fn checked_source_artifacts(
 }
 
 #[sqlx::test(migrations = "../db/migrations")]
-#[ignore = "requires EXPOSED_RESOLUTION_PYTHON with pinned Splink"]
 async fn unchanged_source_artifacts_load_after_member_uuid_rebuild(
     pool: PgPool,
 ) -> anyhow::Result<()> {
-    let python = std::env::var("EXPOSED_RESOLUTION_PYTHON")?;
     let temporary = tempfile::tempdir()?;
     let root = temporary.path();
     let key = IngestionKey::default();
     let old_uuid = Uuid::from_u128(1);
     let new_uuid = Uuid::from_u128(2);
     insert_member(&pool, old_uuid).await?;
-    write_resolved_fixture(root, &key, &python).await?;
+    write_resolved_fixture(root, &key).await?;
     let run = root.join("data").join(key.to_string());
     let unchanged = checked_source_artifacts(&run, &[old_uuid, new_uuid])?;
     let url = pool.connect_options().to_url_lossy();

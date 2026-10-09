@@ -1,0 +1,1866 @@
+{
+  "generator": {
+    "splink": "4.0.17",
+    "duckdb": "1.4.4",
+    "source": "resolution/generate.py original_prediction"
+  },
+  "cases": [
+    {
+      "name": "empty",
+      "rows": [],
+      "pairs": []
+    },
+    {
+      "name": "singleton",
+      "rows": [
+        {
+          "key": "a",
+          "name": "john smith",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": []
+    },
+    {
+      "name": "comparison_levels",
+      "rows": [
+        {
+          "key": "0-0",
+          "name": "john smith",
+          "address": "1 road",
+          "blocking_keys": [
+            "all-levels"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "0-1",
+          "name": "john smith",
+          "address": "2 road",
+          "blocking_keys": [
+            "all-levels"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "0-2",
+          "name": "john smith",
+          "address": null,
+          "blocking_keys": [
+            "all-levels"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "1-0",
+          "name": "jon smith",
+          "address": "1 road",
+          "blocking_keys": [
+            "all-levels"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "1-1",
+          "name": "jon smith",
+          "address": "2 road",
+          "blocking_keys": [
+            "all-levels"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "1-2",
+          "name": "jon smith",
+          "address": null,
+          "blocking_keys": [
+            "all-levels"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "2-0",
+          "name": "different organisation",
+          "address": "1 road",
+          "blocking_keys": [
+            "all-levels"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "2-1",
+          "name": "different organisation",
+          "address": "2 road",
+          "blocking_keys": [
+            "all-levels"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "2-2",
+          "name": "different organisation",
+          "address": null,
+          "blocking_keys": [
+            "all-levels"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "0-0",
+          "right": "0-1",
+          "probability": 0.009411624833402722,
+          "name_level": 2,
+          "address_level": 0
+        },
+        {
+          "left": "0-0",
+          "right": "0-2",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "0-0",
+          "right": "1-0",
+          "probability": 0.9756121356393552,
+          "name_level": 1,
+          "address_level": 1
+        },
+        {
+          "left": "0-0",
+          "right": "1-1",
+          "probability": 4.444735817125498e-05,
+          "name_level": 1,
+          "address_level": 0
+        },
+        {
+          "left": "0-0",
+          "right": "1-2",
+          "probability": 0.000444291410736302,
+          "name_level": 1,
+          "address_level": -1
+        },
+        {
+          "left": "0-0",
+          "right": "2-0",
+          "probability": 0.08334097292251788,
+          "name_level": 0,
+          "address_level": 1
+        },
+        {
+          "left": "0-0",
+          "right": "2-1",
+          "probability": 1.0102120303725198e-07,
+          "name_level": 0,
+          "address_level": 0
+        },
+        {
+          "left": "0-0",
+          "right": "2-2",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "0-1",
+          "right": "0-2",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "0-1",
+          "right": "1-0",
+          "probability": 4.444735817125498e-05,
+          "name_level": 1,
+          "address_level": 0
+        },
+        {
+          "left": "0-1",
+          "right": "1-1",
+          "probability": 0.9756121356393552,
+          "name_level": 1,
+          "address_level": 1
+        },
+        {
+          "left": "0-1",
+          "right": "1-2",
+          "probability": 0.000444291410736302,
+          "name_level": 1,
+          "address_level": -1
+        },
+        {
+          "left": "0-1",
+          "right": "2-0",
+          "probability": 1.0102120303725198e-07,
+          "name_level": 0,
+          "address_level": 0
+        },
+        {
+          "left": "0-1",
+          "right": "2-1",
+          "probability": 0.08334097292251788,
+          "name_level": 0,
+          "address_level": 1
+        },
+        {
+          "left": "0-1",
+          "right": "2-2",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "0-2",
+          "right": "1-0",
+          "probability": 0.000444291410736302,
+          "name_level": 1,
+          "address_level": -1
+        },
+        {
+          "left": "0-2",
+          "right": "1-1",
+          "probability": 0.000444291410736302,
+          "name_level": 1,
+          "address_level": -1
+        },
+        {
+          "left": "0-2",
+          "right": "1-2",
+          "probability": 0.000444291410736302,
+          "name_level": 1,
+          "address_level": -1
+        },
+        {
+          "left": "0-2",
+          "right": "2-0",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "0-2",
+          "right": "2-1",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "0-2",
+          "right": "2-2",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "1-0",
+          "right": "1-1",
+          "probability": 0.009411624833402722,
+          "name_level": 2,
+          "address_level": 0
+        },
+        {
+          "left": "1-0",
+          "right": "1-2",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "1-0",
+          "right": "2-0",
+          "probability": 0.08334097292251788,
+          "name_level": 0,
+          "address_level": 1
+        },
+        {
+          "left": "1-0",
+          "right": "2-1",
+          "probability": 1.0102120303725198e-07,
+          "name_level": 0,
+          "address_level": 0
+        },
+        {
+          "left": "1-0",
+          "right": "2-2",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "1-1",
+          "right": "1-2",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "1-1",
+          "right": "2-0",
+          "probability": 1.0102120303725198e-07,
+          "name_level": 0,
+          "address_level": 0
+        },
+        {
+          "left": "1-1",
+          "right": "2-1",
+          "probability": 0.08334097292251788,
+          "name_level": 0,
+          "address_level": 1
+        },
+        {
+          "left": "1-1",
+          "right": "2-2",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "1-2",
+          "right": "2-0",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "1-2",
+          "right": "2-1",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "1-2",
+          "right": "2-2",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "2-0",
+          "right": "2-1",
+          "probability": 0.009411624833402722,
+          "name_level": 2,
+          "address_level": 0
+        },
+        {
+          "left": "2-0",
+          "right": "2-2",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "2-1",
+          "right": "2-2",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "exact_fuzzy_missing",
+      "rows": [
+        {
+          "key": "a",
+          "name": "john smith",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "john smith",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "c",
+          "name": "jon smith",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "d",
+          "name": "john smith",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        },
+        {
+          "left": "a",
+          "right": "c",
+          "probability": 0.9756121356393552,
+          "name_level": 1,
+          "address_level": 1
+        },
+        {
+          "left": "a",
+          "right": "d",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "b",
+          "right": "c",
+          "probability": 0.9756121356393552,
+          "name_level": 1,
+          "address_level": 1
+        },
+        {
+          "left": "b",
+          "right": "d",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "c",
+          "right": "d",
+          "probability": 0.000444291410736302,
+          "name_level": 1,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "exact_name",
+      "rows": [
+        {
+          "key": "a",
+          "name": "same name",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "same name",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "exact_address",
+      "rows": [
+        {
+          "key": "a",
+          "name": "alpha",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "zulu",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 0.08334097292251788,
+          "name_level": 0,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "three_character_prefix",
+      "rows": [
+        {
+          "key": "a",
+          "name": "example charity",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "example foundation",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "initial_surname",
+      "rows": [
+        {
+          "key": "a",
+          "name": "john smith",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "jon smith",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "c",
+          "name": "james smyth",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 0.000444291410736302,
+          "name_level": 1,
+          "address_level": -1
+        },
+        {
+          "left": "a",
+          "right": "c",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "b",
+          "right": "c",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "anchored_profiles",
+      "rows": [
+        {
+          "key": "a",
+          "name": "acme",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": false
+        },
+        {
+          "key": "b",
+          "name": "acme",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": false
+        },
+        {
+          "key": "c",
+          "name": "acme",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "c",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        },
+        {
+          "left": "b",
+          "right": "c",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "only_anchors",
+      "rows": [
+        {
+          "key": "a",
+          "name": "acme",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": false
+        },
+        {
+          "key": "b",
+          "name": "acme",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": false
+        }
+      ],
+      "pairs": []
+    },
+    {
+      "name": "trade_union",
+      "rows": [
+        {
+          "key": "a",
+          "name": "unite union",
+          "address": null,
+          "blocking_keys": [
+            "trade-union:unite"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "east midlands unite the union",
+          "address": null,
+          "blocking_keys": [
+            "trade-union:unite"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "c",
+          "name": "united against hunger",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "a",
+          "right": "c",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "alias",
+      "rows": [
+        {
+          "key": "a",
+          "name": "northstar consulting trading as fletchers",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:fletchers"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "fletchers",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:fletchers"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "generic_suffix",
+      "rows": [
+        {
+          "key": "a",
+          "name": "alpha ltd",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "amber ltd",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": []
+    },
+    {
+      "name": "suffix_on_left",
+      "rows": [
+        {
+          "key": "a",
+          "name": "amy company",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "ann collins",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": []
+    },
+    {
+      "name": "suffix_on_right",
+      "rows": [
+        {
+          "key": "a",
+          "name": "ann collins",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "amy company",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "empty_regex_match",
+      "rows": [
+        {
+          "key": "a",
+          "name": "alpha!",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "amber?",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "short_names",
+      "rows": [
+        {
+          "key": "a",
+          "name": "a",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "ab",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "c",
+          "name": "ác",
+          "address": null,
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": []
+    },
+    {
+      "name": "unicode",
+      "rows": [
+        {
+          "key": "a",
+          "name": "éva smith",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "eva smith",
+          "address": "1 road",
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "c",
+          "name": "伊藤",
+          "address": null,
+          "blocking_keys": [
+            "unicode"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "d",
+          "name": "伊東",
+          "address": null,
+          "blocking_keys": [
+            "unicode"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 0.9756121356393552,
+          "name_level": 1,
+          "address_level": 1
+        },
+        {
+          "left": "c",
+          "right": "d",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "escaped_keys",
+      "rows": [
+        {
+          "key": "a",
+          "name": "alpha",
+          "address": null,
+          "blocking_keys": [
+            "quote\"",
+            "line\nbreak",
+            "slash\\",
+            "éva",
+            "éva"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "zulu",
+          "address": null,
+          "blocking_keys": [
+            "line\nbreak",
+            "slash\\",
+            "éva"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "escaped_key_collisions",
+      "rows": [
+        {
+          "key": "a",
+          "name": "alpha",
+          "address": null,
+          "blocking_keys": [
+            "line\nbreak"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "zulu",
+          "address": null,
+          "blocking_keys": [
+            "linenbreak"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "c",
+          "name": "omega",
+          "address": null,
+          "blocking_keys": [
+            "line\\nbreak"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "d",
+          "name": "beta",
+          "address": null,
+          "blocking_keys": [
+            "line\nbreak"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "d",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "repeated_profile",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "same",
+          "address": "same",
+          "blocking_keys": [],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000000-repeat",
+          "name": "same",
+          "address": "same",
+          "blocking_keys": [],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000000-repeat",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "overlapping_rules",
+      "rows": [
+        {
+          "key": "a",
+          "name": "same",
+          "address": "same",
+          "blocking_keys": [
+            "same"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "b",
+          "name": "same",
+          "address": "same",
+          "blocking_keys": [
+            "same"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "c",
+          "name": "same",
+          "address": "same",
+          "blocking_keys": [
+            "same"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "a",
+          "right": "b",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        },
+        {
+          "left": "a",
+          "right": "c",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        },
+        {
+          "left": "b",
+          "right": "c",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "scalar_distance_counterexamples",
+      "rows": [
+        {
+          "key": "distance-0",
+          "name": "andrew lichnowski",
+          "address": null,
+          "blocking_keys": [
+            "distance-counterexamples"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "distance-1",
+          "name": "andy lichnowski",
+          "address": null,
+          "blocking_keys": [
+            "distance-counterexamples"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "distance-2",
+          "name": "david luxton",
+          "address": null,
+          "blocking_keys": [
+            "distance-counterexamples"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "distance-3",
+          "name": "david lyon",
+          "address": null,
+          "blocking_keys": [
+            "distance-counterexamples"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "distance-0",
+          "right": "distance-1",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "distance-0",
+          "right": "distance-2",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "distance-0",
+          "right": "distance-3",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "distance-1",
+          "right": "distance-2",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "distance-1",
+          "right": "distance-3",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "distance-2",
+          "right": "distance-3",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_statistical",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "example charity",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:example charity"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000000-repeat",
+          "name": "example charity",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:example charity"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000000-repeat",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "policy_donor_missing_address",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "gary lubner",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:gary lubner"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "gary lubner",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:gary lubner"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000001",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_donor_address_disagreement",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "gary lubner",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:gary lubner"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "gary lubner",
+          "address": "2 road",
+          "blocking_keys": [
+            "funder-name:gary lubner"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000001",
+          "probability": 0.009411624833402722,
+          "name_level": 2,
+          "address_level": 0
+        }
+      ]
+    },
+    {
+      "name": "policy_fuzzy_payer",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "john smith",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:john smith"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "jon smith",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:jon smith"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000001",
+          "probability": 0.000444291410736302,
+          "name_level": 1,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_executive_annotation",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "hsbc uk (ian stuart, ceo)",
+          "address": "1 centenary square",
+          "blocking_keys": [
+            "funder-name:hsbc uk (ian stuart, ceo)"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "hsbc uk bank plc",
+          "address": "1 centenary square",
+          "blocking_keys": [
+            "funder-name:hsbc uk bank plc"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000001",
+          "probability": 0.08334097292251788,
+          "name_level": 0,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "policy_alias",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "fletchers",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:fletchers"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "northstar consulting trading as fletchers",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:fletchers",
+            "funder-name:northstar consulting trading as fletchers"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000001",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_trade_union",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "east midlands unite",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:east midlands unite",
+            "trade-union:unite"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "unite the union",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:unite the union",
+            "trade-union:unite"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000002",
+          "name": "united against hunger",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:united against hunger"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000001",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        },
+        {
+          "left": "profile-00000001",
+          "right": "profile-00000002",
+          "probability": 1.0102010097969293e-06,
+          "name_level": 0,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_shared_address",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "carlton club",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:carlton club"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "carlton club political committee",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:carlton club political committee"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000001",
+          "probability": 0.08334097292251788,
+          "name_level": 0,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "policy_competing_anchors",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "example ltd",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:example ltd"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000000-repeat",
+          "name": "example ltd",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:example ltd"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000000-repeat",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "policy_person_organisation",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "john smith",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:john smith"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000000-repeat",
+          "name": "john smith",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:john smith"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000000-repeat",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "policy_withheld",
+      "rows": [],
+      "pairs": []
+    },
+    {
+      "name": "policy_repeated_budget_2",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "example charity",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:example charity"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000000-repeat",
+          "name": "example charity",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:example charity"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000000-repeat",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "policy_repeated_budget_3",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "example charity",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:example charity"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000000-repeat",
+          "name": "example charity",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:example charity"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000000-repeat",
+          "probability": 0.9998830663066667,
+          "name_level": 2,
+          "address_level": 1
+        }
+      ]
+    },
+    {
+      "name": "policy_parent_payer",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "acme ltd",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:acme ltd"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001-repeat",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000001",
+          "right": "profile-00000001-repeat",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_different_unnamed",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "acme ltd",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:acme ltd"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001-repeat",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000001",
+          "right": "profile-00000001-repeat",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_donor_fallback",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "acme ltd",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:acme ltd"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001-repeat",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000001",
+          "right": "profile-00000001-repeat",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_explicit_ultimate",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "acme ltd",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:acme ltd"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000000-repeat",
+          "name": "acme ltd",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:acme ltd"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "acme ltd",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:acme ltd"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000002",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000002-repeat",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000000-repeat",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "profile-00000000",
+          "right": "profile-00000001",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "profile-00000000-repeat",
+          "right": "profile-00000001",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        },
+        {
+          "left": "profile-00000002",
+          "right": "profile-00000002-repeat",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_withheld_ultimate",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "acme ltd",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:acme ltd"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001-repeat",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000001",
+          "right": "profile-00000001-repeat",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_missing_parent",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "acme ltd",
+          "address": "1 road",
+          "blocking_keys": [
+            "funder-name:acme ltd"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001-repeat",
+          "name": "local donor",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:local donor"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": [
+        {
+          "left": "profile-00000001",
+          "right": "profile-00000001-repeat",
+          "probability": 0.08676591469540594,
+          "name_level": 2,
+          "address_level": -1
+        }
+      ]
+    },
+    {
+      "name": "policy_parent_cycle",
+      "rows": [
+        {
+          "key": "profile-00000000",
+          "name": "first payer",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:first payer"
+          ],
+          "needs_resolution": true
+        },
+        {
+          "key": "profile-00000001",
+          "name": "second payer",
+          "address": null,
+          "blocking_keys": [
+            "funder-name:second payer"
+          ],
+          "needs_resolution": true
+        }
+      ],
+      "pairs": []
+    }
+  ]
+}
