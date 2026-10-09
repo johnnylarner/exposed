@@ -40,11 +40,13 @@ pub enum DataCommands {
     /// Show the latest ingestion key and directory path.
     Latest {
         /// YAML configuration with the ingestion `data_dir`.
+        #[arg(long)]
         config: PathBuf,
     },
     /// Copy the latest raw capture into a new ingestion run.
     CopyLatestRaw {
         /// YAML configuration with the ingestion `data_dir`.
+        #[arg(long)]
         config: PathBuf,
         /// Destination ingestion key. Defaults to a fresh UUID-v7.
         #[arg(long)]
@@ -55,6 +57,7 @@ pub enum DataCommands {
         #[arg(value_parser = ["fetch", "clean", "resolve", "load"])]
         stage: String,
         /// YAML configuration containing the declaration `data_dir`.
+        #[arg(long)]
         config: PathBuf,
         /// Ingestion run to clean, resolve, or load.
         #[arg(long)]
@@ -62,6 +65,7 @@ pub enum DataCommands {
     },
     Members {
         stage: String,
+        #[arg(long)]
         config: PathBuf,
         #[arg(long)]
         ingestion_key: Option<IngestionKey>,

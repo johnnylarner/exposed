@@ -36,6 +36,7 @@ fn rows(path: &Path) -> anyhow::Result<Vec<Value>> {
 fn run(stage: &str, config: &Path, key: &IngestionKey) -> std::process::Output {
     Command::new(env!("CARGO_BIN_EXE_exposed"))
         .args(["data", "declarations", stage])
+        .arg("--config")
         .arg(config)
         .arg("--ingestion-key")
         .arg(key.to_string())
@@ -131,6 +132,7 @@ async fn clean_then_resolve_with_real_splink_preserves_occurrences_and_refuses_o
     let key = IngestionKey::default();
     let copied = Command::new(env!("CARGO_BIN_EXE_exposed"))
         .args(["data", "copy-latest-raw"])
+        .arg("--config")
         .arg(&config)
         .arg("--ingestion-key")
         .arg(key.to_string())
