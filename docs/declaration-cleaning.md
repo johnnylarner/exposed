@@ -1,6 +1,6 @@
 # Declaration cleaning reference
 
-`data declarations clean --config CONFIG --ingestion-key UUID` reads an existing raw
+`data --config CONFIG declarations clean --ingestion-key UUID` reads an existing raw
 declaration dataset. The YAML configuration needs `data_dir`. The command needs no
 database connection or network access at runtime.
 

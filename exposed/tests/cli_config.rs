@@ -16,13 +16,24 @@ const COMMANDS: &[&[&str]] = &[
 ];
 
 #[test]
-fn commands_accept_named_config() {
+fn commands_accept_global_config_at_each_position() {
     for command in COMMANDS {
-        let args = ["exposed-data"]
-            .into_iter()
-            .chain(command.iter().copied())
-            .chain(["--config", "config.yaml"]);
-        assert!(DataArgs::try_parse_from(args).is_ok(), "{command:?}");
+        for position in 0..=command.len() {
+            for config in [
+                vec!["--config", "config.yaml"],
+                vec!["--config=config.yaml"],
+            ] {
+                let args = ["exposed-data"]
+                    .into_iter()
+                    .chain(command[..position].iter().copied())
+                    .chain(config)
+                    .chain(command[position..].iter().copied());
+                assert!(
+                    DataArgs::try_parse_from(args).is_ok(),
+                    "{command:?} at {position}"
+                );
+            }
+        }
     }
 }
 
@@ -49,8 +60,10 @@ fn commands_require_named_config() -> anyhow::Result<()> {
                     "{stderr}"
                 );
             } else {
-                assert!(stderr.contains("--config <CONFIG>"), "{stderr}");
-                assert!(stderr.contains("required arguments"), "{stderr}");
+                assert!(
+                    stderr.contains("required argument was not provided: config"),
+                    "{stderr}"
+                );
             }
         }
     }

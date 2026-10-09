@@ -17,7 +17,7 @@ fn run_latest(root: &Path) -> anyhow::Result<Output> {
     Ok(Command::new(env!("CARGO_BIN_EXE_exposed"))
         .current_dir(root)
         .env_remove("DATABASE_URL")
-        .args(["data", "latest", "--config", "config.yaml"])
+        .args(["data", "--config", "config.yaml", "latest"])
         .output()?)
 }
 

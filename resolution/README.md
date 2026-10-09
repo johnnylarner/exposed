@@ -23,7 +23,7 @@ Paths are relative to the invocation directory. `resolution_worker` defaults to 
 Resolve an existing cleaned run:
 
 ```sh
-cargo run --package exposed --bin exposed -- data declarations resolve --config exposed/config/declaration-resolution-dev.yaml --ingestion-key UUID
+cargo run --package exposed --bin exposed -- data --config exposed/config/declaration-resolution-dev.yaml declarations resolve --ingestion-key UUID
 ```
 
 The command prints the output path and counts. The bundle contains observation resolutions, payment attributions, candidate decisions, and a manifest. It refuses an existing bundle. Older cleaned schemas require cleaning retained raw capture into a fresh run. Raw files are not needed after the current cleaner has produced the checked pair.
