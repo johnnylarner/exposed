@@ -1,0 +1,9 @@
+{
+  "format_version": 1,
+  "model_sha256": "f0749e4e3618f6553cbc38031fcca0d6bfbac2270eb0412dff6f8f74bc1f6c34",
+  "sql_sha256": "802b608fcfde431d7aa9040ed430b5c852cf53952d985c2d42f1792e77100514",
+  "generator": {
+    "splink_version": "4.0.17",
+    "duckdb_version": "1.4.4"
+  }
+}
