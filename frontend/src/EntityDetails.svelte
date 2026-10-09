@@ -170,11 +170,20 @@
         </div>
       </dl>
     </header>
+    {#if details.funder.aliases.length > 0}
+      <section class="recorded-names" aria-labelledby="recorded-names-heading">
+        <h2 id="recorded-names-heading">Recorded names</h2>
+        <ul>
+          {#each details.funder.aliases as alias}
+            <li>{alias}</li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
     <p class="summary-context">
       Declared support is grouped by recipients’ latest stored party. It may
       include payments or benefits beyond direct donations. Parties do not
-      describe membership when support was received. This page uses the funder’s
-      exact source name.
+      describe membership when support was received.
     </p>
     {#if details.unknownCurrencyCount > 0}<p class="coverage-note">
         {details.unknownCurrencyCount}

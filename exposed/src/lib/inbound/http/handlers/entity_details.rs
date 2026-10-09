@@ -129,6 +129,7 @@ pub struct FunderResponse {
     name: String,
     funder_kind: String,
     company_number: Option<String>,
+    aliases: Vec<String>,
 }
 impl From<FunderProfile> for FunderResponse {
     fn from(profile: FunderProfile) -> Self {
@@ -137,6 +138,7 @@ impl From<FunderProfile> for FunderResponse {
             name: profile.funder.name().to_string(),
             funder_kind: profile.funder.kind().to_string(),
             company_number: profile.company_number,
+            aliases: profile.aliases,
         }
     }
 }

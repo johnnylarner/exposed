@@ -48,6 +48,7 @@ const funderDetails = {
     name: "Exact Funder",
     funder_kind: "Company",
     company_number: "00123456",
+    aliases: [" Exact Funder ", "EXACT FUNDER", "Exact Funder"],
   },
   entry_count: 7,
   unknown_currency_count: 2,
@@ -454,7 +455,11 @@ test("long names and exact amounts fit mobile and source markup stays literal", 
     route.fulfill({
       json: {
         ...funderDetails,
-        funder: { ...funderDetails.funder, name: longName },
+        funder: {
+          ...funderDetails.funder,
+          name: longName,
+          aliases: [longName, "A".repeat(500)],
+        },
         currencies: funderDetails.currencies.map((group) => ({
           ...group,
           parties: group.parties.map((party) => ({
@@ -470,6 +475,11 @@ test("long names and exact amounts fit mobile and source markup stays literal", 
   await expect(
     page.getByRole("heading", { name: longName, exact: true }),
   ).toBeVisible();
+  const recordedNames = page.getByRole("region", { name: "Recorded names" });
+  await expect(recordedNames.getByRole("listitem")).toHaveText([
+    longName,
+    "A".repeat(500),
+  ]);
   await expect(page.locator("#details img")).toHaveCount(0);
   expect(
     await page.evaluate(
@@ -529,3 +539,59 @@ test("detail timeout offers retry and leaving a loading page cancels its result"
     page.getByRole("heading", { name: member.name, exact: true }),
   ).toHaveCount(0);
 });
+
+test("recorded names retain stored variants for every funder kind and hide empty lists", async ({
+  page,
+}) => {
+  for (const kind of ["Company", "Individual", null]) {
+    await page.route("**/api/funders/*", (route) =>
+      route.fulfill({
+        json: {
+          ...funderDetails,
+          funder: { ...funderDetails.funder, funder_kind: kind },
+        },
+      }),
+    );
+    await page.goto(`/funders/${funderId}`);
+    const names = page
+      .getByRole("region", { name: "Recorded names" })
+      .getByRole("listitem");
+    await expect(names).toHaveCount(funderDetails.funder.aliases.length);
+    expect(await names.allTextContents()).toEqual(funderDetails.funder.aliases);
+  }
+  await page.route("**/api/funders/*", (route) =>
+    route.fulfill({
+      json: {
+        ...funderDetails,
+        funder: { ...funderDetails.funder, aliases: [] },
+      },
+    }),
+  );
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Exact Funder", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Recorded names" }),
+  ).toHaveCount(0);
+});
+
+for (const aliases of [null, "Exact Funder", ["Exact Funder", 42]]) {
+  test(`malformed recorded names ${JSON.stringify(aliases)} fail at the boundary`, async ({
+    page,
+  }) => {
+    await page.route("**/api/funders/*", (route) =>
+      route.fulfill({
+        json: {
+          ...funderDetails,
+          funder: { ...funderDetails.funder, aliases },
+        },
+      }),
+    );
+    await page.goto(`/funders/${funderId}`);
+    await expect(page.getByRole("alert")).toContainText("unexpected response");
+    await expect(
+      page.getByRole("region", { name: "Recorded names" }),
+    ).toHaveCount(0);
+  });
+}

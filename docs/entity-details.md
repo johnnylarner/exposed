@@ -1,8 +1,8 @@
 # Entity detail reads
 
 Search entities carry stable string IDs. `MP` IDs are positive Parliament member
-numbers. `Funder` IDs are database UUIDs for exact source names. The HTTP adapter
-parses these IDs before calling the detail service.
+numbers. `Funder` IDs are database UUIDs for canonical funder identities. The HTTP
+adapter parses these IDs before calling the detail service.
 
 `GET /members/{id}` returns the latest stored profile and at most 20 declarations.
 Registration date sorts descending, with missing dates last. Source declaration
@@ -13,10 +13,14 @@ The response includes the total stored declaration count.
 The profile's `membership_from` describes the latest membership. The UI labels it
 as latest membership because former MPs can now have a Lords profile.
 
-`GET /funders/{id}` returns the exact-name profile, occurrence counts, and one
-summary per known currency. The repository returns a compact aggregate per
-recipient and currency in a read-only repeatable-read transaction. The service
-uses those aggregates for both party totals and recipient rankings.
+`GET /funders/{id}` returns the canonical profile, occurrence counts, and one
+summary per known currency. `funder.aliases` contains every unique stored name,
+including the canonical name when stored, ordered by PostgreSQL's `C` collation.
+Case, punctuation, and whitespace remain intact. An identity without stored
+aliases returns an empty list. The UI shows nonempty lists as "Recorded names".
+The repository returns a compact aggregate per recipient and currency in a
+read-only repeatable-read transaction. The service uses those aggregates for both
+party totals and recipient rankings.
 
 Party groups use the recipient's latest stored party ID and name. They do not
 represent direct payments to parties or party membership when support was

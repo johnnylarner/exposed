@@ -62,6 +62,7 @@ export interface FunderDetails {
     name: string;
     funderKind: string | null;
     companyNumber: string | null;
+    aliases: string[];
   };
   currencies: {
     currency: string;
@@ -180,6 +181,7 @@ function readFunder(value: unknown): FunderDetails {
       name: text(funder.name),
       funderKind: nullableText(funder.funder_kind),
       companyNumber: nullableText(funder.company_number),
+      aliases: list(funder.aliases).map(text),
     },
     entryCount: count(row.entry_count),
     unknownCurrencyCount: count(row.unknown_currency_count),

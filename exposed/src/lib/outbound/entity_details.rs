@@ -132,9 +132,16 @@ impl EntityDetailsRepo for ExposedDatabase {
             .as_deref()
             .map_or(Ok(FunderKind::NotSpecified), FunderKind::from_str)
             .map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?;
+        let aliases = sqlx::query_scalar!(
+            "SELECT funder_alias FROM exposed.funder_aliases WHERE funder_id = $1 ORDER BY funder_alias COLLATE \"C\"",
+            id.value()
+        )
+        .fetch_all(&mut *tx)
+        .await?;
         let profile = FunderProfile {
             funder: Funder::new(id, row.funder_name, kind),
             company_number: row.company_number,
+            aliases,
         };
         let rows = sqlx::query!(
             "WITH funding AS (

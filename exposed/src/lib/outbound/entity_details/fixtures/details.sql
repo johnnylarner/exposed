@@ -7,7 +7,15 @@ INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, l
 VALUES (16, 'Former MP Example', 1, 'Party A', 2, 'Life peer', false);
 INSERT INTO exposed.funders (id, funder_name, funder_kind, company_number) VALUES
 ('10000000-0000-0000-0000-000000000001', 'Exact Funder', 'Company', '00123456'),
-('10000000-0000-0000-0000-000000000002', 'Empty Funder', NULL, NULL);
+('10000000-0000-0000-0000-000000000002', 'Empty Funder', NULL, NULL),
+('10000000-0000-0000-0000-000000000004', 'Individual Funder', 'Individual', NULL);
+INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES
+('10000000-0000-0000-0000-000000000001', 'Exact Funder Ltd.'),
+('10000000-0000-0000-0000-000000000001', 'exact funder'),
+('10000000-0000-0000-0000-000000000001', 'Exact Funder'),
+('10000000-0000-0000-0000-000000000001', ' Exact Funder '),
+('10000000-0000-0000-0000-000000000001', 'EXACT FUNDER'),
+('10000000-0000-0000-0000-000000000004', 'Individual Funder');
 INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date)
 SELECT i, '00000000-0000-0000-0000-000000000001', 1, 'Support', now(),
        CASE WHEN i > 120 THEN NULL ELSE '2026-01-01'::timestamptz + (i - 100) * interval '1 day' END
