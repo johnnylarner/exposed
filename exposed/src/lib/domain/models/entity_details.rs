@@ -73,13 +73,15 @@ pub struct MemberDetails {
     pub declaration_limit: usize,
 }
 
-/// Exact-name funder profile.
+/// Canonical funder profile with recorded names.
 #[derive(Clone, Debug)]
 pub struct FunderProfile {
     /// Persistent funder.
     pub funder: Funder,
     /// Company identifier with leading zeros intact.
     pub company_number: Option<String>,
+    /// Every stored exact name, in stable order.
+    pub aliases: Vec<String>,
 }
 
 /// Compact repository aggregate for one recipient and currency.
@@ -100,7 +102,7 @@ pub struct RecipientAllocation {
 /// Repository input for a consistent funder summary.
 #[derive(Clone, Debug)]
 pub struct FunderFunding {
-    /// Exact-name identity.
+    /// Persistent funder identity.
     pub profile: FunderProfile,
     /// One row per recipient and currency.
     pub allocations: Vec<RecipientAllocation>,
@@ -135,7 +137,7 @@ pub struct CurrencyBreakdown {
 /// Funder summary without currency conversion or historical party inference.
 #[derive(Clone, Debug)]
 pub struct FunderDetails {
-    /// Exact-name identity.
+    /// Persistent funder identity.
     pub profile: FunderProfile,
     /// Summaries for each known currency.
     pub currencies: Vec<CurrencyBreakdown>,
