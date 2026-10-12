@@ -16,6 +16,15 @@
     | { status: "success"; term: string; entities: Entity[] }
     | { status: "error"; term: string; message: string };
 
+  type SearchFocusShortcut =
+    { modifier: "meta"; hint: "⌘ K" } | { modifier: "ctrl"; hint: "Ctrl K" };
+
+  const searchFocusShortcut: SearchFocusShortcut = /Mac/i.test(
+    navigator.platform,
+  )
+    ? { modifier: "meta", hint: "⌘ K" }
+    : { modifier: "ctrl", hint: "Ctrl K" };
+
   let query = $state(new URL(window.location.href).searchParams.get("q") ?? "");
   let strictness = $state(
     readStrictness(
@@ -108,6 +117,21 @@
   }
 
   function shortcut(event: KeyboardEvent) {
+    if (
+      event.key.toLowerCase() === "k" &&
+      !event.defaultPrevented &&
+      !event.isComposing &&
+      !composing &&
+      !event.shiftKey &&
+      !event.altKey &&
+      (searchFocusShortcut.modifier === "meta"
+        ? event.metaKey && !event.ctrlKey
+        : event.ctrlKey && !event.metaKey)
+    ) {
+      event.preventDefault();
+      input.focus();
+      return;
+    }
     const target = event.target;
     const editing =
       target instanceof HTMLElement &&
@@ -185,7 +209,9 @@
           onclick={clearSearch}><Icon name="close" size={18} /></button
         >
       {:else}
-        <kbd class="search-shortcut" aria-hidden="true">/</kbd>
+        <kbd class="search-shortcut" aria-hidden="true"
+          >{searchFocusShortcut.hint}</kbd
+        >
       {/if}
     </div>
     <p class="search-help" id="search-help">
