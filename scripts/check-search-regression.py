@@ -42,6 +42,15 @@ for case in cases:
                   for entity in actual]
     else:
         actual = {key: value for key, value in actual.items() if key != "id"}
+        member_labels = {member_id: f"member-{index + 1}"
+                         for index, member_id in enumerate(actual["member_ids"])}
+        actual["member_ids"] = list(member_labels.values())
+        for evidence in ["alias_links", "family_links"]:
+            actual[evidence] = [
+                {**link, "left_funder_id": member_labels[link["left_funder_id"]],
+                 "right_funder_id": member_labels[link["right_funder_id"]]}
+                for link in actual[evidence]
+            ]
     expected_text = json.dumps(case["expected"], indent=2, sort_keys=True) + "\n"
     actual_text = json.dumps(actual, indent=2, sort_keys=True) + "\n"
     difference = "".join(difflib.unified_diff(

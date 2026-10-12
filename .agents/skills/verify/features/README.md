@@ -9,7 +9,8 @@ with a limit of ten results per entity type.
 - [Recorded funder names](recorded-names.md) covers the exact Unite and HSBC profiles and aliases.
 
 The baseline was captured from the accepted development data on 12 October 2026.
-IDs are arbitrary and do not affect comparisons. Refreshing the snapshot can
+IDs are arbitrary and do not affect comparisons. Group member IDs are replaced
+with stable labels, and direct links use those same labels. Refreshing the snapshot can
 change names. Review those data changes
 separately from search-code changes before editing the accepted JSON.
 The map covers HTTP behavior. Browser interactions and ingestion resolution

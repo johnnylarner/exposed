@@ -16,3 +16,6 @@ pub mod declaration_resolution;
 
 /// Entity profiles and declared support.
 pub mod entity_details;
+
+/// Derived funder membership and direct grouping evidence.
+pub mod funder_grouping;

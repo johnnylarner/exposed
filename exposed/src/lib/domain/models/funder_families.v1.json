@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "families": [
+    {"key": "bbc", "names": ["BBC", "BBC Contributor Payments", "BBC Home Services", "BBC Studios", "BBC Studios Ltd", "BBC Wales Cymru"]},
+    {"key": "gb_news", "names": ["GB News", "GB News Limited", "GB News Ltd"]},
+    {"key": "premier_league", "names": ["Premier League", "FA Premier League Ltd", "The FA Premier League Ltd", "The Premier League", "Premier League International Holdings Ltd"]}
+  ]
+}
