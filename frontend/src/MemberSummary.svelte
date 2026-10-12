@@ -87,19 +87,15 @@
     {/each}
   </section>
 </div>
-<section aria-labelledby="support-heading">
+<section aria-labelledby="recent-declarations-heading">
   <div class="detail-section-heading">
-    <h2 id="support-heading">Recent donations and support</h2>
-    <p>
-      Latest declared support, including loans. Support may be received by the
-      MP or a party organisation.
-    </p>
+    <h2 id="recent-declarations-heading">Recent declarations</h2>
+    <p>The latest five stored declarations across all categories.</p>
   </div>
-  {#if details.recentSupport.length}<MemberDeclarations
-      declarations={details.recentSupport}
-      showCategory={false}
+  {#if details.declarations.length}<MemberDeclarations
+      declarations={details.declarations.slice(0, 5)}
     />{:else}<p class="empty-details">
-      No donations or support declarations are stored for this MP.
+      No declarations are stored for this MP.
     </p>{/if}
   <a
     class="text-button history-link"
