@@ -5,7 +5,10 @@ use std::str::FromStr;
 use crate::{
     domain::{
         models::{
-            entity_search::{EntitySearchRequest, FunderSearchMatch, SearchMatchSource},
+            entity_search::{
+                EntitySearchRequest, FunderSearchMatch, FunderSearchResults, PhoneticRank,
+                SearchMatchSource,
+            },
             funder::{Funder, FunderId, FunderKind},
             search_similarity::SearchSimilarity,
         },
@@ -18,7 +21,7 @@ impl FunderRepo for ExposedDatabase {
     async fn get_funders_by_text_search_score(
         &self,
         req: &EntitySearchRequest,
-    ) -> Result<Vec<(FunderSearchMatch, SearchSimilarity)>, FunderRepoError> {
+    ) -> Result<FunderSearchResults, FunderRepoError> {
         let mut tx = self
             .pool()
             .begin()
@@ -49,18 +52,22 @@ impl FunderRepo for ExposedDatabase {
                     ORDER BY alias_score DESC, funder_alias COLLATE \"C\" ASC
                     LIMIT 1
                 ) a ON true
+            ), qualified AS (
+                SELECT id, name, kind,
+                    CASE WHEN alias_score > canonical_score THEN funder_alias END AS matched_alias,
+                    GREATEST(canonical_score, COALESCE(alias_score, 0)) AS similarity_score
+                FROM scored
+                WHERE GREATEST(canonical_score, COALESCE(alias_score, 0)) >= $2
             )
-            SELECT id, name, kind,
-                CASE WHEN alias_score > canonical_score THEN funder_alias END AS matched_alias,
-                GREATEST(canonical_score, COALESCE(alias_score, 0)) AS similarity_score
-            FROM scored
-            WHERE GREATEST(canonical_score, COALESCE(alias_score, 0)) >= $2
+            SELECT *, EXISTS(SELECT FROM qualified WHERE kind = $4) AS \"has_individual!\"
+            FROM qualified
             ORDER BY similarity_score DESC, id
             LIMIT $3
             ",
             req.term(),
             req.strictness(),
             i64::from(req.max_entries()),
+            FunderKind::Individual.as_ref(),
         )
         .fetch_all(&mut *tx)
         .await
@@ -68,7 +75,9 @@ impl FunderRepo for ExposedDatabase {
         tx.commit()
             .await
             .map_err(|e| FunderRepoError::DatabaseError(e.to_string()))?;
-        rows.into_iter()
+        let has_qualifying_individual = rows.first().is_some_and(|row| row.has_individual);
+        let matches = rows
+            .into_iter()
             .map(|r| {
                 let kind = r.kind.map_or(FunderKind::NotSpecified, |ref kind| {
                     FunderKind::from_str(kind).unwrap()
@@ -83,6 +92,75 @@ impl FunderRepo for ExposedDatabase {
                         }),
                     ),
                     score,
+                ))
+            })
+            .collect::<Result<Vec<_>, FunderRepoError>>()?;
+        Ok(FunderSearchResults {
+            matches,
+            has_qualifying_individual,
+        })
+    }
+    async fn get_funders_by_phonetic_search(
+        &self,
+        req: &EntitySearchRequest,
+    ) -> Result<Vec<(FunderSearchMatch, PhoneticRank)>, FunderRepoError> {
+        let rows = sqlx::query!(r#"
+            WITH names AS (
+                SELECT id, funder_name AS candidate, NULL::text AS alias
+                FROM exposed.funders
+                WHERE funder_kind = $2 AND exposed.person_name_codes(funder_name) @> exposed.person_name_codes($1)
+                UNION ALL
+                SELECT f.id, a.funder_alias, a.funder_alias
+                FROM exposed.funder_aliases a JOIN exposed.funders f ON f.id = a.funder_id
+                WHERE f.funder_kind = $2 AND exposed.person_name_codes(a.funder_alias) @> exposed.person_name_codes($1)
+            ), scored AS (
+                SELECT names.*, correction.distance,
+                       word_similarity(correction.corrected_query, candidate) AS similarity_score
+                FROM names
+                CROSS JOIN LATERAL (
+                    SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,
+                           sum(best.distance)::integer AS distance
+                    FROM unnest(exposed.person_name_words($1)) WITH ORDINALITY AS q(word, position)
+                    LEFT JOIN LATERAL (
+                        SELECT cw.word, CASE
+                            WHEN char_length(q.word) <= 255 AND char_length(cw.word) <= 255
+                            THEN exposed.levenshtein_less_equal(q.word, cw.word, 1)
+                            ELSE 2
+                        END AS distance
+                        FROM unnest(exposed.person_name_words(candidate)) AS cw(word)
+                        WHERE exposed.soundex(cw.word) = exposed.soundex(q.word)
+                        ORDER BY distance, cw.word COLLATE "C"
+                        LIMIT 1
+                    ) best ON best.distance <= 1
+                    HAVING count(best.word) = count(*) AND count(*) > 0
+                ) correction
+            ), winners AS (
+                SELECT DISTINCT ON (id) id, alias, distance, similarity_score
+                FROM scored WHERE similarity_score >= $4
+                ORDER BY id, distance, similarity_score DESC, alias IS NOT NULL, alias COLLATE "C"
+            )
+            SELECT f.id, f.funder_name AS name, w.alias, w.distance AS "distance!",
+                   w.similarity_score AS "similarity_score!"
+            FROM winners w JOIN exposed.funders f ON f.id = w.id
+            ORDER BY w.distance, w.similarity_score DESC, f.id
+            LIMIT $3
+        "#, req.term(), FunderKind::Individual.as_ref(), i64::from(req.max_entries()), req.strictness())
+        .fetch_all(self.pool()).await.map_err(|e| FunderRepoError::DatabaseError(e.to_string()))?;
+        rows.into_iter()
+            .map(|row| {
+                let rank = PhoneticRank::new(
+                    u32::try_from(row.distance)
+                        .map_err(|e| FunderRepoError::DatabaseError(e.to_string()))?,
+                    SearchSimilarity::from(row.similarity_score),
+                );
+                Ok((
+                    FunderSearchMatch::new(
+                        Funder::new(FunderId::new(row.id), row.name, FunderKind::Individual),
+                        row.alias.map_or(SearchMatchSource::Name, |name| {
+                            SearchMatchSource::Alias { name }
+                        }),
+                    ),
+                    rank,
                 ))
             })
             .collect()
@@ -111,7 +189,11 @@ mod scoring {
         let db = ExposedDatabase::from(pool);
 
         let term = EntitySearchRequest::new_with_strictness("McDonald's".into(), 5, 0_f32).unwrap();
-        let results = db.get_funders_by_text_search_score(&term).await.unwrap();
+        let results = db
+            .get_funders_by_text_search_score(&term)
+            .await
+            .unwrap()
+            .matches;
 
         assert_eq!(results.len(), 2);
         assert_eq!(results.first().unwrap().0.funder().name(), "McDonald's");
@@ -130,7 +212,11 @@ mod scoring {
         let db = ExposedDatabase::from(pool);
 
         let term = EntitySearchRequest::new_with_strictness("McDonald's".into(), 1, 0_f32).unwrap();
-        let results = db.get_funders_by_text_search_score(&term).await.unwrap();
+        let results = db
+            .get_funders_by_text_search_score(&term)
+            .await
+            .unwrap()
+            .matches;
 
         assert_eq!(results.len(), 1);
         assert_eq!(results.first().unwrap().0.funder().name(), "McDonald's");
@@ -149,7 +235,11 @@ mod scoring {
 
         let term =
             EntitySearchRequest::new_with_strictness("Aaron Banks".into(), 5, 1_f32).unwrap();
-        let results = db.get_funders_by_text_search_score(&term).await.unwrap();
+        let results = db
+            .get_funders_by_text_search_score(&term)
+            .await
+            .unwrap()
+            .matches;
 
         assert_eq!(results.len(), 1);
         assert_eq!(results.first().unwrap().0.funder().name(), "Aaron Banks");
@@ -206,7 +296,8 @@ mod alias_scoring {
         let rows = db
             .get_funders_by_text_search_score(&request("West Midlands", 2, 1.0))
             .await
-            .unwrap();
+            .unwrap()
+            .matches;
         assert_eq!(rows.len(), 2);
         assert_eq!(rows[0].0.funder().id().value(), first);
         assert_eq!(
@@ -220,13 +311,15 @@ mod alias_scoring {
         let rows = db
             .get_funders_by_text_search_score(&request("Unite the Union", 2, 1.0))
             .await
-            .unwrap();
+            .unwrap()
+            .matches;
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].0.source(), &SearchMatchSource::Name);
         assert_eq!(
             db.get_funders_by_text_search_score(&request("zzzzzz", 2, 0.0))
                 .await
                 .unwrap()
+                .matches
                 .len(),
             2
         );
@@ -234,6 +327,7 @@ mod alias_scoring {
             db.get_funders_by_text_search_score(&request("West Midlands", 1, 1.0))
                 .await
                 .unwrap()
+                .matches
                 .len(),
             1
         );
@@ -247,6 +341,7 @@ mod alias_scoring {
             db.get_funders_by_text_search_score(&request("West Mid", 2, boundary))
                 .await
                 .unwrap()
+                .matches
                 .len(),
             2
         );

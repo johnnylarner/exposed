@@ -49,8 +49,42 @@ where
             .get_funders_by_text_search_score(req)
             .await?;
 
-        let scored = merge_scores(&mps, &funders);
-        Ok(scored)
+        let mut results = merge_scores(&mps, &funders.matches);
+        if mps.is_empty() && !funders.has_qualifying_individual {
+            let fallback_mps = self.mp_repo.get_members_by_phonetic_search(req).await?;
+            let fallback_funders = self.funder_repo.get_funders_by_phonetic_search(req).await?;
+            let remaining = usize::from(req.max_entries()).saturating_sub(funders.matches.len());
+            let mut fallback: Vec<_> = fallback_mps
+                .into_iter()
+                .map(|(mp, rank)| (Entity::ParliamentMember(mp), rank))
+                .chain(
+                    fallback_funders
+                        .into_iter()
+                        .filter(|(funder, _)| {
+                            !funders
+                                .matches
+                                .iter()
+                                .any(|(primary, _)| primary.funder().id() == funder.funder().id())
+                        })
+                        .take(remaining)
+                        .map(|(funder, rank)| (Entity::Funder(funder), rank)),
+                )
+                .collect();
+            fallback.sort_by(|(left, a), (right, b)| {
+                a.compare(b).then_with(|| match (left, right) {
+                    (Entity::ParliamentMember(a), Entity::ParliamentMember(b)) => {
+                        a.member_id().value().cmp(&b.member_id().value())
+                    }
+                    (Entity::Funder(a), Entity::Funder(b)) => {
+                        a.funder().id().value().cmp(&b.funder().id().value())
+                    }
+                    (Entity::ParliamentMember(_), Entity::Funder(_)) => std::cmp::Ordering::Less,
+                    (Entity::Funder(_), Entity::ParliamentMember(_)) => std::cmp::Ordering::Greater,
+                })
+            });
+            results.extend(fallback.into_iter().map(|(entity, _)| entity));
+        }
+        Ok(results)
     }
 }
 
@@ -439,5 +473,221 @@ mod provenance {
             panic!("expected funder");
         };
         assert_eq!(result.source(), &source);
+    }
+}
+
+#[cfg(test)]
+mod phonetic_regression {
+    use super::*;
+    use crate::outbound::ExposedDatabase;
+    use sqlx::PgPool;
+
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures("../../../../../db/fixtures/add_members.sql")
+    )]
+    async fn jahn_finds_john_after_primary_organization(pool: PgPool) -> sqlx::Result<()> {
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('Jahn Foundation', 'Company')").execute(&pool).await?;
+        let db = ExposedDatabase::from(pool);
+        let results = Service::new(db.clone(), db)
+            .search_entities(
+                &EntitySearchRequest::new_with_strictness("jahn".into(), 10, 0.8).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            results.iter().map(Entity::name).collect::<Vec<_>>(),
+            vec!["Jahn Foundation", "John McDonnell", "John Humphries"]
+        );
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod fallback_contract {
+    use super::*;
+    use crate::domain::models::entity_search::SearchMatchSource;
+    use crate::outbound::ExposedDatabase;
+    use sqlx::PgPool;
+
+    fn request(term: &str, limit: u8) -> EntitySearchRequest {
+        EntitySearchRequest::new_with_strictness(term.into(), limit, 0.8).unwrap()
+    }
+
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures("../../../../../db/fixtures/add_members.sql")
+    )]
+    async fn primary_people_suppress_fallback_before_limits(pool: PgPool) -> sqlx::Result<()> {
+        let db = ExposedDatabase::from(pool.clone());
+        let service = Service::new(db.clone(), db);
+        let company = uuid::Uuid::from_u128(1);
+        let person = uuid::Uuid::from_u128(2);
+        sqlx::query!("INSERT INTO exposed.funders (id, funder_name, funder_kind) VALUES ($1, 'Jahn', 'Company'), ($2, 'Jahn Person', 'Individual')", company, person).execute(&pool).await?;
+        let results = service.search_entities(&request("jahn", 1)).await.unwrap();
+        assert_eq!(
+            results.iter().map(Entity::name).collect::<Vec<_>>(),
+            vec!["Jahn"]
+        );
+        let results = service.search_entities(&request("jahn", 10)).await.unwrap();
+        assert_eq!(
+            results.iter().map(Entity::name).collect::<Vec<_>>(),
+            vec!["Jahn", "Jahn Person"]
+        );
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('Jahn Fallback', 'Individual')").execute(&pool).await?;
+        let results = service.search_entities(&request("john", 10)).await.unwrap();
+        assert_eq!(results.len(), 2);
+        assert!(
+            results
+                .iter()
+                .all(|entity| matches!(entity, Entity::ParliamentMember(_)))
+        );
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn aliases_deduplicate_and_share_the_funder_cap(pool: PgPool) -> sqlx::Result<()> {
+        let person = uuid::Uuid::from_u128(1);
+        sqlx::query!("INSERT INTO exposed.funders (id, funder_name, funder_kind) VALUES ($1, 'Unrelated Identity', 'Individual')", person).execute(&pool).await?;
+        for alias in ["John", "JOHN", "John Smith"] {
+            sqlx::query!(
+                "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, $2)",
+                person,
+                alias
+            )
+            .execute(&pool)
+            .await?;
+        }
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('Jahn Foundation', 'Company'), ('John Brown', 'Individual'), ('John Company', 'Company')").execute(&pool).await?;
+        let db = ExposedDatabase::from(pool);
+        let service = Service::new(db.clone(), db);
+        let results = service.search_entities(&request("jahn", 2)).await.unwrap();
+        assert_eq!(
+            results.iter().map(Entity::name).collect::<Vec<_>>(),
+            vec!["Jahn Foundation", "Unrelated Identity"]
+        );
+        let Entity::Funder(found) = &results[1] else {
+            panic!("expected funder");
+        };
+        assert_eq!(found.funder().id().value(), person);
+        assert_eq!(
+            found.source(),
+            &SearchMatchSource::Alias {
+                name: "JOHN".into()
+            }
+        );
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn corrects_each_candidate_with_bounded_word_edits(pool: PgPool) -> sqlx::Result<()> {
+        let db = ExposedDatabase::from(pool.clone());
+        for (query, candidate, threshold, expected) in [
+            ("jahn smyth", "John Smith", 0.8, true),
+            ("jahn unrelated", "John Smith", 0.8, false),
+            ("jahn jahn", "John", 0.0, true),
+            ("jahn", "Sir John Smith", 0.8, true),
+            ("jahn", "Jonathan", 0.0, false),
+            ("jahn", "Jane", 0.0, false),
+            ("!!!", "John", 0.0, false),
+            ("jahn, smyth!", "John Smith", 0.8, true),
+            ("jahn smyth", "John Extra Smith", 0.8, false),
+            ("jahn smyth", "John Extra Smith", 0.0, true),
+        ] {
+            sqlx::query!("DELETE FROM exposed.funders")
+                .execute(&pool)
+                .await?;
+            sqlx::query!(
+                "INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ($1, 'Individual')",
+                candidate
+            )
+            .execute(&pool)
+            .await?;
+            sqlx::query!("DELETE FROM exposed.members")
+                .execute(&pool)
+                .await?;
+            sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES (1, $1, 1, 'Party', 1, 'Constituency', true)", candidate).execute(&pool).await?;
+            let req =
+                EntitySearchRequest::new_with_strictness(query.into(), 10, threshold).unwrap();
+            let members = db.get_members_by_phonetic_search(&req).await.unwrap();
+            assert_eq!(
+                !members.is_empty(),
+                expected,
+                "member: {query} / {candidate} / {threshold}"
+            );
+            let rows = db.get_funders_by_phonetic_search(&req).await.unwrap();
+            assert_eq!(
+                !rows.is_empty(),
+                expected,
+                "{query} / {candidate} / {threshold}"
+            );
+        }
+        let long = "a".repeat(256);
+        for (query, candidate) in [(long.clone(), "aaa".into()), ("aaa".into(), long)] {
+            sqlx::query!("DELETE FROM exposed.funders")
+                .execute(&pool)
+                .await?;
+            sqlx::query!(
+                "INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ($1, 'Individual')",
+                candidate
+            )
+            .execute(&pool)
+            .await?;
+            sqlx::query!("DELETE FROM exposed.members")
+                .execute(&pool)
+                .await?;
+            sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES (1, $1, 1, 'Party', 1, 'Constituency', true)", candidate).execute(&pool).await?;
+            let req = EntitySearchRequest::new_with_strictness(query, 10, 0.0).unwrap();
+            assert!(
+                db.get_members_by_phonetic_search(&req)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+            assert!(
+                db.get_funders_by_phonetic_search(&req)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+        }
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn corrections_do_not_depend_on_other_candidates(pool: PgPool) -> sqlx::Result<()> {
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('John Smith', 'Individual')").execute(&pool).await?;
+        let db = ExposedDatabase::from(pool.clone());
+        let before = db
+            .get_funders_by_phonetic_search(&request("jahn smyth", 10))
+            .await
+            .unwrap();
+        assert_eq!(before.len(), 1);
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('Joan Smith', 'Individual')").execute(&pool).await?;
+        let after = db
+            .get_funders_by_phonetic_search(&request("jahn smyth", 10))
+            .await
+            .unwrap();
+        let existing = after
+            .iter()
+            .find(|(found, _)| found.funder().id() == before[0].0.funder().id())
+            .unwrap();
+        assert_eq!(existing.1.compare(&before[0].1), std::cmp::Ordering::Equal);
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn filters_corrected_similarity_then_ranks_by_distance_before_limit(
+        pool: PgPool,
+    ) -> sqlx::Result<()> {
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('John Smith', 'Individual'), ('Jahn Smith Extra Words', 'Individual'), ('Jahn Unrelated Middle Smyth', 'Individual')").execute(&pool).await?;
+        let db = ExposedDatabase::from(pool);
+        let rows = db
+            .get_funders_by_phonetic_search(&request("jahn smyth", 1))
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0.funder().name(), "Jahn Smith Extra Words");
+        Ok(())
     }
 }

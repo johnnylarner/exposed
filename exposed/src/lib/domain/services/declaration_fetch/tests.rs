@@ -41,6 +41,18 @@ impl ParliamentMemberRepo for Fake {
     ) -> Result<Vec<(ParliamentMember, SearchSimilarity)>, ParliamentMemberRepoError> {
         unreachable!()
     }
+    async fn get_members_by_phonetic_search(
+        &self,
+        _: &EntitySearchRequest,
+    ) -> Result<
+        Vec<(
+            ParliamentMember,
+            crate::domain::models::entity_search::PhoneticRank,
+        )>,
+        ParliamentMemberRepoError,
+    > {
+        unreachable!()
+    }
     async fn upsert_members(
         &self,
         _: &[ParliamentMember],
