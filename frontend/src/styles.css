@@ -1216,6 +1216,11 @@ button:disabled {
   padding: 0;
   margin: 0;
 }
+.funder-party-legend:has(> li:nth-child(3)) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 16px;
+}
 .funder-party-legend li {
   border-bottom: 1px solid var(--line);
 }
