@@ -225,7 +225,7 @@
   </section>
   <RegistrationTimeline
     context="funding"
-    weeks={timeline.weeks}
+    months={timeline.months}
     undated={timeline.undated}
   />
 </div>

@@ -22,7 +22,7 @@ export function summarizeMember(details: MemberDetails) {
   const pounds = details.summary.currencies.find(
     (group) => group.currency === "GBP",
   );
-  const { weeks: earnings, undated } = registrationTimeline(
+  const { months: earnings, undated } = registrationTimeline(
     details.declarations.filter((declaration) =>
       isEarnings(declaration.categoryName),
     ),

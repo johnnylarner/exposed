@@ -1,6 +1,6 @@
 import type { MemberDeclaration } from "./entity-details";
 
-export interface RegistrationWeek {
+export interface RegistrationMonth {
   start: string;
   amount: string | null;
   incomplete: boolean;
@@ -36,7 +36,7 @@ export function registrationTimeline(declarations: MemberDeclaration[]) {
     }
     const date = new Date(declaration.registeredAt);
     date.setUTCHours(0, 0, 0, 0);
-    date.setUTCDate(date.getUTCDate() - ((date.getUTCDay() + 6) % 7));
+    date.setUTCDate(1);
     const start = date.toISOString().slice(0, 10);
     const bucket = buckets.get(start) ?? { amounts: [], incomplete: false };
     for (const entry of entries) {
@@ -49,7 +49,7 @@ export function registrationTimeline(declarations: MemberDeclaration[]) {
   const dates = [...buckets.keys()].sort();
   const first = dates[0];
   const last = dates.at(-1);
-  const weeks: RegistrationWeek[] = [];
+  const months: RegistrationMonth[] = [];
   if (first !== undefined && last !== undefined) {
     const date = new Date(`${first}T00:00:00Z`);
     for (
@@ -58,13 +58,13 @@ export function registrationTimeline(declarations: MemberDeclaration[]) {
       start = date.toISOString().slice(0, 10)
     ) {
       const bucket = buckets.get(start);
-      weeks.push({
+      months.push({
         start,
         amount: bucket ? sum(bucket.amounts) : "0",
         incomplete: bucket?.incomplete ?? false,
       });
-      date.setUTCDate(date.getUTCDate() + 7);
+      date.setUTCMonth(date.getUTCMonth() + 1);
     }
   }
-  return { weeks, undated };
+  return { months, undated };
 }

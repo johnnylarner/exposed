@@ -332,10 +332,10 @@ test("member summary shows recent declarations when none are donations", async (
   await expect(page.getByText("Declaration 119")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Employment" })).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Weekly registered earnings" }),
+    page.getByRole("img", { name: "Monthly registered earnings" }),
   ).toBeVisible();
   await expect(
-    page.getByText("View weekly amounts", { exact: true }),
+    page.getByText("View monthly amounts", { exact: true }),
   ).toHaveCount(0);
   await expect(page.locator(".earnings-chart rect title")).toContainText(
     "£18,014,398,509,481,986.246913578",
@@ -343,7 +343,7 @@ test("member summary shows recent declarations when none are donations", async (
   await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 780 });
   await expect(
-    page.getByRole("img", { name: "Weekly registered earnings" }),
+    page.getByRole("img", { name: "Monthly registered earnings" }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -440,7 +440,7 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
   );
   await page.keyboard.press("Escape");
   await expect(
-    page.getByRole("img", { name: "Weekly registered funding" }),
+    page.getByRole("img", { name: "Monthly registered funding" }),
   ).toBeVisible();
   await expect(page.locator(".funder-party-chart svg circle")).toHaveCount(1);
   await expect(page.locator(".funder-recipients .amount")).toHaveText([
@@ -1161,4 +1161,72 @@ test("party tooltip toggles on touch and closes outside or on scroll", async ({
   await page.evaluate(() => window.scrollBy(0, 100));
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await context.close();
+});
+
+test("both summary timelines merge same-month dates and retain negative monthly bars", async ({
+  page,
+}) => {
+  const declarations = [
+    {
+      ...memberHistoryFixture.declarations[0],
+      category_name: "Employment",
+      registered_at: "2026-01-02T00:00:00Z",
+      entries: [
+        { funder: null, amount: "10.25", currency: "GBP", payment_type: null },
+      ],
+    },
+    {
+      ...memberHistoryFixture.declarations[0],
+      category_name: "Employment",
+      registered_at: "2026-01-31T23:59:59Z",
+      entries: [
+        { funder: null, amount: "0.75", currency: "GBP", payment_type: null },
+      ],
+    },
+    {
+      ...memberHistoryFixture.declarations[0],
+      category_name: "Employment",
+      registered_at: "2026-03-31T00:00:00Z",
+      entries: [
+        { funder: null, amount: "-2.5", currency: "GBP", payment_type: null },
+      ],
+    },
+  ];
+  await page.route("**/api/members/1", (route) =>
+    route.fulfill({ json: { ...memberDetails, declarations } }),
+  );
+  await page.route("**/api/funders/*", (route) =>
+    route.fulfill({
+      json: {
+        ...funderDetails,
+        declarations: declarations.map((declaration) => ({
+          member,
+          declaration,
+        })),
+      },
+    }),
+  );
+  for (const route of ["/members/1", `/funders/${funderId}`]) {
+    await page.goto(route);
+    await expect(page.locator(".earnings-chart rect")).toHaveCount(3);
+    await expect(page.locator(".earnings-chart rect title")).toHaveText([
+      "Jan 2026: £11.00",
+      "Feb 2026: £0.00",
+      "Mar 2026: −£2.50",
+    ]);
+    await expect(page.locator(".earnings-chart rect.negative")).toHaveCount(1);
+    expect(
+      Number(
+        await page
+          .locator(".earnings-chart rect.negative")
+          .getAttribute("height"),
+      ),
+    ).toBeGreaterThan(0);
+    await expect(page.locator(".earnings-chart rect.negative")).toHaveAttribute(
+      "y",
+      (await page
+        .locator(".earnings-chart .chart-baseline")
+        .getAttribute("y1")) ?? "",
+    );
+  }
 });

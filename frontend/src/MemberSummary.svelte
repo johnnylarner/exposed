@@ -46,7 +46,7 @@
   </section>
   <RegistrationTimeline
     context="earnings"
-    weeks={summary.earnings}
+    months={summary.earnings}
     undated={summary.undated}
   />
 </div>
