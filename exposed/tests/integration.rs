@@ -212,3 +212,31 @@ fn database_commands_require_environment_url() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[tokio::test]
+#[ignore = "requires the frozen search regression database"]
+async fn loaded_data_people_search_regression() -> anyhow::Result<()> {
+    let connection_string = std::env::var("SEARCH_REGRESSION_DATABASE_URL")
+        .context("SEARCH_REGRESSION_DATABASE_URL must select the frozen search database")?;
+    let app = start_app(exposed::inbound::http::config::ServerConfig { connection_string }).await?;
+    let exact = search_entities(
+        &app,
+        &EntitySearchRequest::new_with_strictness("john mcdonnell".into(), 10, 0.8)?,
+    )
+    .await?;
+    assert_eq!(exact[0]["id"], "178");
+    for term in ["jahn mcdonnell", "jahn"] {
+        let results = search_entities(
+            &app,
+            &EntitySearchRequest::new_with_strictness(term.into(), 10, 0.8)?,
+        )
+        .await?;
+        assert!(
+            results
+                .iter()
+                .any(|row| row["kind"] == "MP" && row["id"] == "178"),
+            "{term}: {results:?}"
+        );
+    }
+    Ok(())
+}

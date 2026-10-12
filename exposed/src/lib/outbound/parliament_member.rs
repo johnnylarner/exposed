@@ -3,7 +3,7 @@
 use crate::{
     domain::{
         models::{
-            entity_search::EntitySearchRequest,
+            entity_search::{EntitySearchRequest, PhoneticRank},
             parliament_member::{MemberId, ParliamentMember},
             search_similarity::SearchSimilarity,
         },
@@ -91,6 +91,70 @@ impl ParliamentMemberRepo for ExposedDatabase {
                     r.constituency,
                 );
                 let score = SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32));
+                Ok((member, score))
+            })
+            .collect()
+    }
+
+    async fn get_members_by_phonetic_search(
+        &self,
+        req: &EntitySearchRequest,
+    ) -> Result<Vec<(ParliamentMember, PhoneticRank)>, ParliamentMemberRepoError> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT m.name, m.parliament_member_id, m.party_name, m.party_id,
+                   m.latest_membership_from AS constituency,
+                   correction.distance AS "distance!",
+                   word_similarity(correction.corrected_query, m.name) AS similarity_score
+            FROM exposed.members m
+            CROSS JOIN LATERAL (
+                SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,
+                       sum(best.distance)::integer AS distance
+                FROM unnest(exposed.person_name_words($1)) WITH ORDINALITY AS q(word, position)
+                LEFT JOIN LATERAL (
+                    SELECT cw.word, CASE
+                        WHEN char_length(q.word) <= 255 AND char_length(cw.word) <= 255
+                        THEN exposed.levenshtein_less_equal(q.word, cw.word, 1)
+                        ELSE 2
+                    END AS distance
+                    FROM unnest(exposed.person_name_words(m.name)) AS cw(word)
+                    WHERE exposed.soundex(cw.word) = exposed.soundex(q.word)
+                    ORDER BY distance, cw.word COLLATE "C"
+                    LIMIT 1
+                ) best ON best.distance <= 1
+                HAVING count(best.word) = count(*) AND count(*) > 0
+            ) correction
+            WHERE exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
+              AND word_similarity(correction.corrected_query, m.name) >= $2
+            ORDER BY correction.distance, similarity_score DESC, m.parliament_member_id
+            LIMIT $3
+            "#,
+            req.term(),
+            req.strictness(),
+            i64::from(req.max_entries())
+        )
+        .fetch_all(self.pool())
+        .await
+        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
+        rows.into_iter()
+            .map(|r| {
+                let member = ParliamentMember::new(
+                    r.name,
+                    MemberId::new(
+                        u32::try_from(r.parliament_member_id)
+                            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
+                    )
+                    .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
+                    r.party_name,
+                    u32::try_from(r.party_id)
+                        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
+                    r.constituency,
+                );
+                let score = PhoneticRank::new(
+                    u32::try_from(r.distance)
+                        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
+                    SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32)),
+                );
                 Ok((member, score))
             })
             .collect()

@@ -5,6 +5,9 @@ use thiserror::Error;
 
 use crate::domain::models::{funder::Funder as FunderDetails, parliament_member::ParliamentMember};
 
+/// Default primary search threshold.
+pub const DEFAULT_SEARCH_STRICTNESS: f32 = 0.8;
+
 const MAX_STRICTNESS: f32 = 1_f32;
 const MIN_STRICTNESS: f32 = 0_f32;
 const MIN_ENTRIES: u8 = 1;
@@ -200,5 +203,46 @@ mod strictness {
                 EntitySearchRequest::new_with_strictness("West".into(), 10, threshold).is_err()
             );
         }
+    }
+}
+
+/// Primary funder matches and eligibility before the result limit.
+#[derive(Clone)]
+pub struct FunderSearchResults {
+    /// Ranked, limited canonical identities.
+    pub matches: Vec<(
+        FunderSearchMatch,
+        crate::domain::models::search_similarity::SearchSimilarity,
+    )>,
+    /// Whether any qualifying individual exists, including outside the limit.
+    pub has_qualifying_individual: bool,
+}
+
+/// Ranking for a phonetic match, independent of primary similarity.
+#[derive(Clone)]
+pub struct PhoneticRank {
+    distance: u32,
+    similarity: crate::domain::models::search_similarity::SearchSimilarity,
+}
+
+impl PhoneticRank {
+    /// Creates a rank from a nonnegative token edit distance.
+    #[must_use]
+    pub const fn new(
+        distance: u32,
+        similarity: crate::domain::models::search_similarity::SearchSimilarity,
+    ) -> Self {
+        Self {
+            distance,
+            similarity,
+        }
+    }
+
+    /// Orders smaller edit distances first, then greater trigram similarity.
+    #[must_use]
+    pub fn compare(&self, other: &Self) -> std::cmp::Ordering {
+        self.distance
+            .cmp(&other.distance)
+            .then_with(|| other.similarity.value().total_cmp(&self.similarity.value()))
     }
 }
