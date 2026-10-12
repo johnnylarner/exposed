@@ -2,8 +2,9 @@ use crate::{
     domain::{
         models::{
             entity_details::{
-                DeclarationCategory, DeclaredFunding, FunderDeclaration, FunderFunding,
-                FunderProfile, FunderReference, MemberDeclaration, MemberHistory, MemberProfile,
+                DeclarationCategory, DeclaredFunding, FunderAliasLink, FunderDeclaration,
+                FunderFamilyLink, FunderFunding, FunderProfile, FunderReference, MemberDeclaration,
+                MemberHistory, MemberProfile,
             },
             funder::{Funder, FunderId, FunderKind},
             parliament_member::MemberId,
@@ -96,30 +97,91 @@ impl EntityDetailsRepo for ExposedDatabase {
         sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             .execute(&mut *tx)
             .await?;
-        let row = sqlx::query!(
-            "SELECT funder_name, funder_kind, company_number FROM exposed.funders WHERE id = $1",
+        let group_id = sqlx::query_scalar!(
+            "SELECT COALESCE(g.group_id, f.id) AS \"group_id!\" FROM exposed.funders f
+             LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = f.id WHERE f.id = $1",
             id.value()
         )
         .fetch_optional(&mut *tx)
         .await?;
-        let Some(row) = row else {
+        let Some(group_id) = group_id else {
             return Ok(None);
         };
+        let stored_member_ids = sqlx::query_scalar!(
+            "SELECT funder_id AS \"funder_id!\" FROM exposed.funder_alias_groups WHERE group_id = $1
+             UNION SELECT $1::uuid ORDER BY 1",
+            group_id
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+        let row = sqlx::query!(
+            "SELECT f.funder_name, f.funder_kind,
+                (SELECT CASE WHEN count(DISTINCT member.company_number) = 1
+                    THEN min(member.company_number) END FROM exposed.funders member
+                 WHERE member.id = ANY($2)) AS company_number
+             FROM exposed.funders f WHERE f.id = $1",
+            group_id,
+            &stored_member_ids
+        )
+        .fetch_one(&mut *tx)
+        .await?;
         let kind = row
             .funder_kind
             .as_deref()
             .map_or(Ok(FunderKind::NotSpecified), FunderKind::from_str)
             .map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?;
         let aliases = sqlx::query_scalar!(
-            "SELECT funder_alias FROM exposed.funder_aliases WHERE funder_id = $1 ORDER BY funder_alias COLLATE \"C\"",
-            id.value()
+            "WITH names AS (
+                SELECT funder_id, funder_alias FROM exposed.funder_aliases
+                UNION SELECT id, funder_name FROM exposed.funders
+             )
+             SELECT DISTINCT funder_alias COLLATE \"C\" AS \"funder_alias!\" FROM names
+             WHERE funder_id = ANY($1)
+             ORDER BY funder_alias COLLATE \"C\"",
+            &stored_member_ids
         )
         .fetch_all(&mut *tx)
         .await?;
+        let member_ids = stored_member_ids
+            .iter()
+            .copied()
+            .map(FunderId::new)
+            .collect();
+        let alias_links = sqlx::query!(
+            "SELECT links.left_funder_id AS \"left_funder_id!\", links.right_funder_id AS \"right_funder_id!\",
+                links.normalized_alias AS \"normalized_alias!\", links.left_alias AS \"left_alias!\", links.right_alias AS \"right_alias!\"
+             FROM exposed.funder_alias_links links
+             WHERE links.left_funder_id = ANY($1)
+             ORDER BY links.left_funder_id, links.right_funder_id, links.normalized_alias COLLATE \"C\",
+                links.left_alias COLLATE \"C\", links.right_alias COLLATE \"C\"", &stored_member_ids
+        ).fetch_all(&mut *tx).await?.into_iter().map(|link| FunderAliasLink {
+            left_funder_id: FunderId::new(link.left_funder_id),
+            right_funder_id: FunderId::new(link.right_funder_id),
+            normalized_alias: link.normalized_alias,
+            left_alias: link.left_alias,
+            right_alias: link.right_alias,
+        }).collect();
+        let family_links = sqlx::query!(
+            "SELECT links.left_funder_id AS \"left_funder_id!\", links.right_funder_id AS \"right_funder_id!\",
+                links.family_key AS \"family_key!\", links.left_name AS \"left_name!\", links.right_name AS \"right_name!\"
+             FROM exposed.funder_family_links links
+             WHERE links.left_funder_id = ANY($1)
+             ORDER BY links.family_key COLLATE \"C\", links.left_funder_id, links.right_funder_id",
+            &stored_member_ids
+        ).fetch_all(&mut *tx).await?.into_iter().map(|link| FunderFamilyLink {
+            left_funder_id: FunderId::new(link.left_funder_id),
+            right_funder_id: FunderId::new(link.right_funder_id),
+            family_key: link.family_key,
+            left_name: link.left_name,
+            right_name: link.right_name,
+        }).collect();
         let profile = FunderProfile {
             funder: Funder::new(id, row.funder_name, kind),
             company_number: row.company_number,
             aliases,
+            member_ids,
+            alias_links,
+            family_links,
         };
         let rows = sqlx::query!(
             "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name,
@@ -129,9 +191,9 @@ impl EntityDetailsRepo for ExposedDatabase {
              FROM exposed.funding_entries e
              JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id
              JOIN exposed.members m ON m.id = d.member_id
-             WHERE e.funder_id = $1
+             WHERE e.funder_id = ANY($1)
              ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
-            id.value(),
+            &stored_member_ids,
             CURRENCY_WHITESPACE
         )
         .fetch_all(&mut *tx)

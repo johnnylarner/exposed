@@ -170,7 +170,12 @@
         "Unite the Union",
         "Unite the Union Parliamentary Staff Branch",
         "Unite the Union West Midlands"
-      ]
+      ],
+      "member_ids": [
+        "member-1"
+      ],
+      "alias_links": [],
+      "family_links": []
     },
     "search": "unite"
   },
@@ -186,7 +191,12 @@
         "HSBC UK (Ian Stuart, CEO)",
         "HSBC UK Bank PLC",
         "HSBC UK Bank plc"
-      ]
+      ],
+      "member_ids": [
+        "member-1"
+      ],
+      "alias_links": [],
+      "family_links": []
     },
     "search": "hsbc"
   }

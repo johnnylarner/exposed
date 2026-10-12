@@ -21,3 +21,5 @@ pub use funder_scoring::WeldrsFunderScorer;
 mod declaration_loading;
 
 mod entity_details;
+
+mod funder_grouping;

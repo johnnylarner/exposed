@@ -70,8 +70,15 @@ The goal of this project is to make declaration data easy to search, browse and 
 - Keep schema changes in `db/migrations` as SQLx versioned `.up.sql` and
   `.down.sql` pairs. From the repository root, create a pair with
   `sqlx migrate add --source db/migrations --reversible <name>`.
-- Keep applied migrations immutable. Add a new pair for each schema change;
-  do not fold changes into the baseline or put manual schema scripts in
+- Never change a migration file that existed before the current PR. Treat those
+  migrations as immutable, even when they have not been applied locally.
+- When a PR's schema design changes, you must edit, consolidate, or remove the
+  migrations introduced by that PR. Do not append a corrective migration for an
+  obsolete step in the same PR. Before review, the PR must contain only the
+  migrations needed for its final schema. Recreate isolated test databases that
+  applied a discarded PR migration; do not preserve obsolete steps just to
+  satisfy their checksums.
+- Do not fold changes into the baseline or put manual schema scripts in
   `db/upgrades`.
 - From the repository root, apply migrations with
   `sqlx migrate run --config sqlx.toml --source db/migrations`, inspect them with

@@ -562,10 +562,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
         load: &DeclarationLoad,
     ) -> Result<DeclarationLoadSummary, EntityIngestionError> {
         let mut tx = self.pool().begin().await.map_err(db_error)?;
-        sqlx::query!("SELECT pg_advisory_xact_lock(hashtext('exposed.declaration-loader'))")
-            .execute(&mut *tx)
-            .await
-            .map_err(db_error)?;
+        super::funder_grouping::lock_declaration_loader(&mut tx).await?;
         if let Some(existing) = sqlx::query!(
             "SELECT fingerprint, declarations, funders, funding_entries FROM exposed.declaration_load_runs WHERE ingestion_key = $1",
             load.ingestion_key.uuid()
@@ -573,6 +570,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
             if existing.fingerprint != load.fingerprint {
                 return Err(data_error("this ingestion key was loaded from different artifacts"));
             }
+            super::funder_grouping::replace_funder_groups(&mut tx).await?;
             tx.commit().await.map_err(db_error)?;
             return Ok(DeclarationLoadSummary {
                 outcome: DeclarationLoadOutcome::AlreadyLoaded,
@@ -688,6 +686,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
         .execute(&mut *tx)
         .await
         .map_err(db_error)?;
+        super::funder_grouping::replace_funder_groups(&mut tx).await?;
         let summary = load.summary();
         sqlx::query!(
             "INSERT INTO exposed.declaration_load_runs (ingestion_key, fingerprint, declarations, funders, funding_entries) VALUES ($1, $2, $3, $4, $5)",

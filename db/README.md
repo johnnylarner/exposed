@@ -130,3 +130,34 @@ Missing source dates remain null.
 
 SQL uses uppercase keywords/types, lowercase snake_case identifiers, and
 schema-qualified domain objects.
+
+## Deploy stored funder groups
+
+The pipeline owns the grouping policy in
+`exposed/src/lib/domain/models/funder_families.v1.json`. Search and detail queries
+read stored membership and direct evidence. The schema migration creates empty
+projection tables; it does not apply the policy to existing records.
+
+Set `DATABASE_URL` to the target database. Before serving requests after the
+pipeline grouping migration, stop the API, apply migrations, then run the new
+binary against the same database:
+
+```sh
+sqlx migrate run --config sqlx.toml --source db/migrations
+cargo run --package exposed --bin exposed -- data refresh-funder-groups
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -c '
+SELECT count(*) AS missing_memberships
+FROM exposed.funders f
+LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = f.id
+WHERE g.funder_id IS NULL;'
+```
+
+Require `missing_memberships = 0` before restarting the API. The command refreshes
+all persisted funders and their aliases in one transaction under the declaration
+loader lock. Run it again after a reviewed policy update. Successful declaration
+loads, including exact retries, also refresh the projection after pruning. The
+refresh never replays capture or resolution artifacts and preserves source data.
+Manual changes to funder names or aliases also require a refresh before serving.
+
+The alias evidence table uses a generated ID so long recorded names can be stored
+without exceeding an index key limit.

@@ -521,3 +521,81 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
     );
     Ok(())
 }
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn loader_groups_retained_identities_and_exact_retry_refreshes_without_replay(
+    pool: sqlx::PgPool,
+) -> anyhow::Result<()> {
+    let (_temporary, load) = resolved_test_run().await?;
+    sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES (4613, 'Test member', 1, 'Test party', 1, 'Test constituency', true)").execute(&pool).await?;
+    let old_id = Uuid::from_u128(1);
+    sqlx::query!(
+        "INSERT INTO exposed.funders (id, funder_name) VALUES ($1, 'Retained old source')",
+        old_id
+    )
+    .execute(&pool)
+    .await?;
+    sqlx::query!(
+        "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, $2)",
+        old_id,
+        load.funders[0].name
+    )
+    .execute(&pool)
+    .await?;
+    sqlx::query!("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at) SELECT 9000, id, 1, 'Retained', now() FROM exposed.members LIMIT 1").execute(&pool).await?;
+    sqlx::query!("INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency) VALUES (9000, $1, 7, 'GBP')", old_id).execute(&pool).await?;
+    let repository = ExposedDatabase::from(pool.clone());
+    repository.load_declarations(&load).await?;
+    let new_id = sqlx::query_scalar!(
+        "SELECT id FROM exposed.funders WHERE resolution_identity_id = $1",
+        load.funders[0].identity_id
+    )
+    .fetch_one(&pool)
+    .await?;
+    let group = sqlx::query_scalar!(
+        "SELECT group_id FROM exposed.funder_alias_groups WHERE funder_id = $1",
+        new_id
+    )
+    .fetch_one(&pool)
+    .await?;
+    assert_eq!(group, old_id);
+    assert_eq!(
+        sqlx::query_scalar!("SELECT count(*) FROM exposed.funder_alias_groups")
+            .fetch_one(&pool)
+            .await?,
+        Some(i64::try_from(load.funders.len() + 1)?)
+    );
+
+    // The retry must use current stored inputs, including changes outside this ingestion run.
+    sqlx::query!(
+        "DELETE FROM exposed.funder_aliases WHERE funder_id = $1",
+        old_id
+    )
+    .execute(&pool)
+    .await?;
+    let before = database_snapshot(&pool).await?;
+    assert_eq!(
+        repository.load_declarations(&load).await?.outcome,
+        DeclarationLoadOutcome::AlreadyLoaded
+    );
+    assert_eq!(database_snapshot(&pool).await?, before);
+    assert_eq!(
+        sqlx::query_scalar!(
+            "SELECT group_id FROM exposed.funder_alias_groups WHERE funder_id = $1",
+            new_id
+        )
+        .fetch_one(&pool)
+        .await?,
+        new_id
+    );
+    assert_eq!(
+        sqlx::query_scalar!(
+            "SELECT group_id FROM exposed.funder_alias_groups WHERE funder_id = $1",
+            old_id
+        )
+        .fetch_one(&pool)
+        .await?,
+        old_id
+    );
+    Ok(())
+}
