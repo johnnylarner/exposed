@@ -18,7 +18,6 @@ use crate::domain::{
 use std::{cmp::Ordering, collections::BTreeMap};
 use thiserror::Error;
 
-const RECENT_SUPPORT: usize = 5;
 const TOP_RECIPIENTS: usize = 10;
 
 /// Entity detail lookup failure.
@@ -141,18 +140,10 @@ fn summarize_member(history: MemberHistory) -> MemberDetails {
         }
     }
     summary.currencies = currencies.into_values().collect();
-    let recent_support = history
-        .declarations
-        .iter()
-        .filter(|declaration| declaration.category.is_donation_support())
-        .take(RECENT_SUPPORT)
-        .cloned()
-        .collect();
     MemberDetails {
         member: history.member,
         declarations: history.declarations,
         summary,
-        recent_support,
     }
 }
 

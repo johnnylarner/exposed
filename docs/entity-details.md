@@ -4,8 +4,8 @@ Search entities carry stable string IDs. `MP` IDs are positive Parliament member
 numbers. `Funder` IDs are database UUIDs for canonical funder identities. The HTTP
 adapter parses these IDs before calling the detail service.
 
-`GET /members/{id}` returns `member`, `declarations`, `summary`, and
-`recent_support` from one read-only repeatable-read transaction. `declarations`
+`GET /members/{id}` returns `member`, `declarations`, and `summary`
+from one read-only repeatable-read transaction. `declarations`
 contains every stored declaration. Registration date sorts descending, with
 missing dates last. Source declaration ID breaks ties. Every funding occurrence
 survives, including duplicates and entries with missing fields. Declarations
@@ -21,12 +21,12 @@ negative amounts remain distinct from null.
 
 The domain owns `DeclarationCategory`. Source category ID 3 means donations and
 other support, including loans. Every other category retains its source ID and
-label, including unrecognized IDs. `recent_support` contains at most five
-latest declarations in category 3, selected from the complete history before
-truncation. The classification does not infer direct personal receipt.
+label, including unrecognized IDs. The classification does not infer direct
+personal receipt.
 
 The frontend summary at `/members/{id}` shows a compact latest profile, known
-values, recent donations and support, and category bars. Categories with negative
+values, the first five declarations from the complete ordered history with their
+category labels, and category bars. Categories with negative
 values share a central zero baseline. Monetary labels retain exact decimal
 strings. Bar widths use bounded
 integer ratios and do not sum money in the browser.
@@ -93,5 +93,4 @@ local missing-value counts while limiting transfer to recipients and currencies.
 
 Native document links keep browser history, reload, and new-tab behavior without
 a client router or another navigation state. Member history is complete, while
-recent support and funder recipient rankings
-retain their labelled limits.
+recent declarations and funder recipient rankings retain their labelled limits.

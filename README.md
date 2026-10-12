@@ -64,7 +64,7 @@ remain available even when the declaration has no funding entry. See the
 and exact feature rules.
 
 Search result names open MP and funder detail pages. MP summaries show known declared values across all stored history, separated by
-currency, category breakdowns, and five recent donations and support declarations.
+currency, category breakdowns, and the five latest declarations across all categories.
 The declaration history page shows every stored declaration with registration date
 filters and pages of ten declarations, including incomplete funding entries. Funders show declared
 support by recipients' latest stored party and up to ten recipients per currency.

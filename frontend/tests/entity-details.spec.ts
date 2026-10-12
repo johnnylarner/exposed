@@ -45,7 +45,6 @@ const memberHistoryFixture = {
 };
 const memberDetails = {
   ...memberHistoryFixture,
-  recent_support: [memberHistoryFixture.declarations[0]],
   summary: {
     entry_count: 3,
     unknown_currency_count: 1,
@@ -264,7 +263,7 @@ test("native links preserve search and threshold through details, back, reload a
   await link.click();
   await expect(page).toHaveURL(/\/members\/1\?q=Example&strictness=0.42$/u);
   await expect(
-    page.getByRole("heading", { name: "Recent donations and support" }),
+    page.getByRole("heading", { name: "Recent declarations" }),
   ).toBeVisible();
   await page.reload();
   await expect(
@@ -310,7 +309,6 @@ test("member summary shows recent declarations when none are donations", async (
           },
           memberHistoryFixture.declarations[1],
         ],
-        recent_support: [],
       },
     }),
   );
@@ -322,6 +320,31 @@ test("member summary shows recent declarations when none are donations", async (
   await expect(page.getByText("Declaration 119")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Employment" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
+});
+
+test("member summary shows only the first five declarations in history order", async ({
+  page,
+}) => {
+  const declarations = Array.from({ length: 7 }, (_, index) => ({
+    ...memberHistoryFixture.declarations[0],
+    source_id: 120 - index,
+    category_id: index === 0 ? 3 : 1,
+    category_name: index === 0 ? "Support" : "Employment",
+    entries: [],
+  }));
+  await page.route("**/api/members/1", (route) =>
+    route.fulfill({ json: { ...memberDetails, declarations } }),
+  );
+  await page.goto("/members/1");
+  await expect(page.locator(".declaration-reference")).toHaveText([
+    "Declaration 120",
+    "Declaration 119",
+    "Declaration 118",
+    "Declaration 117",
+    "Declaration 116",
+  ]);
+  await page.getByRole("link", { name: "View all 7 declarations" }).click();
+  await expect(page.locator(".declaration-reference")).toHaveCount(7);
 });
 
 test("member declarations retain duplicate precise amounts and missing source fields", async ({
@@ -470,7 +493,6 @@ test("empty details and unknown currency only details remain distinct from error
       json: {
         ...memberDetails,
         declarations: [],
-        recent_support: [],
         summary: {
           ...memberDetails.summary,
           currencies: [],
@@ -493,6 +515,9 @@ test("empty details and unknown currency only details remain distinct from error
   await page.goto("/members/1");
   await expect(
     page.getByText("No funding entries are stored for this MP."),
+  ).toBeVisible();
+  await expect(
+    page.getByText("No declarations are stored for this MP."),
   ).toBeVisible();
   await page.goto(`/funders/${funderId}`);
   await expect(
@@ -727,7 +752,7 @@ test("member summary displays server totals, signed category bars, zero and unav
       exact: false,
     }),
   ).toBeVisible();
-  await expect(page.locator(".declarations-list > li")).toHaveCount(1);
+  await expect(page.locator(".declarations-list > li")).toHaveCount(2);
   await expect(
     page.getByRole("link", { name: "View all 2 declarations" }),
   ).toHaveAttribute("href", "/members/1/history");

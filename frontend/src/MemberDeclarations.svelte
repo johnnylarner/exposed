@@ -5,10 +5,7 @@
     registrationDate,
     type MemberDeclaration,
   } from "./lib/entity-details";
-  let {
-    declarations,
-    showCategory = true,
-  }: { declarations: MemberDeclaration[]; showCategory?: boolean } = $props();
+  let { declarations }: { declarations: MemberDeclaration[] } = $props();
 </script>
 
 <ol class="declarations-list member-declarations">
@@ -16,7 +13,7 @@
     <li class="declaration">
       <header class="declaration-heading">
         <div>
-          {#if showCategory}<h3>{declaration.categoryName}</h3>{/if}
+          <h3>{declaration.categoryName}</h3>
           <span class="declaration-reference"
             >Declaration {declaration.sourceId}</span
           >
