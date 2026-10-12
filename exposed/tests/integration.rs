@@ -253,7 +253,7 @@ async fn loaded_data_grouped_funders_regression() -> anyhow::Result<()> {
         ("gb news", "GB News", 7, 77, "gb_news", "GB News Ltd"),
         (
             "premier league",
-            "The Premier League",
+            "Premier League",
             8,
             107,
             "premier_league",
@@ -274,6 +274,7 @@ async fn loaded_data_grouped_funders_regression() -> anyhow::Result<()> {
             .context("search result must include a funder ID")?;
         let details = funder_details(&app, id).await?;
         assert_eq!(details["funder"]["id"], id);
+        assert_eq!(details["funder"]["name"], name);
         assert_eq!(
             details["funder"]["member_ids"].as_array().map(Vec::len),
             Some(member_count),

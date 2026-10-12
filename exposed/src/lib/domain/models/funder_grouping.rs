@@ -29,6 +29,7 @@ pub struct FunderGroups {
     pub(crate) alias_links: Vec<FunderAliasLink>,
     /// Direct reviewed-family evidence, kept separate from equal-name evidence.
     pub(crate) family_links: Vec<FunderFamilyLink>,
+    pub(crate) preferred_names: Vec<FunderGroupName>,
 }
 
 #[derive(Deserialize)]
@@ -59,7 +60,36 @@ impl TryFrom<u32> for PolicyVersion {
 #[serde(deny_unknown_fields)]
 struct ReviewedFamily {
     key: String,
+    preferred_name: PreferredFunderName,
     names: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(try_from = "String")]
+pub(crate) struct PreferredFunderName(String);
+
+impl TryFrom<String> for PreferredFunderName {
+    type Error = &'static str;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        let value = value.trim();
+        if value.is_empty() {
+            return Err("preferred funder names must be nonempty");
+        }
+        Ok(Self(value.into()))
+    }
+}
+
+impl PreferredFunderName {
+    pub(crate) fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+pub(crate) struct FunderGroupName {
+    pub(crate) group_id: FunderId,
+    pub(crate) preferred_name: PreferredFunderName,
+    pub(crate) family_key: String,
 }
 
 #[derive(Eq, PartialEq, Ord, PartialOrd)]
@@ -88,6 +118,14 @@ pub enum FunderGroupingError {
     /// A persisted identity must occur exactly once in a snapshot.
     #[error("duplicate funder identity {0}")]
     DuplicateFunder(Uuid),
+    /// A component cannot select a name from competing reviewed families.
+    #[error("funder group {group_id:?} contains conflicting reviewed families {family_keys:?}")]
+    ConflictingReviewedFamilies {
+        /// Stable representative of the ambiguous component.
+        group_id: FunderId,
+        /// Competing policy keys in lexical order.
+        family_keys: Vec<String>,
+    },
 }
 
 impl FamilyPolicy {
@@ -118,6 +156,42 @@ impl FamilyPolicy {
             }
         }
         Ok(policy)
+    }
+    fn preferred_names(
+        &self,
+        reviewed_members: Vec<(Uuid, usize)>,
+        components: &mut Components,
+    ) -> Result<Vec<FunderGroupName>, FunderGroupingError> {
+        let mut reviewed_groups = BTreeMap::<Uuid, BTreeSet<usize>>::new();
+        for (id, family_index) in reviewed_members {
+            reviewed_groups
+                .entry(components.root(id))
+                .or_default()
+                .insert(family_index);
+        }
+        let mut preferred_names = Vec::new();
+        for (group_id, families) in reviewed_groups {
+            if families.len() > 1 {
+                let mut family_keys: Vec<_> = families
+                    .iter()
+                    .map(|index| self.families[*index].key.clone())
+                    .collect();
+                family_keys.sort();
+                return Err(FunderGroupingError::ConflictingReviewedFamilies {
+                    group_id: FunderId::new(group_id),
+                    family_keys,
+                });
+            }
+            for index in families {
+                let family = &self.families[index];
+                preferred_names.push(FunderGroupName {
+                    group_id: FunderId::new(group_id),
+                    preferred_name: family.preferred_name.clone(),
+                    family_key: family.key.clone(),
+                });
+            }
+        }
+        Ok(preferred_names)
     }
 }
 
@@ -174,7 +248,8 @@ pub fn build_funder_groups(
         }
     }
     let mut family_links = Vec::new();
-    for family in policy.families {
+    let mut reviewed_members = Vec::new();
+    for (family_index, family) in policy.families.iter().enumerate() {
         let reviewed: BTreeSet<_> = family
             .names
             .iter()
@@ -187,6 +262,11 @@ pub fn build_funder_groups(
             })
             .collect();
         members.sort_by_key(|funder| funder.id.value());
+        reviewed_members.extend(
+            members
+                .iter()
+                .map(|funder| (funder.id.value(), family_index)),
+        );
         for (position, left) in members.iter().enumerate() {
             for right in &members[position + 1..] {
                 components.join(left.id.value(), right.id.value());
@@ -207,6 +287,7 @@ pub fn build_funder_groups(
             link.right_funder_id.value(),
         )
     });
+    let preferred_names = policy.preferred_names(reviewed_members, &mut components)?;
     let memberships = ids
         .iter()
         .map(|id| (FunderId::new(*id), FunderId::new(components.root(*id))))
@@ -215,6 +296,7 @@ pub fn build_funder_groups(
         memberships,
         alias_links,
         family_links,
+        preferred_names,
     })
 }
 
@@ -262,6 +344,66 @@ mod tests {
     }
 
     #[test]
+    fn reviewed_names_follow_final_components_including_singletons() {
+        let singleton = build_funder_groups(&[funder(3, "BBC Studios Ltd", &[])]).unwrap();
+        assert_eq!(singleton.preferred_names[0].preferred_name.as_str(), "BBC");
+        assert!(singleton.family_links.is_empty());
+        let mut input = vec![
+            funder(3, "BBC Studios Ltd", &["Bridge"]),
+            funder(1, "External", &["Bridge"]),
+        ];
+        for _ in 0..2 {
+            let groups = build_funder_groups(&input).unwrap();
+            assert_eq!(
+                groups.preferred_names[0].group_id.value(),
+                Uuid::from_u128(1)
+            );
+            assert_eq!(groups.preferred_names[0].preferred_name.as_str(), "BBC");
+            assert_eq!(groups.alias_links[0].left_alias, "Bridge");
+            input.reverse();
+        }
+        assert_eq!(input[0].name, "BBC Studios Ltd");
+    }
+
+    #[test]
+    fn competing_reviewed_families_reject_final_component_deterministically() {
+        let mut input = vec![
+            funder(3, "GB News Ltd", &["Bridge"]),
+            funder(1, "BBC Studios Ltd", &["Bridge"]),
+        ];
+        for _ in 0..2 {
+            match build_funder_groups(&input) {
+                Err(FunderGroupingError::ConflictingReviewedFamilies {
+                    group_id,
+                    family_keys,
+                }) => {
+                    assert_eq!(group_id.value(), Uuid::from_u128(1));
+                    assert_eq!(family_keys, ["bbc", "gb_news"]);
+                }
+                _ => panic!("expected reviewed family conflict"),
+            }
+            input.reverse();
+        }
+    }
+
+    #[test]
+    fn preferred_names_parse_nonempty_trimmed_values() {
+        for value in ["", "  ", "\t\n"] {
+            assert!(PreferredFunderName::try_from(value.to_owned()).is_err());
+        }
+        assert_eq!(
+            PreferredFunderName::try_from(" BBC Studios ".to_owned())
+                .unwrap()
+                .as_str(),
+            "BBC Studios"
+        );
+        assert!(
+            FamilyPolicy::parse(r#"{"version":1,"families":[{"key":"bbc","names":["BBC"]}]}"#)
+                .is_err()
+        );
+    }
+
+    #[test]
     fn connected_components_keep_direct_evidence_and_split_after_bridge_removal() {
         let mut funders = vec![
             funder(3, "Gamma", &["Bridge two", "ALPHA"]),
@@ -290,11 +432,11 @@ mod tests {
     fn reviewed_policy_rejects_ambiguous_names_empty_keys_and_unknown_versions() {
         for input in [
             r#"{"version":2,"families":[]}"#,
-            r#"{"version":1,"families":[{"key":"","names":["BBC"]}]}"#,
-            r#"{"version":1,"families":[{"key":"a","names":["BBC"]},{"key":"a","names":["Other"]}]}"#,
-            r#"{"version":1,"families":[{"key":"a","names":["BBC"]},{"key":"b","names":[" bBc "]}]}"#,
-            r#"{"version":1,"families":[{"key":"a","names":[" "]}]}"#,
-            r#"{"version":1,"families":[{"key":"a","names":[]}]}"#,
+            r#"{"version":1,"families":[{"key":"","preferred_name":"BBC","names":["BBC"]}]}"#,
+            r#"{"version":1,"families":[{"key":"a","preferred_name":"BBC","names":["BBC"]},{"key":"a","preferred_name":"BBC","names":["Other"]}]}"#,
+            r#"{"version":1,"families":[{"key":"a","preferred_name":"BBC","names":["BBC"]},{"key":"b","preferred_name":"Other","names":[" bBc "]}]}"#,
+            r#"{"version":1,"families":[{"key":"a","preferred_name":"BBC","names":[" "]}]}"#,
+            r#"{"version":1,"families":[{"key":"a","preferred_name":"BBC","names":[]}]}"#,
         ] {
             assert!(FamilyPolicy::parse(input).is_err(), "{input}");
         }

@@ -140,7 +140,7 @@ async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
 
 async fn clear_import(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query!(
-        "TRUNCATE exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.members"
+        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.members"
     )
     .execute(pool)
     .await?;
