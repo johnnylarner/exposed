@@ -12,15 +12,17 @@
     summary,
   }: { details: MemberDetails; summary: ReturnType<typeof summarizeMember> } =
     $props();
-  const bars = $derived(categoryBars(summary.categories));
-  const signed = $derived(bars.some((bar) => bar.negative));
+  const bars = $derived(categoryBars(summary.categories, "total"));
+  const baseline = $derived(
+    bars.reduce((total, bar) => total + (bar.negative ? bar.width : 0), 0),
+  );
 </script>
 
 <div class="member-summary-top">
   <section class="member-breakdown" aria-labelledby="breakdown-heading">
     <h2 id="breakdown-heading">Declared value by category</h2>
     {#if summary.categories.length}
-      <ul class="category-list">
+      <ul class="category-list" style:--baseline={`${baseline}%`}>
         {#each summary.categories as category, index}
           <li>
             <div class="category-label">
@@ -28,10 +30,10 @@
                 >{formatPounds(category.amount)}</span
               >
             </div>
-            <div class="signed-bar" class:signed aria-hidden="true">
+            <div class="signed-bar" aria-hidden="true">
               <span
                 class:negative={bars[index].negative}
-                style:width={`${bars[index].width / (signed ? 2 : 1)}%`}
+                style:width={`${bars[index].width}%`}
               ></span>
             </div>
             {#if category.unknownAmountCount}<p class="partial-note">
