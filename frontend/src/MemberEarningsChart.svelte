@@ -11,7 +11,7 @@
     Math.max(0, ...bars.filter((bar) => bar.negative).map((bar) => bar.width)),
   );
   const extent = $derived(positive + negative || 100);
-  const baseline = $derived(24 + (positive / extent) * 184);
+  const baseline = $derived(24 + (positive / extent) * 294);
   const maximum = $derived(
     weeks[bars.findIndex((bar) => !bar.negative && bar.width === positive)]
       ?.amount ?? "0",
@@ -37,12 +37,11 @@
 </script>
 
 <section class="member-earnings" aria-labelledby="earnings-heading">
-  <h2 id="earnings-heading">Earnings per week</h2>
-  <p class="chart-subtitle">By registration week</p>
+  <h2 id="earnings-heading">Earnings by registration week</h2>
   {#if weeks.length}
     <svg
       class="earnings-chart"
-      viewBox="0 0 560 250"
+      viewBox="0 0 560 360"
       role="img"
       aria-labelledby="earnings-title earnings-description"
     >
@@ -59,7 +58,7 @@
         class="chart-baseline"
       />
       {#each weeks as week, index}{@const bar = bars[index]}{@const height =
-          (bar.width / extent) * 184}
+          (bar.width / extent) * 294}
         <rect
           x={(index * 560) / weeks.length + 1}
           y={bar.negative ? baseline : baseline - height}
@@ -75,7 +74,7 @@
         >
         {#if tick(index)}<text
             x={(index * 540) / Math.max(1, weeks.length - 1) + 10}
-            y="244"
+            y="354"
             text-anchor={index === 0
               ? "start"
               : index === weeks.length - 1
@@ -85,7 +84,7 @@
           >{/if}{/each}
       <text
         x="0"
-        y={negative ? 225 : Math.min(225, baseline + 16)}
+        y={negative ? 335 : Math.min(335, baseline + 16)}
         class="chart-axis">{negative ? formatPounds(minimum) : "£0"}</text
       >
     </svg>

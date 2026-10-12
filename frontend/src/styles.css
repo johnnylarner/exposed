@@ -1147,8 +1147,7 @@ button:disabled {
   align-self: center;
   max-width: 420px;
 }
-.member-value > span,
-.chart-subtitle {
+.member-value > span {
   color: var(--muted);
   font-size: 0.8rem;
 }
@@ -1159,14 +1158,11 @@ button:disabled {
 .member-summary-top h2 {
   margin-top: 0;
 }
-.chart-subtitle {
-  margin: -4px 0 20px;
-}
 .earnings-chart {
   display: block;
   width: 100%;
   overflow: visible;
-  margin: 32px 0 16px;
+  margin: 16px 0;
 }
 .chart-axis {
   fill: var(--muted);
