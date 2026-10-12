@@ -32,7 +32,7 @@ INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, c
 (120, '10000000-0000-0000-0000-000000000001', NULL, 'GBP', NULL),
 (120, '10000000-0000-0000-0000-000000000001', 999, NULL, NULL),
 (120, '10000000-0000-0000-0000-000000000001', NULL, NULL, NULL),
-(120, '10000000-0000-0000-0000-000000000001', 888, '  ', NULL),
+(120, '10000000-0000-0000-0000-000000000001', 888, U&'\0085', NULL),
 (120, '10000000-0000-0000-0000-000000000001', 777, E'\t\n', NULL),
 (120, '10000000-0000-0000-0000-000000000001', 666, U&'\00A0\FEFF', NULL),
 (120, '10000000-0000-0000-0000-000000000001', 100, E'\tUSD\n', NULL),
@@ -43,3 +43,15 @@ INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, c
 (200, '10000000-0000-0000-0000-000000000001', NULL, 'EUR', NULL);
 INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency)
 SELECT 300 + i, '10000000-0000-0000-0000-000000000001', 1, 'GBP' FROM generate_series(4, 15) i;
+UPDATE exposed.declarations SET category_id = 3, category_name = 'Donations and other support (including loans)' WHERE category_name = 'Support';
+UPDATE exposed.declarations SET category_id = 1, category_name = 'Employment and earnings' WHERE source_declaration_id BETWEEN 105 AND 120;
+UPDATE exposed.declarations SET category_id = 987, category_name = 'Unrecognized source category' WHERE source_declaration_id = 121;
+INSERT INTO exposed.funding_entries (source_declaration_id, amount, currency) VALUES
+(100, 0.123456789123456789, 'GBP'),
+(100, -0.123456789123456789, 'GBP'),
+(100, 7, 'GBP'),
+(101, -7, 'GBP'),
+(102, NULL, 'EUR'),
+(103, 0, 'JPY'),
+(121, -2.25, 'GBP'),
+(121, 25, NULL);

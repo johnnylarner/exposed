@@ -1,6 +1,6 @@
 export type DetailRoute =
   | { kind: "search" }
-  | { kind: "member"; id: string }
+  | { kind: "member"; id: string; view: "summary" | "history" }
   | { kind: "funder"; id: string }
   | { kind: "invalid" };
 
@@ -10,13 +10,17 @@ const memberIdPattern = /^[1-9]\d*$/u;
 
 export function readDetailRoute(path: string): DetailRoute {
   if (path === "/") return { kind: "search" };
-  const member = /^\/members\/([^/]+)\/?$/u.exec(path);
+  const member = /^\/members\/([^/]+)(?:\/(history))?\/?$/u.exec(path);
   if (
     member &&
     memberIdPattern.test(member[1]) &&
     Number(member[1]) <= 2147483647
   )
-    return { kind: "member", id: member[1] };
+    return {
+      kind: "member",
+      id: member[1],
+      view: member[2] ? "history" : "summary",
+    };
   const funder = /^\/funders\/([^/]+)\/?$/u.exec(path);
   if (funder && funderIdPattern.test(funder[1]))
     return { kind: "funder", id: funder[1] };
@@ -38,16 +42,29 @@ export interface FundingEntry {
   paymentType: string | null;
 }
 
+export interface MemberDeclaration {
+  sourceId: number;
+  categoryId: number;
+  categoryName: string;
+  registeredAt: string | null;
+  entries: FundingEntry[];
+}
+
 export interface MemberDetails {
   member: MemberProfile;
-  declarations: {
-    sourceId: number;
-    categoryName: string;
-    registeredAt: string | null;
-    entries: FundingEntry[];
-  }[];
-  declarationCount: number;
-  declarationLimit: number;
+  declarations: MemberDeclaration[];
+  recentSupport: MemberDeclaration[];
+  summary: {
+    currencies: (Total & {
+      currency: string;
+      categories: (Total & { categoryId: number; categoryName: string })[];
+    })[];
+    entryCount: number;
+    unknownCurrencyCount: number;
+    firstRegisteredAt: string | null;
+    lastRegisteredAt: string | null;
+    undatedDeclarationCount: number;
+  };
 }
 
 interface Total {
@@ -130,39 +147,70 @@ function memberProfile(value: unknown): MemberProfile {
     isCurrentCommons: row.is_current_commons,
   };
 }
-function readMember(value: unknown): MemberDetails {
+function integer(value: unknown): number {
+  return typeof value === "number" && Number.isSafeInteger(value)
+    ? value
+    : malformed();
+}
+function timestamp(value: unknown): string | null {
+  const result = nullableText(value);
+  if (result !== null && !Number.isFinite(Date.parse(result)))
+    return malformed();
+  return result;
+}
+function declaration(value: unknown): MemberDeclaration {
   const row = record(value);
   return {
-    member: memberProfile(row.member),
-    declarationCount: count(row.declaration_count),
-    declarationLimit: count(row.declaration_limit),
-    declarations: list(row.declarations).map((value) => {
-      const declaration = record(value);
-      const registeredAt = nullableText(declaration.registered_at);
-      if (registeredAt !== null && !Number.isFinite(Date.parse(registeredAt)))
-        return malformed();
+    sourceId: count(row.source_id),
+    categoryId: integer(row.category_id),
+    categoryName: text(row.category_name),
+    registeredAt: timestamp(row.registered_at),
+    entries: list(row.entries).map((value) => {
+      const entry = record(value);
+      const funder = entry.funder === null ? null : record(entry.funder);
       return {
-        sourceId: count(declaration.source_id),
-        categoryName: text(declaration.category_name),
-        registeredAt,
-        entries: list(declaration.entries).map((value) => {
-          const entry = record(value);
-          const funder = entry.funder === null ? null : record(entry.funder);
-          return {
-            funder:
-              funder === null
-                ? null
-                : {
-                    id: identity(funder.id, "Funder"),
-                    name: text(funder.name),
-                  },
-            amount: decimal(entry.amount),
-            currency: nullableText(entry.currency),
-            paymentType: nullableText(entry.payment_type),
-          };
-        }),
+        funder:
+          funder === null
+            ? null
+            : { id: identity(funder.id, "Funder"), name: text(funder.name) },
+        amount: decimal(entry.amount),
+        currency: nullableText(entry.currency),
+        paymentType: nullableText(entry.payment_type),
       };
     }),
+  };
+}
+function readMember(value: unknown): MemberDetails {
+  const row = record(value);
+  const summary = record(row.summary);
+  return {
+    member: memberProfile(row.member),
+    declarations: list(row.declarations).map(declaration),
+    recentSupport: list(row.recent_support).map(declaration),
+    summary: {
+      entryCount: count(summary.entry_count),
+      unknownCurrencyCount: count(summary.unknown_currency_count),
+      firstRegisteredAt: timestamp(summary.first_registered_at),
+      lastRegisteredAt: timestamp(summary.last_registered_at),
+      undatedDeclarationCount: count(summary.undated_declaration_count),
+      currencies: list(summary.currencies).map((value) => {
+        const group = record(value);
+        const currency = text(group.currency);
+        if (!currency.trim()) return malformed();
+        return {
+          ...total(group),
+          currency,
+          categories: list(group.categories).map((value) => {
+            const category = record(value);
+            return {
+              ...total(category),
+              categoryId: integer(category.category_id),
+              categoryName: text(category.category_name),
+            };
+          }),
+        };
+      }),
+    },
   };
 }
 function total(row: Record<string, unknown>): Total {
@@ -286,4 +334,35 @@ export function registrationDate(value: string): string {
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(value));
+}
+
+export function memberHref(id: string, view: "summary" | "history"): string {
+  const search = backToSearch().slice(1);
+  return `/members/${id}${view === "history" ? "/history" : ""}${search}`;
+}
+
+export function categoryBars(
+  categories: { amount: string | null }[],
+): { width: number; negative: boolean }[] {
+  const scale = Math.max(
+    0,
+    ...categories.map(({ amount }) => amount?.split(".")[1]?.length ?? 0),
+  );
+  const values = categories.map(({ amount }) => {
+    if (amount === null) return 0n;
+    const [whole, fraction = ""] = amount.replace(/^-/, "").split(".");
+    const value = BigInt(whole + fraction.padEnd(scale, "0"));
+    return amount.startsWith("-") ? -value : value;
+  });
+  const maximum = values.reduce((largest, value) => {
+    const magnitude = value < 0n ? -value : value;
+    return magnitude > largest ? magnitude : largest;
+  }, 0n);
+  return values.map((value) => ({
+    negative: value < 0n,
+    width:
+      maximum === 0n
+        ? 0
+        : Number(((value < 0n ? -value : value) * 10000n) / maximum) / 100,
+  }));
 }

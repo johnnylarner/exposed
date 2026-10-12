@@ -41,7 +41,7 @@ pub struct DeclaredFunding {
     pub funder: Option<FunderReference>,
     /// Exact source amount.
     pub amount: Option<BigDecimal>,
-    /// Source currency, including unknown values.
+    /// Normalized source currency, absent when unknown.
     pub currency: Option<String>,
     /// Source payment classification.
     pub payment_type: Option<String>,
@@ -49,9 +49,11 @@ pub struct DeclaredFunding {
 
 /// A declaration with all of its funding occurrences.
 #[derive(Clone, Debug)]
-pub struct RecentDeclaration {
+pub struct MemberDeclaration {
     /// Parliament declaration identity.
     pub source_id: i32,
+    /// Canonical source category classification.
+    pub category: DeclarationCategory,
     /// Source category.
     pub category_name: String,
     /// Registration date when available.
@@ -60,17 +62,108 @@ pub struct RecentDeclaration {
     pub entries: Vec<DeclaredFunding>,
 }
 
-/// A member and the bounded latest declaration window.
+/// Canonical classification preserves unrecognized source categories.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum DeclarationCategory {
+    /// Donations and other support, including loans.
+    DonationSupport,
+    /// Any other category, retaining its source identity.
+    Other(i32),
+}
+impl DeclarationCategory {
+    /// Decodes the source vocabulary without guessing from labels.
+    #[must_use]
+    pub const fn from_source_id(id: i32) -> Self {
+        match id {
+            3 => Self::DonationSupport,
+            other => Self::Other(other),
+        }
+    }
+    /// Whether the category records donations and other support.
+    #[must_use]
+    pub const fn is_donation_support(self) -> bool {
+        match self {
+            Self::DonationSupport => true,
+            Self::Other(_) => false,
+        }
+    }
+    /// Encodes the original source identity.
+    #[must_use]
+    pub const fn source_id(self) -> i32 {
+        match self {
+            Self::DonationSupport => 3,
+            Self::Other(id) => id,
+        }
+    }
+}
+
+/// Complete consistent repository input.
 #[derive(Clone, Debug)]
-pub struct MemberDetails {
+pub struct MemberHistory {
     /// Latest member profile.
     pub member: MemberProfile,
-    /// Latest declarations in registration order.
-    pub declarations: Vec<RecentDeclaration>,
-    /// Total stored declarations.
-    pub declaration_count: i64,
-    /// Maximum declarations displayed.
-    pub declaration_limit: usize,
+    /// All declarations in registration order.
+    pub declarations: Vec<MemberDeclaration>,
+}
+
+/// Exact amounts and coverage for one category and currency.
+#[derive(Clone, Debug)]
+pub struct CategoryTotal {
+    /// Source identity.
+    pub category: DeclarationCategory,
+    /// Original category label.
+    pub category_name: String,
+    /// Known amounts, unavailable when no amount is known.
+    pub amount: Option<BigDecimal>,
+    /// Funding occurrences.
+    pub entry_count: usize,
+    /// Occurrences without an amount.
+    pub unknown_amount_count: usize,
+}
+
+/// Independent amounts for a known currency.
+#[derive(Clone, Debug)]
+pub struct MemberCurrencyTotal {
+    /// Normalized source currency.
+    pub currency: String,
+    /// Exact total, including zero and negative amounts.
+    pub amount: Option<BigDecimal>,
+    /// Funding occurrences.
+    pub entry_count: usize,
+    /// Occurrences without an amount.
+    pub unknown_amount_count: usize,
+    /// All represented categories.
+    pub categories: Vec<CategoryTotal>,
+}
+
+/// Coverage and exact totals across complete stored history.
+#[derive(Clone, Debug)]
+pub struct MemberSummary {
+    /// Separate currencies without conversion.
+    pub currencies: Vec<MemberCurrencyTotal>,
+    /// All funding occurrences.
+    pub entry_count: usize,
+    /// Occurrences whose currency is unknown.
+    pub unknown_currency_count: usize,
+    /// Earliest known registration timestamp.
+    pub first_registered_at: Option<DateTime<Utc>>,
+    /// Latest known registration timestamp.
+    pub last_registered_at: Option<DateTime<Utc>>,
+    /// Declarations without a registration timestamp.
+    pub undated_declaration_count: usize,
+}
+
+/// Member summary and complete history from one consistent read.
+#[derive(Clone, Debug)]
+pub struct MemberDetails {
+    /// Latest profile.
+    pub member: MemberProfile,
+    /// Complete ordered declarations.
+    pub declarations: Vec<MemberDeclaration>,
+    /// Exact complete-history totals.
+    pub summary: MemberSummary,
+    /// Five latest donation/support declarations.
+    pub recent_support: Vec<MemberDeclaration>,
 }
 
 /// Canonical funder profile with recorded names.
