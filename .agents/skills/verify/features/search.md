@@ -19,9 +19,9 @@ The public API also accepts GET requests with `term`, `strictness`, and
 
 ## Driving it with HTTP
 
-Preconditions: launch the snapshot API using the verify skill.
+Preconditions: build the current API and select the read-only snapshot using the verify skill.
 
-- Run `./scripts/check-search-regression.py "$base_url" "$evidence_dir/http"`.
+- Run `python3 scripts/verify-search-regression.py "$evidence_dir"` once for the whole map, using a new evidence directory.
 - Require `PASS unite`, `PASS west-mid`, and `PASS hsbc`.
 - Inspect their `.request.txt`, `.response.json`, and `.diff.txt` artifacts. Each entity array must match the baseline after omitting IDs, including order, names, kinds, and match provenance.
 
