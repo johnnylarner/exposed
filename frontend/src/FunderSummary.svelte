@@ -1,89 +1,248 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { formatPounds } from "./lib/member-summary";
   import { memberHref, type FunderDetails } from "./lib/entity-details";
+  import RegistrationTimeline from "./RegistrationTimeline.svelte";
+  import { registrationTimeline } from "./lib/registration-timeline";
   import { partyChart } from "./lib/funder-summary";
   let { details }: { details: FunderDetails } = $props();
   const pounds = $derived(
     details.currencies.find((group) => group.currency === "GBP"),
   );
   const slices = $derived(partyChart(pounds?.parties ?? []));
+  const timeline = $derived(
+    registrationTimeline(
+      details.declarations.map(({ declaration }) => declaration),
+    ),
+  );
+  let tooltip = $state<{ index: number; left: number; top: number } | null>(
+    null,
+  );
+  let hoverDismissed = false;
+  let anchor: Element | null = null;
+  let anchorTop = 0;
+  let dismissal: ReturnType<typeof setTimeout> | undefined;
+  function keepOpen() {
+    clearTimeout(dismissal);
+  }
+  function show(index: number, target: EventTarget | null) {
+    if (!(target instanceof Element)) return;
+    keepOpen();
+    const bounds = target.getBoundingClientRect();
+    anchor = target;
+    anchorTop = bounds.top;
+    tooltip = {
+      index,
+      left: Math.max(12, Math.min(bounds.left, window.innerWidth - 292)),
+      top:
+        bounds.bottom + 100 > window.innerHeight
+          ? Math.max(12, bounds.top - 100)
+          : bounds.bottom + 8,
+    };
+  }
+  function hide() {
+    keepOpen();
+    tooltip = null;
+  }
+  function tap(index: number, event: PointerEvent) {
+    if (event.pointerType === "touch") event.preventDefault();
+    if (tooltip?.index === index && event.pointerType === "touch") hide();
+    else show(index, event.currentTarget);
+  }
+  onDestroy(keepOpen);
+  function dismiss() {
+    dismissal = setTimeout(() => {
+      tooltip = null;
+    }, 120);
+  }
+  function escape(event: KeyboardEvent) {
+    if (event.key === "Escape") {
+      hoverDismissed = true;
+      keepOpen();
+      tooltip = null;
+    }
+  }
 </script>
 
-<section aria-labelledby="party-heading">
-  <div class="detail-section-heading">
-    <h2 id="party-heading">Funding by party</h2>
-    <p>Grouped by recipients' latest recorded party.</p>
-  </div>
-  {#if slices.length === 0}<p class="empty-details">
-      {details.entryCount === 0
-        ? "No funding entries are stored for this funder."
-        : "No known funding totals are available."}
-    </p>{:else}
-    <div class="funder-party-chart">
-      <div class="funder-pie">
-        <svg
-          viewBox="0 0 200 200"
-          role="img"
-          aria-label="Funding by party. Positive totals determine the pie shares."
-        >
-          {#if slices.every((slice) => slice.share === 0)}<circle
-              cx="100"
-              cy="100"
-              r="90"
-              fill="#ece8e1"
-            />{/if}
-          {#each slices as slice}
-            {#if slice.share === 1}<circle
+<svelte:window
+  onkeydown={escape}
+  onscroll={() => {
+    if (anchor?.getBoundingClientRect().top !== anchorTop) hide();
+  }}
+  onresize={hide}
+  onpointerdown={(event) => {
+    if (
+      event.target instanceof Element &&
+      !event.target.closest(".funder-party-chart, .party-tooltip")
+    )
+      hide();
+  }}
+/>
+<div class="member-summary-top funder-summary-top">
+  <section aria-labelledby="party-heading">
+    <div class="detail-section-heading">
+      <h2 id="party-heading">Funding by party</h2>
+      <p>Grouped by recipients' latest recorded party.</p>
+    </div>
+    {#if slices.length === 0}<p class="empty-details">
+        {details.entryCount === 0
+          ? "No funding entries are stored for this funder."
+          : "No known funding totals are available."}
+      </p>{:else}
+      <div class="funder-party-chart">
+        <div class="funder-pie">
+          <svg
+            viewBox="0 0 200 200"
+            role="img"
+            aria-label="Funding by party. Positive totals determine the pie shares."
+          >
+            {#if slices.every((slice) => slice.share === 0)}<circle
                 cx="100"
                 cy="100"
                 r="90"
-                fill={slice.color}
-                ><title
-                  >{slice.party.partyName}: {formatPounds(
-                    slice.party.amount,
-                  )}</title
-                ></circle
+                fill="#ece8e1"
+              />{/if}
+            {#each slices as slice, index}
+              {#if slice.share > 0}
+                <g
+                  role="button"
+                  tabindex="0"
+                  aria-label={slice.party.partyName || "Party unavailable"}
+                  aria-describedby={tooltip?.index === index
+                    ? "party-tooltip"
+                    : undefined}
+                  onpointermove={(event) => {
+                    if (
+                      hoverDismissed &&
+                      (event.movementX || event.movementY) &&
+                      event.pointerType !== "touch"
+                    ) {
+                      hoverDismissed = false;
+                      show(index, event.currentTarget);
+                    }
+                  }}
+                  onpointerenter={(event) => {
+                    if (event.pointerType !== "touch" && !hoverDismissed)
+                      show(index, event.currentTarget);
+                  }}
+                  onmouseleave={dismiss}
+                  onfocus={(event) => show(index, event.currentTarget)}
+                  onblur={dismiss}
+                  onpointerdown={(event) => {
+                    if (event.pointerType === "touch") tap(index, event);
+                  }}
+                  onclick={(event) => {
+                    if (
+                      !(event instanceof PointerEvent) ||
+                      event.pointerType !== "touch"
+                    )
+                      show(index, event.currentTarget);
+                  }}
+                  onkeydown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      show(index, event.currentTarget);
+                    }
+                  }}
+                >
+                  {#if slice.share === 1}<circle
+                      cx="100"
+                      cy="100"
+                      r="90"
+                      fill={slice.color}
+                    />
+                  {:else}<path d={slice.path} fill={slice.color} />{/if}
+                </g>
+              {/if}
+            {/each}
+          </svg>
+          {#if slices.every((slice) => slice.share === 0)}<p
+              class="coverage-note"
+            >
+              Pie unavailable. No positive known totals are recorded.
+            </p>{:else if slices.some((slice) => slice.party.amount === null || slice.party.amount.startsWith("-"))}<p
+              class="filter-context"
+            >
+              The pie shows positive known totals. Negative and unavailable
+              totals are available from the party controls.
+            </p>{/if}
+        </div>
+        <ul class="funder-party-legend">
+          {#each slices as slice, index}<li>
+              <button
+                type="button"
+                aria-describedby={tooltip?.index === index
+                  ? "party-tooltip"
+                  : undefined}
+                onpointermove={(event) => {
+                  if (
+                    hoverDismissed &&
+                    (event.movementX || event.movementY) &&
+                    event.pointerType !== "touch"
+                  ) {
+                    hoverDismissed = false;
+                    show(index, event.currentTarget);
+                  }
+                }}
+                onpointerenter={(event) => {
+                  if (event.pointerType !== "touch" && !hoverDismissed)
+                    show(index, event.currentTarget);
+                }}
+                onmouseleave={dismiss}
+                onfocus={(event) => show(index, event.currentTarget)}
+                onblur={dismiss}
+                onpointerdown={(event) => {
+                  if (event.pointerType === "touch") tap(index, event);
+                }}
+                onclick={(event) => {
+                  if (
+                    !(event instanceof PointerEvent) ||
+                    event.pointerType !== "touch"
+                  )
+                    show(index, event.currentTarget);
+                }}
               >
-            {:else if slice.share > 0}<path d={slice.path} fill={slice.color}
-                ><title
-                  >{slice.party.partyName}: {formatPounds(
-                    slice.party.amount,
-                  )}</title
-                ></path
-              >{/if}
-          {/each}
-        </svg>
-        {#if slices.every((slice) => slice.share === 0)}<p
-            class="coverage-note"
-          >
-            Pie unavailable. No positive known totals are recorded.
-          </p>{:else if slices.some((slice) => slice.party.amount === null || slice.party.amount.startsWith("-"))}<p
-            class="filter-context"
-          >
-            The pie shows positive known totals. Negative and unavailable totals
-            remain in the legend.
-          </p>{/if}
+                <span class="party-swatch" style:background={slice.color}
+                ></span>
+                <div>
+                  <span>{slice.party.partyName || "Party unavailable"}</span
+                  ><span class="entry-count"
+                    >{slice.party.entryCount}
+                    {slice.party.entryCount === 1
+                      ? "entry"
+                      : "entries"}{#if slice.party.unknownAmountCount > 0}, {slice
+                        .party.unknownAmountCount}
+                      {slice.party.unknownAmountCount === 1
+                        ? "amount"
+                        : "amounts"} unavailable{/if}</span
+                  >
+                </div>
+              </button>
+            </li>{/each}
+        </ul>
       </div>
-      <ul class="funder-party-legend">
-        {#each slices as slice}<li>
-            <span class="party-swatch" style:background={slice.color}></span>
-            <div>
-              <span>{slice.party.partyName || "Party unavailable"}</span><span
-                class="entry-count"
-                >{slice.party.entryCount}
-                {slice.party.entryCount === 1
-                  ? "entry"
-                  : "entries"}{#if slice.party.unknownAmountCount > 0}, {slice
-                    .party.unknownAmountCount}
-                  {slice.party.unknownAmountCount === 1 ? "amount" : "amounts"} unavailable{/if}</span
-              >
-            </div>
-            <strong>{formatPounds(slice.party.amount)}</strong>
-          </li>{/each}
-      </ul>
-    </div>
-  {/if}
-</section>
+    {/if}
+  </section>
+  <RegistrationTimeline
+    context="funding"
+    weeks={timeline.weeks}
+    undated={timeline.undated}
+  />
+</div>
+{#if tooltip}{@const party = slices[tooltip.index].party}
+  <div
+    id="party-tooltip"
+    class="party-tooltip"
+    role="tooltip"
+    style:left={`${tooltip.left}px`}
+    style:top={`${tooltip.top}px`}
+    onmouseenter={keepOpen}
+    onmouseleave={dismiss}
+  >
+    <span>{party.partyName || "Party unavailable"}</span>
+    <strong>{formatPounds(party.amount)}</strong>
+  </div>
+{/if}
 <section aria-labelledby="recipients-heading">
   <div class="detail-section-heading">
     <h2 id="recipients-heading">Top 10 recipients</h2>

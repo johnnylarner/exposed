@@ -1,3 +1,4 @@
+import { registrationTimeline } from "../src/lib/registration-timeline";
 import { expect, test } from "@playwright/test";
 import { summarizeMember, formatPounds } from "../src/lib/member-summary";
 import {
@@ -217,4 +218,38 @@ test("weekly bars retain maximum scaling and hundredth-percent truncation", () =
   expect(categoryBars(weeks, "maximum").every((bar) => bar.width === 100)).toBe(
     true,
   );
+});
+
+test("funding timeline includes every category with exact UTC weeks and missing coverage", () => {
+  const timeline = registrationTimeline([
+    declaration(
+      "2026-01-04T23:59:59Z",
+      [entry("9007199254740993.123456789")],
+      "Gifts",
+    ),
+    declaration(
+      "2026-01-05T00:00:00Z",
+      [entry("-2.5"), entry("0.5"), entry(null), entry("900", null)],
+      "Donations",
+    ),
+    declaration("2026-01-19T00:00:00Z", [entry(null)], "Visits"),
+    declaration(null, [entry("5")], "Gifts"),
+    declaration("2027-01-01T00:00:00Z", [entry("99", "EUR")], "Gifts"),
+  ]);
+  expect(timeline).toEqual({
+    undated: true,
+    weeks: [
+      {
+        start: "2025-12-29",
+        amount: "9007199254740993.123456789",
+        incomplete: false,
+      },
+      { start: "2026-01-05", amount: "-2.0", incomplete: true },
+      { start: "2026-01-12", amount: "0", incomplete: false },
+      { start: "2026-01-19", amount: null, incomplete: true },
+    ],
+  });
+  expect(
+    registrationTimeline([declaration(null, [entry("99", "EUR")])]),
+  ).toEqual({ weeks: [], undated: false });
 });

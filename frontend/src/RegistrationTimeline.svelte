@@ -1,8 +1,34 @@
 <script lang="ts">
   import { categoryBars, registrationDate } from "./lib/entity-details";
-  import { formatPounds, type EarningsWeek } from "./lib/member-summary";
-  let { weeks, undated }: { weeks: EarningsWeek[]; undated: boolean } =
-    $props();
+  import { formatPounds } from "./lib/member-summary";
+  import type { RegistrationWeek } from "./lib/registration-timeline";
+  let {
+    weeks,
+    undated,
+    context,
+  }: {
+    weeks: RegistrationWeek[];
+    undated: boolean;
+    context: "earnings" | "funding";
+  } = $props();
+  const copy = $derived(
+    {
+      earnings: {
+        heading: "Earnings by registration week",
+        title: "Weekly registered earnings",
+        missing: "Registration dates are unavailable for earnings.",
+        empty: "No registered earnings available.",
+        undated: "Earnings without registration dates are excluded.",
+      },
+      funding: {
+        heading: "Funding by registration week",
+        title: "Weekly registered funding",
+        missing: "Registration dates are unavailable for funding.",
+        empty: "No registered funding available.",
+        undated: "Funding without registration dates is excluded.",
+      },
+    }[context],
+  );
   const bars = $derived(categoryBars(weeks, "maximum"));
   const positive = $derived(
     Math.max(0, ...bars.filter((bar) => !bar.negative).map((bar) => bar.width)),
@@ -20,7 +46,9 @@
     return (
       index === 0 ||
       index === weeks.length - 1 ||
-      (weeks.length > 10 && index % Math.ceil(weeks.length / 4) === 0)
+      (weeks.length > 10 &&
+        index % Math.ceil(weeks.length / 4) === 0 &&
+        weeks.length - 1 - index >= Math.ceil(weeks.length / 4))
     );
   }
   function month(start: string): string {
@@ -32,18 +60,18 @@
   }
 </script>
 
-<section class="member-earnings" aria-labelledby="earnings-heading">
-  <h2 id="earnings-heading">Earnings by registration week</h2>
+<section class="member-earnings" aria-labelledby={`${context}-heading`}>
+  <h2 id={`${context}-heading`}>{copy.heading}</h2>
   {#if weeks.length}
     <svg
       class="earnings-chart"
       viewBox="0 0 560 360"
       role="img"
-      aria-labelledby="earnings-title earnings-description"
+      aria-labelledby={`${context}-title ${context}-description`}
     >
-      <title id="earnings-title">Weekly registered earnings</title><desc
-        id="earnings-description"
-        >Pound amounts by Monday registration week. Each bar shows its exact
+      <title id={`${context}-title`}>{copy.title}</title><desc
+        id={`${context}-description`}
+        >Known amounts by Monday registration week. Each bar shows its exact
         amount in its tooltip.</desc
       >
       <line
@@ -88,11 +116,9 @@
         Some weekly amounts are unavailable.
       </p>{/if}
   {:else}<p class="empty-details">
-      {undated
-        ? "Registration dates are unavailable for earnings."
-        : "No registered earnings available."}
+      {undated ? copy.missing : copy.empty}
     </p>{/if}
   {#if undated && weeks.length}<p class="partial-note">
-      Earnings without registration dates are excluded.
+      {copy.undated}
     </p>{/if}
 </section>

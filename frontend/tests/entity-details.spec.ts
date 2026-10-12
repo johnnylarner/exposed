@@ -406,7 +406,7 @@ test("member declarations retain duplicate precise amounts and missing source fi
   ).toHaveCount(0);
 });
 
-test("funder summary uses authoritative total, positive pie shares and preserves signed legend", async ({
+test("funder summary uses authoritative total, positive pie shares and reveals exact party totals", async ({
   page,
   context,
 }) => {
@@ -416,10 +416,32 @@ test("funder summary uses authoritative total, positive pie shares and preserves
     "£18,014,398,509,481,981.246913578",
   );
   await expect(page.getByText("Company number 00123456")).toBeVisible();
-  await expect(page.locator(".funder-party-legend strong")).toHaveText([
+  const controls = page.locator(".funder-party-legend button");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await expect(page.locator(".funder-party-legend")).not.toContainText("£");
+  await controls.first().hover();
+  await expect(page.getByRole("tooltip")).toContainText(
     "£18,014,398,509,481,986.246913578",
-    "−£5.00",
-  ]);
+  );
+  await page.getByRole("tooltip").hover();
+  await page.waitForTimeout(180);
+  await expect(page.getByRole("tooltip")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await controls.nth(1).focus();
+  await expect(page.getByRole("tooltip")).toContainText("−£5.00");
+  await page.keyboard.press("Escape");
+  await controls.nth(1).click();
+  await expect(page.getByRole("tooltip")).toContainText("−£5.00");
+  await page.keyboard.press("Escape");
+  await page.locator(".funder-party-chart svg g").hover();
+  await expect(page.getByRole("tooltip")).toContainText(
+    "£18,014,398,509,481,986.246913578",
+  );
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("img", { name: "Weekly registered funding" }),
+  ).toBeVisible();
   await expect(page.locator(".funder-party-chart svg circle")).toHaveCount(1);
   await expect(page.locator(".funder-recipients .amount")).toHaveText([
     "£18,014,398,509,481,986.246913578",
@@ -1052,9 +1074,91 @@ test("party pie keeps zero and unavailable totals and explains unavailable share
   await expect(
     page.getByText("Pie unavailable. No positive known totals are recorded."),
   ).toBeVisible();
-  await expect(page.locator(".funder-party-legend strong")).toHaveText([
-    "£0.00",
-    "Amount unavailable",
-  ]);
+  await page.locator(".funder-party-legend button").first().focus();
+  await expect(page.getByRole("tooltip")).toContainText("£0.00");
+  await page.locator(".funder-party-legend button").nth(1).focus();
+  await expect(page.getByRole("tooltip")).toContainText("Amount unavailable");
   await expect(page.locator(".funder-party-chart path")).toHaveCount(0);
+});
+
+for (const amounts of [
+  ["3", "7"],
+  ["0", "-5"],
+  [null, "0"],
+]) {
+  test(`party controls expose totals for ${amounts.join("/")}`, async ({
+    page,
+  }) => {
+    const currencies = funderDetails.currencies.map((group) =>
+      group.currency !== "GBP"
+        ? group
+        : {
+            ...group,
+            parties: group.parties.map((party, index) => ({
+              ...party,
+              amount: amounts[index],
+            })),
+          },
+    );
+    await page.route("**/api/funders/*", (route) =>
+      route.fulfill({ json: { ...funderDetails, currencies } }),
+    );
+    await page.goto(`/funders/${funderId}`);
+    await expect(page.locator(".funder-party-legend")).not.toContainText("£");
+    for (const [index, amount] of amounts.entries()) {
+      await page.locator(".funder-party-legend button").nth(index).click();
+      await expect(page.getByRole("tooltip")).toContainText(
+        amount === null
+          ? "Amount unavailable"
+          : amount === "-5"
+            ? "−£5.00"
+            : `£${amount}.00`,
+      );
+      await page.keyboard.press("Escape");
+    }
+    if (amounts[0] === "3") {
+      await expect(page.locator(".funder-party-chart svg path")).toHaveCount(2);
+      await page.locator(".funder-party-chart svg g").nth(1).focus();
+      await expect(page.getByRole("tooltip")).toContainText("£7.00");
+    }
+    await page.setViewportSize({ width: 800, height: 900 });
+    const left = await page
+      .locator(".funder-summary-top > section")
+      .first()
+      .boundingBox();
+    const right = await page
+      .locator(".funder-summary-top > section")
+      .nth(1)
+      .boundingBox();
+    expect(right?.y).toBeGreaterThan((left?.y ?? 0) + (left?.height ?? 0));
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  });
+}
+
+test("party tooltip toggles on touch and closes outside or on scroll", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    viewport: { width: 800, height: 900 },
+  });
+  await mockDetails(context);
+  const page = await context.newPage();
+  await page.goto(`/funders/${funderId}`);
+  const button = page.locator(".funder-party-legend button").first();
+  await button.tap();
+  await expect(page.getByRole("tooltip")).toBeVisible();
+  await button.tap();
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await button.tap();
+  await page.getByRole("heading", { name: "Funding by party" }).tap();
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await button.tap();
+  await page.evaluate(() => window.scrollBy(0, 100));
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await context.close();
 });
