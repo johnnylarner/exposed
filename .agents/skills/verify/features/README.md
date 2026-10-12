@@ -2,7 +2,8 @@
 
 Use the frozen `exposed_search_regression` database and an API started from the
 current worktree as described in [verify](../SKILL.md). Run the HTTP check once
-to cover all cases below. Each case has an explicit threshold and result limit.
+to cover all cases below. The default strictness is `0.8` for all regression searches,
+with a limit of ten results per entity type.
 
 - [Canonical search and alias matches](search.md) covers `unite`, `west mid`, and `hsbc`.
 - [Recorded funder names](recorded-names.md) covers the exact Unite and HSBC profiles and aliases.

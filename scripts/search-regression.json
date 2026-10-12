@@ -4,7 +4,7 @@
     "path": "/search",
     "params": {
       "term": "unite",
-      "strictness": 1,
+      "strictness": 0.8,
       "max_entries": 10
     },
     "field": "entities",
@@ -13,6 +13,78 @@
         "name": "Unite the Union",
         "kind": "Funder",
         "funder_kind": "Trade Union",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United States Embassy",
+        "kind": "Funder",
+        "funder_kind": "Not Specified",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United Against Malnutrition and Hunger",
+        "kind": "Funder",
+        "funder_kind": "Not Specified",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United Against Malnutrition & Hunger",
+        "kind": "Funder",
+        "funder_kind": "Not Specified",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United & Cecil Club",
+        "kind": "Funder",
+        "funder_kind": "Unincorporated association",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "Newcastle United",
+        "kind": "Funder",
+        "funder_kind": "Company",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "Newcastle United Limited",
+        "kind": "Funder",
+        "funder_kind": "Company",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United and Cecil Club",
+        "kind": "Funder",
+        "funder_kind": "Unincorporated association",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "The United & Cecil Club",
+        "kind": "Funder",
+        "funder_kind": "Unincorporated association",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "Thailand Embassy, United Kingdom",
+        "kind": "Funder",
+        "funder_kind": "Not Specified",
         "match_source": {
           "kind": "name"
         }
@@ -61,7 +133,7 @@
     "path": "/search",
     "params": {
       "term": "hsbc",
-      "strictness": 1,
+      "strictness": 0.8,
       "max_entries": 10
     },
     "field": "entities",

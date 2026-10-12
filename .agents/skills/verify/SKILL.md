@@ -6,6 +6,7 @@ description: Verify Exposed search results and recorded funder names through the
 # Verify Exposed search
 
 Run from the repository root. Read [the feature map](features/README.md).
+The default strictness for this regression check is `0.8` for every search.
 This check freezes search behavior over persisted identities. It does not rerun
 declaration resolution or verify frontend rendering.
 
@@ -52,7 +53,7 @@ printed port answers a real request:
 kill -0 "$server_pid"
 docker compose exec -T postgres psql -X -U exposed -d exposed_search_regression -c "SELECT datname, application_name, client_addr FROM pg_stat_activity WHERE datname = 'exposed_search_regression'"
 cat "$evidence_dir/server.log"
-curl --fail --get "$base_url/search" --data-urlencode 'term=unite' --data-urlencode 'strictness=1' --data-urlencode 'max_entries=10'
+curl --fail --get "$base_url/search" --data-urlencode 'term=unite' --data-urlencode 'strictness=0.8' --data-urlencode 'max_entries=10'
 ```
 
 Set `base_url` to `http://127.0.0.1:PORT` using the startup log before the curl.
