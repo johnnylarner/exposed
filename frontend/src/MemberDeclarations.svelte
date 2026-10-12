@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { formatPounds } from "./lib/member-summary";
   import { entityHref } from "./lib/search";
   import {
     formatAmount,
@@ -44,10 +45,13 @@
                 >
               </div>
               <div class="funding-value">
-                <span class="amount">{formatAmount(entry.amount)}</span><span
-                  class="currency-label"
-                  >{entry.currency?.trim() || "Currency unavailable"}</span
-                >
+                <span class="amount"
+                  >{entry.currency === "GBP"
+                    ? formatPounds(entry.amount)
+                    : formatAmount(entry.amount)}</span
+                >{#if entry.currency?.trim() && entry.currency !== "GBP"}<span
+                    class="currency-label">{entry.currency}</span
+                  >{/if}
               </div>
             </li>
           {/each}
