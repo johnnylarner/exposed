@@ -580,81 +580,107 @@ mod fallback_contract {
     }
 
     #[sqlx::test(migrations = "../db/migrations")]
-    async fn words_require_distinct_positions_and_bounded_distance(
-        pool: PgPool,
-    ) -> sqlx::Result<()> {
-        for (query, candidate, expected) in [
-            ("jahn mcdonnell", "John McDonnell", Some(1)),
-            ("jahn unrelated", "John McDonnell", None),
-            ("jahn jahn", "John", None),
-            ("jahn jahn", "John John", Some(2)),
-            ("jahn", "Sir John Smith", Some(1)),
-            ("jahn", "Jonathan", None),
-            ("!!!", "John", None),
+    async fn corrects_each_candidate_with_bounded_word_edits(pool: PgPool) -> sqlx::Result<()> {
+        let db = ExposedDatabase::from(pool.clone());
+        for (query, candidate, threshold, expected) in [
+            ("jahn smyth", "John Smith", 0.8, true),
+            ("jahn unrelated", "John Smith", 0.8, false),
+            ("jahn jahn", "John", 0.0, true),
+            ("jahn", "Sir John Smith", 0.8, true),
+            ("jahn", "Jonathan", 0.0, false),
+            ("jahn", "Jane", 0.0, false),
+            ("!!!", "John", 0.0, false),
+            ("jahn, smyth!", "John Smith", 0.8, true),
+            ("jahn smyth", "John Extra Smith", 0.8, false),
+            ("jahn smyth", "John Extra Smith", 0.0, true),
         ] {
-            let actual = sqlx::query_scalar!(
-                "SELECT exposed.person_name_distance($1, $2)",
-                query,
+            sqlx::query!("DELETE FROM exposed.funders")
+                .execute(&pool)
+                .await?;
+            sqlx::query!(
+                "INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ($1, 'Individual')",
                 candidate
             )
-            .fetch_one(&pool)
+            .execute(&pool)
             .await?;
-            assert_eq!(actual, expected, "{query} / {candidate}");
+            sqlx::query!("DELETE FROM exposed.members")
+                .execute(&pool)
+                .await?;
+            sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES (1, $1, 1, 'Party', 1, 'Constituency', true)", candidate).execute(&pool).await?;
+            let req =
+                EntitySearchRequest::new_with_strictness(query.into(), 10, threshold).unwrap();
+            let members = db.get_members_by_phonetic_search(&req).await.unwrap();
+            assert_eq!(
+                !members.is_empty(),
+                expected,
+                "member: {query} / {candidate} / {threshold}"
+            );
+            let rows = db.get_funders_by_phonetic_search(&req).await.unwrap();
+            assert_eq!(
+                !rows.is_empty(),
+                expected,
+                "{query} / {candidate} / {threshold}"
+            );
         }
         let long = "a".repeat(256);
-        for (query, candidate) in [
-            (format!("john {long}"), "John".to_owned()),
-            ("john".to_owned(), long),
-        ] {
-            let actual = sqlx::query_scalar!(
-                "SELECT exposed.person_name_distance($1, $2)",
-                query,
+        for (query, candidate) in [(long.clone(), "aaa".into()), ("aaa".into(), long)] {
+            sqlx::query!("DELETE FROM exposed.funders")
+                .execute(&pool)
+                .await?;
+            sqlx::query!(
+                "INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ($1, 'Individual')",
                 candidate
             )
-            .fetch_one(&pool)
+            .execute(&pool)
             .await?;
-            assert_eq!(actual, None);
+            sqlx::query!("DELETE FROM exposed.members")
+                .execute(&pool)
+                .await?;
+            sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES (1, $1, 1, 'Party', 1, 'Constituency', true)", candidate).execute(&pool).await?;
+            let req = EntitySearchRequest::new_with_strictness(query, 10, 0.0).unwrap();
+            assert!(
+                db.get_members_by_phonetic_search(&req)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
+            assert!(
+                db.get_funders_by_phonetic_search(&req)
+                    .await
+                    .unwrap()
+                    .is_empty()
+            );
         }
         Ok(())
     }
 
     #[sqlx::test(migrations = "../db/migrations")]
-    async fn ambiguous_words_find_minimum_assignment_within_timeout(
+    async fn corrections_do_not_depend_on_other_candidates(pool: PgPool) -> sqlx::Result<()> {
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('John Smith', 'Individual')").execute(&pool).await?;
+        let db = ExposedDatabase::from(pool.clone());
+        let before = db
+            .get_funders_by_phonetic_search(&request("jahn smyth", 10))
+            .await
+            .unwrap();
+        assert_eq!(before.len(), 1);
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('Joan Smith', 'Individual')").execute(&pool).await?;
+        let after = db
+            .get_funders_by_phonetic_search(&request("jahn smyth", 10))
+            .await
+            .unwrap();
+        let existing = after
+            .iter()
+            .find(|(found, _)| found.funder().id() == before[0].0.funder().id())
+            .unwrap();
+        assert_eq!(existing.1.compare(&before[0].1), std::cmp::Ordering::Equal);
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn filters_corrected_similarity_then_ranks_by_distance_before_limit(
         pool: PgPool,
     ) -> sqlx::Result<()> {
-        let mut transaction = pool.begin().await?;
-        sqlx::query!("SET LOCAL statement_timeout = '2s'")
-            .execute(&mut *transaction)
-            .await?;
-        let candidate = (0..10)
-            .map(|index| format!("john{index}"))
-            .collect::<Vec<_>>()
-            .join(" ");
-        let nonexact = (0..10)
-            .map(|index| format!("joan{index}"))
-            .collect::<Vec<_>>()
-            .join(" ");
-        for (query, candidate, expected) in [
-            (candidate.as_str(), candidate.as_str(), 0),
-            (nonexact.as_str(), candidate.as_str(), 10),
-            ("john jahn", "john joan", 2),
-        ] {
-            let actual = sqlx::query_scalar!(
-                "SELECT exposed.person_name_distance($1, $2)",
-                query,
-                candidate
-            )
-            .fetch_one(&mut *transaction)
-            .await?;
-            assert_eq!(actual, Some(expected), "{query} / {candidate}");
-        }
-        transaction.rollback().await?;
-        Ok(())
-    }
-
-    #[sqlx::test(migrations = "../db/migrations")]
-    async fn ranks_by_distance_before_repository_limit(pool: PgPool) -> sqlx::Result<()> {
-        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('John Smith', 'Individual'), ('Jahn Smith Extra Words', 'Individual')").execute(&pool).await?;
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('John Smith', 'Individual'), ('Jahn Smith Extra Words', 'Individual'), ('Jahn Unrelated Middle Smyth', 'Individual')").execute(&pool).await?;
         let db = ExposedDatabase::from(pool);
         let rows = db
             .get_funders_by_phonetic_search(&request("jahn smyth", 1))

@@ -138,13 +138,17 @@ Search delay, result limits and defaults live in
 [`frontend/src/lib/search.ts`](frontend/src/lib/search.ts). The API caps each entity type separately, so the UI describes the returned
 results without claiming a total count or offering unsupported pagination.
 The API also defaults to `0.8` when `strictness` is omitted. Explicit thresholds
-control primary trigram matches. When these contain no MP or Individual funder,
+control primary trigram matches and corrected fallback similarity. When primary
+matches contain no MP or Individual funder,
 search appends phonetic person matches after the primary results. Organization
-matches do not suppress this fallback. Each query word must match a distinct
-name word with the same Soundex code and at most one edit. Extra name words are
-allowed; words from different aliases cannot combine. Fallback results rank by
-total edits, then trigram similarity and stable identity. Canonical names win
-alias ties. Primary and fallback funders share the per-type result limit.
+matches do not suppress this fallback. Each query word is corrected against
+each candidate independently, choosing the
+closest name word with the same Soundex code and at most one edit. Name words
+can be reused. Every query word must match, and the corrected query must meet
+the requested `word_similarity` threshold against that candidate. Extra name
+words are allowed; words from different aliases cannot combine. Fallback
+results rank by total edits, then corrected similarity and stable identity.
+Canonical names win alias ties. Primary and fallback funders share the per-type result limit.
 
 In-app feedback collection is future work. Feedback is gathered through manual
 testing.

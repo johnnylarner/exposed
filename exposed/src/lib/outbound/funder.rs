@@ -114,11 +114,29 @@ impl FunderRepo for ExposedDatabase {
                 FROM exposed.funder_aliases a JOIN exposed.funders f ON f.id = a.funder_id
                 WHERE f.funder_kind = $2 AND exposed.person_name_codes(a.funder_alias) @> exposed.person_name_codes($1)
             ), scored AS (
-                SELECT *, exposed.person_name_distance($1, candidate) AS distance,
-                    word_similarity($1, candidate) AS similarity_score FROM names
+                SELECT names.*, correction.distance,
+                       word_similarity(correction.corrected_query, candidate) AS similarity_score
+                FROM names
+                CROSS JOIN LATERAL (
+                    SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,
+                           sum(best.distance)::integer AS distance
+                    FROM unnest(exposed.person_name_words($1)) WITH ORDINALITY AS q(word, position)
+                    LEFT JOIN LATERAL (
+                        SELECT cw.word, CASE
+                            WHEN char_length(q.word) <= 255 AND char_length(cw.word) <= 255
+                            THEN exposed.levenshtein_less_equal(q.word, cw.word, 1)
+                            ELSE 2
+                        END AS distance
+                        FROM unnest(exposed.person_name_words(candidate)) AS cw(word)
+                        WHERE exposed.soundex(cw.word) = exposed.soundex(q.word)
+                        ORDER BY distance, cw.word COLLATE "C"
+                        LIMIT 1
+                    ) best ON best.distance <= 1
+                    HAVING count(best.word) = count(*) AND count(*) > 0
+                ) correction
             ), winners AS (
                 SELECT DISTINCT ON (id) id, alias, distance, similarity_score
-                FROM scored WHERE distance IS NOT NULL
+                FROM scored WHERE similarity_score >= $4
                 ORDER BY id, distance, similarity_score DESC, alias IS NOT NULL, alias COLLATE "C"
             )
             SELECT f.id, f.funder_name AS name, w.alias, w.distance AS "distance!",
@@ -126,7 +144,7 @@ impl FunderRepo for ExposedDatabase {
             FROM winners w JOIN exposed.funders f ON f.id = w.id
             ORDER BY w.distance, w.similarity_score DESC, f.id
             LIMIT $3
-        "#, req.term(), FunderKind::Individual.as_ref(), i64::from(req.max_entries()))
+        "#, req.term(), FunderKind::Individual.as_ref(), i64::from(req.max_entries()), req.strictness())
         .fetch_all(self.pool()).await.map_err(|e| FunderRepoError::DatabaseError(e.to_string()))?;
         rows.into_iter()
             .map(|row| {
