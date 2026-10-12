@@ -11,11 +11,7 @@
     Math.max(0, ...bars.filter((bar) => bar.negative).map((bar) => bar.width)),
   );
   const extent = $derived(positive + negative || 100);
-  const baseline = $derived(24 + (positive / extent) * 294);
-  const maximum = $derived(
-    weeks[bars.findIndex((bar) => !bar.negative && bar.width === positive)]
-      ?.amount ?? "0",
-  );
+  const baseline = $derived(4 + (positive / extent) * 314);
   const minimum = $derived(
     weeks[bars.findIndex((bar) => bar.negative && bar.width === negative)]
       ?.amount ?? "0",
@@ -50,7 +46,7 @@
         >Pound amounts by Monday registration week. Each bar shows its exact
         amount in its tooltip.</desc
       >
-      <text x="0" y="16" class="chart-axis">{formatPounds(maximum)}</text><line
+      <line
         x1="0"
         x2="560"
         y1={baseline}
@@ -58,7 +54,7 @@
         class="chart-baseline"
       />
       {#each weeks as week, index}{@const bar = bars[index]}{@const height =
-          (bar.width / extent) * 294}
+          (bar.width / extent) * 314}
         <rect
           x={(index * 560) / weeks.length + 1}
           y={bar.negative ? baseline : baseline - height}
