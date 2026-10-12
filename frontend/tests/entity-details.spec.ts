@@ -386,7 +386,7 @@ test("member declarations retain duplicate precise amounts and missing source fi
     "Registration date unavailable",
     "Funder unavailable",
     "Payment type unavailable",
-    "No funding entries recorded.",
+    "The declaration included no monetary remuneration.",
   ])
     await expect(page.getByText(text, { exact: true })).toBeVisible();
   await expect(
