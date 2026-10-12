@@ -259,7 +259,7 @@ async fn empty_funders_are_distinct_from_missing_identities(pool: PgPool) {
         .await
         .unwrap();
     assert_eq!(details.entry_count, 0);
-    assert!(details.profile.aliases.is_empty());
+    assert_eq!(details.profile.aliases, ["Empty Funder"]);
     let individual = service
         .funder("10000000-0000-0000-0000-000000000004".parse().unwrap())
         .await
@@ -357,10 +357,13 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
     let body: serde_json::Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
     assert_eq!(body["funder"]["id"], FUNDER);
     assert_eq!(body["funder"]["aliases"], serde_json::json!(ALIASES));
+    assert_eq!(body["funder"]["member_ids"], serde_json::json!([FUNDER]));
+    assert_eq!(body["funder"]["alias_links"], serde_json::json!([]));
+    assert_eq!(body["funder"]["family_links"], serde_json::json!([]));
     for (id, aliases) in [
         (
             "10000000-0000-0000-0000-000000000002",
-            serde_json::json!([]),
+            serde_json::json!(["Empty Funder"]),
         ),
         (
             "10000000-0000-0000-0000-000000000004",
@@ -449,4 +452,87 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
     );
     assert_eq!(response.text().await.unwrap(), "internal server error");
     server.abort();
+}
+
+#[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
+async fn connected_funding_preserves_entries_requested_id_and_link_evidence(pool: PgPool) {
+    let first: FunderId = FUNDER.parse().unwrap();
+    let second = uuid::Uuid::parse_str("10000000-0000-0000-0000-000000000003").unwrap();
+    let third = uuid::Uuid::parse_str("10000000-0000-0000-0000-000000000005").unwrap();
+    let db = ExposedDatabase::from(pool.clone());
+    let before = db.funder_funding(first).await.unwrap().unwrap();
+    let before_count: usize = before
+        .declarations
+        .iter()
+        .map(|source| source.declaration.entries.len())
+        .sum();
+    sqlx::query!("INSERT INTO exposed.funders (id, funder_name, funder_kind, company_number) VALUES ($1, 'Bridge Funder', 'Company', '87654321'), ($2, 'Distant Funder', NULL, NULL)", second, third).execute(&pool).await.unwrap();
+    sqlx::query!("INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, ' exact\tFUNDER '), ($1, 'Shared bridge'), ($2, 'SHARED BRIDGE')", second, third).execute(&pool).await.unwrap();
+    sqlx::query!("INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency) VALUES (120, $1, 12, 'GBP'), (120, $1, 12, 'GBP'), (200, $2, NULL, 'GBP')", second, third).execute(&pool).await.unwrap();
+    db.refresh_funder_groups().await.unwrap();
+    for requested in [first, FunderId::new(second), FunderId::new(third)] {
+        let funding = db.funder_funding(requested).await.unwrap().unwrap();
+        assert_eq!(funding.profile.funder.id(), requested);
+        assert_eq!(funding.profile.funder.name(), "Exact Funder");
+        assert!(funding.profile.aliases.contains(&"Bridge Funder".into()));
+        assert!(funding.profile.aliases.contains(&"Distant Funder".into()));
+        assert_eq!(funding.profile.company_number, None);
+        assert_eq!(
+            funding.profile.member_ids,
+            [first, FunderId::new(second), FunderId::new(third)]
+        );
+        assert_eq!(
+            funding
+                .declarations
+                .iter()
+                .map(|source| source.declaration.entries.len())
+                .sum::<usize>(),
+            before_count + 3
+        );
+        let known_gbp_for_first_member =
+            |declarations: &[crate::domain::models::entity_details::FunderDeclaration]| {
+                declarations
+                    .iter()
+                    .filter(|source| source.member.id.value() == 1)
+                    .flat_map(|source| &source.declaration.entries)
+                    .filter(|entry| entry.currency.as_deref() == Some("GBP"))
+                    .filter_map(|entry| entry.amount.as_ref())
+                    .sum::<BigDecimal>()
+            };
+        assert_eq!(
+            known_gbp_for_first_member(&funding.declarations),
+            known_gbp_for_first_member(&before.declarations) + BigDecimal::from(24)
+        );
+        assert!(
+            funding
+                .profile
+                .alias_links
+                .iter()
+                .any(|link| link.left_funder_id == FunderId::new(second)
+                    && link.right_funder_id == FunderId::new(third)
+                    && link.left_alias == "Shared bridge"
+                    && link.right_alias == "SHARED BRIDGE"
+                    && link.normalized_alias == "shared bridge")
+        );
+        assert!(!funding.profile.alias_links.iter().any(
+            |link| link.left_funder_id == first && link.right_funder_id == FunderId::new(third)
+        ));
+    }
+    sqlx::query!(
+        "UPDATE exposed.funders SET company_number = '00123456' WHERE id = $1",
+        second
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        db.funder_funding(first)
+            .await
+            .unwrap()
+            .unwrap()
+            .profile
+            .company_number
+            .as_deref(),
+        Some("00123456")
+    );
 }

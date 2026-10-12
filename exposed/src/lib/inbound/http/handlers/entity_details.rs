@@ -196,6 +196,27 @@ pub struct FunderResponse {
     funder_kind: String,
     company_number: Option<String>,
     aliases: Vec<String>,
+    member_ids: Vec<String>,
+    alias_links: Vec<FunderAliasLinkResponse>,
+    family_links: Vec<FunderFamilyLinkResponse>,
+}
+
+#[derive(Serialize)]
+struct FunderFamilyLinkResponse {
+    left_funder_id: String,
+    right_funder_id: String,
+    family_key: String,
+    left_name: String,
+    right_name: String,
+}
+
+#[derive(Serialize)]
+struct FunderAliasLinkResponse {
+    left_funder_id: String,
+    right_funder_id: String,
+    normalized_alias: String,
+    left_alias: String,
+    right_alias: String,
 }
 impl From<FunderProfile> for FunderResponse {
     fn from(profile: FunderProfile) -> Self {
@@ -204,7 +225,34 @@ impl From<FunderProfile> for FunderResponse {
             name: profile.funder.name().to_string(),
             funder_kind: profile.funder.kind().to_string(),
             company_number: profile.company_number,
+            family_links: profile
+                .family_links
+                .into_iter()
+                .map(|link| FunderFamilyLinkResponse {
+                    left_funder_id: link.left_funder_id.value().to_string(),
+                    right_funder_id: link.right_funder_id.value().to_string(),
+                    family_key: link.family_key,
+                    left_name: link.left_name,
+                    right_name: link.right_name,
+                })
+                .collect(),
             aliases: profile.aliases,
+            member_ids: profile
+                .member_ids
+                .into_iter()
+                .map(|id| id.value().to_string())
+                .collect(),
+            alias_links: profile
+                .alias_links
+                .into_iter()
+                .map(|link| FunderAliasLinkResponse {
+                    left_funder_id: link.left_funder_id.value().to_string(),
+                    right_funder_id: link.right_funder_id.value().to_string(),
+                    normalized_alias: link.normalized_alias,
+                    left_alias: link.left_alias,
+                    right_alias: link.right_alias,
+                })
+                .collect(),
         }
     }
 }

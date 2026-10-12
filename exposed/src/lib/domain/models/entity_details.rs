@@ -173,6 +173,42 @@ pub struct FunderProfile {
     pub company_number: Option<String>,
     /// Every stored exact name, in stable order.
     pub aliases: Vec<String>,
+    /// Source funders connected by recorded names, in stable order.
+    pub member_ids: Vec<FunderId>,
+    /// Direct shared-name evidence, without inferred transitive edges.
+    pub alias_links: Vec<FunderAliasLink>,
+    /// Reviewed organization-family connections, separate from shared names.
+    pub family_links: Vec<FunderFamilyLink>,
+}
+
+/// Reviewed family membership connecting two source funders.
+#[derive(Clone, Debug)]
+pub struct FunderFamilyLink {
+    /// First source funder.
+    pub left_funder_id: FunderId,
+    /// Second source funder.
+    pub right_funder_id: FunderId,
+    /// Persistent reviewed family key.
+    pub family_key: String,
+    /// Exact canonical name of the first source funder.
+    pub left_name: String,
+    /// Exact canonical name of the second source funder.
+    pub right_name: String,
+}
+
+/// Exact recorded names responsible for a direct connection.
+#[derive(Clone, Debug)]
+pub struct FunderAliasLink {
+    /// First source funder.
+    pub left_funder_id: FunderId,
+    /// Second source funder.
+    pub right_funder_id: FunderId,
+    /// Shared name after case and whitespace normalization.
+    pub normalized_alias: String,
+    /// Exact name recorded for the first funder.
+    pub left_alias: String,
+    /// Exact name recorded for the second funder.
+    pub right_alias: String,
 }
 
 /// Compact repository aggregate for one recipient and currency.

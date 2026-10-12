@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Verify Exposed search results and recorded funder names through the real HTTP API against the frozen search regression database. Use after changing search queries, ranking, alias matching, or API serialization.
+description: Verify Exposed search, recorded funder names, and grouped funders through the real HTTP API. Use after changing search queries, ranking, alias matching, grouping policy, or API serialization.
 ---
 
 # Verify Exposed search
@@ -71,6 +71,30 @@ Require five `PASS` lines and exit code 0. Cases and accepted results live in
 `scripts/search-regression.json`. Keep the exact entity order, names,
 match provenance, and recorded alias lists. The script has no baseline-update
 mode. Investigate a diff before changing expectations.
+
+## Populated funder groups
+
+After changes to alias grouping or reviewed families, run the additional
+`loaded_data_grouped_funders_regression` test. It starts the worktree's API and
+checks BBC, GB News, and Premier League searches and detail pages against an
+isolated copy of the 12 October 2026 development data. This database is separate
+from `exposed_search_regression`. Apply the current migrations and run
+`exposed data refresh-funder-groups` on the copy before the test. Do not change
+the source database or refresh the frozen search snapshot during verification.
+
+Set `GROUPED_FUNDER_REGRESSION_DATABASE_URL` to a read-only URL for that copy.
+The test also needs the same schema for SQLx compile-time query checks:
+
+```sh
+: "${GROUPED_FUNDER_REGRESSION_DATABASE_URL:?set a populated grouping database URL}"
+DATABASE_URL="$GROUPED_FUNDER_REGRESSION_DATABASE_URL" \
+  cargo test -p exposed --test integration loaded_data_grouped_funders_regression -- --ignored --exact
+```
+
+Require one passing test. It checks one result per search, the documented group
+member and funding entry counts, recorded names, and both alias and reviewed
+family link evidence. If the populated copy is unavailable, report that
+prerequisite; the five-case search snapshot does not replace this check.
 
 ## Evidence
 
