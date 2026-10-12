@@ -58,6 +58,12 @@ pub async fn search_entities(
     }
 }
 
+pub async fn funder_details(app: &Guard, id: &str) -> anyhow::Result<Value> {
+    let url = format!("http://127.0.0.1:{}/funders/{id}", app.port);
+    let response = reqwest::get(url).await?.error_for_status()?;
+    Ok(serde_json::from_slice(&response.bytes().await?)?)
+}
+
 pub async fn start_app(config: ServerConfig) -> anyhow::Result<Guard> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let port = listener.local_addr()?.port();

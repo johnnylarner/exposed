@@ -15,7 +15,7 @@ use tempfile::TempDir;
 
 use crate::common::{
     DeclarationFunding, FundingEntry, cli_declaration_fetcher_config, cli_fetcher_config,
-    cli_loader_config, read_declaration_funding, search_entities, start_app,
+    cli_loader_config, funder_details, read_declaration_funding, search_entities, start_app,
 };
 
 mod common;
@@ -236,6 +236,67 @@ async fn loaded_data_people_search_regression() -> anyhow::Result<()> {
                 .iter()
                 .any(|row| row["kind"] == "MP" && row["id"] == "178"),
             "{term}: {results:?}"
+        );
+    }
+    Ok(())
+}
+
+#[tokio::test]
+#[ignore = "requires the populated funder regression database"]
+async fn loaded_data_grouped_funders_regression() -> anyhow::Result<()> {
+    let connection_string = std::env::var("GROUPED_FUNDER_REGRESSION_DATABASE_URL")
+        .context("GROUPED_FUNDER_REGRESSION_DATABASE_URL must select the populated database")?;
+    let app = start_app(exposed::inbound::http::config::ServerConfig { connection_string }).await?;
+
+    for (term, name, member_count, entry_count, family_key, recorded_name) in [
+        ("bbc", "BBC", 12, 71, "bbc", "BBC Studios"),
+        ("gb news", "GB News", 7, 77, "gb_news", "GB News Ltd"),
+        (
+            "premier league",
+            "The Premier League",
+            8,
+            107,
+            "premier_league",
+            "Premier League International Holdings Ltd",
+        ),
+    ] {
+        let results = search_entities(
+            &app,
+            &EntitySearchRequest::new_with_strictness(term.into(), 10, 0.8)?,
+        )
+        .await?;
+        assert_eq!(results.len(), 1, "{term}: {results:?}");
+        assert_eq!(results[0]["kind"], "Funder");
+        assert_eq!(results[0]["name"], name);
+
+        let id = results[0]["id"]
+            .as_str()
+            .context("search result must include a funder ID")?;
+        let details = funder_details(&app, id).await?;
+        assert_eq!(details["funder"]["id"], id);
+        assert_eq!(
+            details["funder"]["member_ids"].as_array().map(Vec::len),
+            Some(member_count),
+            "{term}"
+        );
+        assert_eq!(details["entry_count"], entry_count, "{term}");
+        assert!(
+            details["funder"]["aliases"]
+                .as_array()
+                .is_some_and(|names| names.iter().any(|name| name == recorded_name)),
+            "{term}: missing recorded name {recorded_name}"
+        );
+        assert!(
+            details["funder"]["family_links"]
+                .as_array()
+                .is_some_and(|links| links.iter().any(|link| link["family_key"] == family_key)),
+            "{term}: missing reviewed family evidence"
+        );
+        assert!(
+            details["funder"]["alias_links"]
+                .as_array()
+                .is_some_and(|links| !links.is_empty()),
+            "{term}: missing alias evidence"
         );
     }
     Ok(())
