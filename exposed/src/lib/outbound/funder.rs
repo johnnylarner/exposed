@@ -645,16 +645,15 @@ mod reviewed_families {
                         .collect::<Vec<_>>(),
                     ids
                 );
-                assert_eq!(details.allocations.len(), 1);
+                assert_eq!(details.declarations.len(), 1);
+                let entries = &details.declarations[0].declaration.entries;
+                assert_eq!(entries.len(), ids.len());
                 assert_eq!(
-                    details.allocations[0].entry_count,
-                    i64::try_from(ids.len()).unwrap()
-                );
-                assert_eq!(
-                    details.allocations[0].known_total,
-                    Some(bigdecimal::BigDecimal::from(
-                        i64::try_from(names.len() * 10 + 5).unwrap()
-                    ))
+                    entries
+                        .iter()
+                        .filter_map(|entry| entry.amount.as_ref())
+                        .sum::<bigdecimal::BigDecimal>(),
+                    bigdecimal::BigDecimal::from(i64::try_from(names.len() * 10 + 5).unwrap())
                 );
                 assert_eq!(
                     details.profile.family_links.len(),

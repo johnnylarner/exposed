@@ -461,7 +461,11 @@ async fn connected_funding_preserves_entries_requested_id_and_link_evidence(pool
     let third = uuid::Uuid::parse_str("10000000-0000-0000-0000-000000000005").unwrap();
     let db = ExposedDatabase::from(pool.clone());
     let before = db.funder_funding(first).await.unwrap().unwrap();
-    let before_count: i64 = before.allocations.iter().map(|row| row.entry_count).sum();
+    let before_count: usize = before
+        .declarations
+        .iter()
+        .map(|source| source.declaration.entries.len())
+        .sum();
     sqlx::query!("INSERT INTO exposed.funders (id, funder_name, funder_kind, company_number) VALUES ($1, 'Bridge Funder', 'Company', '87654321'), ($2, 'Distant Funder', NULL, NULL)", second, third).execute(&pool).await.unwrap();
     sqlx::query!("INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, ' exact\tFUNDER '), ($1, 'Shared bridge'), ($2, 'SHARED BRIDGE')", second, third).execute(&pool).await.unwrap();
     sqlx::query!("INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency) VALUES (120, $1, 12, 'GBP'), (120, $1, 12, 'GBP'), (200, $2, NULL, 'GBP')", second, third).execute(&pool).await.unwrap();
@@ -479,28 +483,25 @@ async fn connected_funding_preserves_entries_requested_id_and_link_evidence(pool
         );
         assert_eq!(
             funding
-                .allocations
+                .declarations
                 .iter()
-                .map(|row| row.entry_count)
-                .sum::<i64>(),
+                .map(|source| source.declaration.entries.len())
+                .sum::<usize>(),
             before_count + 3
         );
-        let original = before
-            .allocations
-            .iter()
-            .find(|row| row.member.id.value() == 1 && row.currency.as_deref() == Some("GBP"))
-            .unwrap();
-        let combined = funding
-            .allocations
-            .iter()
-            .find(|row| row.member.id.value() == 1 && row.currency.as_deref() == Some("GBP"))
-            .unwrap();
+        let known_gbp_for_first_member =
+            |declarations: &[crate::domain::models::entity_details::FunderDeclaration]| {
+                declarations
+                    .iter()
+                    .filter(|source| source.member.id.value() == 1)
+                    .flat_map(|source| &source.declaration.entries)
+                    .filter(|entry| entry.currency.as_deref() == Some("GBP"))
+                    .filter_map(|entry| entry.amount.as_ref())
+                    .sum::<BigDecimal>()
+            };
         assert_eq!(
-            combined.known_total,
-            original
-                .known_total
-                .as_ref()
-                .map(|amount| amount + BigDecimal::from(24))
+            known_gbp_for_first_member(&funding.declarations),
+            known_gbp_for_first_member(&before.declarations) + BigDecimal::from(24)
         );
         assert!(
             funding

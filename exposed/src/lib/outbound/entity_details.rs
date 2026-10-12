@@ -2,9 +2,9 @@ use crate::{
     domain::{
         models::{
             entity_details::{
-                DeclarationCategory, DeclaredFunding, FunderAliasLink, FunderFamilyLink,
-                FunderDeclaration, FunderFunding, FunderProfile, FunderReference,
-                MemberDeclaration, MemberHistory, MemberProfile,
+                DeclarationCategory, DeclaredFunding, FunderAliasLink, FunderDeclaration,
+                FunderFamilyLink, FunderFunding, FunderProfile, FunderReference, MemberDeclaration,
+                MemberHistory, MemberProfile,
             },
             funder::{Funder, FunderId, FunderKind},
             parliament_member::MemberId,
