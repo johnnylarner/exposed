@@ -965,7 +965,7 @@ mark {
 .signed-bar::after {
   content: "";
   position: absolute;
-  left: 0;
+  left: var(--baseline);
   top: -3px;
   bottom: -3px;
   width: 1px;
@@ -973,18 +973,14 @@ mark {
 }
 .signed-bar > span {
   position: absolute;
-  left: 0;
+  left: var(--baseline);
   height: 100%;
   background: var(--accent);
 }
 .signed-bar > span.negative {
   left: auto;
-  right: 50%;
+  right: calc(100% - var(--baseline));
   opacity: 0.65;
-}
-.signed-bar.signed::after,
-.signed-bar.signed > span:not(.negative) {
-  left: 50%;
 }
 .history-link {
   display: inline-block;

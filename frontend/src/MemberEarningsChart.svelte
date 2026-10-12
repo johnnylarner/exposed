@@ -3,7 +3,7 @@
   import { formatPounds, type EarningsWeek } from "./lib/member-summary";
   let { weeks, undated }: { weeks: EarningsWeek[]; undated: boolean } =
     $props();
-  const bars = $derived(categoryBars(weeks));
+  const bars = $derived(categoryBars(weeks, "maximum"));
   const positive = $derived(
     Math.max(0, ...bars.filter((bar) => !bar.negative).map((bar) => bar.width)),
   );

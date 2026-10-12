@@ -341,6 +341,7 @@ export function memberHref(id: string, view: "summary" | "history"): string {
 
 export function categoryBars(
   categories: { amount: string | null }[],
+  basis: "total" | "maximum",
 ): { width: number; negative: boolean }[] {
   const scale = Math.max(
     0,
@@ -352,15 +353,32 @@ export function categoryBars(
     const value = BigInt(whole + fraction.padEnd(scale, "0"));
     return amount.startsWith("-") ? -value : value;
   });
-  const maximum = values.reduce((largest, value) => {
-    const magnitude = value < 0n ? -value : value;
-    return magnitude > largest ? magnitude : largest;
-  }, 0n);
-  return values.map((value) => ({
+  const magnitudes = values.map((value) => (value < 0n ? -value : value));
+  let denominator: bigint;
+  let precision: bigint;
+  switch (basis) {
+    case "total":
+      denominator = magnitudes.reduce((total, value) => total + value, 0n);
+      precision = 100000000n;
+      break;
+    case "maximum":
+      denominator = magnitudes.reduce(
+        (largest, value) => (value > largest ? value : largest),
+        0n,
+      );
+      precision = 100n;
+      break;
+    default: {
+      const exhaustive: never = basis;
+      return exhaustive;
+    }
+  }
+  return values.map((value, index) => ({
     negative: value < 0n,
     width:
-      maximum === 0n
+      denominator === 0n
         ? 0
-        : Number(((value < 0n ? -value : value) * 10000n) / maximum) / 100,
+        : Number((magnitudes[index] * 100n * precision) / denominator) /
+          Number(precision),
   }));
 }

@@ -1,9 +1,10 @@
 import { expect, test } from "@playwright/test";
 import { summarizeMember, formatPounds } from "../src/lib/member-summary";
-import type {
-  MemberDetails,
-  MemberDeclaration,
-  FundingEntry,
+import {
+  categoryBars,
+  type MemberDetails,
+  type MemberDeclaration,
+  type FundingEntry,
 } from "../src/lib/entity-details";
 
 function entry(
@@ -131,4 +132,89 @@ test("earnings labels own classification across legacy IDs and current label var
     summarizeMember(details([declaration("2026-01-05Z", [entry("0")])]))
       .earnings[0].amount,
   ).toBe("0");
+});
+
+test("category shares preserve decimal magnitudes without cancellation", () => {
+  const amounts = ["0.08", "-0.0200", "0", "-0.00", null];
+  expect(
+    categoryBars(
+      amounts.map((amount) => ({ amount })),
+      "total",
+    ),
+  ).toEqual([
+    { width: 80, negative: false },
+    { width: 20, negative: true },
+    { width: 0, negative: false },
+    { width: 0, negative: false },
+    { width: 0, negative: false },
+  ]);
+  expect(categoryBars([{ amount: "5" }, { amount: "-5" }], "total")).toEqual([
+    { width: 50, negative: false },
+    { width: 50, negative: true },
+  ]);
+  const thirds = categoryBars(
+    Array.from({ length: 3 }, () => ({ amount: "1" })),
+    "total",
+  );
+  for (const bar of thirds) expect(bar.width).toBeCloseTo(100 / 3, 7);
+  expect(thirds.reduce((sum, bar) => sum + bar.width, 0)).toBeCloseTo(100, 7);
+});
+
+test("empty and unavailable amounts have no bar for either basis", () => {
+  for (const basis of ["total", "maximum"] satisfies ("total" | "maximum")[]) {
+    expect(categoryBars([], basis)).toEqual([]);
+    expect(
+      categoryBars(
+        [{ amount: null }, { amount: "0" }, { amount: "-0.00" }],
+        basis,
+      ),
+    ).toEqual([
+      { width: 0, negative: false },
+      { width: 0, negative: false },
+      { width: 0, negative: false },
+    ]);
+  }
+});
+
+test("category ratios remain finite beyond Number precision and range", () => {
+  const huge = "9".repeat(400);
+  expect(categoryBars([{ amount: huge }, { amount: huge }], "total")).toEqual([
+    { width: 50, negative: false },
+    { width: 50, negative: false },
+  ]);
+  expect(
+    categoryBars(
+      [
+        { amount: "9007199254740993.123456789" },
+        { amount: "27021597764222979.370370367" },
+      ],
+      "total",
+    ),
+  ).toEqual([
+    { width: 25, negative: false },
+    { width: 75, negative: false },
+  ]);
+});
+
+test("weekly bars retain maximum scaling and hundredth-percent truncation", () => {
+  expect(
+    categoryBars(
+      [
+        { amount: "3" },
+        { amount: "-1" },
+        { amount: "0.0001" },
+        { amount: null },
+      ],
+      "maximum",
+    ),
+  ).toEqual([
+    { width: 100, negative: false },
+    { width: 33.33, negative: true },
+    { width: 0, negative: false },
+    { width: 0, negative: false },
+  ]);
+  const weeks = Array.from({ length: 200 }, () => ({ amount: "1" }));
+  expect(categoryBars(weeks, "maximum").every((bar) => bar.width === 100)).toBe(
+    true,
+  );
 });
