@@ -920,27 +920,34 @@ mark {
   color: var(--text);
   border-color: var(--accent);
 }
-.member-overview,
-.member-breakdown {
+.member-overview {
   min-width: 0;
 }
-.member-currency-totals {
+.member-currency-ledger {
+  margin-top: 28px;
+}
+.currency-heading {
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px 48px;
-  margin: 28px 0;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px 32px;
+  padding-bottom: 20px;
 }
-.member-currency-totals > div {
-  min-width: 160px;
-  max-width: 100%;
-}
-.member-currency-totals h3 {
-  margin: 0 0 8px;
+.currency-heading h3 {
+  margin: 0;
   color: var(--accent);
+  font-size: 1.15rem;
+}
+.currency-total {
+  min-width: 0;
+  text-align: right;
+}
+.currency-total .entry-count {
+  margin: 8px 0 0;
 }
 .member-total {
   margin: 0;
-  font-size: clamp(1.5rem, 3vw, 2.2rem);
+  font-size: clamp(1.5rem, 3vw, 2.4rem);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
@@ -953,17 +960,20 @@ mark {
   line-height: 1.6;
 }
 .category-currency {
-  margin-top: 28px;
+  padding: 24px 0 28px;
+  border-top: 1px solid var(--line);
 }
-.category-currency h3 {
-  margin-bottom: 18px;
-  color: var(--accent);
+.bar-baseline-note {
+  margin: 14px 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 .category-list {
   list-style: none;
   padding: 0;
   display: grid;
-  gap: 20px;
+  gap: 22px;
+  margin: 0;
 }
 .category-label {
   display: flex;
@@ -981,7 +991,6 @@ mark {
 .signed-bar {
   position: relative;
   height: 9px;
-  background: var(--surface);
 }
 .signed-bar::after {
   content: "";
@@ -1070,9 +1079,12 @@ button:disabled {
     gap: 22px;
     font-size: 0.9rem;
   }
-  .member-currency-totals {
+  .currency-heading {
     display: grid;
-    gap: 26px;
+    gap: 10px;
+  }
+  .currency-total {
+    text-align: left;
   }
   .category-label {
     display: grid;
@@ -1123,44 +1135,20 @@ button:disabled {
   margin-bottom: 0;
 }
 .member-summary-top {
-  display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  gap: 48px;
   padding-bottom: 32px;
   margin-bottom: 32px;
   border-bottom: 1px solid var(--line);
 }
-.member-overview .summary-context {
-  margin-bottom: 16px;
+.category-label {
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
-.member-total {
-  font-size: clamp(1.8rem, 3.2vw, 2.7rem);
-}
-.member-breakdown {
-  border-left: 1px solid var(--line);
-  padding-left: 32px;
-}
-.member-breakdown .category-label {
-  font-size: 13px;
-  line-height: 1.65;
-}
-.member-breakdown .category-label .amount {
-  flex-shrink: 0;
-  max-width: 45%;
+.category-label .amount {
+  font-variant-numeric: tabular-nums;
 }
 .member-page .declaration {
   padding: 18px 0;
 }
 .member-page .funding-list {
   margin-top: 12px;
-}
-@media (max-width: 800px) {
-  .member-summary-top {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 24px;
-  }
-  .member-breakdown {
-    border-left: 0;
-    padding-left: 0;
-  }
 }

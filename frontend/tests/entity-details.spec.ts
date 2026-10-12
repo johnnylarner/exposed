@@ -687,6 +687,19 @@ test("member summary displays server totals, signed category bars, zero and unav
     "Amount unavailable",
     "0",
   ]);
+  const sterling = page.getByRole("region", { name: "GBP declared value" });
+  await expect(sterling.locator(".member-total")).toHaveText(
+    "18,014,398,509,481,986.246913578",
+  );
+  await expect(sterling.getByRole("list")).toContainText("−5 GBP");
+  await expect(
+    page.getByRole("region", { name: "EUR declared value" }),
+  ).toContainText("1 amount unavailable");
+  await expect(
+    page
+      .getByRole("region", { name: "EUR declared value" })
+      .locator(".signed-bar"),
+  ).toHaveCount(0);
   await expect(page.locator(".signed-bar .negative")).toHaveCount(1);
   await expect(
     page
