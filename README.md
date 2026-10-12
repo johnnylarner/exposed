@@ -63,8 +63,10 @@ remain available even when the declaration has no funding entry. See the
 [declaration cleaning reference](docs/declaration-cleaning.md) for table semantics
 and exact feature rules.
 
-Search result names open MP and funder detail pages. MPs show their latest 20
-stored declarations, including incomplete funding entries. Funders show declared
+Search result names open MP and funder detail pages. MP summaries show known declared values across all stored history, separated by
+currency, category breakdowns, and five recent donations and support declarations.
+The declaration history page shows every stored declaration with registration date
+filters and pages of ten declarations, including incomplete funding entries. Funders show declared
 support by recipients' latest stored party and up to ten recipients per currency.
 These party groups do not establish membership when support was received or direct
 payments to parties. Unknown currencies are excluded from totals; unknown amounts

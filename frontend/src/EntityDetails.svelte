@@ -1,11 +1,13 @@
 <script lang="ts">
+  import MemberIdentity from "./MemberIdentity.svelte";
+  import MemberSummary from "./MemberSummary.svelte";
+  import MemberHistory from "./MemberHistory.svelte";
   import Icon from "./lib/Icon.svelte";
   import { entityHref, funderKindLabel } from "./lib/search";
   import {
     backToSearch,
     formatAmount,
     loadDetails,
-    registrationDate,
     type DetailRoute,
     type DetailState,
   } from "./lib/entity-details";
@@ -38,6 +40,7 @@
 <main
   id="details"
   class="detail-page"
+  class:member-page={route.kind === "member"}
   class:funder-page={route.kind === "funder"}
   aria-busy={detailState.kind === "loading"}
 >
@@ -66,90 +69,13 @@
     </div>
   {:else if detailState.kind === "member"}
     {@const details = detailState.details}
-    <header class="profile-heading">
-      <span class="profile-type"><Icon name="parliament" size={22} />MP</span>
-      <h1>{details.member.name}</h1>
-      <p class="profile-meta">
-        {details.member.partyName || "Party unavailable"}
-      </p>
-      <dl class="profile-facts">
-        <div>
-          <dt>Latest membership</dt>
-          <dd>{details.member.membershipFrom || "Unavailable"}</dd>
-        </div>
-        <div>
-          <dt>Commons membership</dt>
-          <dd>
-            {details.member.isCurrentCommons ? "Current MP" : "Former MP"}
-          </dd>
-        </div>
-      </dl>
-    </header>
-    <section aria-labelledby="declarations-heading">
-      <div class="detail-section-heading">
-        <h2 id="declarations-heading">Recent declarations</h2>
-        <p>
-          Showing {details.declarations.length} of {details.declarationCount}
-          stored {details.declarationCount === 1
-            ? "declaration"
-            : "declarations"}, most recent first.
-        </p>
-      </div>
-      {#if details.declarations.length === 0}
-        <p class="empty-details">No declarations are stored for this MP.</p>
-      {:else}
-        <ol class="declarations-list">
-          {#each details.declarations as declaration}
-            <li class="declaration">
-              <header class="declaration-heading">
-                <div>
-                  <h3>{declaration.categoryName}</h3>
-                  <span class="declaration-reference"
-                    >Declaration {declaration.sourceId}</span
-                  >
-                </div>
-                <p>
-                  {#if declaration.registeredAt}<time
-                      datetime={declaration.registeredAt}
-                      >{registrationDate(declaration.registeredAt)}</time
-                    >{:else}Registration date unavailable{/if}
-                </p>
-              </header>
-              {#if declaration.entries.length === 0}<p class="empty-entry">
-                  No funding entries recorded.
-                </p>
-              {:else}
-                <ul class="funding-list">
-                  {#each declaration.entries as entry}
-                    <li>
-                      <div class="funding-source">
-                        {#if entry.funder}<a
-                            href={entityHref({
-                              kind: "Funder",
-                              id: entry.funder.id,
-                            })}>{entry.funder.name}</a
-                          >{:else}<span>Funder unavailable</span>{/if}<span
-                          class="payment-type"
-                          >{entry.paymentType ||
-                            "Payment type unavailable"}</span
-                        >
-                      </div>
-                      <div class="funding-value">
-                        <span class="amount">{formatAmount(entry.amount)}</span
-                        ><span class="currency-label"
-                          >{entry.currency?.trim() ||
-                            "Currency unavailable"}</span
-                        >
-                      </div>
-                    </li>
-                  {/each}
-                </ul>
-              {/if}
-            </li>
-          {/each}
-        </ol>
-      {/if}
-    </section>
+    <MemberIdentity
+      member={details.member}
+      view={route.kind === "member" ? route.view : "summary"}
+    />
+    {#if route.kind === "member" && route.view === "history"}<MemberHistory
+        {details}
+      />{:else}<MemberSummary {details} />{/if}
   {:else}
     {@const details = detailState.details}
     <header class="profile-heading">

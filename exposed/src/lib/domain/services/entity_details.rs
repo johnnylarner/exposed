@@ -6,7 +6,8 @@ pub use interface::EntityDetailsService;
 use crate::domain::{
     models::{
         entity_details::{
-            CurrencyBreakdown, FunderDetails, FunderFunding, MemberDetails, PartyTotal,
+            CategoryTotal, CurrencyBreakdown, DeclarationCategory, FunderDetails, FunderFunding,
+            MemberCurrencyTotal, MemberDetails, MemberHistory, MemberSummary, PartyTotal,
             RecipientAllocation,
         },
         funder::FunderId,
@@ -17,7 +18,7 @@ use crate::domain::{
 use std::{cmp::Ordering, collections::BTreeMap};
 use thiserror::Error;
 
-const RECENT_DECLARATIONS: usize = 20;
+const RECENT_SUPPORT: usize = 5;
 const TOP_RECIPIENTS: usize = 10;
 
 /// Entity detail lookup failure.
@@ -48,8 +49,9 @@ impl<R> Service<R> {
 impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
     async fn member(&self, id: MemberId) -> Result<MemberDetails, EntityDetailsError> {
         self.repo
-            .member(id, RECENT_DECLARATIONS)
+            .member(id)
             .await?
+            .map(summarize_member)
             .ok_or(EntityDetailsError::NotFound)
     }
     async fn funder(&self, id: FunderId) -> Result<FunderDetails, EntityDetailsError> {
@@ -58,6 +60,99 @@ impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
             .await?
             .map(summarize_funder)
             .ok_or(EntityDetailsError::NotFound)
+    }
+}
+
+fn add_known(total: &mut Option<bigdecimal::BigDecimal>, amount: Option<&bigdecimal::BigDecimal>) {
+    if let Some(amount) = amount {
+        match total {
+            Some(total) => *total += amount,
+            None => *total = Some(amount.clone()),
+        }
+    }
+}
+
+fn summarize_member(history: MemberHistory) -> MemberDetails {
+    let mut currencies: BTreeMap<String, MemberCurrencyTotal> = BTreeMap::new();
+    let mut categories: BTreeMap<(String, DeclarationCategory, String), CategoryTotal> =
+        BTreeMap::new();
+    let mut summary = MemberSummary {
+        currencies: Vec::new(),
+        entry_count: 0,
+        unknown_currency_count: 0,
+        first_registered_at: None,
+        last_registered_at: None,
+        undated_declaration_count: 0,
+    };
+    for declaration in &history.declarations {
+        if let Some(date) = declaration.registered_at {
+            summary.first_registered_at = Some(
+                summary
+                    .first_registered_at
+                    .map_or(date, |first| first.min(date)),
+            );
+            summary.last_registered_at = Some(
+                summary
+                    .last_registered_at
+                    .map_or(date, |last| last.max(date)),
+            );
+        } else {
+            summary.undated_declaration_count += 1;
+        }
+        for entry in &declaration.entries {
+            summary.entry_count += 1;
+            let Some(currency) = &entry.currency else {
+                summary.unknown_currency_count += 1;
+                continue;
+            };
+            let group = currencies
+                .entry(currency.clone())
+                .or_insert_with(|| MemberCurrencyTotal {
+                    currency: currency.clone(),
+                    amount: None,
+                    entry_count: 0,
+                    unknown_amount_count: 0,
+                    categories: Vec::new(),
+                });
+            add_known(&mut group.amount, entry.amount.as_ref());
+            group.entry_count += 1;
+            group.unknown_amount_count += usize::from(entry.amount.is_none());
+            let category = categories
+                .entry((
+                    currency.clone(),
+                    declaration.category,
+                    declaration.category_name.clone(),
+                ))
+                .or_insert_with(|| CategoryTotal {
+                    category: declaration.category,
+                    category_name: declaration.category_name.clone(),
+                    amount: None,
+                    entry_count: 0,
+                    unknown_amount_count: 0,
+                });
+            add_known(&mut category.amount, entry.amount.as_ref());
+            category.entry_count += 1;
+            category.unknown_amount_count += usize::from(entry.amount.is_none());
+        }
+    }
+    for ((currency, _, _), category) in categories {
+        if let Some(group) = currencies.get_mut(&currency) {
+            group.categories.push(category);
+        }
+    }
+    summary.currencies = currencies.into_values().collect();
+    let recent_support = history
+        .declarations
+        .iter()
+        .filter(|declaration| declaration.category.is_donation_support())
+        .take(RECENT_SUPPORT)
+        .cloned()
+        .collect();
+    MemberDetails {
+        member: history.member,
+        declarations: history.declarations,
+        summary,
+        recent_support,
     }
 }
 

@@ -1,7 +1,7 @@
 //! Consistent reads for member and funder detail views.
 
 use crate::domain::models::{
-    entity_details::{FunderFunding, MemberDetails},
+    entity_details::{FunderFunding, MemberHistory},
     funder::FunderId,
     parliament_member::MemberId,
 };
@@ -9,12 +9,11 @@ use thiserror::Error;
 
 /// Stored entity detail reads.
 pub trait EntityDetailsRepo: Clone + Send + Sync + 'static {
-    /// Latest declarations for a member, or absent identity.
+    /// All declarations for a member, or absent identity.
     fn member(
         &self,
         id: MemberId,
-        recent_limit: usize,
-    ) -> impl Future<Output = Result<Option<MemberDetails>, EntityDetailsRepoError>> + Send;
+    ) -> impl Future<Output = Result<Option<MemberHistory>, EntityDetailsRepoError>> + Send;
     /// Recipient/currency aggregates for a funder, or absent identity.
     fn funder_funding(
         &self,

@@ -2,8 +2,9 @@ use crate::{
     domain::{
         models::{
             entity_details::{
-                CurrencyBreakdown, DeclaredFunding, FunderDetails, FunderProfile, FunderReference,
-                MemberDetails, MemberProfile, PartyTotal, RecentDeclaration, RecipientAllocation,
+                CategoryTotal, CurrencyBreakdown, DeclaredFunding, FunderDetails, FunderProfile,
+                FunderReference, MemberCurrencyTotal, MemberDeclaration, MemberDetails,
+                MemberProfile, MemberSummary, PartyTotal, RecipientAllocation,
             },
             funder::FunderId,
             parliament_member::MemberId,
@@ -90,14 +91,16 @@ impl From<DeclaredFunding> for FundingResponse {
 #[derive(Serialize)]
 pub struct DeclarationResponse {
     source_id: i32,
+    category_id: i32,
     category_name: String,
     registered_at: Option<DateTime<Utc>>,
     entries: Vec<FundingResponse>,
 }
-impl From<RecentDeclaration> for DeclarationResponse {
-    fn from(declaration: RecentDeclaration) -> Self {
+impl From<MemberDeclaration> for DeclarationResponse {
+    fn from(declaration: MemberDeclaration) -> Self {
         Self {
             source_id: declaration.source_id,
+            category_id: declaration.category.source_id(),
             category_name: declaration.category_name,
             registered_at: declaration.registered_at,
             entries: declaration.entries.into_iter().map(Into::into).collect(),
@@ -109,16 +112,80 @@ impl From<RecentDeclaration> for DeclarationResponse {
 pub struct MemberDetailsResponse {
     member: MemberResponse,
     declarations: Vec<DeclarationResponse>,
-    declaration_count: i64,
-    declaration_limit: usize,
+    summary: MemberSummaryResponse,
+    recent_support: Vec<DeclarationResponse>,
 }
 impl From<MemberDetails> for MemberDetailsResponse {
     fn from(details: MemberDetails) -> Self {
         Self {
             member: details.member.into(),
             declarations: details.declarations.into_iter().map(Into::into).collect(),
-            declaration_count: details.declaration_count,
-            declaration_limit: details.declaration_limit,
+            summary: details.summary.into(),
+            recent_support: details.recent_support.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct CategoryTotalResponse {
+    category_id: i32,
+    category_name: String,
+    amount: Option<String>,
+    entry_count: usize,
+    unknown_amount_count: usize,
+}
+impl From<CategoryTotal> for CategoryTotalResponse {
+    fn from(value: CategoryTotal) -> Self {
+        Self {
+            category_id: value.category.source_id(),
+            category_name: value.category_name,
+            amount: value
+                .amount
+                .map(|amount| amount.normalized().to_plain_string()),
+            entry_count: value.entry_count,
+            unknown_amount_count: value.unknown_amount_count,
+        }
+    }
+}
+#[derive(Serialize)]
+pub struct MemberCurrencyResponse {
+    currency: String,
+    amount: Option<String>,
+    entry_count: usize,
+    unknown_amount_count: usize,
+    categories: Vec<CategoryTotalResponse>,
+}
+impl From<MemberCurrencyTotal> for MemberCurrencyResponse {
+    fn from(value: MemberCurrencyTotal) -> Self {
+        Self {
+            currency: value.currency,
+            amount: value
+                .amount
+                .map(|amount| amount.normalized().to_plain_string()),
+            entry_count: value.entry_count,
+            unknown_amount_count: value.unknown_amount_count,
+            categories: value.categories.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+#[derive(Serialize)]
+pub struct MemberSummaryResponse {
+    currencies: Vec<MemberCurrencyResponse>,
+    entry_count: usize,
+    unknown_currency_count: usize,
+    first_registered_at: Option<DateTime<Utc>>,
+    last_registered_at: Option<DateTime<Utc>>,
+    undated_declaration_count: usize,
+}
+impl From<MemberSummary> for MemberSummaryResponse {
+    fn from(value: MemberSummary) -> Self {
+        Self {
+            currencies: value.currencies.into_iter().map(Into::into).collect(),
+            entry_count: value.entry_count,
+            unknown_currency_count: value.unknown_currency_count,
+            first_registered_at: value.first_registered_at,
+            last_registered_at: value.last_registered_at,
+            undated_declaration_count: value.undated_declaration_count,
         }
     }
 }

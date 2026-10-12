@@ -9,13 +9,13 @@ const member = {
   membership_from: "Example constituency",
   is_current_commons: true,
 };
-const memberDetails = {
+const memberHistoryFixture = {
   member,
-  declaration_count: 24,
-  declaration_limit: 20,
+
   declarations: [
     {
       source_id: 120,
+      category_id: 3,
       category_name: "Support",
       registered_at: "2026-01-21T00:00:00Z",
       entries: [
@@ -36,11 +36,77 @@ const memberDetails = {
     },
     {
       source_id: 119,
+      category_id: 987,
       category_name: "Visits",
       registered_at: null,
       entries: [],
     },
   ],
+};
+const memberDetails = {
+  ...memberHistoryFixture,
+  recent_support: [memberHistoryFixture.declarations[0]],
+  summary: {
+    entry_count: 3,
+    unknown_currency_count: 1,
+    first_registered_at: "2026-01-21T00:00:00Z",
+    last_registered_at: "2026-01-21T00:00:00Z",
+    undated_declaration_count: 1,
+    currencies: [
+      {
+        currency: "GBP",
+        amount: "18014398509481986.246913578",
+        entry_count: 2,
+        unknown_amount_count: 0,
+        categories: [
+          {
+            category_id: 3,
+            category_name: "Support",
+            amount: "18014398509481986.246913578",
+            entry_count: 2,
+            unknown_amount_count: 0,
+          },
+          {
+            category_id: 987,
+            category_name: "Unrecognized source category",
+            amount: "-5",
+            entry_count: 1,
+            unknown_amount_count: 0,
+          },
+        ],
+      },
+      {
+        currency: "EUR",
+        amount: null,
+        entry_count: 1,
+        unknown_amount_count: 1,
+        categories: [
+          {
+            category_id: 4,
+            category_name: "Gifts",
+            amount: null,
+            entry_count: 1,
+            unknown_amount_count: 1,
+          },
+        ],
+      },
+      {
+        currency: "JPY",
+        amount: "0",
+        entry_count: 1,
+        unknown_amount_count: 0,
+        categories: [
+          {
+            category_id: 4,
+            category_name: "Gifts",
+            amount: "0",
+            entry_count: 1,
+            unknown_amount_count: 0,
+          },
+        ],
+      },
+    ],
+  },
 };
 const funderDetails = {
   funder: {
@@ -198,7 +264,7 @@ test("native links preserve search and threshold through details, back, reload a
   await link.click();
   await expect(page).toHaveURL(/\/members\/1\?q=Example&strictness=0.42$/u);
   await expect(
-    page.getByRole("heading", { name: "Recent declarations" }),
+    page.getByRole("heading", { name: "Recent donations and support" }),
   ).toBeVisible();
   await page.reload();
   await expect(
@@ -234,10 +300,10 @@ test("member declarations retain duplicate precise amounts and missing source fi
   context,
 }) => {
   await mockDetails(context);
-  await page.goto("/members/1");
+  await page.goto("/members/1/history");
   await expect(page.locator(".profile-type")).toHaveText("MP");
   await expect(
-    page.getByText("Showing 2 of 24 stored declarations, most recent first."),
+    page.getByText("Showing 1 to 2 of 2 declarations"),
   ).toBeVisible();
   await expect(page.locator(".funding-value .amount")).toHaveText([
     "9,007,199,254,740,993.123456789",
@@ -326,9 +392,6 @@ test("former MPs retain their latest membership description without a constituen
     }),
   );
   await page.goto("/members/1");
-  await expect(
-    page.getByText("Latest membership", { exact: true }),
-  ).toBeVisible();
   await expect(page.getByText("Life peer", { exact: true })).toBeVisible();
   await expect(page.getByText("Former MP", { exact: true })).toBeVisible();
   await expect(page.getByText("Constituency", { exact: true })).toHaveCount(0);
@@ -375,7 +438,17 @@ test("empty details and unknown currency only details remain distinct from error
 }) => {
   await page.route("**/api/members/1", (route) =>
     route.fulfill({
-      json: { ...memberDetails, declarations: [], declaration_count: 0 },
+      json: {
+        ...memberDetails,
+        declarations: [],
+        recent_support: [],
+        summary: {
+          ...memberDetails.summary,
+          currencies: [],
+          entry_count: 0,
+          unknown_currency_count: 0,
+        },
+      },
     }),
   );
   await page.route("**/api/funders/*", (route) =>
@@ -390,7 +463,7 @@ test("empty details and unknown currency only details remain distinct from error
   );
   await page.goto("/members/1");
   await expect(
-    page.getByText("No declarations are stored for this MP."),
+    page.getByText("No funding entries are stored for this MP."),
   ).toBeVisible();
   await page.goto(`/funders/${funderId}`);
   await expect(
@@ -602,3 +675,102 @@ for (const aliases of [null, "Exact Funder", ["Exact Funder", 42]]) {
     ).toHaveCount(0);
   });
 }
+
+test("member summary displays server totals, signed category bars, zero and unavailable amounts", async ({
+  page,
+  context,
+}) => {
+  await mockDetails(context);
+  await page.goto("/members/1");
+  await expect(page.locator(".member-total")).toHaveText([
+    "18,014,398,509,481,986.246913578",
+    "Amount unavailable",
+    "0",
+  ]);
+  await expect(page.locator(".signed-bar .negative")).toHaveCount(1);
+  await expect(
+    page
+      .locator(".category-label")
+      .filter({ hasText: "Unrecognized source category" }),
+  ).toContainText("−5 GBP");
+  await expect(
+    page.getByText("1 funding entry has an unknown currency", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".declarations-list > li")).toHaveCount(1);
+  await expect(
+    page.getByRole("link", { name: "View all 2 declarations" }),
+  ).toHaveAttribute("href", "/members/1/history");
+});
+
+test("history filters the full dataset before paging and resets page for date changes", async ({
+  page,
+}) => {
+  const declarations = Array.from({ length: 25 }, (_, index) => ({
+    source_id: 125 - index,
+    category_id: index === 24 ? 987 : 1,
+    category_name: index === 24 ? "Unknown source category" : "Employment",
+    registered_at:
+      index === 24
+        ? null
+        : `2026-01-${String(25 - index).padStart(2, "0")}T23:59:59Z`,
+    entries: [],
+  }));
+  await page.route("**/api/members/1", (route) =>
+    route.fulfill({ json: { ...memberDetails, declarations } }),
+  );
+  await page.goto("/members/1/history?q=Example&strictness=0.42");
+  await expect(page.locator(".declaration-reference")).toHaveText(
+    Array.from({ length: 10 }, (_, index) => `Declaration ${125 - index}`),
+  );
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByText("Page 2 of 3", { exact: true })).toBeVisible();
+  await page.getByLabel("Registered to").fill("2026-01-08");
+  await expect(page.getByText("Page 1 of 1", { exact: true })).toBeVisible();
+  await expect(page.locator(".declaration-reference")).toHaveText(
+    Array.from({ length: 7 }, (_, index) => `Declaration ${108 - index}`),
+  );
+  await page.getByLabel("Registered from").fill("2026-01-08");
+  await expect(page.locator(".declaration-reference")).toHaveText([
+    "Declaration 108",
+  ]);
+  await expect(
+    page.getByText("Declarations without a registration date are excluded.", {
+      exact: false,
+    }),
+  ).toBeVisible();
+  await page.getByLabel("Registered from").fill("2026-01-09");
+  await expect(page.getByRole("alert")).toContainText(
+    "start date must be on or before",
+  );
+  await expect(page.locator(".declarations-list")).toHaveCount(0);
+  await page.getByRole("button", { name: "Clear dates" }).click();
+  await expect(page.getByText("Page 1 of 3", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(
+    page.getByText("Registration date unavailable", { exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Registered from").fill("2027-01-01");
+  await expect(
+    page.getByText(
+      "No declarations match these dates. Clear or change the dates.",
+    ),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Clear dates" }).click();
+  await page.getByRole("link", { name: "Summary", exact: true }).click();
+  await expect(page).toHaveURL(/members\/1\?q=Example&strictness=0.42$/u);
+  await page.goBack();
+  await expect(
+    page.getByRole("heading", { name: "Declaration history", exact: true }),
+  ).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("Registered from")).toHaveValue("");
+  await page.setViewportSize({ width: 360, height: 780 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});

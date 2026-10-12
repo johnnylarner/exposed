@@ -1,6 +1,5 @@
 //! Collection of models used in the `exposed` project
 
-pub mod declaration;
 pub mod declaration_cleaning;
 pub mod declaration_ingestion;
 pub mod entity_ingestion;
