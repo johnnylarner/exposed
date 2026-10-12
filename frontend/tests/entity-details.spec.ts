@@ -319,7 +319,23 @@ test("member summary shows recent declarations when none are donations", async (
   await expect(page.getByText("Declaration 120")).toBeVisible();
   await expect(page.getByText("Declaration 119")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Employment" })).toBeVisible();
+  await expect(
+    page.getByRole("img", { name: "Weekly registered earnings" }),
+  ).toBeVisible();
+  await page.getByText("View weekly amounts", { exact: true }).click();
+  await expect(page.getByRole("table")).toContainText(
+    "£18,014,398,509,481,986.246913578",
+  );
   await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
+  await page.setViewportSize({ width: 360, height: 780 });
+  await expect(
+    page.getByRole("img", { name: "Weekly registered earnings" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });
 
 test("member summary shows only the first five declarations in history order", async ({
@@ -343,7 +359,7 @@ test("member summary shows only the first five declarations in history order", a
     "Declaration 117",
     "Declaration 116",
   ]);
-  await page.getByRole("link", { name: "View all 7 declarations" }).click();
+  await page.getByRole("link", { name: "View declaration history" }).click();
   await expect(page.locator(".declaration-reference")).toHaveCount(7);
 });
 
@@ -354,19 +370,19 @@ test("member declarations retain duplicate precise amounts and missing source fi
   await mockDetails(context);
   await page.goto("/members/1/history");
   await expect(page.locator(".profile-type")).toHaveText("MP");
+  await expect(page.locator(".member-total")).toHaveCount(0);
   await expect(
     page.getByText("Showing 1 to 2 of 2 declarations"),
   ).toBeVisible();
   await expect(page.locator(".funding-value .amount")).toHaveText([
-    "9,007,199,254,740,993.123456789",
-    "9,007,199,254,740,993.123456789",
+    "£9,007,199,254,740,993.123456789",
+    "£9,007,199,254,740,993.123456789",
     "Amount unavailable",
   ]);
   for (const text of [
     "21 Jan 2026",
     "Registration date unavailable",
     "Funder unavailable",
-    "Currency unavailable",
     "Payment type unavailable",
     "No funding entries recorded.",
   ])
@@ -514,7 +530,7 @@ test("empty details and unknown currency only details remain distinct from error
   );
   await page.goto("/members/1");
   await expect(
-    page.getByText("No funding entries are stored for this MP."),
+    page.getByText("No known declared values available."),
   ).toBeVisible();
   await expect(
     page.getByText("No declarations are stored for this MP."),
@@ -736,25 +752,29 @@ test("member summary displays server totals, signed category bars, zero and unav
 }) => {
   await mockDetails(context);
   await page.goto("/members/1");
-  await expect(page.locator(".member-total")).toHaveText([
-    "18,014,398,509,481,986.246913578",
-    "Amount unavailable",
-    "0",
-  ]);
+  await expect(page.locator(".member-total")).toHaveText(
+    "£18,014,398,509,481,986.246913578",
+  );
   await expect(page.locator(".signed-bar .negative")).toHaveCount(1);
   await expect(
     page
       .locator(".category-label")
       .filter({ hasText: "Unrecognized source category" }),
-  ).toContainText("−5 GBP");
+  ).toContainText("−£5.00");
   await expect(
-    page.getByText("1 funding entry has an unknown currency", {
-      exact: false,
-    }),
-  ).toBeVisible();
+    page.locator(
+      ".member-currency-totals, .member-overview, .category-currency",
+    ),
+  ).toHaveCount(0);
+  await expect(page.locator(".member-identity")).toContainText(
+    "Known declared value",
+  );
+  const total = await page.locator(".member-total").boundingBox();
+  const tabs = await page.locator(".member-tabs").boundingBox();
+  expect(total && tabs && total.y + total.height <= tabs.y).toBeTruthy();
   await expect(page.locator(".declarations-list > li")).toHaveCount(2);
   await expect(
-    page.getByRole("link", { name: "View all 2 declarations" }),
+    page.getByRole("link", { name: "View declaration history" }),
   ).toHaveAttribute("href", "/members/1/history");
 });
 
