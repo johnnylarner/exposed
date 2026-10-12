@@ -159,6 +159,8 @@ h1 {
   font-weight: 400;
 }
 .search-shortcut {
+  flex: none;
+  white-space: nowrap;
   font: inherit;
   font-size: 14px;
   color: var(--muted);

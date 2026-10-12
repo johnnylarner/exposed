@@ -376,3 +376,120 @@ test("rejects alias source for an MP", async ({ page }) => {
   await page.goto("/?q=West");
   await expect(page.getByRole("alert")).toContainText("unexpected MP identity");
 });
+
+for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
+  const mac = platform === "MacIntel";
+  const modifier = mac ? "Meta" : "Control";
+  const modifiers = { metaKey: mac, ctrlKey: !mac };
+
+  test(`${platform} search shortcut focuses search and preserves its query`, async ({
+    page,
+  }) => {
+    await page.addInitScript((platform) => {
+      Object.defineProperty(navigator, "platform", { value: platform });
+    }, platform);
+    await page.route("**/api/search?*", (route) =>
+      route.fulfill({ json: { entities: [] } }),
+    );
+    await page.goto("/");
+    const input = page.getByRole("searchbox");
+    const slider = page.getByRole("slider");
+    await expect(page.locator(".search-shortcut")).toHaveText(
+      mac ? "⌘ K" : "Ctrl K",
+    );
+    await slider.focus();
+    await page.keyboard.press(`${modifier}+k`);
+    await expect(input).toBeFocused();
+    await input.fill("  John  ");
+    await expect(
+      page.getByRole("heading", { name: "No matches for “John”" }),
+    ).toBeVisible();
+    const url = page.url();
+    await slider.focus();
+    await page.keyboard.press(`${modifier}+k`);
+    await expect(input).toBeFocused();
+    await expect(input).toHaveValue("  John  ");
+    expect(page.url()).toBe(url);
+    await page.keyboard.press(`${modifier}+k`);
+    await expect(input).toHaveValue("  John  ");
+    expect(page.url()).toBe(url);
+
+    for (const init of [
+      { metaKey: !mac, ctrlKey: mac },
+      { metaKey: true, ctrlKey: true },
+      { ...modifiers, shiftKey: true },
+      { ...modifiers, altKey: true },
+      { ...modifiers, isComposing: true },
+      {},
+    ]) {
+      await slider.focus();
+      const prevented = await slider.evaluate((element, init) => {
+        const event = new KeyboardEvent("keydown", {
+          key: "k",
+          bubbles: true,
+          cancelable: true,
+          ...init,
+        });
+        element.dispatchEvent(event);
+        return event.defaultPrevented;
+      }, init);
+      expect(prevented).toBe(false);
+      await expect(slider).toBeFocused();
+    }
+
+    await slider.focus();
+    await slider.evaluate((element, modifiers) => {
+      const event = new KeyboardEvent("keydown", {
+        key: "k",
+        bubbles: true,
+        cancelable: true,
+        ...modifiers,
+      });
+      event.preventDefault();
+      element.dispatchEvent(event);
+    }, modifiers);
+    await expect(slider).toBeFocused();
+    await input.dispatchEvent("compositionstart");
+    await slider.focus();
+    const composingPrevented = await slider.evaluate((element, modifiers) => {
+      const event = new KeyboardEvent("keydown", {
+        key: "k",
+        bubbles: true,
+        cancelable: true,
+        ...modifiers,
+      });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    }, modifiers);
+    expect(composingPrevented).toBe(false);
+    await expect(slider).toBeFocused();
+    await expect(input).toHaveValue("  John  ");
+    await input.dispatchEvent("compositionend");
+    await page.keyboard.press(`${modifier}+k`);
+    await expect(input).toBeFocused();
+    await input.press("/");
+    await expect(input).toHaveValue("  John  /");
+    await slider.focus();
+    await page.keyboard.press("Escape");
+    await expect(input).toHaveValue("  John  /");
+    await page.keyboard.press(`${modifier}+k`);
+    await page.keyboard.press("Escape");
+    await expect(input).toHaveValue("");
+    await page.getByRole("link", { name: "Exposed home" }).focus();
+    await page.keyboard.press("/");
+    await expect(input).toBeFocused();
+    await page.goto("/members/1");
+    const detailPrevented = await page.evaluate((modifiers) => {
+      const event = new KeyboardEvent("keydown", {
+        key: "k",
+        bubbles: true,
+        cancelable: true,
+        ...modifiers,
+      });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    }, modifiers);
+    expect(detailPrevented).toBe(false);
+    await expect(page.getByRole("searchbox")).toHaveCount(0);
+  });
+}
