@@ -27,7 +27,7 @@
         </p>
       </header>
       {#if declaration.entries.length === 0}<p class="empty-entry">
-          No funding entries recorded.
+          The declaration included no monetary remuneration.
         </p>
       {:else}
         <ul class="funding-list">
