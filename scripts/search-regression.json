@@ -1,0 +1,193 @@
+[
+  {
+    "name": "unite",
+    "path": "/search",
+    "params": {
+      "term": "unite",
+      "strictness": 0.8,
+      "max_entries": 10
+    },
+    "field": "entities",
+    "expected": [
+      {
+        "name": "Unite the Union",
+        "kind": "Funder",
+        "funder_kind": "Trade Union",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United States Embassy",
+        "kind": "Funder",
+        "funder_kind": "Not Specified",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United Against Malnutrition and Hunger",
+        "kind": "Funder",
+        "funder_kind": "Not Specified",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United Against Malnutrition & Hunger",
+        "kind": "Funder",
+        "funder_kind": "Not Specified",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United & Cecil Club",
+        "kind": "Funder",
+        "funder_kind": "Unincorporated association",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "Newcastle United",
+        "kind": "Funder",
+        "funder_kind": "Company",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "Newcastle United Limited",
+        "kind": "Funder",
+        "funder_kind": "Company",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "United and Cecil Club",
+        "kind": "Funder",
+        "funder_kind": "Unincorporated association",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "The United & Cecil Club",
+        "kind": "Funder",
+        "funder_kind": "Unincorporated association",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "Thailand Embassy, United Kingdom",
+        "kind": "Funder",
+        "funder_kind": "Not Specified",
+        "match_source": {
+          "kind": "name"
+        }
+      }
+    ]
+  },
+  {
+    "name": "west-mid",
+    "path": "/search",
+    "params": {
+      "term": "west mid",
+      "strictness": 0.8,
+      "max_entries": 10
+    },
+    "field": "entities",
+    "expected": [
+      {
+        "name": "Unite the Union",
+        "kind": "Funder",
+        "funder_kind": "Trade Union",
+        "match_source": {
+          "kind": "alias",
+          "name": "UNITE The Union (West Midlands)"
+        }
+      },
+      {
+        "name": "Communication Workers Union West Midlands",
+        "kind": "Funder",
+        "funder_kind": "Trade Union",
+        "match_source": {
+          "kind": "name"
+        }
+      },
+      {
+        "name": "UNISON West Midlands",
+        "kind": "Funder",
+        "funder_kind": "Trade Union",
+        "match_source": {
+          "kind": "name"
+        }
+      }
+    ]
+  },
+  {
+    "name": "hsbc",
+    "path": "/search",
+    "params": {
+      "term": "hsbc",
+      "strictness": 0.8,
+      "max_entries": 10
+    },
+    "field": "entities",
+    "expected": [
+      {
+        "name": "HSBC UK Bank plc",
+        "kind": "Funder",
+        "funder_kind": "Company",
+        "match_source": {
+          "kind": "name"
+        }
+      }
+    ]
+  },
+  {
+    "name": "unite-recorded-names",
+    "params": {},
+    "field": "funder",
+    "expected": {
+      "name": "Unite the Union",
+      "funder_kind": "Trade Union",
+      "company_number": null,
+      "aliases": [
+        "East Midlands Unite the Union",
+        "UNITE",
+        "UNITE The Union",
+        "UNITE The Union (West Midlands)",
+        "UNITE the Union",
+        "UNITE the Union West Midlands",
+        "Unite",
+        "Unite The Union",
+        "Unite Union",
+        "Unite West Midlands",
+        "Unite the Union",
+        "Unite the Union Parliamentary Staff Branch",
+        "Unite the Union West Midlands"
+      ]
+    },
+    "search": "unite"
+  },
+  {
+    "name": "hsbc-recorded-names",
+    "params": {},
+    "field": "funder",
+    "expected": {
+      "name": "HSBC UK Bank plc",
+      "funder_kind": "Company",
+      "company_number": "9928412",
+      "aliases": [
+        "HSBC UK (Ian Stuart, CEO)",
+        "HSBC UK Bank PLC",
+        "HSBC UK Bank plc"
+      ]
+    },
+    "search": "hsbc"
+  }
+]
