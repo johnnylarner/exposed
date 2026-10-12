@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { summarizeMember } from "./lib/member-summary";
   import MemberIdentity from "./MemberIdentity.svelte";
   import MemberSummary from "./MemberSummary.svelte";
   import MemberHistory from "./MemberHistory.svelte";
@@ -69,13 +70,15 @@
     </div>
   {:else if detailState.kind === "member"}
     {@const details = detailState.details}
+    {@const summary = summarizeMember(details)}
     <MemberIdentity
       member={details.member}
+      total={summary.total}
       view={route.kind === "member" ? route.view : "summary"}
     />
     {#if route.kind === "member" && route.view === "history"}<MemberHistory
         {details}
-      />{:else}<MemberSummary {details} />{/if}
+      />{:else}<MemberSummary {details} {summary} />{/if}
   {:else}
     {@const details = detailState.details}
     <header class="profile-heading">
