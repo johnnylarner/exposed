@@ -295,6 +295,35 @@ test("native links preserve search and threshold through details, back, reload a
   await expect(page.getByRole("searchbox")).toHaveValue("Example");
 });
 
+test("member summary shows recent declarations when none are donations", async ({
+  page,
+}) => {
+  await page.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        declarations: [
+          {
+            ...memberHistoryFixture.declarations[0],
+            category_id: 1,
+            category_name: "Employment",
+          },
+          memberHistoryFixture.declarations[1],
+        ],
+        recent_support: [],
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(
+    page.getByRole("heading", { name: "Recent declarations" }),
+  ).toBeVisible();
+  await expect(page.getByText("Declaration 120")).toBeVisible();
+  await expect(page.getByText("Declaration 119")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Employment" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
+});
+
 test("member declarations retain duplicate precise amounts and missing source fields", async ({
   page,
   context,
