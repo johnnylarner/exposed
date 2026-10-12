@@ -190,13 +190,22 @@ pub struct RecipientAllocation {
     pub unknown_amount_count: i64,
 }
 
-/// Repository input for a consistent funder summary.
+/// Recipient and source declaration containing only this funder's occurrences.
+#[derive(Clone, Debug)]
+pub struct FunderDeclaration {
+    /// Latest recorded recipient profile.
+    pub member: MemberProfile,
+    /// Source declaration with matching occurrences, preserving duplicates.
+    pub declaration: MemberDeclaration,
+}
+
+/// Repository input for a consistent funder summary and history.
 #[derive(Clone, Debug)]
 pub struct FunderFunding {
     /// Persistent funder identity.
     pub profile: FunderProfile,
-    /// One row per recipient and currency.
-    pub allocations: Vec<RecipientAllocation>,
+    /// Source declarations in registration order.
+    pub declarations: Vec<FunderDeclaration>,
 }
 
 /// Support grouped by recipients' latest stored party.
@@ -217,6 +226,8 @@ pub struct PartyTotal {
 /// Independent totals and rankings for a single currency.
 #[derive(Clone, Debug)]
 pub struct CurrencyBreakdown {
+    /// Exact complete-history total before recipient ranking.
+    pub amount: Option<BigDecimal>,
     /// Source currency.
     pub currency: String,
     /// All recorded party totals.
@@ -228,6 +239,8 @@ pub struct CurrencyBreakdown {
 /// Funder summary without currency conversion or historical party inference.
 #[derive(Clone, Debug)]
 pub struct FunderDetails {
+    /// Complete source history with matching funding occurrences only.
+    pub declarations: Vec<FunderDeclaration>,
     /// Persistent funder identity.
     pub profile: FunderProfile,
     /// Summaries for each known currency.

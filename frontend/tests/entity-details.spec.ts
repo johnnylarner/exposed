@@ -115,12 +115,22 @@ const funderDetails = {
     company_number: "00123456",
     aliases: [" Exact Funder ", "EXACT FUNDER", "Exact Funder"],
   },
+  declarations: [
+    {
+      member,
+      declaration: {
+        ...memberHistoryFixture.declarations[0],
+        entries: memberHistoryFixture.declarations[0].entries.slice(0, 2),
+      },
+    },
+  ],
   entry_count: 7,
   unknown_currency_count: 2,
   recipient_limit: 10,
   currencies: [
     {
       currency: "EUR",
+      amount: null,
       parties: [
         {
           party_id: 2,
@@ -146,6 +156,7 @@ const funderDetails = {
     },
     {
       currency: "GBP",
+      amount: "18014398509481981.246913578",
       parties: [
         {
           party_id: 1,
@@ -184,6 +195,7 @@ const funderDetails = {
     },
     {
       currency: "USD",
+      amount: "500",
       parties: [
         {
           party_id: 2,
@@ -274,7 +286,7 @@ test("native links preserve search and threshold through details, back, reload a
     .first()
     .click();
   await expect(
-    page.getByRole("heading", { name: "Declared support by party" }).first(),
+    page.getByRole("heading", { name: "Funding by party" }).first(),
   ).toBeVisible();
   await expect(page).toHaveURL(
     new RegExp(`/funders/${funderId}\\?q=Example&strictness=0.42$`, "u"),
@@ -320,10 +332,10 @@ test("member summary shows recent declarations when none are donations", async (
   await expect(page.getByText("Declaration 119")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Employment" })).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Weekly registered earnings" }),
+    page.getByRole("img", { name: "Monthly registered earnings" }),
   ).toBeVisible();
   await expect(
-    page.getByText("View weekly amounts", { exact: true }),
+    page.getByText("View monthly amounts", { exact: true }),
   ).toHaveCount(0);
   await expect(page.locator(".earnings-chart rect title")).toContainText(
     "£18,014,398,509,481,986.246913578",
@@ -331,7 +343,7 @@ test("member summary shows recent declarations when none are donations", async (
   await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 780 });
   await expect(
-    page.getByRole("img", { name: "Weekly registered earnings" }),
+    page.getByRole("img", { name: "Monthly registered earnings" }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -394,56 +406,170 @@ test("member declarations retain duplicate precise amounts and missing source fi
   ).toHaveCount(0);
 });
 
-test("funder currencies keep exact totals, local missing amounts, zero and negatives", async ({
+test("funder summary uses authoritative total, positive pie shares and reveals exact party totals", async ({
   page,
   context,
 }) => {
   await mockDetails(context);
-  await page.goto(`/funders/${funderId}`);
-  await expect(page.locator(".profile-type")).toHaveText("Funder");
-  await expect(page.getByText("00123456", { exact: true })).toBeVisible();
+  await page.goto(`/funders/${funderId}?q=Example&strictness=0.42`);
+  await expect(page.locator(".member-total")).toHaveText(
+    "£18,014,398,509,481,981.246913578",
+  );
+  await expect(page.getByText("Company number 00123456")).toBeVisible();
+  const controls = page.locator(".funder-party-legend button");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await expect(page.locator(".funder-party-legend")).not.toContainText("£");
+  await controls.first().hover();
+  await expect(page.getByRole("tooltip")).toContainText(
+    "£18,014,398,509,481,986.246913578",
+  );
+  await page.getByRole("tooltip").hover();
+  await page.waitForTimeout(180);
+  await expect(page.getByRole("tooltip")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await controls.nth(1).focus();
+  await expect(page.getByRole("tooltip")).toContainText("−£5.00");
+  await page.keyboard.press("Escape");
+  await controls.nth(1).click();
+  await expect(page.getByRole("tooltip")).toContainText("−£5.00");
+  await page.keyboard.press("Escape");
+  await page.locator(".funder-party-chart svg g").hover();
+  await expect(page.getByRole("tooltip")).toContainText(
+    "£18,014,398,509,481,986.246913578",
+  );
+  await page.keyboard.press("Escape");
   await expect(
-    page.getByText(
-      "2 entries have an unknown currency and are excluded from totals and rankings.",
-    ),
+    page.getByRole("img", { name: "Monthly registered funding" }),
   ).toBeVisible();
-  const gbp = page.getByRole("region", {
-    name: "GBP declared support",
-    exact: true,
-  });
-  await expect(gbp.locator(".amount")).toHaveText([
-    "18,014,398,509,481,986.246913578",
-    "−5",
-    "18,014,398,509,481,986.246913578",
-    "0",
+  await expect(page.locator(".funder-party-chart svg circle")).toHaveCount(1);
+  await expect(page.locator(".funder-recipients .amount")).toHaveText([
+    "£18,014,398,509,481,986.246913578",
+    "£0.00",
   ]);
-  await expect(gbp.locator(".partial-note")).toHaveText([
-    "1 amount unavailable",
-    "1 amount unavailable",
-  ]);
-  const eur = page.getByRole("region", {
-    name: "EUR declared support",
-    exact: true,
-  });
-  await expect(eur.locator(".amount")).toHaveText([
+  await expect(
+    page.getByRole("heading", { name: "Top 10 recipients" }),
+  ).toBeVisible();
+  await expect(page.locator("main")).not.toContainText(
+    /GBP|EUR|USD|currency|currencies/u,
+  );
+  await page.getByText("Recorded names", { exact: true }).click();
+  await expect(page.getByText("EXACT FUNDER", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "Funding history" }),
+  ).toHaveAttribute(
+    "href",
+    `/funders/${funderId}/history?q=Example&strictness=0.42`,
+  );
+});
+
+test("funding history retains sources, duplicate amounts and date paging", async ({
+  page,
+}) => {
+  const declarations = Array.from({ length: 12 }, (_, index) => ({
+    member,
+    declaration: {
+      ...memberHistoryFixture.declarations[0],
+      source_id: 120 - index,
+      registered_at:
+        index === 11
+          ? null
+          : `2026-01-${String(21 - index).padStart(2, "0")}T00:00:00Z`,
+      entries: [
+        ...memberHistoryFixture.declarations[0].entries.slice(0, 2),
+        {
+          funder: { id: funderId, name: "Exact Funder" },
+          amount: "500",
+          currency: "USD",
+          payment_type: "Benefit",
+        },
+        {
+          funder: { id: funderId, name: "Exact Funder" },
+          amount: null,
+          currency: null,
+          payment_type: null,
+        },
+      ],
+    },
+  }));
+  await page.route("**/api/funders/*", (route) =>
+    route.fulfill({ json: { ...funderDetails, declarations } }),
+  );
+  await page.goto(`/funders/${funderId}/history?q=Example&strictness=0.42`);
+  await expect(page.locator(".member-total")).toHaveCount(0);
+  await expect(page.locator(".declaration")).toHaveCount(10);
+  await expect(
+    page.locator(".declaration").first().locator(".amount"),
+  ).toHaveText([
+    "£9,007,199,254,740,993.123456789",
+    "£9,007,199,254,740,993.123456789",
+    "500",
     "Amount unavailable",
-    "Amount unavailable",
   ]);
-  await expect(eur.locator(".partial-note")).toHaveText([
-    "1 amount unavailable",
-    "1 amount unavailable",
-  ]);
+  await expect(page.locator(".declaration").first()).toContainText("Support");
+  await expect(page.locator(".declaration").first()).toContainText("Benefit");
   await expect(
     page
-      .getByRole("region", { name: "USD declared support" })
-      .getByRole("link", { name: "Bea Example" }),
-  ).toBeVisible();
-  await expect(page.locator(".summary-context")).toContainText(
-    "Parties do not describe membership",
-  );
+      .locator(".declaration")
+      .first()
+      .getByRole("link", { name: member.name }),
+  ).toHaveAttribute("href", "/members/1?q=Example&strictness=0.42");
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.locator(".declaration")).toHaveCount(2);
   await expect(
-    page.getByRole("heading", { name: "Recent declarations" }),
-  ).toHaveCount(0);
+    page.getByText("Registration date unavailable", { exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Registered from", { exact: true }).fill("2026-01-21");
+  await expect(page.locator(".declaration")).toHaveCount(1);
+  await expect(page.getByText("Page 1 of 1", { exact: true })).toBeVisible();
+  await page.getByLabel("Registered to", { exact: true }).fill("2026-01-20");
+  await expect(page.getByRole("alert")).toContainText("start date");
+  await page.getByRole("button", { name: "Clear dates" }).click();
+  await expect(page.locator(".declaration")).toHaveCount(10);
+  await expect(page.locator("main")).not.toContainText(
+    /GBP|EUR|USD|currency|currencies/u,
+  );
+  await page.setViewportSize({ width: 360, height: 780 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole("link", { name: "Summary", exact: true }).click();
+  await expect(page).toHaveURL(
+    new RegExp(`/funders/${funderId}\\?q=Example&strictness=0.42$`, "u"),
+  );
+});
+
+test("funder boundary rejects missing totals and malformed source history", async ({
+  page,
+}) => {
+  for (const body of [
+    { ...funderDetails, declarations: undefined },
+    {
+      ...funderDetails,
+      declarations: [
+        {
+          member,
+          declaration: {
+            ...memberHistoryFixture.declarations[0],
+            registered_at: "broken",
+          },
+        },
+      ],
+    },
+    {
+      ...funderDetails,
+      currencies: [{ ...funderDetails.currencies[1], amount: undefined }],
+    },
+  ]) {
+    await page.route("**/api/funders/*", (route) =>
+      route.fulfill({ json: body }),
+    );
+    await page.goto(`/funders/${funderId}`);
+    await expect(page.getByRole("alert")).toContainText("unexpected response");
+    await page.unroute("**/api/funders/*");
+  }
 });
 
 test("former MPs retain their latest membership description without a constituency label", async ({
@@ -553,12 +679,7 @@ test("empty details and unknown currency only details remain distinct from error
   );
   await page.reload();
   await expect(
-    page.getByText("No known currencies are available for totals or rankings."),
-  ).toBeVisible();
-  await expect(
-    page.getByText(
-      "2 entries have an unknown currency and are excluded from totals and rankings.",
-    ),
+    page.getByText("No known funding totals are available."),
   ).toBeVisible();
 });
 
@@ -627,6 +748,7 @@ test("long names and exact amounts fit mobile and source markup stays literal", 
   await expect(
     page.getByRole("heading", { name: longName, exact: true }),
   ).toBeVisible();
+  await page.getByText("Recorded names", { exact: true }).click();
   const recordedNames = page.getByRole("region", { name: "Recorded names" });
   await expect(recordedNames.getByRole("listitem")).toHaveText([
     longName,
@@ -705,6 +827,7 @@ test("recorded names retain stored variants for every funder kind and hide empty
       }),
     );
     await page.goto(`/funders/${funderId}`);
+    await page.getByText("Recorded names", { exact: true }).click();
     const names = page
       .getByRole("region", { name: "Recorded names" })
       .getByRole("listitem");
@@ -913,4 +1036,197 @@ test("history filters the full dataset before paging and resets page for date ch
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
+});
+
+test("party pie keeps zero and unavailable totals and explains unavailable shares", async ({
+  page,
+}) => {
+  await page.route("**/api/funders/*", (route) =>
+    route.fulfill({
+      json: {
+        ...funderDetails,
+        currencies: [
+          {
+            ...funderDetails.currencies[1],
+            amount: "0",
+            parties: [
+              {
+                party_id: 1,
+                party_name: "Zero Party",
+                amount: "0",
+                entry_count: 1,
+                unknown_amount_count: 0,
+              },
+              {
+                party_id: 2,
+                party_name: "Unknown Party",
+                amount: null,
+                entry_count: 1,
+                unknown_amount_count: 1,
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto(`/funders/${funderId}`);
+  await expect(
+    page.getByText("Pie unavailable. No positive known totals are recorded."),
+  ).toBeVisible();
+  await page.locator(".funder-party-legend button").first().focus();
+  await expect(page.getByRole("tooltip")).toContainText("£0.00");
+  await page.locator(".funder-party-legend button").nth(1).focus();
+  await expect(page.getByRole("tooltip")).toContainText("Amount unavailable");
+  await expect(page.locator(".funder-party-chart path")).toHaveCount(0);
+});
+
+for (const amounts of [
+  ["3", "7"],
+  ["0", "-5"],
+  [null, "0"],
+]) {
+  test(`party controls expose totals for ${amounts.join("/")}`, async ({
+    page,
+  }) => {
+    const currencies = funderDetails.currencies.map((group) =>
+      group.currency !== "GBP"
+        ? group
+        : {
+            ...group,
+            parties: group.parties.map((party, index) => ({
+              ...party,
+              amount: amounts[index],
+            })),
+          },
+    );
+    await page.route("**/api/funders/*", (route) =>
+      route.fulfill({ json: { ...funderDetails, currencies } }),
+    );
+    await page.goto(`/funders/${funderId}`);
+    await expect(page.locator(".funder-party-legend")).not.toContainText("£");
+    for (const [index, amount] of amounts.entries()) {
+      await page.locator(".funder-party-legend button").nth(index).click();
+      await expect(page.getByRole("tooltip")).toContainText(
+        amount === null
+          ? "Amount unavailable"
+          : amount === "-5"
+            ? "−£5.00"
+            : `£${amount}.00`,
+      );
+      await page.keyboard.press("Escape");
+    }
+    if (amounts[0] === "3") {
+      await expect(page.locator(".funder-party-chart svg path")).toHaveCount(2);
+      await page.locator(".funder-party-chart svg g").nth(1).focus();
+      await expect(page.getByRole("tooltip")).toContainText("£7.00");
+    }
+    await page.setViewportSize({ width: 800, height: 900 });
+    const left = await page
+      .locator(".funder-summary-top > section")
+      .first()
+      .boundingBox();
+    const right = await page
+      .locator(".funder-summary-top > section")
+      .nth(1)
+      .boundingBox();
+    expect(right?.y).toBeGreaterThan((left?.y ?? 0) + (left?.height ?? 0));
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+  });
+}
+
+test("party tooltip toggles on touch and closes outside or on scroll", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    hasTouch: true,
+    viewport: { width: 800, height: 900 },
+  });
+  await mockDetails(context);
+  const page = await context.newPage();
+  await page.goto(`/funders/${funderId}`);
+  const button = page.locator(".funder-party-legend button").first();
+  await button.tap();
+  await expect(page.getByRole("tooltip")).toBeVisible();
+  await button.tap();
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await button.tap();
+  await page.getByRole("heading", { name: "Funding by party" }).tap();
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await button.tap();
+  await page.evaluate(() => window.scrollBy(0, 100));
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await context.close();
+});
+
+test("both summary timelines merge same-month dates and retain negative monthly bars", async ({
+  page,
+}) => {
+  const declarations = [
+    {
+      ...memberHistoryFixture.declarations[0],
+      category_name: "Employment",
+      registered_at: "2026-01-02T00:00:00Z",
+      entries: [
+        { funder: null, amount: "10.25", currency: "GBP", payment_type: null },
+      ],
+    },
+    {
+      ...memberHistoryFixture.declarations[0],
+      category_name: "Employment",
+      registered_at: "2026-01-31T23:59:59Z",
+      entries: [
+        { funder: null, amount: "0.75", currency: "GBP", payment_type: null },
+      ],
+    },
+    {
+      ...memberHistoryFixture.declarations[0],
+      category_name: "Employment",
+      registered_at: "2026-03-31T00:00:00Z",
+      entries: [
+        { funder: null, amount: "-2.5", currency: "GBP", payment_type: null },
+      ],
+    },
+  ];
+  await page.route("**/api/members/1", (route) =>
+    route.fulfill({ json: { ...memberDetails, declarations } }),
+  );
+  await page.route("**/api/funders/*", (route) =>
+    route.fulfill({
+      json: {
+        ...funderDetails,
+        declarations: declarations.map((declaration) => ({
+          member,
+          declaration,
+        })),
+      },
+    }),
+  );
+  for (const route of ["/members/1", `/funders/${funderId}`]) {
+    await page.goto(route);
+    await expect(page.locator(".earnings-chart rect")).toHaveCount(3);
+    await expect(page.locator(".earnings-chart rect title")).toHaveText([
+      "Jan 2026: £11.00",
+      "Feb 2026: £0.00",
+      "Mar 2026: −£2.50",
+    ]);
+    await expect(page.locator(".earnings-chart rect.negative")).toHaveCount(1);
+    expect(
+      Number(
+        await page
+          .locator(".earnings-chart rect.negative")
+          .getAttribute("height"),
+      ),
+    ).toBeGreaterThan(0);
+    await expect(page.locator(".earnings-chart rect.negative")).toHaveAttribute(
+      "y",
+      (await page
+        .locator(".earnings-chart .chart-baseline")
+        .getAttribute("y1")) ?? "",
+    );
+  }
 });

@@ -1,7 +1,7 @@
 export type DetailRoute =
   | { kind: "search" }
   | { kind: "member"; id: string; view: "summary" | "history" }
-  | { kind: "funder"; id: string }
+  | { kind: "funder"; id: string; view: "summary" | "history" }
   | { kind: "invalid" };
 
 const funderIdPattern =
@@ -21,9 +21,13 @@ export function readDetailRoute(path: string): DetailRoute {
       id: member[1],
       view: member[2] ? "history" : "summary",
     };
-  const funder = /^\/funders\/([^/]+)\/?$/u.exec(path);
+  const funder = /^\/funders\/([^/]+)(?:\/(history))?\/?$/u.exec(path);
   if (funder && funderIdPattern.test(funder[1]))
-    return { kind: "funder", id: funder[1] };
+    return {
+      kind: "funder",
+      id: funder[1],
+      view: funder[2] ? "history" : "summary",
+    };
   return { kind: "invalid" };
 }
 
@@ -72,7 +76,13 @@ interface Total {
   unknownAmountCount: number;
 }
 
+export interface FunderDeclaration {
+  member: MemberProfile;
+  declaration: MemberDeclaration;
+}
+
 export interface FunderDetails {
+  declarations: FunderDeclaration[];
   funder: {
     id: string;
     name: string;
@@ -82,6 +92,7 @@ export interface FunderDetails {
   };
   currencies: {
     currency: string;
+    amount: string | null;
     parties: (Total & { partyName: string })[];
     topRecipients: (Total & { member: MemberProfile })[];
   }[];
@@ -222,6 +233,13 @@ function readFunder(value: unknown): FunderDetails {
   const row = record(value);
   const funder = record(row.funder);
   return {
+    declarations: list(row.declarations).map((value) => {
+      const source = record(value);
+      return {
+        member: memberProfile(source.member),
+        declaration: declaration(source.declaration),
+      };
+    }),
     funder: {
       id: identity(funder.id, "Funder"),
       name: text(funder.name),
@@ -238,6 +256,7 @@ function readFunder(value: unknown): FunderDetails {
       if (!currency.trim()) return malformed();
       return {
         currency,
+        amount: decimal(group.amount),
         parties: list(group.parties).map((value) => {
           const party = record(value);
           return { ...total(party), partyName: text(party.party_name) };
@@ -381,4 +400,9 @@ export function categoryBars(
         : Number((magnitudes[index] * 100n * precision) / denominator) /
           Number(precision),
   }));
+}
+
+export function funderHref(id: string, view: "summary" | "history"): string {
+  const search = backToSearch().slice(1);
+  return `/funders/${id}${view === "history" ? "/history" : ""}${search}`;
 }

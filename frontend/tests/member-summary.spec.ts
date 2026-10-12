@@ -1,3 +1,4 @@
+import { registrationTimeline } from "../src/lib/registration-timeline";
 import { expect, test } from "@playwright/test";
 import { summarizeMember, formatPounds } from "../src/lib/member-summary";
 import {
@@ -65,42 +66,61 @@ test("summary preserves duplicate arbitrary precision values and server pounds t
         entry("9007199254740993.123456789"),
         entry("0.000000001"),
       ]),
+      declaration("2026-01-31T23:59:59Z", [entry("-0.000000001")]),
     ]),
   );
   expect(summary.total).toBe("123.45");
   expect(summary.earnings).toEqual([
     {
-      start: "2026-01-05",
-      amount: "18014398509481986.246913579",
+      start: "2026-01-01",
+      amount: "18014398509481986.246913578",
       incomplete: false,
     },
   ]);
   expect(formatPounds(summary.earnings[0].amount)).toBe(
-    "£18,014,398,509,481,986.246913579",
+    "£18,014,398,509,481,986.246913578",
   );
   expect(formatPounds("-5")).toBe("−£5.00");
   expect(formatPounds(null)).toBe("Amount unavailable");
 });
 
-test("UTC registration weeks preserve negatives, zero, gaps and incomplete values", () => {
+test("UTC registration months preserve negatives, zero, gaps and incomplete values", () => {
   const summary = summarizeMember(
     details([
-      declaration("2025-12-28T23:00:00-02:00", [entry("-2.5")]),
-      declaration("2026-01-04T23:59:59Z", [entry("0"), entry(null)]),
+      declaration("2025-12-31T23:00:00-02:00", [entry("-2.5")]),
+      declaration("2025-12-01T00:30:00+02:00", [entry("0"), entry(null)]),
+      declaration("2025-12-20T00:00:00Z", [entry("-5")]),
       declaration("2026-01-19T00:00:00Z", [entry("4"), entry("900", null)]),
-      declaration("2026-01-26T00:00:00Z", [entry(null)]),
+      declaration("2026-03-26T00:00:00Z", [entry(null)]),
       declaration(null, [entry("88")]),
       declaration("2027-01-01T00:00:00Z", [entry("77", "EUR")]),
     ]),
   );
   expect(summary.earnings).toEqual([
-    { start: "2025-12-29", amount: "-2.5", incomplete: true },
-    { start: "2026-01-05", amount: "0", incomplete: false },
-    { start: "2026-01-12", amount: "0", incomplete: false },
-    { start: "2026-01-19", amount: "4", incomplete: true },
-    { start: "2026-01-26", amount: null, incomplete: true },
+    { start: "2025-11-01", amount: "0", incomplete: true },
+    { start: "2025-12-01", amount: "-5", incomplete: false },
+    { start: "2026-01-01", amount: "1.5", incomplete: true },
+    { start: "2026-02-01", amount: "0", incomplete: false },
+    { start: "2026-03-01", amount: null, incomplete: true },
   ]);
   expect(summary.undated).toBe(true);
+});
+
+test("month iteration includes leap February after a January 31 registration", () => {
+  expect(
+    registrationTimeline([
+      declaration("2024-01-31T23:59:59Z", [entry("1")]),
+      declaration("2024-02-29T00:00:00Z", [entry("2")]),
+      declaration("2024-03-31T23:59:59Z", [entry("3")]),
+    ]),
+  ).toEqual({
+    months: [
+      { start: "2024-01-01", amount: "1", incomplete: false },
+      { start: "2024-02-01", amount: "2", incomplete: false },
+      { start: "2024-03-01", amount: "3", incomplete: false },
+    ],
+    undated: false,
+  });
 });
 
 test("earnings labels own classification across legacy IDs and current label variants", () => {
@@ -217,4 +237,37 @@ test("weekly bars retain maximum scaling and hundredth-percent truncation", () =
   expect(categoryBars(weeks, "maximum").every((bar) => bar.width === 100)).toBe(
     true,
   );
+});
+
+test("funding timeline includes every category with exact UTC months and missing coverage", () => {
+  const timeline = registrationTimeline([
+    declaration(
+      "2026-01-04T23:59:59Z",
+      [entry("9007199254740993.123456789")],
+      "Gifts",
+    ),
+    declaration(
+      "2026-01-05T00:00:00Z",
+      [entry("-2.5"), entry("0.5"), entry(null), entry("900", null)],
+      "Donations",
+    ),
+    declaration("2026-03-19T00:00:00Z", [entry(null)], "Visits"),
+    declaration(null, [entry("5")], "Gifts"),
+    declaration("2027-01-01T00:00:00Z", [entry("99", "EUR")], "Gifts"),
+  ]);
+  expect(timeline).toEqual({
+    undated: true,
+    months: [
+      {
+        start: "2026-01-01",
+        amount: "9007199254740991.123456789",
+        incomplete: true,
+      },
+      { start: "2026-02-01", amount: "0", incomplete: false },
+      { start: "2026-03-01", amount: null, incomplete: true },
+    ],
+  });
+  expect(
+    registrationTimeline([declaration(null, [entry("99", "EUR")])]),
+  ).toEqual({ months: [], undated: false });
 });
