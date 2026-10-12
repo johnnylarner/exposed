@@ -1192,3 +1192,68 @@ button:disabled {
     font-size: 18px;
   }
 }
+
+.funder-party-chart {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  align-items: center;
+  gap: 48px;
+  margin: 24px 0 48px;
+}
+.funder-party-chart svg {
+  width: 100%;
+  max-width: 240px;
+}
+.funder-party-legend {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.funder-party-legend li {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) minmax(0, auto);
+  align-items: center;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.party-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+.funder-party-legend strong {
+  overflow-wrap: anywhere;
+  text-align: right;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.funder-recipients {
+  display: block;
+  margin-bottom: 40px;
+}
+.funder-recipients table {
+  width: 100%;
+}
+.funder-recorded-names {
+  margin-top: 36px;
+}
+.funder-recorded-names summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.funder-page .declaration-heading a {
+  color: inherit;
+}
+@media (max-width: 640px) {
+  .funder-party-chart {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .funder-party-chart svg {
+    margin: 0 auto;
+  }
+  .funder-party-legend li {
+    gap: 10px;
+  }
+}

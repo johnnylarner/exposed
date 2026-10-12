@@ -2,9 +2,8 @@ use crate::{
     domain::{
         models::{
             entity_details::{
-                DeclarationCategory, DeclaredFunding, FunderFunding, FunderProfile,
-                FunderReference, MemberDeclaration, MemberHistory, MemberProfile,
-                RecipientAllocation,
+                DeclarationCategory, DeclaredFunding, FunderDeclaration, FunderFunding,
+                FunderProfile, FunderReference, MemberDeclaration, MemberHistory, MemberProfile,
             },
             funder::{Funder, FunderId, FunderKind},
             parliament_member::MemberId,
@@ -60,20 +59,7 @@ impl EntityDetailsRepo for ExposedDatabase {
                     source_id: row.source_declaration_id,
                     category: DeclarationCategory::from_source_id(row.category_id),
                     category_name: row.category_name,
-                    registered_at: row
-                        .registration_date
-                        .map(|date| {
-                            chrono::DateTime::from_timestamp(
-                                date.unix_timestamp(),
-                                date.nanosecond(),
-                            )
-                            .ok_or_else(|| {
-                                EntityDetailsRepoError::DatabaseError(
-                                    "Stored registration date is out of range".into(),
-                                )
-                            })
-                        })
-                        .transpose()?,
+                    registered_at: row.registration_date.map(registration_date).transpose()?,
                     entries: Vec::new(),
                 });
             }
@@ -136,47 +122,66 @@ impl EntityDetailsRepo for ExposedDatabase {
             aliases,
         };
         let rows = sqlx::query!(
-            "WITH funding AS (
-                SELECT source_declaration_id, amount, NULLIF(btrim(currency, $2), '') AS currency
-                FROM exposed.funding_entries WHERE funder_id = $1
-             )
-             SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.latest_membership_from, m.is_current_commons,
-                e.currency,
-                CASE WHEN e.currency IS NOT NULL THEN sum(e.amount) END AS known_total,
-                count(*) AS \"entry_count!\", count(*) FILTER (WHERE e.amount IS NULL) AS \"unknown_amount_count!\"
-             FROM funding e JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id
+            "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name,
+                m.latest_membership_from, m.is_current_commons,
+                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
+                e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type
+             FROM exposed.funding_entries e
+             JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id
              JOIN exposed.members m ON m.id = d.member_id
-             GROUP BY m.id, e.currency
-             ORDER BY m.parliament_member_id, currency NULLS LAST", id.value(), CURRENCY_WHITESPACE
-        ).fetch_all(&mut *tx).await?;
-        let allocations = rows
-            .into_iter()
-            .map(|row| {
-                let id = row
-                    .parliament_member_id
-                    .to_string()
-                    .parse::<MemberId>()
-                    .map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?;
-                Ok(RecipientAllocation {
+             WHERE e.funder_id = $1
+             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
+            id.value(),
+            CURRENCY_WHITESPACE
+        )
+        .fetch_all(&mut *tx)
+        .await?;
+        let mut declarations: Vec<FunderDeclaration> = Vec::new();
+        for row in rows {
+            if declarations
+                .last()
+                .is_none_or(|source| source.declaration.source_id != row.source_declaration_id)
+            {
+                declarations.push(FunderDeclaration {
                     member: MemberProfile {
-                        id,
+                        id: row
+                            .parliament_member_id
+                            .to_string()
+                            .parse::<MemberId>()
+                            .map_err(|error| {
+                                EntityDetailsRepoError::DatabaseError(error.to_string())
+                            })?,
                         name: row.name,
                         party_id: row.party_id,
                         party_name: row.party_name,
                         membership_from: row.latest_membership_from,
                         is_current_commons: row.is_current_commons,
                     },
+                    declaration: MemberDeclaration {
+                        source_id: row.source_declaration_id,
+                        category: DeclarationCategory::from_source_id(row.category_id),
+                        category_name: row.category_name,
+                        registered_at: row.registration_date.map(registration_date).transpose()?,
+                        entries: Vec::new(),
+                    },
+                });
+            }
+            if let Some(source) = declarations.last_mut() {
+                source.declaration.entries.push(DeclaredFunding {
+                    funder: Some(FunderReference {
+                        id,
+                        name: profile.funder.name().to_owned(),
+                    }),
+                    amount: row.amount,
                     currency: row.currency,
-                    known_total: row.known_total,
-                    entry_count: row.entry_count,
-                    unknown_amount_count: row.unknown_amount_count,
-                })
-            })
-            .collect::<Result<Vec<_>, EntityDetailsRepoError>>()?;
+                    payment_type: row.payment_type,
+                });
+            }
+        }
         tx.commit().await?;
         Ok(Some(FunderFunding {
             profile,
-            allocations,
+            declarations,
         }))
     }
 }
@@ -188,4 +193,12 @@ impl From<sqlx::Error> for EntityDetailsRepoError {
     fn from(error: sqlx::Error) -> Self {
         Self::DatabaseError(error.to_string())
     }
+}
+
+fn registration_date(
+    date: time::OffsetDateTime,
+) -> Result<chrono::DateTime<chrono::Utc>, EntityDetailsRepoError> {
+    chrono::DateTime::from_timestamp(date.unix_timestamp(), date.nanosecond()).ok_or_else(|| {
+        EntityDetailsRepoError::DatabaseError("Stored registration date is out of range".into())
+    })
 }

@@ -2,9 +2,10 @@ use crate::{
     domain::{
         models::{
             entity_details::{
-                CategoryTotal, CurrencyBreakdown, DeclaredFunding, FunderDetails, FunderProfile,
-                FunderReference, MemberCurrencyTotal, MemberDeclaration, MemberDetails,
-                MemberProfile, MemberSummary, PartyTotal, RecipientAllocation,
+                CategoryTotal, CurrencyBreakdown, DeclaredFunding, FunderDeclaration,
+                FunderDetails, FunderProfile, FunderReference, MemberCurrencyTotal,
+                MemberDeclaration, MemberDetails, MemberProfile, MemberSummary, PartyTotal,
+                RecipientAllocation,
             },
             funder::FunderId,
             parliament_member::MemberId,
@@ -252,6 +253,7 @@ impl From<RecipientAllocation> for RecipientTotalResponse {
 
 #[derive(Serialize)]
 pub struct CurrencyResponse {
+    amount: Option<String>,
     currency: String,
     parties: Vec<PartyTotalResponse>,
     top_recipients: Vec<RecipientTotalResponse>,
@@ -259,6 +261,9 @@ pub struct CurrencyResponse {
 impl From<CurrencyBreakdown> for CurrencyResponse {
     fn from(group: CurrencyBreakdown) -> Self {
         Self {
+            amount: group
+                .amount
+                .map(|amount| amount.normalized().to_plain_string()),
             currency: group.currency,
             parties: group.parties.into_iter().map(Into::into).collect(),
             top_recipients: group.top_recipients.into_iter().map(Into::into).collect(),
@@ -267,7 +272,22 @@ impl From<CurrencyBreakdown> for CurrencyResponse {
 }
 
 #[derive(Serialize)]
+pub struct FunderDeclarationResponse {
+    member: MemberResponse,
+    declaration: DeclarationResponse,
+}
+impl From<FunderDeclaration> for FunderDeclarationResponse {
+    fn from(source: FunderDeclaration) -> Self {
+        Self {
+            member: source.member.into(),
+            declaration: source.declaration.into(),
+        }
+    }
+}
+
+#[derive(Serialize)]
 pub struct FunderDetailsResponse {
+    declarations: Vec<FunderDeclarationResponse>,
     funder: FunderResponse,
     currencies: Vec<CurrencyResponse>,
     entry_count: i64,
@@ -277,6 +297,7 @@ pub struct FunderDetailsResponse {
 impl From<FunderDetails> for FunderDetailsResponse {
     fn from(details: FunderDetails) -> Self {
         Self {
+            declarations: details.declarations.into_iter().map(Into::into).collect(),
             funder: details.profile.into(),
             currencies: details.currencies.into_iter().map(Into::into).collect(),
             entry_count: details.entry_count,

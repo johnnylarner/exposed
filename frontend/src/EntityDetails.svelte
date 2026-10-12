@@ -4,10 +4,11 @@
   import MemberSummary from "./MemberSummary.svelte";
   import MemberHistory from "./MemberHistory.svelte";
   import Icon from "./lib/Icon.svelte";
-  import { entityHref, funderKindLabel } from "./lib/search";
+  import FunderIdentity from "./FunderIdentity.svelte";
+  import FunderSummary from "./FunderSummary.svelte";
+  import FunderHistory from "./FunderHistory.svelte";
   import {
     backToSearch,
-    formatAmount,
     loadDetails,
     type DetailRoute,
     type DetailState,
@@ -81,139 +82,14 @@
       />{:else}<MemberSummary {details} {summary} />{/if}
   {:else}
     {@const details = detailState.details}
-    <header class="profile-heading">
-      <span class="profile-type"><Icon name="coin" size={22} />Funder</span>
-      <h1>{details.funder.name}</h1>
-      <p class="profile-meta">{funderKindLabel(details.funder.funderKind)}</p>
-      <dl class="profile-facts">
-        {#if details.funder.companyNumber}<div>
-            <dt>Company number</dt>
-            <dd>{details.funder.companyNumber}</dd>
-          </div>{/if}
-        <div>
-          <dt>Recorded support</dt>
-          <dd>
-            {details.entryCount}
-            {details.entryCount === 1 ? "funding entry" : "funding entries"}
-          </dd>
-        </div>
-      </dl>
-    </header>
-    {#if details.funder.aliases.length > 0}
-      <section class="recorded-names" aria-labelledby="recorded-names-heading">
-        <h2 id="recorded-names-heading">Recorded names</h2>
-        <ul>
-          {#each details.funder.aliases as alias}
-            <li>{alias}</li>
-          {/each}
-        </ul>
-      </section>
-    {/if}
-    <p class="summary-context">
-      Declared support is grouped by recipients’ latest stored party. It may
-      include payments or benefits beyond direct donations. Parties do not
-      describe membership when support was received.
-    </p>
-    {#if details.unknownCurrencyCount > 0}<p class="coverage-note">
-        {details.unknownCurrencyCount}
-        {details.unknownCurrencyCount === 1 ? "entry has" : "entries have"} an unknown
-        currency and {details.unknownCurrencyCount === 1 ? "is" : "are"} excluded
-        from totals and rankings.
-      </p>{/if}
-    {#if details.currencies.length === 0}<p class="empty-details">
-        {details.entryCount === 0
-          ? "No funding entries are stored for this funder."
-          : "No known currencies are available for totals or rankings."}
-      </p>
+    <FunderIdentity
+      {details}
+      view={route.kind === "funder" ? route.view : "summary"}
+    />
+    {#if route.kind === "funder" && route.view === "history"}
+      <FunderHistory {details} />
     {:else}
-      {#each details.currencies as group}
-        <section
-          class="currency-section"
-          aria-label={`${group.currency} declared support`}
-        >
-          <h2>{group.currency}</h2>
-          <div class="summary-columns">
-            <div>
-              <h3>Declared support by party</h3>
-              <table>
-                <caption class="visually-hidden"
-                  >{group.currency} declared support by recipients’ latest stored
-                  party</caption
-                ><thead
-                  ><tr
-                    ><th scope="col">Party</th><th scope="col">Known total</th
-                    ></tr
-                  ></thead
-                ><tbody
-                  >{#each group.parties as party}<tr
-                      ><th scope="row"
-                        >{party.partyName || "Party unavailable"}<span
-                          class="entry-count"
-                          >{party.entryCount}
-                          {party.entryCount === 1 ? "entry" : "entries"}</span
-                        ></th
-                      ><td
-                        ><span class="amount">{formatAmount(party.amount)}</span
-                        >{#if party.unknownAmountCount > 0}<span
-                            class="partial-note"
-                            >{party.unknownAmountCount}
-                            {party.unknownAmountCount === 1
-                              ? "amount"
-                              : "amounts"} unavailable</span
-                          >{/if}</td
-                      ></tr
-                    >{/each}</tbody
-                >
-              </table>
-            </div>
-            <div>
-              <h3>Top recipients</h3>
-              <p class="ranking-note">
-                Up to {details.recipientLimit} MPs, ranked by known {group.currency}
-                total.
-              </p>
-              <table>
-                <caption class="visually-hidden"
-                  >Top recipients of {group.currency} declared support</caption
-                ><thead
-                  ><tr
-                    ><th scope="col">MP</th><th scope="col">Known total</th></tr
-                  ></thead
-                ><tbody
-                  >{#each group.topRecipients as recipient}<tr
-                      ><th scope="row"
-                        ><a
-                          href={entityHref({
-                            kind: "MP",
-                            id: recipient.member.id,
-                          })}>{recipient.member.name}</a
-                        ><span class="entry-count"
-                          >{recipient.member.partyName ||
-                            "Party unavailable"}</span
-                        ></th
-                      ><td
-                        ><span class="amount"
-                          >{formatAmount(recipient.amount)}</span
-                        >{#if recipient.unknownAmountCount > 0}<span
-                            class="partial-note"
-                            >{recipient.unknownAmountCount}
-                            {recipient.unknownAmountCount === 1
-                              ? "amount"
-                              : "amounts"} unavailable</span
-                          >{/if}</td
-                      ></tr
-                    >{/each}</tbody
-                >
-              </table>
-            </div>
-          </div>
-        </section>
-      {/each}
+      <FunderSummary {details} />
     {/if}
-    <p class="detail-footnote">
-      Currencies are shown separately without conversion. Known totals include
-      zero and negative declared values. Unavailable amounts are not treated as
-      zero.
-    </p>
   {/if}
 </main>

@@ -159,22 +159,38 @@ fn summarize_funder(funding: FunderFunding) -> FunderDetails {
     let mut entry_count = 0;
     let mut unknown_currency_count = 0;
     let mut currencies: BTreeMap<String, Vec<RecipientAllocation>> = BTreeMap::new();
-    for allocation in funding.allocations {
-        entry_count += allocation.entry_count;
-        if let Some(currency) = &allocation.currency {
-            currencies
-                .entry(currency.clone())
-                .or_default()
-                .push(allocation);
-        } else {
-            unknown_currency_count += allocation.entry_count;
+    let mut recipients: BTreeMap<(String, u32), RecipientAllocation> = BTreeMap::new();
+    for source in &funding.declarations {
+        for entry in &source.declaration.entries {
+            entry_count += 1;
+            let Some(currency) = &entry.currency else {
+                unknown_currency_count += 1;
+                continue;
+            };
+            let allocation = recipients
+                .entry((currency.clone(), source.member.id.value()))
+                .or_insert_with(|| RecipientAllocation {
+                    member: source.member.clone(),
+                    currency: Some(currency.clone()),
+                    known_total: None,
+                    entry_count: 0,
+                    unknown_amount_count: 0,
+                });
+            add_known(&mut allocation.known_total, entry.amount.as_ref());
+            allocation.entry_count += 1;
+            allocation.unknown_amount_count += i64::from(entry.amount.is_none());
         }
+    }
+    for ((currency, _), allocation) in recipients {
+        currencies.entry(currency).or_default().push(allocation);
     }
     let currencies = currencies
         .into_iter()
         .map(|(currency, mut allocations)| {
+            let mut amount = None;
             let mut parties: BTreeMap<(i32, String), PartyTotal> = BTreeMap::new();
             for allocation in &allocations {
+                add_known(&mut amount, allocation.known_total.as_ref());
                 let party = parties
                     .entry((
                         allocation.member.party_id,
@@ -208,6 +224,7 @@ fn summarize_funder(funding: FunderFunding) -> FunderDetails {
             allocations.sort_by(compare_allocations);
             allocations.truncate(TOP_RECIPIENTS);
             CurrencyBreakdown {
+                amount,
                 currency,
                 parties,
                 top_recipients: allocations,
@@ -215,6 +232,7 @@ fn summarize_funder(funding: FunderFunding) -> FunderDetails {
         })
         .collect();
     FunderDetails {
+        declarations: funding.declarations,
         profile: funding.profile,
         currencies,
         entry_count,
