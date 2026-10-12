@@ -48,8 +48,8 @@
     >
       <title id="earnings-title">Weekly registered earnings</title><desc
         id="earnings-description"
-        >Pound amounts by Monday registration week. Exact amounts are available
-        in the weekly earnings table below.</desc
+        >Pound amounts by Monday registration week. Each bar shows its exact
+        amount in its tooltip.</desc
       >
       <text x="0" y="16" class="chart-axis">{formatPounds(maximum)}</text><line
         x1="0"
@@ -92,31 +92,6 @@
     {#if weeks.some((week) => week.incomplete)}<p class="partial-note">
         Some weekly amounts are unavailable.
       </p>{/if}
-    <details class="earnings-values">
-      <summary>View weekly amounts</summary>
-      <table>
-        <caption class="visually-hidden">Weekly registered earnings</caption
-        ><thead
-          ><tr
-            ><th scope="col">Week starting</th><th scope="col"
-              >Declared earnings</th
-            ></tr
-          ></thead
-        ><tbody
-          >{#each weeks as week}<tr
-              ><th scope="row"
-                ><time datetime={week.start}
-                  >{registrationDate(week.start)}</time
-                ></th
-              ><td
-                >{formatPounds(week.amount)}{#if week.incomplete}<span
-                    class="partial-note">Some amounts unavailable</span
-                  >{/if}</td
-              ></tr
-            >{/each}</tbody
-        >
-      </table>
-    </details>
   {:else}<p class="empty-details">
       {undated
         ? "Registration dates are unavailable for earnings."

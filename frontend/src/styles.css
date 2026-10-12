@@ -1181,21 +1181,6 @@ button:disabled {
 .earnings-bar.negative {
   opacity: 0.65;
 }
-.earnings-values {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-.earnings-values summary {
-  cursor: pointer;
-  padding: 8px 0;
-}
-.earnings-values table {
-  width: 100%;
-  margin-top: 12px;
-}
-.earnings-values td {
-  text-align: right;
-}
 @media (max-width: 800px) {
   .member-identity {
     grid-template-columns: minmax(0, 1fr);

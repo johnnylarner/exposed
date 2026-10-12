@@ -322,8 +322,10 @@ test("member summary shows recent declarations when none are donations", async (
   await expect(
     page.getByRole("img", { name: "Weekly registered earnings" }),
   ).toBeVisible();
-  await page.getByText("View weekly amounts", { exact: true }).click();
-  await expect(page.getByRole("table")).toContainText(
+  await expect(
+    page.getByText("View weekly amounts", { exact: true }),
+  ).toHaveCount(0);
+  await expect(page.locator(".earnings-chart rect title")).toContainText(
     "£18,014,398,509,481,986.246913578",
   );
   await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
