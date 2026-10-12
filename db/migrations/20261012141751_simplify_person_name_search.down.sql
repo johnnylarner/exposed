@@ -103,4 +103,3 @@ BEGIN
     RETURN total_distance;
 END
 $$;
-
