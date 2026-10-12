@@ -1,6 +1,6 @@
 <script lang="ts">
   import MemberDeclarations from "./MemberDeclarations.svelte";
-  import MemberEarningsChart from "./MemberEarningsChart.svelte";
+  import RegistrationTimeline from "./RegistrationTimeline.svelte";
   import {
     categoryBars,
     memberHref,
@@ -44,7 +44,11 @@
       </ul>
     {:else}<p class="empty-details">No known declared values available.</p>{/if}
   </section>
-  <MemberEarningsChart weeks={summary.earnings} undated={summary.undated} />
+  <RegistrationTimeline
+    context="earnings"
+    months={summary.earnings}
+    undated={summary.undated}
+  />
 </div>
 <section aria-labelledby="recent-declarations-heading">
   <div class="detail-section-heading">

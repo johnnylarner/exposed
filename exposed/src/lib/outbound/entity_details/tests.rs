@@ -141,6 +141,7 @@ async fn member_summary_covers_complete_history_and_classifies_by_source_id(pool
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
 async fn exact_summaries_exclude_unknown_currencies_and_keep_local_coverage(pool: PgPool) {
+    sqlx::query!("INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency, payment_type) VALUES (120, '10000000-0000-0000-0000-000000000004', 999999, 'GBP', 'Other funder')").execute(&pool).await.unwrap();
     let db = ExposedDatabase::from(pool);
     let raw = db
         .funder_funding(FUNDER.parse().unwrap())
@@ -148,11 +149,37 @@ async fn exact_summaries_exclude_unknown_currencies_and_keep_local_coverage(pool
         .unwrap()
         .unwrap();
     assert_eq!(raw.profile.aliases, ALIASES);
+    assert_eq!(raw.declarations.len(), 14);
+    let source = &raw.declarations[0];
+    assert_eq!(source.member.id.value(), 1);
+    assert_eq!(source.declaration.source_id, 120);
+    assert_eq!(source.declaration.entries.len(), 9);
+    assert_eq!(
+        source.declaration.entries[0].amount,
+        source.declaration.entries[1].amount
+    );
     assert!(
-        raw.allocations
+        source
+            .declaration
+            .entries
             .iter()
-            .filter(|allocation| allocation.currency.is_none())
-            .all(|allocation| allocation.known_total.is_none())
+            .all(|entry| entry.funder.as_ref().unwrap().id == FUNDER.parse().unwrap())
+    );
+    assert_eq!(
+        source
+            .declaration
+            .entries
+            .iter()
+            .filter(|entry| entry.currency.is_none())
+            .count(),
+        5
+    );
+    assert!(
+        source
+            .declaration
+            .entries
+            .iter()
+            .any(|entry| entry.currency.is_none() && entry.amount == Some(BigDecimal::from(999)))
     );
     let details = Service::new(db)
         .funder(FUNDER.parse().unwrap())
@@ -175,6 +202,19 @@ async fn exact_summaries_exclude_unknown_currencies_and_keep_local_coverage(pool
     assert_eq!(eur.parties[0].unknown_amount_count, 1);
     assert!(eur.top_recipients[0].known_total.is_none());
     let gbp = &details.currencies[1];
+    assert_eq!(
+        gbp.amount,
+        Some("18014398509481993.246913578".parse::<BigDecimal>().unwrap())
+    );
+    assert!(eur.amount.is_none());
+    assert_eq!(
+        details
+            .declarations
+            .iter()
+            .map(|source| source.declaration.entries.len())
+            .sum::<usize>(),
+        25
+    );
     assert_eq!(
         gbp.parties[0].amount,
         Some("18014398509481998.246913578".parse::<BigDecimal>().unwrap())
@@ -344,6 +384,19 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
     assert_eq!(
         body["currencies"][1]["parties"][0]["amount"],
         "18014398509481998.246913578"
+    );
+    assert_eq!(
+        body["currencies"][1]["amount"],
+        "18014398509481993.246913578"
+    );
+    assert_eq!(body["declarations"][0]["declaration"]["source_id"], 120);
+    assert_eq!(body["declarations"][0]["member"]["id"], "1");
+    assert_eq!(
+        body["declarations"][0]["declaration"]["entries"]
+            .as_array()
+            .unwrap()
+            .len(),
+        9
     );
     let response = client
         .get(format!(
