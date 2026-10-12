@@ -113,7 +113,6 @@ pub struct MemberDetailsResponse {
     member: MemberResponse,
     declarations: Vec<DeclarationResponse>,
     summary: MemberSummaryResponse,
-    recent_support: Vec<DeclarationResponse>,
 }
 impl From<MemberDetails> for MemberDetailsResponse {
     fn from(details: MemberDetails) -> Self {
@@ -121,7 +120,6 @@ impl From<MemberDetails> for MemberDetailsResponse {
             member: details.member.into(),
             declarations: details.declarations.into_iter().map(Into::into).collect(),
             summary: details.summary.into(),
-            recent_support: details.recent_support.into_iter().map(Into::into).collect(),
         }
     }
 }

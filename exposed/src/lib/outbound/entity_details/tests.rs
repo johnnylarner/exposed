@@ -91,20 +91,6 @@ async fn member_summary_covers_complete_history_and_classifies_by_source_id(pool
     assert_eq!(details.summary.unknown_currency_count, 7);
     assert_eq!(details.summary.undated_declaration_count, 2);
     assert_eq!(
-        details
-            .recent_support
-            .iter()
-            .map(|d| d.source_id)
-            .collect::<Vec<_>>(),
-        [104, 103, 102, 101, 100]
-    );
-    assert!(
-        details
-            .recent_support
-            .iter()
-            .all(|d| d.category.is_donation_support())
-    );
-    assert_eq!(
         details.declarations[22].category,
         DeclarationCategory::Other(987)
     );
@@ -291,8 +277,7 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
     assert_eq!(body["member"]["id"], "1");
     assert_eq!(body["declarations"].as_array().unwrap().len(), 23);
     assert_eq!(body["declarations"][0]["category_id"], 1);
-    assert_eq!(body["recent_support"].as_array().unwrap().len(), 5);
-    assert_eq!(body["recent_support"][0]["source_id"], 104);
+    assert!(body.get("recent_support").is_none());
     assert_eq!(
         body["summary"]["currencies"][1]["amount"],
         "18014398509481983.996913578"

@@ -162,8 +162,6 @@ pub struct MemberDetails {
     pub declarations: Vec<MemberDeclaration>,
     /// Exact complete-history totals.
     pub summary: MemberSummary,
-    /// Five latest donation/support declarations.
-    pub recent_support: Vec<MemberDeclaration>,
 }
 
 /// Canonical funder profile with recorded names.

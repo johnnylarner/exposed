@@ -53,7 +53,6 @@ export interface MemberDeclaration {
 export interface MemberDetails {
   member: MemberProfile;
   declarations: MemberDeclaration[];
-  recentSupport: MemberDeclaration[];
   summary: {
     currencies: (Total & {
       currency: string;
@@ -186,7 +185,6 @@ function readMember(value: unknown): MemberDetails {
   return {
     member: memberProfile(row.member),
     declarations: list(row.declarations).map(declaration),
-    recentSupport: list(row.recent_support).map(declaration),
     summary: {
       entryCount: count(summary.entry_count),
       unknownCurrencyCount: count(summary.unknown_currency_count),
