@@ -132,11 +132,20 @@ assets in `frontend/dist`; a production host must also route `/api/search` to
 the Rust API.
 
 The similarity threshold slider refreshes results automatically: lower values
-include broader matches, from 0 to 1 in steps of 0.01 (default 1). The search URL
+include broader matches, from 0 to 1 in steps of 0.01 (default 0.8). The search URL
 preserves the query and threshold, for example `/?q=John&strictness=0.65`.
 Search delay, result limits and defaults live in
 [`frontend/src/lib/search.ts`](frontend/src/lib/search.ts). The API caps each entity type separately, so the UI describes the returned
 results without claiming a total count or offering unsupported pagination.
+The API also defaults to `0.8` when `strictness` is omitted. Explicit thresholds
+control primary trigram matches. When these contain no MP or Individual funder,
+search appends phonetic person matches after the primary results. Organization
+matches do not suppress this fallback. Each query word must match a distinct
+name word with the same Soundex code and at most one edit. Extra name words are
+allowed; words from different aliases cannot combine. Fallback results rank by
+total edits, then trigram similarity and stable identity. Canonical names win
+alias ties. Primary and fallback funders share the per-type result limit.
+
 In-app feedback collection is future work. Feedback is gathered through manual
 testing.
 

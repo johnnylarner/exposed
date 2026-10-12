@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 use crate::domain::models::{
-    entity_search::EntitySearchRequest,
+    entity_search::{EntitySearchRequest, PhoneticRank},
     parliament_member::{MemberId, ParliamentMember},
     search_similarity::SearchSimilarity,
 };
@@ -19,6 +19,14 @@ pub trait ParliamentMemberRepo: Clone + Send + Sync + 'static {
         params: &EntitySearchRequest,
     ) -> impl Future<
         Output = Result<Vec<(ParliamentMember, SearchSimilarity)>, ParliamentMemberRepoError>,
+    > + Send;
+
+    /// Members whose name words match the phonetic query.
+    fn get_members_by_phonetic_search(
+        &self,
+        req: &EntitySearchRequest,
+    ) -> impl Future<
+        Output = Result<Vec<(ParliamentMember, PhoneticRank)>, ParliamentMemberRepoError>,
     > + Send;
 
     /// Inserts members or updates existing members with matching Parliament IDs.

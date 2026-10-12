@@ -4,7 +4,7 @@ export const searchConfiguration = {
   minimumCharacters: 3,
   debounceMs: 250,
   maxEntriesPerType: 10,
-  strictness: 1,
+  strictness: 0.8,
   timeoutMs: 10_000,
 };
 

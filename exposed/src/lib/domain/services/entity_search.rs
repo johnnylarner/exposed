@@ -49,8 +49,42 @@ where
             .get_funders_by_text_search_score(req)
             .await?;
 
-        let scored = merge_scores(&mps, &funders);
-        Ok(scored)
+        let mut results = merge_scores(&mps, &funders.matches);
+        if mps.is_empty() && !funders.has_qualifying_individual {
+            let fallback_mps = self.mp_repo.get_members_by_phonetic_search(req).await?;
+            let fallback_funders = self.funder_repo.get_funders_by_phonetic_search(req).await?;
+            let remaining = usize::from(req.max_entries()).saturating_sub(funders.matches.len());
+            let mut fallback: Vec<_> = fallback_mps
+                .into_iter()
+                .map(|(mp, rank)| (Entity::ParliamentMember(mp), rank))
+                .chain(
+                    fallback_funders
+                        .into_iter()
+                        .filter(|(funder, _)| {
+                            !funders
+                                .matches
+                                .iter()
+                                .any(|(primary, _)| primary.funder().id() == funder.funder().id())
+                        })
+                        .take(remaining)
+                        .map(|(funder, rank)| (Entity::Funder(funder), rank)),
+                )
+                .collect();
+            fallback.sort_by(|(left, a), (right, b)| {
+                a.compare(b).then_with(|| match (left, right) {
+                    (Entity::ParliamentMember(a), Entity::ParliamentMember(b)) => {
+                        a.member_id().value().cmp(&b.member_id().value())
+                    }
+                    (Entity::Funder(a), Entity::Funder(b)) => {
+                        a.funder().id().value().cmp(&b.funder().id().value())
+                    }
+                    (Entity::ParliamentMember(_), Entity::Funder(_)) => std::cmp::Ordering::Less,
+                    (Entity::Funder(_), Entity::ParliamentMember(_)) => std::cmp::Ordering::Greater,
+                })
+            });
+            results.extend(fallback.into_iter().map(|(entity, _)| entity));
+        }
+        Ok(results)
     }
 }
 
@@ -439,5 +473,195 @@ mod provenance {
             panic!("expected funder");
         };
         assert_eq!(result.source(), &source);
+    }
+}
+
+#[cfg(test)]
+mod phonetic_regression {
+    use super::*;
+    use crate::outbound::ExposedDatabase;
+    use sqlx::PgPool;
+
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures("../../../../../db/fixtures/add_members.sql")
+    )]
+    async fn jahn_finds_john_after_primary_organization(pool: PgPool) -> sqlx::Result<()> {
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('Jahn Foundation', 'Company')").execute(&pool).await?;
+        let db = ExposedDatabase::from(pool);
+        let results = Service::new(db.clone(), db)
+            .search_entities(
+                &EntitySearchRequest::new_with_strictness("jahn".into(), 10, 0.8).unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            results.iter().map(Entity::name).collect::<Vec<_>>(),
+            vec!["Jahn Foundation", "John McDonnell", "John Humphries"]
+        );
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod fallback_contract {
+    use super::*;
+    use crate::domain::models::entity_search::SearchMatchSource;
+    use crate::outbound::ExposedDatabase;
+    use sqlx::PgPool;
+
+    fn request(term: &str, limit: u8) -> EntitySearchRequest {
+        EntitySearchRequest::new_with_strictness(term.into(), limit, 0.8).unwrap()
+    }
+
+    #[sqlx::test(
+        migrations = "../db/migrations",
+        fixtures("../../../../../db/fixtures/add_members.sql")
+    )]
+    async fn primary_people_suppress_fallback_before_limits(pool: PgPool) -> sqlx::Result<()> {
+        let db = ExposedDatabase::from(pool.clone());
+        let service = Service::new(db.clone(), db);
+        let company = uuid::Uuid::from_u128(1);
+        let person = uuid::Uuid::from_u128(2);
+        sqlx::query!("INSERT INTO exposed.funders (id, funder_name, funder_kind) VALUES ($1, 'Jahn', 'Company'), ($2, 'Jahn Person', 'Individual')", company, person).execute(&pool).await?;
+        let results = service.search_entities(&request("jahn", 1)).await.unwrap();
+        assert_eq!(
+            results.iter().map(Entity::name).collect::<Vec<_>>(),
+            vec!["Jahn"]
+        );
+        let results = service.search_entities(&request("jahn", 10)).await.unwrap();
+        assert_eq!(
+            results.iter().map(Entity::name).collect::<Vec<_>>(),
+            vec!["Jahn", "Jahn Person"]
+        );
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('Jahn Fallback', 'Individual')").execute(&pool).await?;
+        let results = service.search_entities(&request("john", 10)).await.unwrap();
+        assert_eq!(results.len(), 2);
+        assert!(
+            results
+                .iter()
+                .all(|entity| matches!(entity, Entity::ParliamentMember(_)))
+        );
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn aliases_deduplicate_and_share_the_funder_cap(pool: PgPool) -> sqlx::Result<()> {
+        let person = uuid::Uuid::from_u128(1);
+        sqlx::query!("INSERT INTO exposed.funders (id, funder_name, funder_kind) VALUES ($1, 'Unrelated Identity', 'Individual')", person).execute(&pool).await?;
+        for alias in ["John", "JOHN", "John Smith"] {
+            sqlx::query!(
+                "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, $2)",
+                person,
+                alias
+            )
+            .execute(&pool)
+            .await?;
+        }
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('Jahn Foundation', 'Company'), ('John Brown', 'Individual'), ('John Company', 'Company')").execute(&pool).await?;
+        let db = ExposedDatabase::from(pool);
+        let service = Service::new(db.clone(), db);
+        let results = service.search_entities(&request("jahn", 2)).await.unwrap();
+        assert_eq!(
+            results.iter().map(Entity::name).collect::<Vec<_>>(),
+            vec!["Jahn Foundation", "Unrelated Identity"]
+        );
+        let Entity::Funder(found) = &results[1] else {
+            panic!("expected funder");
+        };
+        assert_eq!(found.funder().id().value(), person);
+        assert_eq!(
+            found.source(),
+            &SearchMatchSource::Alias {
+                name: "JOHN".into()
+            }
+        );
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn words_require_distinct_positions_and_bounded_distance(
+        pool: PgPool,
+    ) -> sqlx::Result<()> {
+        for (query, candidate, expected) in [
+            ("jahn mcdonnell", "John McDonnell", Some(1)),
+            ("jahn unrelated", "John McDonnell", None),
+            ("jahn jahn", "John", None),
+            ("jahn jahn", "John John", Some(2)),
+            ("jahn", "Sir John Smith", Some(1)),
+            ("jahn", "Jonathan", None),
+            ("!!!", "John", None),
+        ] {
+            let actual = sqlx::query_scalar!(
+                "SELECT exposed.person_name_distance($1, $2)",
+                query,
+                candidate
+            )
+            .fetch_one(&pool)
+            .await?;
+            assert_eq!(actual, expected, "{query} / {candidate}");
+        }
+        let long = "a".repeat(256);
+        for (query, candidate) in [
+            (format!("john {long}"), "John".to_owned()),
+            ("john".to_owned(), long),
+        ] {
+            let actual = sqlx::query_scalar!(
+                "SELECT exposed.person_name_distance($1, $2)",
+                query,
+                candidate
+            )
+            .fetch_one(&pool)
+            .await?;
+            assert_eq!(actual, None);
+        }
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn ambiguous_words_find_minimum_assignment_within_timeout(
+        pool: PgPool,
+    ) -> sqlx::Result<()> {
+        let mut transaction = pool.begin().await?;
+        sqlx::query!("SET LOCAL statement_timeout = '2s'")
+            .execute(&mut *transaction)
+            .await?;
+        let candidate = (0..10)
+            .map(|index| format!("john{index}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let nonexact = (0..10)
+            .map(|index| format!("joan{index}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        for (query, candidate, expected) in [
+            (candidate.as_str(), candidate.as_str(), 0),
+            (nonexact.as_str(), candidate.as_str(), 10),
+            ("john jahn", "john joan", 2),
+        ] {
+            let actual = sqlx::query_scalar!(
+                "SELECT exposed.person_name_distance($1, $2)",
+                query,
+                candidate
+            )
+            .fetch_one(&mut *transaction)
+            .await?;
+            assert_eq!(actual, Some(expected), "{query} / {candidate}");
+        }
+        transaction.rollback().await?;
+        Ok(())
+    }
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn ranks_by_distance_before_repository_limit(pool: PgPool) -> sqlx::Result<()> {
+        sqlx::query!("INSERT INTO exposed.funders (funder_name, funder_kind) VALUES ('John Smith', 'Individual'), ('Jahn Smith Extra Words', 'Individual')").execute(&pool).await?;
+        let db = ExposedDatabase::from(pool);
+        let rows = db
+            .get_funders_by_phonetic_search(&request("jahn smyth", 1))
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0.funder().name(), "Jahn Smith Extra Words");
+        Ok(())
     }
 }

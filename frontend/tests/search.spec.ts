@@ -74,7 +74,7 @@ test("live search preserves API ranking, spelling, duplicates and entity context
   expect(requests).toHaveLength(1);
   expect(requests[0].searchParams.get("term")).toBe("John");
   expect(requests[0].searchParams.get("max_entries")).toBe("10");
-  expect(requests[0].searchParams.get("strictness")).toBe("1");
+  expect(requests[0].searchParams.get("strictness")).toBe("0.8");
   await expect(page.locator(".entity-name")).toHaveText(
     entities.map((entity) => entity.name),
   );

@@ -29,7 +29,11 @@ impl SearchEntitiesHttpRequest {
     fn try_into_domain(self) -> Result<EntitySearchRequest, EntitySearchError> {
         match self.strictness {
             Some(s) => EntitySearchRequest::new_with_strictness(self.term, self.max_entries, s),
-            None => EntitySearchRequest::new_strict(self.term, self.max_entries),
+            None => EntitySearchRequest::new_with_strictness(
+                self.term,
+                self.max_entries,
+                crate::domain::models::entity_search::DEFAULT_SEARCH_STRICTNESS,
+            ),
         }
     }
 }
@@ -136,6 +140,34 @@ mod search_source {
         assert_eq!(
             serde_json::to_value(SearchEntity::from(&mp)).unwrap()["match_source"],
             serde_json::json!({"kind": "name"})
+        );
+    }
+}
+
+#[cfg(test)]
+mod search_defaults {
+    use super::SearchEntitiesHttpRequest;
+    use crate::domain::models::entity_search::EntitySearchRequest;
+
+    #[test]
+    fn defaults_to_point_eight_and_preserves_explicit_strictness() {
+        for (json, expected) in [
+            (r#"{"term":"John","max_entries":10}"#, 0.8_f32),
+            (r#"{"term":"John","max_entries":10,"strictness":1}"#, 1.0),
+            (r#"{"term":"John","max_entries":10,"strictness":0}"#, 0.0),
+        ] {
+            let request: SearchEntitiesHttpRequest = serde_json::from_str(json).unwrap();
+            assert_eq!(
+                request.try_into_domain().unwrap().strictness().to_bits(),
+                expected.to_bits()
+            );
+        }
+        assert_eq!(
+            EntitySearchRequest::new_strict("John".into(), 10)
+                .unwrap()
+                .strictness()
+                .to_bits(),
+            1.0_f32.to_bits()
         );
     }
 }
