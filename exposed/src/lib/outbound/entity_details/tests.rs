@@ -19,19 +19,18 @@ const ALIASES: [&str; 5] = [
 ];
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
-async fn recent_window_preserves_occurrences_and_empty_declarations(pool: PgPool) {
+async fn complete_history_preserves_occurrences_and_empty_declarations(pool: PgPool) {
     let db = ExposedDatabase::from(pool);
     let service = Service::new(db);
     let details = service.member("1".parse().unwrap()).await.unwrap();
-    assert_eq!(details.declaration_count, 23);
-    assert_eq!(details.declaration_limit, 20);
+    assert_eq!(details.declarations.len(), 23);
     assert_eq!(
         details
             .declarations
             .iter()
             .map(|declaration| declaration.source_id)
             .collect::<Vec<_>>(),
-        (101..=120).rev().collect::<Vec<_>>()
+        (100..=120).rev().chain([122, 121]).collect::<Vec<_>>()
     );
     assert_eq!(details.declarations[0].entries.len(), 10);
     let duplicate = details.declarations[0]
@@ -51,7 +50,7 @@ async fn recent_window_preserves_occurrences_and_empty_declarations(pool: PgPool
                 && entry.currency.is_none())
     );
     assert!(
-        details.declarations[1..]
+        details.declarations[1..16]
             .iter()
             .all(|declaration| declaration.entries.is_empty())
     );
@@ -81,6 +80,77 @@ async fn recent_window_preserves_occurrences_and_empty_declarations(pool: PgPool
     let former_mp = service.member("16".parse().unwrap()).await.unwrap();
     assert_eq!(former_mp.member.membership_from, "Life peer");
     assert!(!former_mp.member.is_current_commons);
+}
+
+#[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
+async fn member_summary_covers_complete_history_and_classifies_by_source_id(pool: PgPool) {
+    use crate::domain::models::entity_details::DeclarationCategory;
+    let service = Service::new(ExposedDatabase::from(pool));
+    let details = service.member("1".parse().unwrap()).await.unwrap();
+    assert_eq!(details.summary.entry_count, 18);
+    assert_eq!(details.summary.unknown_currency_count, 7);
+    assert_eq!(details.summary.undated_declaration_count, 2);
+    assert_eq!(
+        details
+            .recent_support
+            .iter()
+            .map(|d| d.source_id)
+            .collect::<Vec<_>>(),
+        [104, 103, 102, 101, 100]
+    );
+    assert!(
+        details
+            .recent_support
+            .iter()
+            .all(|d| d.category.is_donation_support())
+    );
+    assert_eq!(
+        details.declarations[22].category,
+        DeclarationCategory::Other(987)
+    );
+    assert_eq!(details.declarations[22].category.source_id(), 987);
+    assert_eq!(
+        details
+            .summary
+            .currencies
+            .iter()
+            .map(|group| group.currency.as_str())
+            .collect::<Vec<_>>(),
+        ["EUR", "GBP", "JPY", "USD"]
+    );
+    let gbp = &details.summary.currencies[1];
+    assert_eq!(
+        gbp.amount,
+        Some("18014398509481983.996913578".parse::<BigDecimal>().unwrap())
+    );
+    let support = gbp
+        .categories
+        .iter()
+        .find(|category| category.category.is_donation_support())
+        .unwrap();
+    assert_eq!(support.amount, Some(BigDecimal::from(0)));
+    assert_eq!(support.entry_count, 4);
+    let unknown = gbp
+        .categories
+        .iter()
+        .find(|category| category.category == DeclarationCategory::Other(987))
+        .unwrap();
+    assert_eq!(unknown.category_name, "Unrecognized source category");
+    assert_eq!(unknown.amount, Some("-2.25".parse::<BigDecimal>().unwrap()));
+    assert!(details.summary.currencies[0].amount.is_none());
+    assert_eq!(details.summary.currencies[0].unknown_amount_count, 1);
+    assert_eq!(
+        details.summary.currencies[2].amount,
+        Some(BigDecimal::from(0))
+    );
+    assert_eq!(
+        details.summary.currencies[3].amount,
+        Some(BigDecimal::from(100))
+    );
+    let empty = service.member("3".parse().unwrap()).await.unwrap();
+    assert!(empty.summary.currencies.is_empty());
+    assert_eq!(empty.summary.entry_count, 0);
+    assert!(empty.summary.first_registered_at.is_none());
 }
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
@@ -219,7 +289,21 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
     assert_eq!(response.status(), reqwest::StatusCode::OK);
     let body: serde_json::Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
     assert_eq!(body["member"]["id"], "1");
-    assert_eq!(body["declarations"].as_array().unwrap().len(), 20);
+    assert_eq!(body["declarations"].as_array().unwrap().len(), 23);
+    assert_eq!(body["declarations"][0]["category_id"], 1);
+    assert_eq!(body["recent_support"].as_array().unwrap().len(), 5);
+    assert_eq!(body["recent_support"][0]["source_id"], 104);
+    assert_eq!(
+        body["summary"]["currencies"][1]["amount"],
+        "18014398509481983.996913578"
+    );
+    assert_eq!(
+        body["summary"]["currencies"][0]["amount"],
+        serde_json::Value::Null
+    );
+    assert_eq!(body["summary"]["currencies"][2]["amount"], "0");
+    assert!(body.get("declaration_limit").is_none());
+
     let entries = body["declarations"][0]["entries"].as_array().unwrap();
     assert_eq!(
         entries
@@ -229,6 +313,16 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
         2
     );
     assert!(entries.iter().any(|entry| entry["funder"].is_null()));
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry["amount"] == "888" && entry["currency"].is_null())
+    );
+    assert!(
+        entries
+            .iter()
+            .any(|entry| entry["amount"] == "100" && entry["currency"] == "USD")
+    );
     let response = client
         .get(format!("{origin}/funders/{FUNDER}"))
         .send()

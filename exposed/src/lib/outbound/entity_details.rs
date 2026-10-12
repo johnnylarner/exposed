@@ -2,8 +2,9 @@ use crate::{
     domain::{
         models::{
             entity_details::{
-                DeclaredFunding, FunderFunding, FunderProfile, FunderReference, MemberDetails,
-                MemberProfile, RecentDeclaration, RecipientAllocation,
+                DeclarationCategory, DeclaredFunding, FunderFunding, FunderProfile,
+                FunderReference, MemberDeclaration, MemberHistory, MemberProfile,
+                RecipientAllocation,
             },
             funder::{Funder, FunderId, FunderKind},
             parliament_member::MemberId,
@@ -17,18 +18,13 @@ use std::str::FromStr;
 const CURRENCY_WHITESPACE: &str = "\t\n\u{000b}\u{000c}\r \u{0085}\u{00a0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200a}\u{2028}\u{2029}\u{202f}\u{205f}\u{3000}\u{feff}";
 
 impl EntityDetailsRepo for ExposedDatabase {
-    async fn member(
-        &self,
-        id: MemberId,
-        recent_limit: usize,
-    ) -> Result<Option<MemberDetails>, EntityDetailsRepoError> {
+    async fn member(&self, id: MemberId) -> Result<Option<MemberHistory>, EntityDetailsRepoError> {
         let mut tx = self.pool().begin().await?;
         sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             .execute(&mut *tx)
             .await?;
         let row = sqlx::query!(
-            "SELECT parliament_member_id, name, party_id, party_name, latest_membership_from, is_current_commons,
-                (SELECT count(*) FROM exposed.declarations d WHERE d.member_id = m.id) AS \"declaration_count!\"
+            "SELECT parliament_member_id, name, party_id, party_name, latest_membership_from, is_current_commons
              FROM exposed.members m WHERE parliament_member_id = $1", i32::try_from(id.value()).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?
         ).fetch_optional(&mut *tx).await?;
         let Some(row) = row else {
@@ -43,28 +39,26 @@ impl EntityDetailsRepo for ExposedDatabase {
             is_current_commons: row.is_current_commons,
         };
         let rows = sqlx::query!(
-            "WITH recent AS (
-                SELECT d.source_declaration_id, d.category_name, d.registration_date
-                FROM exposed.declarations d JOIN exposed.members m ON m.id = d.member_id
-                WHERE m.parliament_member_id = $1
-                ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC LIMIT $2
-             )
-             SELECT d.source_declaration_id, d.category_name, d.registration_date,
-                e.id AS \"entry_id?\", e.amount, e.currency, e.payment_type, f.id AS \"funder_id?\", f.funder_name AS \"funder_name?\"
-             FROM recent d LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id
+            "SELECT d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
+                e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $2), '') AS currency,
+                e.payment_type, f.id AS \"funder_id?\", f.funder_name AS \"funder_name?\"
+             FROM exposed.declarations d JOIN exposed.members m ON m.id = d.member_id
+             LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id
              LEFT JOIN exposed.funders f ON f.id = e.funder_id
+             WHERE m.parliament_member_id = $1
              ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
              i32::try_from(id.value()).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?,
-             i64::try_from(recent_limit).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?
+             CURRENCY_WHITESPACE
         ).fetch_all(&mut *tx).await?;
-        let mut declarations: Vec<RecentDeclaration> = Vec::new();
+        let mut declarations: Vec<MemberDeclaration> = Vec::new();
         for row in rows {
             if declarations
                 .last()
                 .is_none_or(|declaration| declaration.source_id != row.source_declaration_id)
             {
-                declarations.push(RecentDeclaration {
+                declarations.push(MemberDeclaration {
                     source_id: row.source_declaration_id,
+                    category: DeclarationCategory::from_source_id(row.category_id),
                     category_name: row.category_name,
                     registered_at: row
                         .registration_date
@@ -102,11 +96,9 @@ impl EntityDetailsRepo for ExposedDatabase {
             }
         }
         tx.commit().await?;
-        Ok(Some(MemberDetails {
+        Ok(Some(MemberHistory {
             member,
             declarations,
-            declaration_count: row.declaration_count,
-            declaration_limit: recent_limit,
         }))
     }
 
