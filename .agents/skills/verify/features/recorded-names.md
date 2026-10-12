@@ -19,9 +19,11 @@ Preconditions: launch the snapshot API using the verify skill.
 
 - Run `./scripts/check-search-regression.py "$base_url" "$evidence_dir/http"` once for the whole map.
 - Require `PASS unite-recorded-names` and `PASS hsbc-recorded-names`.
-- Compare each response's `funder` object with the independent JSON expectation. IDs, canonical names, funder kinds, company numbers, and the exact alias arrays must remain unchanged.
+- Compare each response's `funder` object with the independent JSON expectation. Canonical names, funder kinds, company numbers, and the exact alias arrays must remain unchanged.
 
 ## Gotchas
+
+- IDs are arbitrary. Follow the current search result to fetch details and omit IDs from comparisons.
 
 - A renamed, added, removed, reordered, or differently capitalized alias fails this check.
 - Updating a frozen expectation to match a changed result would erase the regression signal. First identify whether code or snapshot data changed.

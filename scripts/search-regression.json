@@ -10,7 +10,6 @@
     "field": "entities",
     "expected": [
       {
-        "id": "01a1212e-10b8-799c-b505-8bf6a0616931",
         "name": "Unite the Union",
         "kind": "Funder",
         "funder_kind": "Trade Union",
@@ -31,7 +30,6 @@
     "field": "entities",
     "expected": [
       {
-        "id": "01a1212e-10b8-799c-b505-8bf6a0616931",
         "name": "Unite the Union",
         "kind": "Funder",
         "funder_kind": "Trade Union",
@@ -41,7 +39,6 @@
         }
       },
       {
-        "id": "01a1212e-16d9-7c26-b749-af7f2c744c4c",
         "name": "Communication Workers Union West Midlands",
         "kind": "Funder",
         "funder_kind": "Trade Union",
@@ -50,7 +47,6 @@
         }
       },
       {
-        "id": "01a1212e-1980-7f89-8bed-3b8037b2e1d2",
         "name": "UNISON West Midlands",
         "kind": "Funder",
         "funder_kind": "Trade Union",
@@ -71,7 +67,6 @@
     "field": "entities",
     "expected": [
       {
-        "id": "01a1212e-1192-768c-b3c9-ad2a094624e0",
         "name": "HSBC UK Bank plc",
         "kind": "Funder",
         "funder_kind": "Company",
@@ -83,11 +78,9 @@
   },
   {
     "name": "unite-recorded-names",
-    "path": "/funders/01a1212e-10b8-799c-b505-8bf6a0616931",
     "params": {},
     "field": "funder",
     "expected": {
-      "id": "01a1212e-10b8-799c-b505-8bf6a0616931",
       "name": "Unite the Union",
       "funder_kind": "Trade Union",
       "company_number": null,
@@ -106,15 +99,14 @@
         "Unite the Union Parliamentary Staff Branch",
         "Unite the Union West Midlands"
       ]
-    }
+    },
+    "search": "unite"
   },
   {
     "name": "hsbc-recorded-names",
-    "path": "/funders/01a1212e-1192-768c-b3c9-ad2a094624e0",
     "params": {},
     "field": "funder",
     "expected": {
-      "id": "01a1212e-1192-768c-b3c9-ad2a094624e0",
       "name": "HSBC UK Bank plc",
       "funder_kind": "Company",
       "company_number": "9928412",
@@ -123,6 +115,7 @@
         "HSBC UK Bank PLC",
         "HSBC UK Bank plc"
       ]
-    }
+    },
+    "search": "hsbc"
   }
 ]

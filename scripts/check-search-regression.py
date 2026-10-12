@@ -14,9 +14,20 @@ args = parser.parse_args()
 cases = json.loads(args.cases.read_text())
 args.evidence_dir.mkdir(parents=True, exist_ok=False)
 failed = False
+search_results = {}
 
 for case in cases:
-    url = args.base_url.rstrip("/") + case["path"]
+    if "search" in case:
+        matches = [entity for entity in search_results[case["search"]]
+                   if entity["kind"] == "Funder" and entity["name"] == case["expected"]["name"]]
+        if len(matches) != 1:
+            failed = True
+            print(f"FAIL {case['name']}: expected one canonical funder, found {len(matches)}")
+            continue
+        path = f"/funders/{matches[0]['id']}"
+    else:
+        path = case["path"]
+    url = args.base_url.rstrip("/") + path
     if case["params"]:
         url += "?" + urlencode(case["params"])
     prefix = args.evidence_dir / case["name"]
@@ -25,6 +36,12 @@ for case in cases:
         body = response.read()
         prefix.with_suffix(".response.json").write_bytes(body)
         actual = json.loads(body)[case["field"]]
+    if case["field"] == "entities":
+        search_results[case["name"]] = actual
+        actual = [{key: value for key, value in entity.items() if key != "id"}
+                  for entity in actual]
+    else:
+        actual = {key: value for key, value in actual.items() if key != "id"}
     expected_text = json.dumps(case["expected"], indent=2, sort_keys=True) + "\n"
     actual_text = json.dumps(actual, indent=2, sort_keys=True) + "\n"
     difference = "".join(difflib.unified_diff(

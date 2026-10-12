@@ -67,7 +67,7 @@ Run the executable [HTTP check](../../../scripts/check-search-regression.py):
 ```
 
 Require five `PASS` lines and exit code 0. Cases and accepted results live in
-`scripts/search-regression.json`. Keep the exact entity order, IDs, names,
+`scripts/search-regression.json`. Keep the exact entity order, names,
 match provenance, and recorded alias lists. The script has no baseline-update
 mode. Investigate a diff before changing expectations.
 
@@ -75,8 +75,9 @@ mode. Investigate a diff before changing expectations.
 
 Retain `server.log` and the `http` directory under the printed `evidence_dir`.
 Each case stores the GET URL, complete HTTP response, expected selected field,
-and comparison diff. Search compares the complete entity array. Funder detail
-compares the complete funder profile, including its recorded name and aliases.
+and comparison diff. Search compares the entity array with IDs omitted. Funder detail compares the
+funder profile with its ID omitted, including its recorded name and aliases.
+Detail URLs use IDs from the current search response, never frozen IDs.
 Funding totals are outside this check.
 
 Use the real `/search` and `/funders/{UUID}` routes. Do not replace them with

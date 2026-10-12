@@ -8,7 +8,8 @@ to cover all cases below. Each case has an explicit threshold and result limit.
 - [Recorded funder names](recorded-names.md) covers the exact Unite and HSBC profiles and aliases.
 
 The baseline was captured from the accepted development data on 12 October 2026.
-Refreshing the snapshot can change IDs and names. Review those data changes
+IDs are arbitrary and do not affect comparisons. Refreshing the snapshot can
+change names. Review those data changes
 separately from search-code changes before editing the accepted JSON.
 The map covers HTTP behavior. Browser interactions and ingestion resolution
 are outside this focused regression check.

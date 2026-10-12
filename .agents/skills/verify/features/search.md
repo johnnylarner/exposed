@@ -22,7 +22,7 @@ Preconditions: launch the snapshot API using the verify skill.
 
 - Run `./scripts/check-search-regression.py "$base_url" "$evidence_dir/http"`.
 - Require `PASS unite`, `PASS west-mid`, and `PASS hsbc`.
-- Inspect their `.request.txt`, `.response.json`, and `.diff.txt` artifacts. Each complete entity array must match the baseline, including order, IDs, names, kinds, and match provenance.
+- Inspect their `.request.txt`, `.response.json`, and `.diff.txt` artifacts. Each entity array must match the baseline after omitting IDs, including order, names, kinds, and match provenance.
 
 ## Gotchas
 
