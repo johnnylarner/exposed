@@ -748,6 +748,57 @@ for (const aliases of [null, "Exact Funder", ["Exact Funder", 42]]) {
   });
 }
 
+test("category bars show shares of the total declared value", async ({
+  page,
+}) => {
+  await page.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        summary: {
+          ...memberDetails.summary,
+          currencies: [
+            {
+              ...memberDetails.summary.currencies[0],
+              amount: "100",
+              categories: [
+                {
+                  category_id: 1,
+                  category_name: "Employment",
+                  amount: "80",
+                  entry_count: 1,
+                  unknown_amount_count: 0,
+                },
+                {
+                  category_id: 2,
+                  category_name: "Gifts",
+                  amount: "20",
+                  entry_count: 1,
+                  unknown_amount_count: 0,
+                },
+              ],
+            },
+          ],
+        },
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(page.locator(".signed-bar > span")).toHaveCount(2);
+  const shares = await page.locator(".signed-bar").evaluateAll((tracks) =>
+    tracks.map((track) => {
+      const bar = track.querySelector("span");
+      return bar
+        ? bar.getBoundingClientRect().width /
+            track.getBoundingClientRect().width
+        : 0;
+    }),
+  );
+  expect(shares[0]).toBeCloseTo(0.8, 3);
+  expect(shares[1]).toBeCloseTo(0.2, 3);
+  expect(shares.reduce((total, share) => total + share, 0)).toBeCloseTo(1, 3);
+});
+
 test("member summary displays server totals, signed category bars, zero and unavailable amounts", async ({
   page,
   context,
