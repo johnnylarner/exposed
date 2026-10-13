@@ -145,8 +145,9 @@
             >
               <span class="party-swatch" style:background={slice.color}></span>
               <div>
-                <span class="party-name">{slice.party.partyName || "Party unavailable"}</span><span
-                  class="entry-count"
+                <span class="party-name"
+                  >{slice.party.partyName || "Party unavailable"}</span
+                ><span class="entry-count"
                   >{slice.party.entryCount}
                   {slice.party.entryCount === 1
                     ? "entry"

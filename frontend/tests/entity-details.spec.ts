@@ -1398,6 +1398,7 @@ test("funder summary keeps bounded party controls and the five authoritative rec
   expect(await legend.evaluate((element) => element.scrollTop)).toBeGreaterThan(
     0,
   );
+  await page.getByRole("tooltip").hover();
   await legend.evaluate((element) => {
     element.scrollTop = 0;
   });
