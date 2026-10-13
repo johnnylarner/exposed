@@ -1176,6 +1176,47 @@ test("party tooltip persists when the pointer crosses between pie slices", async
   await expect(page.getByRole("tooltip")).toContainText("Party B");
 });
 
+test("small pie slice tooltips do not cover neighboring slices", async ({
+  page,
+}) => {
+  const currencies = funderDetails.currencies.map((group) =>
+    group.currency !== "GBP"
+      ? group
+      : {
+          ...group,
+          amount: "10",
+          parties: group.parties.map((party, index) => ({
+            ...party,
+            amount: index === 0 ? "1" : "9",
+          })),
+        },
+  );
+  await page.route("**/api/funders/*", (route) =>
+    route.fulfill({ json: { ...funderDetails, currencies } }),
+  );
+  await page.goto(`/funders/${funderId}`);
+  const pie = page.locator(".funder-party-chart svg");
+  await expect(pie.locator("path")).toHaveCount(2);
+  const bounds = await pie.evaluate((element) => {
+    const { x, y, width, height, top, bottom } =
+      element.getBoundingClientRect();
+    return { x, y, width, height, top, bottom };
+  });
+  await page.mouse.move(
+    bounds.x + bounds.width * 0.6,
+    bounds.y + bounds.height * 0.2,
+  );
+  const tooltip = page.getByRole("tooltip");
+  await expect(tooltip).toContainText("Party A");
+  const tooltipBounds = await tooltip.evaluate((element) => {
+    const { top, bottom } = element.getBoundingClientRect();
+    return { top, bottom };
+  });
+  expect(
+    tooltipBounds.top >= bounds.bottom || tooltipBounds.bottom <= bounds.top,
+  ).toBe(true);
+});
+
 test("party tooltips only open on hover and clicks do not focus pie slices", async ({
   page,
   context,
