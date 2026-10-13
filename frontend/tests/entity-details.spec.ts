@@ -1301,3 +1301,55 @@ test("funder summary keeps bounded party controls and the five authoritative rec
   expect((await chart.boundingBox())?.height).toBe(initialChart?.height);
   await expect(page.locator(".funder-recipients tbody tr")).toHaveCount(5);
 });
+
+test("funder chart combines Labour controls, counts and exact tooltip while retaining recipient parties", async ({
+  page,
+}) => {
+  const source = funderDetails.currencies[1];
+  await page.route("**/api/funders/*", (route) =>
+    route.fulfill({
+      json: {
+        ...funderDetails,
+        currencies: [
+          {
+            ...source,
+            amount: "618900",
+            parties: [
+              {
+                party_name: "Labour",
+                amount: "546500",
+                entry_count: 93,
+                unknown_amount_count: 2,
+              },
+              {
+                party_name: "Labour (Co-op)",
+                amount: "72400",
+                entry_count: 11,
+                unknown_amount_count: 1,
+              },
+            ],
+            top_recipients: [
+              {
+                ...source.top_recipients[0],
+                member: { ...member, party_name: "Labour (Co-op)" },
+              },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto(`/funders/${funderId}`);
+  const controls = page.locator(".funder-party-legend button");
+  await expect(controls).toHaveCount(1);
+  await expect(controls).toContainText("Labour");
+  await expect(controls).toContainText("104 entries, 3 amounts unavailable");
+  await expect(controls).not.toContainText("Co-op");
+  await controls.focus();
+  await expect(page.getByRole("tooltip")).toContainText("£618,900.00");
+  await expect(page.locator(".funder-party-chart svg g")).toHaveCount(1);
+  await expect(page.locator(".funder-party-chart svg circle")).toHaveCount(1);
+  await expect(page.locator(".funder-recipients")).toContainText(
+    "Labour (Co-op)",
+  );
+});
