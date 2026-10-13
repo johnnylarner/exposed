@@ -1139,6 +1139,35 @@ for (const amounts of [
   });
 }
 
+test("party tooltips only open on hover and clicks do not focus pie slices", async ({
+  page,
+  context,
+}) => {
+  await mockDetails(context);
+  await page.goto(`/funders/${funderId}`);
+  const slice = page.locator(".funder-party-chart svg g").first();
+  const legend = page.locator(".funder-party-legend button").first();
+  const tooltip = page.getByRole("tooltip");
+  await slice.hover();
+  await expect(tooltip).toBeVisible();
+  await slice.click();
+  await expect(slice).not.toBeFocused();
+  await page.getByRole("heading", { name: "Funding by party" }).hover();
+  await expect(tooltip).toHaveCount(0);
+  await legend.focus();
+  await expect(tooltip).toHaveCount(0);
+  await page.keyboard.press("Enter");
+  await expect(tooltip).toHaveCount(0);
+  await page.keyboard.press("Space");
+  await expect(tooltip).toHaveCount(0);
+  await legend.hover();
+  await expect(tooltip).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(tooltip).toHaveCount(0);
+  await legend.click();
+  await expect(tooltip).toHaveCount(0);
+});
+
 test("party tooltip toggles on touch and closes outside or on scroll", async ({
   browser,
 }) => {
