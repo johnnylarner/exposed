@@ -1224,13 +1224,6 @@ button:disabled {
   display: block;
   width: 100%;
 }
-.funder-party-chart svg g {
-  cursor: pointer;
-}
-.funder-party-chart svg g:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
 .funder-party-legend {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1246,8 +1239,6 @@ button:disabled {
 .funder-party-legend li {
   min-width: 0;
   border-bottom: 1px solid var(--line);
-}
-.funder-party-legend button {
   display: grid;
   grid-template-columns: 12px minmax(0, 1fr);
   gap: 8px;
@@ -1256,17 +1247,8 @@ button:disabled {
   height: 47px;
   padding: 4px 0;
   text-align: left;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
 }
-.funder-party-legend button:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-.funder-party-legend button > div {
+.funder-party-legend li > div {
   min-width: 0;
 }
 .funder-party-legend .party-name,
