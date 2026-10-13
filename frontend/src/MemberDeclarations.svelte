@@ -15,8 +15,11 @@
       <header class="declaration-heading">
         <div>
           <h3>{declaration.categoryName}</h3>
-          <span class="declaration-reference"
-            >Declaration {declaration.sourceId}</span
+          <a
+            class="declaration-reference"
+            href={`https://interests-api.parliament.uk/api/v2/Interests/${declaration.sourceId}`}
+            target="_blank"
+            rel="noreferrer">Declaration {declaration.sourceId}</a
           >
         </div>
         <p>
