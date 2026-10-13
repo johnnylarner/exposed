@@ -22,8 +22,8 @@
   function show(index: number, target: EventTarget | null) {
     if (!(target instanceof Element)) return;
     keepOpen();
-    const bounds = target.getBoundingClientRect();
-    anchor = target;
+    anchor = target.closest("svg") ?? target;
+    const bounds = anchor.getBoundingClientRect();
     anchorTop = bounds.top;
     tooltip = {
       index,
@@ -107,7 +107,7 @@
                     if (event.pointerType !== "touch" && !hoverDismissed)
                       show(index, event.currentTarget);
                   }}
-                  onmouseleave={dismiss}
+                  onpointerleave={dismiss}
                 >
                   {#if slice.share === 1}<circle
                       cx="100"
@@ -141,7 +141,7 @@
                 if (event.pointerType !== "touch" && !hoverDismissed)
                   show(index, event.currentTarget);
               }}
-              onmouseleave={dismiss}
+              onpointerleave={dismiss}
             >
               <span class="party-swatch" style:background={slice.color}></span>
               <div>
@@ -219,8 +219,8 @@
     role="tooltip"
     style:left={`${tooltip.left}px`}
     style:top={`${tooltip.top}px`}
-    onmouseenter={keepOpen}
-    onmouseleave={dismiss}
+    onpointerenter={keepOpen}
+    onpointerleave={dismiss}
   >
     <span>{party.partyName || "Party unavailable"}</span>
     <strong>{formatPounds(party.amount)}</strong>
