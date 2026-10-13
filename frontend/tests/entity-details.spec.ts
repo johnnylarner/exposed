@@ -416,7 +416,7 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
     "£18,014,398,509,481,981.246913578",
   );
   await expect(page.getByText("Company number 00123456")).toBeVisible();
-  const controls = page.locator(".funder-party-legend button");
+  const controls = page.locator(".funder-party-legend li");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await expect(page.locator(".funder-party-legend")).not.toContainText("£");
   await controls.first().hover();
@@ -428,10 +428,7 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
   await expect(page.getByRole("tooltip")).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
-  await controls.nth(1).focus();
-  await expect(page.getByRole("tooltip")).toContainText("−£5.00");
-  await page.keyboard.press("Escape");
-  await controls.nth(1).click();
+  await controls.nth(1).hover();
   await expect(page.getByRole("tooltip")).toContainText("−£5.00");
   await page.keyboard.press("Escape");
   await page.locator(".funder-party-chart svg g").hover();
@@ -1074,9 +1071,9 @@ test("party pie keeps zero and unavailable totals and explains unavailable share
   await expect(
     page.getByText("Pie unavailable. No positive known totals are recorded."),
   ).toBeVisible();
-  await page.locator(".funder-party-legend button").first().focus();
+  await page.locator(".funder-party-legend li").first().hover();
   await expect(page.getByRole("tooltip")).toContainText("£0.00");
-  await page.locator(".funder-party-legend button").nth(1).focus();
+  await page.locator(".funder-party-legend li").nth(1).hover();
   await expect(page.getByRole("tooltip")).toContainText("Amount unavailable");
   await expect(page.locator(".funder-party-chart path")).toHaveCount(0);
 });
@@ -1086,7 +1083,7 @@ for (const amounts of [
   ["0", "-5"],
   [null, "0"],
 ]) {
-  test(`party controls expose totals for ${amounts.join("/")}`, async ({
+  test(`party legend exposes totals for ${amounts.join("/")}`, async ({
     page,
   }) => {
     const currencies = funderDetails.currencies.map((group) =>
@@ -1106,19 +1103,23 @@ for (const amounts of [
     await page.goto(`/funders/${funderId}`);
     await expect(page.locator(".funder-party-legend")).not.toContainText("£");
     for (const [index, amount] of amounts.entries()) {
-      await page.locator(".funder-party-legend button").nth(index).click();
-      await expect(page.getByRole("tooltip")).toContainText(
+      const total =
         amount === null
           ? "Amount unavailable"
           : amount === "-5"
             ? "−£5.00"
-            : `£${amount}.00`,
+            : `£${amount}.00`;
+      const item = page.locator(".funder-party-legend li").nth(index);
+      await expect(item).toHaveAccessibleName(
+        `Party ${index === 0 ? "A" : "B"}: ${total}`,
       );
+      await item.hover();
+      await expect(page.getByRole("tooltip")).toContainText(total);
       await page.keyboard.press("Escape");
     }
     if (amounts[0] === "3") {
       await expect(page.locator(".funder-party-chart svg path")).toHaveCount(2);
-      await page.locator(".funder-party-chart svg g").nth(1).focus();
+      await page.locator(".funder-party-chart svg g").nth(1).hover();
       await expect(page.getByRole("tooltip")).toContainText("£7.00");
     }
     await page.setViewportSize({ width: 800, height: 900 });
@@ -1146,7 +1147,7 @@ test("party tooltips only open on hover and clicks do not focus pie slices", asy
   await mockDetails(context);
   await page.goto(`/funders/${funderId}`);
   const slice = page.locator(".funder-party-chart svg g").first();
-  const legend = page.locator(".funder-party-legend button").first();
+  const legend = page.locator(".funder-party-legend li").first();
   const tooltip = page.getByRole("tooltip");
   await slice.hover();
   await expect(tooltip).toBeVisible();
@@ -1154,7 +1155,10 @@ test("party tooltips only open on hover and clicks do not focus pie slices", asy
   await expect(slice).not.toBeFocused();
   await page.getByRole("heading", { name: "Funding by party" }).hover();
   await expect(tooltip).toHaveCount(0);
+  await slice.focus();
   await legend.focus();
+  await expect(slice).not.toBeFocused();
+  await expect(legend).not.toBeFocused();
   await expect(tooltip).toHaveCount(0);
   await page.keyboard.press("Enter");
   await expect(tooltip).toHaveCount(0);
@@ -1168,9 +1172,7 @@ test("party tooltips only open on hover and clicks do not focus pie slices", asy
   await expect(tooltip).toHaveCount(0);
 });
 
-test("party tooltip toggles on touch and closes outside or on scroll", async ({
-  browser,
-}) => {
+test("party tooltips do not open on touch", async ({ browser }) => {
   const context = await browser.newContext({
     hasTouch: true,
     viewport: { width: 800, height: 900 },
@@ -1178,18 +1180,29 @@ test("party tooltip toggles on touch and closes outside or on scroll", async ({
   await mockDetails(context);
   const page = await context.newPage();
   await page.goto(`/funders/${funderId}`);
-  const button = page.locator(".funder-party-legend button").first();
-  await button.tap();
+  for (const target of [
+    page.locator(".funder-party-legend li").first(),
+    page.locator(".funder-party-chart svg g").first(),
+  ]) {
+    await target.tap();
+    await expect(page.getByRole("tooltip")).toHaveCount(0);
+    await expect(target).not.toBeFocused();
+  }
+  await context.close();
+});
+
+test("party tooltips close on scroll and resize", async ({ page, context }) => {
+  await mockDetails(context);
+  await page.goto(`/funders/${funderId}`);
+  const legend = page.locator(".funder-party-legend li").first();
+  await legend.hover();
   await expect(page.getByRole("tooltip")).toBeVisible();
-  await button.tap();
-  await expect(page.getByRole("tooltip")).toHaveCount(0);
-  await button.tap();
-  await page.getByRole("heading", { name: "Funding by party" }).tap();
-  await expect(page.getByRole("tooltip")).toHaveCount(0);
-  await button.tap();
   await page.evaluate(() => window.scrollBy(0, 100));
   await expect(page.getByRole("tooltip")).toHaveCount(0);
-  await context.close();
+  await legend.hover();
+  await expect(page.getByRole("tooltip")).toBeVisible();
+  await page.setViewportSize({ width: 1000, height: 800 });
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
 });
 
 test("member summary timeline merges same-month dates and retains negative monthly bars", async ({
@@ -1298,10 +1311,10 @@ test("funder summary keeps bounded party controls and the five authoritative rec
   );
   partyCount = 9;
   await page.reload();
-  await expect(legend.locator("button")).toHaveCount(9);
+  await expect(legend.locator("li")).toHaveCount(9);
   expect((await legend.boundingBox())?.height).toBe(initialLegend?.height);
   expect((await chart.boundingBox())?.height).toBe(initialChart?.height);
-  await legend.locator("button").last().focus();
+  await legend.locator("li").last().hover();
   await expect(page.getByRole("tooltip")).toContainText(
     "Party 9 with a long name that needs the full accessible label",
   );
@@ -1312,13 +1325,13 @@ test("funder summary keeps bounded party controls and the five authoritative rec
     element.scrollTop = 0;
   });
   await expect(page.getByRole("tooltip")).toHaveCount(0);
-  await legend.locator("button").first().focus();
-  await legend.locator("button").last().focus();
+  await legend.locator("li").first().hover();
+  await legend.locator("li").last().hover();
   await expect(page.getByRole("tooltip")).toContainText(
     "Party 9 with a long name that needs the full accessible label",
   );
   await page.setViewportSize({ width: 375, height: 812 });
-  await legend.locator("button").last().click();
+  await legend.locator("li").last().hover();
   await expect(page.getByRole("tooltip")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     375,
@@ -1369,12 +1382,12 @@ test("funder chart combines Labour controls, counts and exact tooltip while reta
     }),
   );
   await page.goto(`/funders/${funderId}`);
-  const controls = page.locator(".funder-party-legend button");
+  const controls = page.locator(".funder-party-legend li");
   await expect(controls).toHaveCount(1);
   await expect(controls).toContainText("Labour");
   await expect(controls).toContainText("104 entries, 3 amounts unavailable");
   await expect(controls).not.toContainText("Co-op");
-  await controls.focus();
+  await controls.hover();
   await expect(page.getByRole("tooltip")).toContainText("£618,900.00");
   await expect(page.locator(".funder-party-chart svg g")).toHaveCount(1);
   await expect(page.locator(".funder-party-chart svg circle")).toHaveCount(1);
