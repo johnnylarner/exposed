@@ -9,6 +9,37 @@ const colors = [
   "#bf747c",
 ];
 
+const partyColors = new Map<string, string>([
+  ["Labour", "#e4003b"],
+  ["Conservative", "#0087dc"],
+  ["Reform UK", "#8b5cf6"],
+  ["Liberal Democrat", "#ffe500"],
+  ["Green Party", "#00a85a"],
+  ["Scottish National Party", "#c7a600"],
+]);
+
+type Party = FunderDetails["currencies"][number]["parties"][number];
+
+function scaledAmount(amount: string | null, scale: number): bigint | null {
+  if (amount === null) return null;
+  const [whole, fraction = ""] = amount.split(".");
+  return BigInt(whole + fraction.padEnd(scale, "0"));
+}
+
+function decimalAmount(value: bigint, scale: number): string {
+  const digits = (value < 0n ? -value : value)
+    .toString()
+    .padStart(scale + 1, "0");
+  const amount =
+    scale === 0
+      ? digits
+      : `${digits.slice(0, -scale)}.${digits.slice(-scale)}`.replace(
+          /\.?0+$/u,
+          "",
+        );
+  return `${value < 0n ? "-" : ""}${amount}`;
+}
+
 export function partyChart(
   parties: FunderDetails["currencies"][number]["parties"],
 ) {
@@ -16,14 +47,34 @@ export function partyChart(
     0,
     ...parties.map((party) => party.amount?.split(".")[1]?.length ?? 0),
   );
-  const values = parties.map(({ amount }) => {
-    if (amount === null || amount.startsWith("-")) return 0n;
-    const [whole, fraction = ""] = amount.split(".");
-    return BigInt(whole + fraction.padEnd(scale, "0"));
+  const grouped: Party[] = [];
+  let labour: { party: Party; amount: bigint | null } | undefined;
+  for (const party of parties) {
+    if (party.partyName !== "Labour" && party.partyName !== "Labour (Co-op)") {
+      grouped.push(party);
+      continue;
+    }
+    const amount = scaledAmount(party.amount, scale);
+    if (labour === undefined) {
+      labour = { party: { ...party, partyName: "Labour" }, amount };
+      grouped.push(labour.party);
+    } else {
+      if (amount !== null) labour.amount = (labour.amount ?? 0n) + amount;
+      labour.party.entryCount += party.entryCount;
+      labour.party.unknownAmountCount += party.unknownAmountCount;
+    }
+  }
+  if (labour !== undefined) {
+    labour.party.amount =
+      labour.amount === null ? null : decimalAmount(labour.amount, scale);
+  }
+  const values = grouped.map(({ amount }) => {
+    const value = scaledAmount(amount, scale) ?? 0n;
+    return value > 0n ? value : 0n;
   });
   const total = values.reduce((sum, value) => sum + value, 0n);
   let start = 0;
-  return parties.map((party, index) => {
+  return grouped.map((party, index) => {
     const share =
       total === 0n ? 0 : Number((values[index] * 1000000n) / total) / 1000000;
     const angle = share * Math.PI * 2;
@@ -33,6 +84,11 @@ export function partyChart(
         ? ""
         : `M 100 100 L ${100 + 90 * Math.sin(start)} ${100 - 90 * Math.cos(start)} A 90 90 0 ${share > 0.5 ? 1 : 0} 1 ${100 + 90 * Math.sin(end)} ${100 - 90 * Math.cos(end)} Z`;
     start = end;
-    return { party, share, path, color: colors[index % colors.length] };
+    return {
+      party,
+      share,
+      path,
+      color: partyColors.get(party.partyName) ?? colors[index % colors.length],
+    };
   });
 }
