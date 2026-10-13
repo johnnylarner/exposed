@@ -58,16 +58,25 @@ impl FunderRepo for ExposedDatabase {
                     GREATEST(canonical_score, COALESCE(alias_score, 0)) AS similarity_score
                 FROM scored
                 WHERE GREATEST(canonical_score, COALESCE(alias_score, 0)) >= $2
+                UNION ALL
+                SELECT n.group_id, n.preferred_name, f.funder_kind, NULL::text,
+                    word_similarity($1, n.preferred_name)
+                FROM exposed.funder_group_names n JOIN exposed.funders f ON f.id = n.group_id
+                WHERE n.preferred_name %> $1 AND word_similarity($1, n.preferred_name) >= $2
             ), grouped AS (
                 SELECT DISTINCT ON (COALESCE(g.group_id, q.id)) COALESCE(g.group_id, q.id) AS id,
-                    representative.funder_name AS name, representative.funder_kind AS kind,
-                    CASE WHEN q.id <> COALESCE(g.group_id, q.id) THEN COALESCE(q.matched_alias, q.name)
-                        ELSE q.matched_alias END AS matched_alias, q.similarity_score
+                    COALESCE(n.preferred_name, representative.funder_name) AS name, representative.funder_kind AS kind,
+                    CASE WHEN q.matched_alias IS NOT NULL THEN q.matched_alias
+                        WHEN q.id <> COALESCE(g.group_id, q.id)
+                            OR q.name <> COALESCE(n.preferred_name, representative.funder_name) THEN q.name END AS matched_alias, q.similarity_score
                 FROM qualified q LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = q.id
                 JOIN exposed.funders representative ON representative.id = COALESCE(g.group_id, q.id)
-                ORDER BY COALESCE(g.group_id, q.id), q.similarity_score DESC, q.id
+                LEFT JOIN exposed.funder_group_names n ON n.group_id = representative.id
+                ORDER BY COALESCE(g.group_id, q.id), q.similarity_score DESC, q.id,
+                    q.name = COALESCE(n.preferred_name, representative.funder_name) DESC,
+                    q.matched_alias IS NOT NULL, q.name COLLATE \"C\"
             )
-            SELECT id AS \"id!\", name, kind, matched_alias, similarity_score, EXISTS(SELECT FROM qualified WHERE kind = $4) AS \"has_individual!\"
+            SELECT id AS \"id!\", name AS \"name!\", kind, matched_alias, similarity_score, EXISTS(SELECT FROM qualified WHERE kind = $4) AS \"has_individual!\"
             FROM grouped
             ORDER BY similarity_score DESC, id
             LIMIT $3
@@ -145,15 +154,19 @@ impl FunderRepo for ExposedDatabase {
             ), winners AS (
                 SELECT DISTINCT ON (COALESCE(g.group_id, s.id)) COALESCE(g.group_id, s.id) AS id,
                     CASE WHEN s.id <> COALESCE(g.group_id, s.id) THEN COALESCE(s.alias, s.candidate)
-                        ELSE s.alias END AS alias, s.distance, s.similarity_score
+                        ELSE s.alias END AS alias, s.candidate, s.distance, s.similarity_score
                 FROM scored s LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = s.id
                 WHERE s.similarity_score >= $4
                 ORDER BY COALESCE(g.group_id, s.id), s.distance, s.similarity_score DESC, s.id,
                     s.alias IS NOT NULL, s.alias COLLATE "C"
             )
-            SELECT f.id, f.funder_name AS name, f.funder_kind AS kind, w.alias, w.distance AS "distance!",
+            SELECT f.id, COALESCE(n.preferred_name, f.funder_name) AS "name!", f.funder_kind AS kind,
+                   CASE WHEN w.alias IS NOT NULL THEN w.alias
+                        WHEN w.candidate <> COALESCE(n.preferred_name, f.funder_name) THEN w.candidate END AS alias,
+                   w.distance AS "distance!",
                    w.similarity_score AS "similarity_score!"
             FROM winners w JOIN exposed.funders f ON f.id = w.id
+            LEFT JOIN exposed.funder_group_names n ON n.group_id = f.id
             ORDER BY w.distance, w.similarity_score DESC, f.id
             LIMIT $3
         "#, req.term(), FunderKind::Individual.as_ref(), i64::from(req.max_entries()), req.strictness())
@@ -279,6 +292,113 @@ mod alias_scoring {
         outbound::postgres::ExposedDatabase,
     };
     use sqlx::PgPool;
+
+    #[sqlx::test(migrations = "../db/migrations")]
+    async fn reviewed_preferred_names_preserve_sources_and_projection_on_conflict(
+        pool: PgPool,
+    ) -> sqlx::Result<()> {
+        let root = uuid::Uuid::from_u128(1);
+        let reviewed = uuid::Uuid::from_u128(2);
+        let other = uuid::Uuid::from_u128(3);
+        sqlx::query!(
+            "INSERT INTO exposed.funders (id, funder_name) VALUES ($1, 'BBC Studios Ltd')",
+            reviewed
+        )
+        .execute(&pool)
+        .await?;
+        let db = ExposedDatabase::from(pool.clone());
+        db.refresh_funder_groups().await.unwrap();
+        let request =
+            |term: &str| EntitySearchRequest::new_with_strictness(term.into(), 1, 1.0).unwrap();
+        let rows = db
+            .get_funders_by_text_search_score(&request("BBC"))
+            .await
+            .unwrap()
+            .matches;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0.funder().name(), "BBC");
+        assert_eq!(rows[0].0.source(), &SearchMatchSource::Name);
+        sqlx::query!("UPDATE exposed.funder_group_names SET preferred_name = 'Reviewed Broadcaster' WHERE group_id = $1", reviewed).execute(&pool).await?;
+        let rows = db
+            .get_funders_by_text_search_score(&request("Reviewed Broadcaster"))
+            .await
+            .unwrap()
+            .matches;
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].0.funder().name(), "Reviewed Broadcaster");
+        assert_eq!(rows[0].0.source(), &SearchMatchSource::Name);
+        db.refresh_funder_groups().await.unwrap();
+        sqlx::query!(
+            "INSERT INTO exposed.funders (id, funder_name) VALUES ($1, 'External Representative')",
+            root
+        )
+        .execute(&pool)
+        .await?;
+        sqlx::query!("INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, 'Bridge'), ($2, 'Bridge')", root, reviewed).execute(&pool).await?;
+        for _ in 0..2 {
+            db.refresh_funder_groups().await.unwrap();
+            let rows = db
+                .get_funders_by_text_search_score(&request("BBC"))
+                .await
+                .unwrap()
+                .matches;
+            assert_eq!(rows[0].0.funder().id().value(), root);
+            assert_eq!(rows[0].0.source(), &SearchMatchSource::Name);
+            let rows = db
+                .get_funders_by_text_search_score(&request("External Representative"))
+                .await
+                .unwrap()
+                .matches;
+            assert_eq!(rows[0].0.funder().name(), "BBC");
+            assert_eq!(
+                rows[0].0.source(),
+                &SearchMatchSource::Alias {
+                    name: "External Representative".into()
+                }
+            );
+        }
+        let snapshot = sqlx::query!("SELECT group_id, preferred_name, family_key FROM exposed.funder_group_names ORDER BY group_id").fetch_all(&pool).await?;
+        sqlx::query!(
+            "INSERT INTO exposed.funders (id, funder_name) VALUES ($1, 'GB News Ltd')",
+            other
+        )
+        .execute(&pool)
+        .await?;
+        sqlx::query!(
+            "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, 'Bridge')",
+            other
+        )
+        .execute(&pool)
+        .await?;
+        assert!(db.refresh_funder_groups().await.is_err());
+        let after = sqlx::query!("SELECT group_id, preferred_name, family_key FROM exposed.funder_group_names ORDER BY group_id").fetch_all(&pool).await?;
+        assert_eq!(after.len(), snapshot.len());
+        assert_eq!(after[0].group_id, snapshot[0].group_id);
+        assert_eq!(after[0].preferred_name, snapshot[0].preferred_name);
+        assert_eq!(after[0].family_key, snapshot[0].family_key);
+        assert_eq!(
+            sqlx::query!("SELECT count(*) AS \"count!\" FROM exposed.funder_alias_groups")
+                .fetch_one(&pool)
+                .await?
+                .count,
+            2
+        );
+        let source = sqlx::query!(
+            "SELECT funder_name FROM exposed.funders WHERE id = $1",
+            reviewed
+        )
+        .fetch_one(&pool)
+        .await?;
+        assert_eq!(source.funder_name, "BBC Studios Ltd");
+        assert_eq!(
+            sqlx::query!("SELECT count(*) AS \"count!\" FROM exposed.funder_aliases")
+                .fetch_one(&pool)
+                .await?
+                .count,
+            3
+        );
+        Ok(())
+    }
 
     #[sqlx::test(migrations = "../db/migrations")]
     async fn provenance_thresholds_and_identity_limit(pool: PgPool) -> sqlx::Result<()> {

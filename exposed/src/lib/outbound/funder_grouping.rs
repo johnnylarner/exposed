@@ -59,6 +59,10 @@ pub(super) async fn replace_funder_groups(
         })
         .collect();
     let groups = build_funder_groups(&funders).map_err(db_error)?;
+    sqlx::query!("DELETE FROM exposed.funder_group_names")
+        .execute(&mut **tx)
+        .await
+        .map_err(db_error)?;
     sqlx::query!("DELETE FROM exposed.funder_alias_links")
         .execute(&mut **tx)
         .await
@@ -80,6 +84,10 @@ pub(super) async fn replace_funder_groups(
         .execute(&mut **tx)
         .await
         .map_err(db_error)?;
+    }
+    for name in groups.preferred_names {
+        sqlx::query!("INSERT INTO exposed.funder_group_names (group_id, preferred_name, family_key) VALUES ($1, $2, $3)", name.group_id.value(), name.preferred_name.as_str(), name.family_key)
+            .execute(&mut **tx).await.map_err(db_error)?;
     }
     for link in groups.alias_links {
         sqlx::query!("INSERT INTO exposed.funder_alias_links (left_funder_id, right_funder_id, normalized_alias, left_alias, right_alias) VALUES ($1, $2, $3, $4, $5)", link.left_funder_id.value(), link.right_funder_id.value(), link.normalized_alias, link.left_alias, link.right_alias)

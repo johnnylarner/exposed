@@ -115,11 +115,11 @@ impl EntityDetailsRepo for ExposedDatabase {
         .fetch_all(&mut *tx)
         .await?;
         let row = sqlx::query!(
-            "SELECT f.funder_name, f.funder_kind,
+            "SELECT COALESCE(n.preferred_name, f.funder_name) AS \"funder_name!\", f.funder_kind,
                 (SELECT CASE WHEN count(DISTINCT member.company_number) = 1
                     THEN min(member.company_number) END FROM exposed.funders member
                  WHERE member.id = ANY($2)) AS company_number
-             FROM exposed.funders f WHERE f.id = $1",
+             FROM exposed.funders f LEFT JOIN exposed.funder_group_names n ON n.group_id = f.id WHERE f.id = $1",
             group_id,
             &stored_member_ids
         )
