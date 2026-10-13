@@ -9,6 +9,15 @@ const colors = [
   "#bf747c",
 ];
 
+const partyColors = new Map<string, string>([
+  ["Labour", "#e4003b"],
+  ["Conservative", "#0087dc"],
+  ["Reform UK", "#8b5cf6"],
+  ["Liberal Democrat", "#ffe500"],
+  ["Green Party", "#00a85a"],
+  ["Scottish National Party", "#c7a600"],
+]);
+
 type Party = FunderDetails["currencies"][number]["parties"][number];
 
 function scaledAmount(amount: string | null, scale: number): bigint | null {
@@ -75,6 +84,11 @@ export function partyChart(
         ? ""
         : `M 100 100 L ${100 + 90 * Math.sin(start)} ${100 - 90 * Math.cos(start)} A 90 90 0 ${share > 0.5 ? 1 : 0} 1 ${100 + 90 * Math.sin(end)} ${100 - 90 * Math.cos(end)} Z`;
     start = end;
-    return { party, share, path, color: colors[index % colors.length] };
+    return {
+      party,
+      share,
+      path,
+      color: partyColors.get(party.partyName) ?? colors[index % colors.length],
+    };
   });
 }

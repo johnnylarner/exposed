@@ -12,6 +12,32 @@ function party(partyName: string, amount: string | null): Party {
   };
 }
 
+test("party colours stay fixed across order changes and Labour grouping", () => {
+  const expected = [
+    ["Labour", "#e4003b"],
+    ["Conservative", "#0087dc"],
+    ["Reform UK", "#8b5cf6"],
+    ["Liberal Democrat", "#ffe500"],
+    ["Green Party", "#00a85a"],
+    ["Scottish National Party", "#c7a600"],
+  ];
+  const input = expected.map(([name]) => party(name, "10"));
+  input.push(party("Labour (Co-op)", "5"));
+  for (const parties of [input, [...input].reverse()]) {
+    const result = partyChart(parties);
+    for (const [name, color] of expected) {
+      expect(result.find(({ party }) => party.partyName === name)?.color).toBe(
+        color,
+      );
+    }
+  }
+  expect(
+    partyChart([party("Other", "10"), party("constructor", "10")]).map(
+      ({ color }) => color,
+    ),
+  ).toEqual(["#df8550", "#6587ad"]);
+});
+
 test("Labour grouping preserves first order, counts, unrelated records and source data", () => {
   const input = [
     party("Other", "5.00"),
