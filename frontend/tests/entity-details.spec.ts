@@ -441,14 +441,14 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("img", { name: "Monthly registered funding" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(page.locator(".funder-party-chart svg circle")).toHaveCount(1);
   await expect(page.locator(".funder-recipients .amount")).toHaveText([
     "£18,014,398,509,481,986.246913578",
     "£0.00",
   ]);
   await expect(
-    page.getByRole("heading", { name: "Top 10 recipients" }),
+    page.getByRole("heading", { name: "Top 5 recipients" }),
   ).toBeVisible();
   await expect(page.locator("main")).not.toContainText(
     /GBP|EUR|USD|currency|currencies/u,
@@ -1163,7 +1163,7 @@ test("party tooltip toggles on touch and closes outside or on scroll", async ({
   await context.close();
 });
 
-test("both summary timelines merge same-month dates and retain negative monthly bars", async ({
+test("member summary timeline merges same-month dates and retains negative monthly bars", async ({
   page,
 }) => {
   const declarations = [
@@ -1195,38 +1195,109 @@ test("both summary timelines merge same-month dates and retain negative monthly 
   await page.route("**/api/members/1", (route) =>
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
+  await page.goto("/members/1");
+  await expect(page.locator(".earnings-chart rect")).toHaveCount(3);
+  await expect(page.locator(".earnings-chart rect title")).toHaveText([
+    "Jan 2026: £11.00",
+    "Feb 2026: £0.00",
+    "Mar 2026: −£2.50",
+  ]);
+  await expect(page.locator(".earnings-chart rect.negative")).toHaveCount(1);
+  expect(
+    Number(
+      await page
+        .locator(".earnings-chart rect.negative")
+        .getAttribute("height"),
+    ),
+  ).toBeGreaterThan(0);
+  await expect(page.locator(".earnings-chart rect.negative")).toHaveAttribute(
+    "y",
+    (await page
+      .locator(".earnings-chart .chart-baseline")
+      .getAttribute("y1")) ?? "",
+  );
+});
+
+test("funder summary keeps bounded party controls and the five authoritative recipients", async ({
+  page,
+}) => {
+  const recipients = Array.from({ length: 7 }, (_, index) => ({
+    member: {
+      ...member,
+      id: String(index + 1),
+      name: `Ranked recipient ${index + 1}`,
+    },
+    amount: String(700 - index * 100),
+    entry_count: 1,
+    unknown_amount_count: index === 0 ? 1 : 0,
+  }));
+  let partyCount = 1;
   await page.route("**/api/funders/*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
-        declarations: declarations.map((declaration) => ({
-          member,
-          declaration,
-        })),
+        currencies: [
+          {
+            currency: "GBP",
+            amount: "1000",
+            top_recipients: recipients,
+            parties: Array.from({ length: partyCount }, (_, index) => ({
+              party_id: index + 1,
+              party_name: `Party ${index + 1} with a long name that needs the full accessible label`,
+              amount: "100",
+              entry_count: 1,
+              unknown_amount_count: 0,
+            })),
+          },
+        ],
       },
     }),
   );
-  for (const route of ["/members/1", `/funders/${funderId}`]) {
-    await page.goto(route);
-    await expect(page.locator(".earnings-chart rect")).toHaveCount(3);
-    await expect(page.locator(".earnings-chart rect title")).toHaveText([
-      "Jan 2026: £11.00",
-      "Feb 2026: £0.00",
-      "Mar 2026: −£2.50",
-    ]);
-    await expect(page.locator(".earnings-chart rect.negative")).toHaveCount(1);
-    expect(
-      Number(
-        await page
-          .locator(".earnings-chart rect.negative")
-          .getAttribute("height"),
-      ),
-    ).toBeGreaterThan(0);
-    await expect(page.locator(".earnings-chart rect.negative")).toHaveAttribute(
-      "y",
-      (await page
-        .locator(".earnings-chart .chart-baseline")
-        .getAttribute("y1")) ?? "",
-    );
-  }
+  await page.goto(`/funders/${funderId}`);
+  const chart = page.locator(".funder-party-chart");
+  const legend = page.locator(".funder-party-legend");
+  const initialChart = await chart.boundingBox();
+  const initialLegend = await legend.boundingBox();
+  expect(initialChart).not.toBeNull();
+  expect(initialLegend?.height).toBe(144);
+  await expect(page.locator(".funder-recipients tbody tr")).toHaveCount(5);
+  await expect(page.locator(".funder-recipients tbody a")).toHaveText(
+    recipients.slice(0, 5).map(({ member }) => member.name),
+  );
+  await expect(page.locator(".funder-recipients .partial-note")).toHaveText(
+    "1 amount unavailable",
+  );
+  partyCount = 9;
+  await page.reload();
+  await expect(legend.locator("button")).toHaveCount(9);
+  expect((await legend.boundingBox())?.height).toBe(initialLegend?.height);
+  expect((await chart.boundingBox())?.height).toBe(initialChart?.height);
+  await legend.locator("button").last().focus();
+  await expect(page.getByRole("tooltip")).toContainText(
+    "Party 9 with a long name that needs the full accessible label",
+  );
+  expect(await legend.evaluate((element) => element.scrollTop)).toBeGreaterThan(
+    0,
+  );
+  await legend.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await expect(page.getByRole("tooltip")).toHaveCount(0);
+  await legend.locator("button").first().focus();
+  await legend.locator("button").last().focus();
+  await expect(page.getByRole("tooltip")).toContainText(
+    "Party 9 with a long name that needs the full accessible label",
+  );
+  await page.setViewportSize({ width: 375, height: 812 });
+  await legend.locator("button").last().click();
+  await expect(page.getByRole("tooltip")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    375,
+  );
+  partyCount = 0;
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.reload();
+  await expect(chart).toContainText("No known funding totals are available.");
+  expect((await chart.boundingBox())?.height).toBe(initialChart?.height);
+  await expect(page.locator(".funder-recipients tbody tr")).toHaveCount(5);
 });

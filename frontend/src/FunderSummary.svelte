@@ -2,19 +2,13 @@
   import { onDestroy } from "svelte";
   import { formatPounds } from "./lib/member-summary";
   import { memberHref, type FunderDetails } from "./lib/entity-details";
-  import RegistrationTimeline from "./RegistrationTimeline.svelte";
-  import { registrationTimeline } from "./lib/registration-timeline";
   import { partyChart } from "./lib/funder-summary";
   let { details }: { details: FunderDetails } = $props();
   const pounds = $derived(
     details.currencies.find((group) => group.currency === "GBP"),
   );
   const slices = $derived(partyChart(pounds?.parties ?? []));
-  const timeline = $derived(
-    registrationTimeline(
-      details.declarations.map(({ declaration }) => declaration),
-    ),
-  );
+  const recipients = $derived(pounds?.topRecipients.slice(0, 5) ?? []);
   let tooltip = $state<{ index: number; left: number; top: number } | null>(
     null,
   );
@@ -44,6 +38,9 @@
     keepOpen();
     tooltip = null;
   }
+  function dismissIfAnchorMoved() {
+    if (anchor?.getBoundingClientRect().top !== anchorTop) hide();
+  }
   function tap(index: number, event: PointerEvent) {
     if (event.pointerType === "touch") event.preventDefault();
     if (tooltip?.index === index && event.pointerType === "touch") hide();
@@ -66,9 +63,7 @@
 
 <svelte:window
   onkeydown={escape}
-  onscroll={() => {
-    if (anchor?.getBoundingClientRect().top !== anchorTop) hide();
-  }}
+  onscroll={dismissIfAnchorMoved}
   onresize={hide}
   onpointerdown={(event) => {
     if (
@@ -84,12 +79,12 @@
       <h2 id="party-heading">Funding by party</h2>
       <p>Grouped by recipients' latest recorded party.</p>
     </div>
-    {#if slices.length === 0}<p class="empty-details">
-        {details.entryCount === 0
-          ? "No funding entries are stored for this funder."
-          : "No known funding totals are available."}
-      </p>{:else}
-      <div class="funder-party-chart">
+    <div class="funder-party-chart">
+      {#if slices.length === 0}<p class="empty-details funder-party-empty">
+          {details.entryCount === 0
+            ? "No funding entries are stored for this funder."
+            : "No known funding totals are available."}
+        </p>{:else}
         <div class="funder-pie">
           <svg
             viewBox="0 0 200 200"
@@ -156,21 +151,12 @@
               {/if}
             {/each}
           </svg>
-          {#if slices.every((slice) => slice.share === 0)}<p
-              class="coverage-note"
-            >
-              Pie unavailable. No positive known totals are recorded.
-            </p>{:else if slices.some((slice) => slice.party.amount === null || slice.party.amount.startsWith("-"))}<p
-              class="filter-context"
-            >
-              The pie shows positive known totals. Negative and unavailable
-              totals are available from the party controls.
-            </p>{/if}
         </div>
-        <ul class="funder-party-legend">
+        <ul class="funder-party-legend" onscroll={dismissIfAnchorMoved}>
           {#each slices as slice, index}<li>
               <button
                 type="button"
+                aria-label={slice.party.partyName || "Party unavailable"}
                 aria-describedby={tooltip?.index === index
                   ? "party-tooltip"
                   : undefined}
@@ -189,7 +175,10 @@
                     show(index, event.currentTarget);
                 }}
                 onmouseleave={dismiss}
-                onfocus={(event) => show(index, event.currentTarget)}
+                onfocus={(event) => {
+                  event.currentTarget.scrollIntoView({ block: "nearest" });
+                  show(index, event.currentTarget);
+                }}
                 onblur={dismiss}
                 onpointerdown={(event) => {
                   if (event.pointerType === "touch") tap(index, event);
@@ -205,7 +194,8 @@
                 <span class="party-swatch" style:background={slice.color}
                 ></span>
                 <div>
-                  <span>{slice.party.partyName || "Party unavailable"}</span
+                  <span class="party-name"
+                    >{slice.party.partyName || "Party unavailable"}</span
                   ><span class="entry-count"
                     >{slice.party.entryCount}
                     {slice.party.entryCount === 1
@@ -220,14 +210,58 @@
               </button>
             </li>{/each}
         </ul>
+      {/if}
+    </div>
+    {#if slices.length > 0}
+      {#if slices.every((slice) => slice.share === 0)}<p class="coverage-note">
+          Pie unavailable. No positive known totals are recorded.
+        </p>{:else if slices.some((slice) => slice.party.amount === null || slice.party.amount.startsWith("-"))}<p
+          class="filter-context"
+        >
+          The pie shows positive known totals. Negative and unavailable totals
+          are available from the party controls.
+        </p>{/if}
+    {/if}
+  </section>
+  <section class="funder-recipient-panel" aria-labelledby="recipients-heading">
+    <div class="detail-section-heading">
+      <h2 id="recipients-heading">Top 5 recipients</h2>
+      <p>MPs ranked by known declared value.</p>
+    </div>
+    {#if !recipients.length}<p class="empty-details">
+        No recipients are available.
+      </p>{:else}
+      <div class="summary-columns funder-recipients">
+        <table>
+          <caption class="visually-hidden"
+            >Top recipients of declared funding</caption
+          ><thead
+            ><tr><th scope="col">MP</th><th scope="col">Known total</th></tr
+            ></thead
+          ><tbody>
+            {#each recipients as recipient}<tr
+                ><th scope="row"
+                  ><a href={memberHref(recipient.member.id, "summary")}
+                    >{recipient.member.name}</a
+                  ><span class="entry-count"
+                    >{recipient.member.partyName || "Party unavailable"}</span
+                  ></th
+                ><td
+                  ><span class="amount">{formatPounds(recipient.amount)}</span
+                  >{#if recipient.unknownAmountCount > 0}<span
+                      class="partial-note"
+                      >{recipient.unknownAmountCount}
+                      {recipient.unknownAmountCount === 1
+                        ? "amount"
+                        : "amounts"} unavailable</span
+                    >{/if}</td
+                ></tr
+              >{/each}
+          </tbody>
+        </table>
       </div>
     {/if}
   </section>
-  <RegistrationTimeline
-    context="funding"
-    months={timeline.months}
-    undated={timeline.undated}
-  />
 </div>
 {#if tooltip}{@const party = slices[tooltip.index].party}
   <div
@@ -241,45 +275,15 @@
   >
     <span>{party.partyName || "Party unavailable"}</span>
     <strong>{formatPounds(party.amount)}</strong>
+    <span class="entry-count"
+      >{party.entryCount}
+      {party.entryCount === 1
+        ? "entry"
+        : "entries"}{#if party.unknownAmountCount > 0}, {party.unknownAmountCount}
+        {party.unknownAmountCount === 1 ? "amount" : "amounts"} unavailable{/if}</span
+    >
   </div>
 {/if}
-<section aria-labelledby="recipients-heading">
-  <div class="detail-section-heading">
-    <h2 id="recipients-heading">Top 10 recipients</h2>
-    <p>MPs ranked by known declared value.</p>
-  </div>
-  {#if !pounds?.topRecipients.length}<p class="empty-details">
-      No recipients are available.
-    </p>{:else}
-    <div class="summary-columns funder-recipients">
-      <table>
-        <caption class="visually-hidden"
-          >Top recipients of declared funding</caption
-        ><thead
-          ><tr><th scope="col">MP</th><th scope="col">Known total</th></tr
-          ></thead
-        ><tbody>
-          {#each pounds.topRecipients as recipient}<tr
-              ><th scope="row"
-                ><a href={memberHref(recipient.member.id, "summary")}
-                  >{recipient.member.name}</a
-                ><span class="entry-count"
-                  >{recipient.member.partyName || "Party unavailable"}</span
-                ></th
-              ><td
-                ><span class="amount">{formatPounds(recipient.amount)}</span
-                >{#if recipient.unknownAmountCount > 0}<span
-                    class="partial-note"
-                    >{recipient.unknownAmountCount}
-                    {recipient.unknownAmountCount === 1 ? "amount" : "amounts"} unavailable</span
-                  >{/if}</td
-              ></tr
-            >{/each}
-        </tbody>
-      </table>
-    </div>
-  {/if}
-</section>
 {#if details.funder.aliases.length > 0}<details
     class="recorded-names funder-recorded-names"
     role="region"
