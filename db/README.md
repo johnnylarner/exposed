@@ -133,8 +133,8 @@ schema-qualified domain objects.
 
 ## Deploy stored funder groups
 
-The pipeline owns the grouping policy in
-`exposed/src/lib/domain/models/funder_families.v1.json`. Search and detail queries
+The typed `ReviewedFamily` constants own the grouping policy in
+`exposed/src/lib/domain/models/funder_grouping.rs`. Search and detail queries
 read stored membership, direct evidence, and reviewed preferred names. Each family
 sets `preferred_name` in the policy. Sparse `funder_group_names` rows keep these
 display names separate from the minimum-UUID group identity and recorded names.

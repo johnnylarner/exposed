@@ -2,7 +2,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use serde::Deserialize;
+use strum::IntoEnumIterator;
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -32,57 +32,60 @@ pub struct FunderGroups {
     pub(crate) preferred_names: Vec<FunderGroupName>,
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct FamilyPolicy {
-    version: PolicyVersion,
-    families: Vec<ReviewedFamily>,
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, strum::EnumIter)]
+enum ReviewedFamily {
+    Bbc,
+    GbNews,
+    PremierLeague,
 }
 
-#[derive(Deserialize)]
-#[serde(try_from = "u32")]
-enum PolicyVersion {
-    V1,
-}
-
-impl TryFrom<u32> for PolicyVersion {
-    type Error = &'static str;
-
-    fn try_from(version: u32) -> Result<Self, Self::Error> {
-        match version {
-            1 => Ok(Self::V1),
-            _ => Err("unsupported reviewed funder family policy version"),
-        }
-    }
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct ReviewedFamily {
-    key: String,
+struct ReviewedFamilyDefinition {
+    key: &'static str,
     preferred_name: PreferredFunderName,
-    names: Vec<String>,
+    names: &'static [&'static str],
 }
 
-#[derive(Clone, Debug, Deserialize)]
-#[serde(try_from = "String")]
-pub(crate) struct PreferredFunderName(String);
-
-impl TryFrom<String> for PreferredFunderName {
-    type Error = &'static str;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        let value = value.trim();
-        if value.is_empty() {
-            return Err("preferred funder names must be nonempty");
+impl ReviewedFamily {
+    const fn definition(self) -> ReviewedFamilyDefinition {
+        match self {
+            Self::Bbc => ReviewedFamilyDefinition {
+                key: "bbc",
+                preferred_name: PreferredFunderName("BBC"),
+                names: &[
+                    "BBC",
+                    "BBC Contributor Payments",
+                    "BBC Home Services",
+                    "BBC Studios",
+                    "BBC Studios Ltd",
+                    "BBC Wales Cymru",
+                ],
+            },
+            Self::GbNews => ReviewedFamilyDefinition {
+                key: "gb_news",
+                preferred_name: PreferredFunderName("GB News"),
+                names: &["GB News", "GB News Limited", "GB News Ltd"],
+            },
+            Self::PremierLeague => ReviewedFamilyDefinition {
+                key: "premier_league",
+                preferred_name: PreferredFunderName("Premier League"),
+                names: &[
+                    "Premier League",
+                    "FA Premier League Ltd",
+                    "The FA Premier League Ltd",
+                    "The Premier League",
+                    "Premier League International Holdings Ltd",
+                ],
+            },
         }
-        Ok(Self(value.into()))
     }
 }
+
+#[derive(Clone, Debug)]
+pub(crate) struct PreferredFunderName(&'static str);
 
 impl PreferredFunderName {
-    pub(crate) fn as_str(&self) -> &str {
-        &self.0
+    pub(crate) const fn as_str(&self) -> &str {
+        self.0
     }
 }
 
@@ -106,15 +109,9 @@ impl NormalizedName {
     }
 }
 
-/// Invalid grouping input or reviewed policy.
+/// Invalid grouping input or competing reviewed families.
 #[derive(Debug, Error)]
 pub enum FunderGroupingError {
-    /// The versioned resource does not match its schema.
-    #[error("invalid reviewed funder policy: {0}")]
-    PolicyDecode(#[from] serde_json::Error),
-    /// Policy names and keys must identify one reviewed family.
-    #[error("invalid reviewed funder policy: {0}")]
-    Policy(String),
     /// A persisted identity must occur exactly once in a snapshot.
     #[error("duplicate funder identity {0}")]
     DuplicateFunder(Uuid),
@@ -128,90 +125,55 @@ pub enum FunderGroupingError {
     },
 }
 
-impl FamilyPolicy {
-    fn parse(input: &str) -> Result<Self, FunderGroupingError> {
-        let policy: Self = serde_json::from_str(input)?;
-        let mut keys = BTreeSet::new();
-        let mut names = BTreeSet::new();
-        for family in &policy.families {
-            if family.key.trim().is_empty() || !keys.insert(&family.key) {
-                return Err(FunderGroupingError::Policy(
-                    "family keys must be nonempty and unique".into(),
-                ));
-            }
-            if family.names.is_empty() {
-                return Err(FunderGroupingError::Policy(
-                    "a reviewed family must have names".into(),
-                ));
-            }
-            for name in &family.names {
-                let normalized = NormalizedName::parse(name).ok_or_else(|| {
-                    FunderGroupingError::Policy("reviewed names must be nonempty".into())
-                })?;
-                if !names.insert(normalized) {
-                    return Err(FunderGroupingError::Policy(
-                        "each normalized reviewed name must occur once".into(),
-                    ));
-                }
-            }
-        }
-        Ok(policy)
+fn preferred_names(
+    reviewed_members: Vec<(Uuid, ReviewedFamily)>,
+    components: &mut Components,
+) -> Result<Vec<FunderGroupName>, FunderGroupingError> {
+    let mut reviewed_groups = BTreeMap::<Uuid, BTreeSet<ReviewedFamily>>::new();
+    for (id, family) in reviewed_members {
+        reviewed_groups
+            .entry(components.root(id))
+            .or_default()
+            .insert(family);
     }
-    fn preferred_names(
-        &self,
-        reviewed_members: Vec<(Uuid, usize)>,
-        components: &mut Components,
-    ) -> Result<Vec<FunderGroupName>, FunderGroupingError> {
-        let mut reviewed_groups = BTreeMap::<Uuid, BTreeSet<usize>>::new();
-        for (id, family_index) in reviewed_members {
-            reviewed_groups
-                .entry(components.root(id))
-                .or_default()
-                .insert(family_index);
+    let mut preferred_names = Vec::new();
+    for (group_id, families) in reviewed_groups {
+        if families.len() > 1 {
+            let mut family_keys: Vec<_> = families
+                .iter()
+                .map(|family| family.definition().key.to_owned())
+                .collect();
+            family_keys.sort();
+            return Err(FunderGroupingError::ConflictingReviewedFamilies {
+                group_id: FunderId::new(group_id),
+                family_keys,
+            });
         }
-        let mut preferred_names = Vec::new();
-        for (group_id, families) in reviewed_groups {
-            if families.len() > 1 {
-                let mut family_keys: Vec<_> = families
-                    .iter()
-                    .map(|index| self.families[*index].key.clone())
-                    .collect();
-                family_keys.sort();
-                return Err(FunderGroupingError::ConflictingReviewedFamilies {
-                    group_id: FunderId::new(group_id),
-                    family_keys,
-                });
-            }
-            for index in families {
-                let family = &self.families[index];
-                preferred_names.push(FunderGroupName {
-                    group_id: FunderId::new(group_id),
-                    preferred_name: family.preferred_name.clone(),
-                    family_key: family.key.clone(),
-                });
-            }
+        for family in families {
+            let definition = family.definition();
+            preferred_names.push(FunderGroupName {
+                group_id: FunderId::new(group_id),
+                preferred_name: definition.preferred_name,
+                family_key: definition.key.to_owned(),
+            });
         }
-        Ok(preferred_names)
     }
+    Ok(preferred_names)
 }
 
 /// Builds connected components from exact normalized names and reviewed canonical names.
 /// The smallest UUID represents a component, including singletons.
 ///
 /// # Errors
-/// Rejects duplicate identities and malformed or ambiguous reviewed policy.
+/// Rejects duplicate identities and components containing competing reviewed families.
 pub fn build_funder_groups(
     funders: &[GroupingFunder],
 ) -> Result<FunderGroups, FunderGroupingError> {
-    let policy = FamilyPolicy::parse(include_str!("funder_families.v1.json"))?;
     let mut ids = BTreeSet::new();
     for funder in funders {
         if !ids.insert(funder.id.value()) {
             return Err(FunderGroupingError::DuplicateFunder(funder.id.value()));
         }
-    }
-    match policy.version {
-        PolicyVersion::V1 => {}
     }
     let mut components = Components::new(funders);
     let mut names = BTreeMap::<NormalizedName, BTreeMap<Uuid, BTreeSet<&str>>>::new();
@@ -249,8 +211,9 @@ pub fn build_funder_groups(
     }
     let mut family_links = Vec::new();
     let mut reviewed_members = Vec::new();
-    for (family_index, family) in policy.families.iter().enumerate() {
-        let reviewed: BTreeSet<_> = family
+    for family in ReviewedFamily::iter() {
+        let definition = family.definition();
+        let reviewed: BTreeSet<_> = definition
             .names
             .iter()
             .filter_map(|name| NormalizedName::parse(name))
@@ -262,18 +225,14 @@ pub fn build_funder_groups(
             })
             .collect();
         members.sort_by_key(|funder| funder.id.value());
-        reviewed_members.extend(
-            members
-                .iter()
-                .map(|funder| (funder.id.value(), family_index)),
-        );
+        reviewed_members.extend(members.iter().map(|funder| (funder.id.value(), family)));
         for (position, left) in members.iter().enumerate() {
             for right in &members[position + 1..] {
                 components.join(left.id.value(), right.id.value());
                 family_links.push(FunderFamilyLink {
                     left_funder_id: left.id,
                     right_funder_id: right.id,
-                    family_key: family.key.clone(),
+                    family_key: definition.key.to_owned(),
                     left_name: left.name.clone(),
                     right_name: right.name.clone(),
                 });
@@ -287,7 +246,7 @@ pub fn build_funder_groups(
             link.right_funder_id.value(),
         )
     });
-    let preferred_names = policy.preferred_names(reviewed_members, &mut components)?;
+    let preferred_names = preferred_names(reviewed_members, &mut components)?;
     let memberships = ids
         .iter()
         .map(|id| (FunderId::new(*id), FunderId::new(components.root(*id))))
@@ -387,20 +346,28 @@ mod tests {
     }
 
     #[test]
-    fn preferred_names_parse_nonempty_trimmed_values() {
-        for value in ["", "  ", "\t\n"] {
-            assert!(PreferredFunderName::try_from(value.to_owned()).is_err());
+    fn reviewed_family_constants_are_coherent() {
+        let mut keys = BTreeSet::new();
+        let mut names = BTreeSet::new();
+        for family in ReviewedFamily::iter() {
+            let definition = family.definition();
+            assert!(!definition.key.trim().is_empty());
+            assert!(keys.insert(definition.key));
+            let preferred_name = definition.preferred_name.as_str();
+            assert!(!preferred_name.is_empty());
+            assert_eq!(preferred_name, preferred_name.trim());
+            assert!(!definition.names.is_empty());
+            for name in definition.names {
+                assert!(names.insert(NormalizedName::parse(name).unwrap()));
+            }
         }
-        assert_eq!(
-            PreferredFunderName::try_from(" BBC Studios ".to_owned())
-                .unwrap()
-                .as_str(),
-            "BBC Studios"
-        );
-        assert!(
-            FamilyPolicy::parse(r#"{"version":1,"families":[{"key":"bbc","names":["BBC"]}]}"#)
-                .is_err()
-        );
+    }
+
+    #[test]
+    fn reviewed_alias_alone_does_not_assign_a_family() {
+        let groups = build_funder_groups(&[funder(1, "External", &["BBC Studios Ltd"])]).unwrap();
+        assert!(groups.preferred_names.is_empty());
+        assert!(groups.family_links.is_empty());
     }
 
     #[test]
@@ -429,17 +396,7 @@ mod tests {
     }
 
     #[test]
-    fn reviewed_policy_rejects_ambiguous_names_empty_keys_and_unknown_versions() {
-        for input in [
-            r#"{"version":2,"families":[]}"#,
-            r#"{"version":1,"families":[{"key":"","preferred_name":"BBC","names":["BBC"]}]}"#,
-            r#"{"version":1,"families":[{"key":"a","preferred_name":"BBC","names":["BBC"]},{"key":"a","preferred_name":"BBC","names":["Other"]}]}"#,
-            r#"{"version":1,"families":[{"key":"a","preferred_name":"BBC","names":["BBC"]},{"key":"b","preferred_name":"Other","names":[" bBc "]}]}"#,
-            r#"{"version":1,"families":[{"key":"a","preferred_name":"BBC","names":[" "]}]}"#,
-            r#"{"version":1,"families":[{"key":"a","preferred_name":"BBC","names":[]}]}"#,
-        ] {
-            assert!(FamilyPolicy::parse(input).is_err(), "{input}");
-        }
+    fn duplicate_funder_identities_are_rejected() {
         assert!(matches!(
             build_funder_groups(&[funder(1, "Alpha", &[]), funder(1, "Other", &[])]),
             Err(FunderGroupingError::DuplicateFunder(_))
