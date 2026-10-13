@@ -133,14 +133,17 @@ schema-qualified domain objects.
 
 ## Deploy stored funder groups
 
-The pipeline owns the grouping policy in
-`exposed/src/lib/domain/models/funder_families.v1.json`. Search and detail queries
-read stored membership and direct evidence. The schema migration creates empty
-projection tables; it does not apply the policy to existing records.
+The typed `ReviewedFamily` constants own the grouping policy in
+`exposed/src/lib/domain/models/funder_grouping.rs`. Search and detail queries
+read stored membership, direct evidence, and reviewed preferred names. Each family
+sets `preferred_name` in the policy. Sparse `funder_group_names` rows keep these
+display names separate from the minimum-UUID group identity and recorded names.
+Schema migrations create empty projection tables; they do not apply the policy
+to existing records.
 
 Set `DATABASE_URL` to the target database. Before serving requests after the
-pipeline grouping migration, stop the API, apply migrations, then run the new
-binary against the same database:
+grouping or preferred-name migration, stop the API, apply migrations, then run
+the new binary against the same database:
 
 ```sh
 sqlx migrate run --config sqlx.toml --source db/migrations

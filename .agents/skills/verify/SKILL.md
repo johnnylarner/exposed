@@ -82,6 +82,11 @@ from `exposed_search_regression`. Apply the current migrations and run
 `exposed data refresh-funder-groups` on the copy before the test. Do not change
 the source database or refresh the frozen search snapshot during verification.
 
+The preferred-name migration creates empty metadata; the refresh applies the
+compiled reviewed-family names. Expect BBC, GB News, and Premier League in search
+and detail names. Member declaration history continues to show recorded source
+names.
+
 Set `GROUPED_FUNDER_REGRESSION_DATABASE_URL` to a read-only URL for that copy.
 The test also needs the same schema for SQLx compile-time query checks:
 

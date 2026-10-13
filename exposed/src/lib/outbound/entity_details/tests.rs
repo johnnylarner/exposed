@@ -455,6 +455,58 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
 }
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
+async fn preferred_profile_names_preserve_requested_identity_and_member_source_history(
+    pool: PgPool,
+) {
+    let first: FunderId = FUNDER.parse().unwrap();
+    let second = uuid::Uuid::parse_str("10000000-0000-0000-0000-000000000003").unwrap();
+    sqlx::query!(
+        "INSERT INTO exposed.funders (id, funder_name) VALUES ($1, 'BBC Studios Ltd')",
+        second
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query!(
+        "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, 'Exact Funder')",
+        second
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query!("INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency) VALUES (120, $1, 12, 'GBP')", second).execute(&pool).await.unwrap();
+    let db = ExposedDatabase::from(pool);
+    let before = db.member(MemberId::new(1).unwrap()).await.unwrap().unwrap();
+    db.refresh_funder_groups().await.unwrap();
+    for requested in [first, FunderId::new(second)] {
+        let funding = db.funder_funding(requested).await.unwrap().unwrap();
+        assert_eq!(funding.profile.funder.id(), requested);
+        assert_eq!(funding.profile.funder.name(), "BBC");
+        assert!(funding.profile.aliases.contains(&"Exact Funder".into()));
+        assert!(funding.profile.aliases.contains(&"BBC Studios Ltd".into()));
+        assert!(!funding.profile.aliases.contains(&"BBC".into()));
+        assert_eq!(funding.profile.member_ids, [first, FunderId::new(second)]);
+    }
+    let source_names = |history: &crate::domain::models::entity_details::MemberHistory| {
+        history
+            .declarations
+            .iter()
+            .flat_map(|declaration| &declaration.entries)
+            .filter_map(|entry| {
+                entry
+                    .funder
+                    .as_ref()
+                    .map(|funder| (funder.id, funder.name.clone()))
+            })
+            .collect::<Vec<_>>()
+    };
+    let after = db.member(MemberId::new(1).unwrap()).await.unwrap().unwrap();
+    assert_eq!(source_names(&after), source_names(&before));
+    assert!(source_names(&after).contains(&(FunderId::new(second), "BBC Studios Ltd".into())));
+    assert!(!source_names(&after).iter().any(|(_, name)| name == "BBC"));
+}
+
+#[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
 async fn connected_funding_preserves_entries_requested_id_and_link_evidence(pool: PgPool) {
     let first: FunderId = FUNDER.parse().unwrap();
     let second = uuid::Uuid::parse_str("10000000-0000-0000-0000-000000000003").unwrap();
