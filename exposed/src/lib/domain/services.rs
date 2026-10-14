@@ -11,5 +11,3 @@ pub mod declaration_resolution;
 
 /// Entity profiles and declared support.
 pub mod entity_details;
-
-pub mod declaration_sync;
