@@ -58,7 +58,7 @@ jobs:
         env:
           DATABASE_URL: postgresql://exposed:ci-only@localhost:5432/exposed_ci
         run: |
-          cargo install sqlx-cli --version 0.9.0 --locked --no-default-features --features postgres,rustls
+          cargo install sqlx-cli --version 0.9.0 --locked --no-default-features --features postgres,rustls,sqlx-toml
           sqlx migrate run --config sqlx.toml --source db/migrations
           cargo sqlx prepare --check --workspace -- --bin exposed
       - name: Test release retries and collisions

@@ -31,7 +31,7 @@ Use an isolated PostgreSQL 18 database. Set `DATABASE_URL` to that database, the
 run these commands from the repository root:
 
 ```sh
-cargo install sqlx-cli --version 0.9.0 --locked --no-default-features --features postgres,rustls
+cargo install sqlx-cli --version 0.9.0 --locked --no-default-features --features postgres,rustls,sqlx-toml
 sqlx migrate run --config sqlx.toml --source db/migrations
 cargo sqlx prepare --workspace -- --bin exposed
 cargo sqlx prepare --check --workspace -- --bin exposed
