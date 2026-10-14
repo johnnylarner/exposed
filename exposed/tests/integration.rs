@@ -302,3 +302,137 @@ async fn loaded_data_grouped_funders_regression() -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[sqlx::test(
+    migrations = "../db/migrations",
+    fixtures("../../db/fixtures/add_members.sql")
+)]
+async fn declaration_sync_replaces_changed_funding_and_retains_historical_aliases(
+    pool: PgPool,
+) -> anyhow::Result<()> {
+    use common::declarations::{DeclarationSource, company_declaration, start_declaration_source};
+    use serde_json::{Value, json};
+    use std::sync::{Arc, Mutex};
+
+    let source = Arc::new(Mutex::new(DeclarationSource::default()));
+    source.lock().unwrap().records = [
+        (1, company_declaration(1, "Original Company", "100")),
+        (2, company_declaration(2, "Historical Company", "50")),
+    ]
+    .into_iter()
+    .collect();
+    let (_server, endpoint) = start_declaration_source(source.clone()).await?;
+    let temporary = TempDir::new()?;
+    let config = temporary.path().join("declarations.yaml");
+    let data = temporary.path().join("data");
+    let run = |stage: &str| {
+        let config = config.clone();
+        let url = pool.connect_options().to_url_lossy().to_string();
+        let stage = stage.to_string();
+        tokio::task::spawn_blocking(move || {
+            Command::new(env!("CARGO_BIN_EXE_exposed"))
+                .env("DATABASE_URL", url)
+                .args(["data", "declarations", &stage, "--config"])
+                .arg(config)
+                .output()
+                .unwrap()
+        })
+    };
+    let configure = |cutoff: &str| {
+        fs::write(
+            &config,
+            format!(
+                "data_dir: {}\nbatch_size: 1\ncandidate_budget: 100000\ncutoff: {cutoff}\ninterests_url: {endpoint}\n",
+                data.display()
+            ),
+        )
+    };
+    configure("2026-10-12")?;
+    let baseline = run("reconcile").await?;
+    assert!(
+        baseline.status.success(),
+        "{}",
+        String::from_utf8_lossy(&baseline.stderr)
+    );
+    let unchanged_before = sqlx::query_scalar!(
+        "SELECT to_jsonb(d) AS \"row!\" FROM exposed.declarations d WHERE source_declaration_id = 2"
+    )
+    .fetch_one(&pool)
+    .await?;
+    {
+        let mut source = source.lock().unwrap();
+        let mut corrected = company_declaration(1, "Current Company", "40");
+        corrected["versions"][0]["register"] = json!({"id": 821, "publishedDate": "2026-10-13"});
+        let old = company_declaration(1, "Original Company", "100")["versions"][0].clone();
+        corrected["versions"].as_array_mut().unwrap().insert(0, old);
+        source.records.insert(1, corrected);
+        source
+            .records
+            .insert(3, company_declaration(3, "New Company Alias", "60"));
+        source.requests.clear();
+    }
+    configure("2026-10-13")?;
+    let synced = run("sync").await?;
+    assert!(
+        synced.status.success(),
+        "{}",
+        String::from_utf8_lossy(&synced.stderr)
+    );
+    let entries = sqlx::query!("SELECT e.source_declaration_id, e.amount::text AS amount, f.company_number, e.funder_id FROM exposed.funding_entries e JOIN exposed.funders f ON f.id = e.funder_id ORDER BY e.source_declaration_id").fetch_all(&pool).await?;
+    assert_eq!(
+        entries
+            .iter()
+            .map(|e| (e.source_declaration_id, e.amount.as_deref()))
+            .collect::<Vec<_>>(),
+        vec![(1, Some("40")), (2, Some("50")), (3, Some("60"))]
+    );
+    assert!(
+        entries
+            .iter()
+            .all(|e| e.company_number.as_deref() == Some("00001234")
+                && e.funder_id == entries[0].funder_id)
+    );
+    let aliases = sqlx::query_scalar!(
+        "SELECT funder_alias FROM exposed.funder_aliases ORDER BY funder_alias"
+    )
+    .fetch_all(&pool)
+    .await?;
+    assert_eq!(
+        aliases,
+        vec!["Current Company", "Historical Company", "New Company Alias"]
+    );
+    assert_eq!(sqlx::query_scalar!("SELECT to_jsonb(d) AS \"row!\" FROM exposed.declarations d WHERE source_declaration_id = 2").fetch_one(&pool).await?, unchanged_before);
+    let manifest_path = sqlx::query_scalar!("SELECT r.manifest_path FROM exposed.declaration_sync_head h JOIN exposed.declaration_sync_runs r USING (ingestion_key)").fetch_one(&pool).await?;
+    let manifest: Value = serde_json::from_slice(&fs::read(manifest_path)?)?;
+    let captured: Value = serde_json::from_str(
+        manifest["declarations"]["1"]["declaration"]["source_json"]
+            .as_str()
+            .unwrap(),
+    )?;
+    assert_eq!(captured["versions"].as_array().unwrap().len(), 2);
+    let source = source.lock().unwrap();
+    assert!(
+        source
+            .requests
+            .iter()
+            .all(|request| !request.contains("MemberId="))
+    );
+    for filter in ["PublishedFrom=", "UpdatedFrom="] {
+        assert!(
+            source
+                .requests
+                .iter()
+                .any(|request| request.contains(filter))
+        );
+    }
+    for id in [1, 3] {
+        assert!(
+            source
+                .requests
+                .iter()
+                .any(|request| request.contains(&format!("InterestIds={id}"))
+                    && !request.contains("From="))
+        );
+    }
+    Ok(())
+}

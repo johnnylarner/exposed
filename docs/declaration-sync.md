@@ -51,8 +51,11 @@ Interpretation still cleans, resolves, and groups the complete corpus whenever s
 The integration test starts a deterministic local Interests HTTP server, invokes the real CLI binary, and uses SQLx to create an isolated migrated database. `DATABASE_URL` must identify a disposable development server on which the role can create databases. The test does not modify the database named in that URL.
 
 ```sh
-DATABASE_URL='postgresql://.../development?sslmode=disable' \
-  cargo test -p exposed --test declaration_sync -- --nocapture
+export DATABASE_URL='postgresql://.../development?sslmode=disable'
+cargo test -p exposed --test integration declaration_sync_replaces -- --nocapture
+cargo test -p exposed --lib publication_ -- --nocapture
 ```
 
-The test compares baseline-plus-delta publication with complete final evidence, including funding attribution, amounts, aliases, and funder grouping. Fixed assertions check corrected parent attribution, removed funding entries, retained historical aliases, and unavailable parents. It exercises distinct published-only and updated-only discoveries, unfiltered version hydration, preserved timestamps, checkpoint overlap, rollback on source and paging failures, empty/content-equal runs, exact replay, stale publication, and sealed-run recovery.
+The integration scenario publishes a corrected company donation and a new donation while retaining an unchanged historical donation. It checks replacement amounts, shared funder identity, retained historical aliases, and removal of the superseded name. Published-only and updated-only discoveries require unfiltered hydration, and daily requests must not fetch full member histories.
+
+Focused loader tests check atomic rollback and retry from sealed evidence, exact publication retries, unchanged publication without a load, rejection of false unchanged content and stale revisions, and legacy loader exclusion. A bootstrap regression seals a capture before an intervening legacy load and verifies that first publication rejects the incomplete baseline without changing the projection or head.
