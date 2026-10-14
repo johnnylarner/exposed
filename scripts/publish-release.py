@@ -53,11 +53,22 @@ class Release:
 
 
 def reservations(repo):
-    refs = pages(f"repos/{repo}/git/matching-refs/tags/20")
+    owner, name = repo.split("/", 1)
+    query = """query($owner:String!, $name:String!, $endCursor:String) {
+      repository(owner:$owner, name:$name) {
+        refs(refPrefix:"refs/tags/", first:100, after:$endCursor) {
+          nodes { name target { __typename ... on Tag { message target { __typename oid } } } }
+          pageInfo { hasNextPage endCursor }
+        }
+      }
+    }"""
+    responses = json.loads(command("gh", "api", "graphql", "--paginate", "--slurp",
+                                   "-F", f"owner={owner}", "-F", f"name={name}", "-f", f"query={query}"))
+    refs = (ref for page in responses for ref in page["data"]["repository"]["refs"]["nodes"])
     for ref in refs:
-        if ref["object"]["type"] != "tag":
+        annotation = ref["target"]
+        if annotation["__typename"] != "Tag":
             continue
-        annotation = api(f"repos/{repo}/git/tags/{ref['object']['sha']}")
         try:
             value = json.loads(annotation["message"])
         except json.JSONDecodeError:
@@ -65,9 +76,9 @@ def reservations(repo):
         if not isinstance(value, dict) or value.get("kind") != "exposed-release-v1":
             continue
         release = Release(**{key: value[key] for key in ("run_id", "sha", "tag", "image", "digest")})
-        if annotation["object"]["type"] != "commit" or annotation["object"]["sha"] != release.sha:
+        if annotation["target"]["__typename"] != "Commit" or annotation["target"]["oid"] != release.sha:
             raise ValueError("Reservation points to a different commit")
-        if ref["ref"] != f"refs/tags/{release.tag}":
+        if ref["name"] != release.tag:
             raise ValueError("Reservation tag does not match its annotation")
         yield release
 

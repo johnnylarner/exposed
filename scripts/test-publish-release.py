@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import datetime
 import importlib.util
+import json
 import pathlib
 import subprocess
 import sys
@@ -20,10 +21,22 @@ TUPLE = release.Release("42", SHA, "2026.10.14.12.30", IMAGE, DIGEST)
 
 class ReleaseTests(unittest.TestCase):
     def test_unrelated_json_annotation_is_ignored(self):
-        refs = [{"object": {"type": "tag", "sha": SHA}}]
-        with patch.object(release, "pages", return_value=refs), \
-                patch.object(release, "api", return_value={"message": "[]"}):
+        refs = [{"target": {"__typename": "Tag", "message": "[]"}}]
+        response = json.dumps([{"data": {"repository": {"refs": {"nodes": refs}}}}])
+        with patch.object(release, "command", return_value=response):
             self.assertEqual(list(release.reservations("owner/exposed")), [])
+
+    def test_batched_pages_recover_owned_annotation_and_skip_lightweight_tag(self):
+        annotation = {"__typename": "Tag", "message": json.dumps({
+            "kind": "exposed-release-v1", **release.dataclasses.asdict(TUPLE)}),
+            "target": {"__typename": "Commit", "oid": SHA}}
+        responses = [{"data": {"repository": {"refs": {"nodes": [
+            {"name": "other", "target": {"__typename": "Commit"}}]}}}},
+            {"data": {"repository": {"refs": {"nodes": [
+                {"name": TUPLE.tag, "target": annotation}]}}}}]
+        with patch.object(release, "command", return_value=json.dumps(responses)) as command:
+            self.assertEqual(list(release.reservations("owner/exposed")), [TUPLE])
+            self.assertEqual(command.call_count, 1)
 
     def test_retry_recovers_exact_tuple_without_creating_tag(self):
         with patch.object(release, "existing", return_value=TUPLE), patch.object(release, "api") as api:
