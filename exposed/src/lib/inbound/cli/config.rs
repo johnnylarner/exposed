@@ -110,3 +110,46 @@ impl TryFrom<&PathBuf> for DeclarationResolverConfig {
         Ok(config)
     }
 }
+
+/// Declaration-only synchronization configuration.
+#[derive(Deserialize)]
+pub struct DeclarationSyncConfig {
+    /// Durable artifact root, retained for every committed snapshot.
+    pub data_dir: PathBuf,
+    /// Nonzero Parliament page size.
+    pub batch_size: u8,
+    /// Global resolution candidate limit.
+    #[serde(default = "default_candidate_budget")]
+    pub candidate_budget: usize,
+    /// Previous source dates to rediscover.
+    #[serde(default = "default_overlap_days")]
+    pub overlap_days: u64,
+    /// UTC dates excluded to allow source indexing.
+    #[serde(default = "default_indexing_lag_days")]
+    pub indexing_lag_days: u64,
+    /// Explicit inclusive source cutoff, otherwise UTC today minus lag.
+    pub cutoff: Option<chrono::NaiveDate>,
+    /// Official production endpoint, injectable for deterministic source tests.
+    #[serde(default = "default_interests_url")]
+    pub interests_url: String,
+}
+const fn default_overlap_days() -> u64 {
+    7
+}
+const fn default_indexing_lag_days() -> u64 {
+    1
+}
+fn default_interests_url() -> String {
+    "https://interests-api.parliament.uk/api/v2/Interests".into()
+}
+impl TryFrom<&PathBuf> for DeclarationSyncConfig {
+    type Error = anyhow::Error;
+    fn try_from(path: &PathBuf) -> Result<Self, Self::Error> {
+        let config: Self = rust_yaml::from_str(&read_to_string(path)?)?;
+        anyhow::ensure!(
+            config.batch_size > 0 && config.candidate_budget > 0,
+            "batch_size and candidate_budget must be positive"
+        );
+        Ok(config)
+    }
+}

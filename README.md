@@ -2,6 +2,9 @@
 
 Where do MPs get their money from?
 
+For daily declaration updates, see [declaration synchronization](docs/declaration-sync.md).
+It updates declarations against the existing member records. Maintain member metadata separately.
+
 To fetch and load members, use the same ingestion key for both stages:
 
 ```sh
