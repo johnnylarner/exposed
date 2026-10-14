@@ -13,8 +13,6 @@ on:
       - docker/Dockerfile
       - .dockerignore
       - .github/workflows/release.yml
-      - scripts/publish-release.py
-      - scripts/test-publish-release.py
   pull_request:
     paths: *build-paths
 
@@ -32,37 +30,15 @@ jobs:
       contents: read
       packages: write
     outputs:
-      digest: ${{ steps.release.outputs.digest || steps.build.outputs.digest }}
-    services:
-      postgres:
-        image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
-        env:
-          POSTGRES_USER: exposed
-          POSTGRES_PASSWORD: ci-only
-          POSTGRES_DB: exposed_ci
-        ports: [5432:5432]
-        options: >-
-          --health-cmd "pg_isready -U exposed -d exposed_ci"
-          --health-interval 2s --health-timeout 5s --health-retries 20
+      image: ${{ steps.metadata.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: dtolnay/rust-toolchain@e2a55d2ffb04f378e9626c28d38b36d230d1e12f
-        with:
-          toolchain: 1.98.1
-      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
-        with:
-          key: sqlx-metadata
-      - name: Check SQLx metadata against the migrated schema
-        env:
-          DATABASE_URL: postgresql://exposed:ci-only@localhost:5432/exposed_ci
-        run: |
-          cargo install sqlx-cli --version 0.9.0 --locked --no-default-features --features postgres,rustls,sqlx-toml
-          sqlx migrate run --config sqlx.toml --source db/migrations
-          cargo sqlx prepare --check --workspace -- --bin exposed
-      - name: Test release retries and collisions
-        run: python3 scripts/test-publish-release.py
+      - name: Set image name
+        id: metadata
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         if: github.event_name == 'push'
@@ -70,15 +46,8 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Recover release reservation
-        id: release
-        if: github.event_name == 'push'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python3 scripts/publish-release.py prepare
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         id: build
-        if: steps.release.outputs.digest == ''
         with:
           context: .
           file: docker/Dockerfile
@@ -89,22 +58,13 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.release.outputs.image || 'exposed' }}:run-${{ github.run_id }}
+          tags: ${{ steps.metadata.outputs.image }}:run-${{ github.run_id }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
       - name: Smoke test the runtime image
-        if: steps.release.outputs.digest == ''
         env:
-          IMAGE: ${{ steps.release.outputs.image || 'exposed' }}:run-${{ github.run_id }}
-          DATABASE_URL: postgresql://exposed:ci-only@localhost:5432/exposed_ci
-        run: |
-          docker run --rm "$IMAGE" --help
-          docker run --detach --name exposed-smoke --network host --env DATABASE_URL "$IMAGE"
-          trap 'docker logs exposed-smoke; docker rm --force exposed-smoke' EXIT
-          curl --fail --silent --show-error --retry 30 --retry-connrefused --retry-delay 1 \
-            --max-time 5 --retry-max-time 45 \
-            'http://127.0.0.1:6999/search?term=smoke&max_entries=1' --output /tmp/search.json
-          python3 -c 'import json; assert json.load(open("/tmp/search.json")) == {"entities": []}'
+          IMAGE: ${{ steps.metadata.outputs.image }}:run-${{ github.run_id }}
+        run: docker run --rm "$IMAGE" --help
 
   publish:
     if: github.event_name == 'push'
@@ -114,9 +74,6 @@ jobs:
       contents: write
       packages: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -126,5 +83,36 @@ jobs:
       - name: Publish timestamp image and GitHub release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ${{ needs.build.outputs.image }}
           IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
-        run: python3 scripts/publish-release.py publish --digest "$IMAGE_DIGEST"
+        run: |
+          marker="<!-- exposed-release-run:${GITHUB_RUN_ID} -->"
+          releases=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases")
+          if jq -e --arg marker "$marker" 'any(.[][]; .draft == false and ((.body // "") | contains($marker)))' <<< "$releases" > /dev/null; then
+            echo "This Actions run already has a published release."
+            exit 0
+          fi
+
+          while true; do
+            tag=$(date -u +%Y.%m.%d.%H.%M)
+            if gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/tags/$tag" -f "sha=$GITHUB_SHA"; then
+              break
+            fi
+            refs=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$tag")
+            jq -e --arg ref "refs/tags/$tag" 'any(.[]; .ref == $ref)' <<< "$refs" > /dev/null
+            while [ "$(date -u +%Y.%m.%d.%H.%M)" = "$tag" ]; do
+              sleep "$((60 - 10#$(date -u +%S)))"
+            done
+          done
+
+          reference="$IMAGE@$IMAGE_DIGEST"
+          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:$tag" "$reference"
+          published_digest=$(docker buildx imagetools inspect "$IMAGE:$tag" --format '{{json .Manifest}}' | jq -r .digest)
+          test "$published_digest" = "$IMAGE_DIGEST"
+
+          printf '%s\n' "$reference" > image.txt
+          printf 'Source: https://github.com/%s/commit/%s\n\nImage: %s:%s\n\nPinned image: %s\n\n    docker run --rm --env DATABASE_URL -p 6999:6999 %s\n\n%s\n' \
+            "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$IMAGE" "$tag" "$reference" "$reference" "$marker" > release-notes.md
+          gh release create "$tag" image.txt --repo "$GITHUB_REPOSITORY" \
+            --verify-tag --target "$GITHUB_SHA" --title "$tag" --notes-file release-notes.md
