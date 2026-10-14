@@ -29,7 +29,7 @@ impl DeclarationId {
 }
 
 /// A declaration and the funding entries from its latest publication.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CapturedDeclaration {
     id: DeclarationId,
     parent_id: Option<DeclarationId>,

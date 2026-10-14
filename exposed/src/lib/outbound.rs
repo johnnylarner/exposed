@@ -23,3 +23,6 @@ mod declaration_loading;
 mod entity_details;
 
 mod funder_grouping;
+
+mod declaration_sync;
+pub use declaration_sync::DeclarationSnapshotStore;

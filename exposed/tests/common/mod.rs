@@ -11,7 +11,7 @@ use reqwest::StatusCode;
 use serde_json::Value;
 use tempfile::{NamedTempFile, TempDir};
 
-mod declarations;
+pub mod declarations;
 pub use declarations::{DeclarationFunding, FundingEntry, read_declaration_funding};
 
 pub struct Guard {

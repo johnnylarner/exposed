@@ -19,3 +19,5 @@ pub mod entity_details;
 
 /// Derived funder membership and direct grouping evidence.
 pub mod funder_grouping;
+
+pub mod declaration_sync;
