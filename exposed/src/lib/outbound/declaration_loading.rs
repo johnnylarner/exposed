@@ -563,6 +563,17 @@ impl DeclarationLoadRepository for ExposedDatabase {
     ) -> Result<DeclarationLoadSummary, EntityIngestionError> {
         let mut tx = self.pool().begin().await.map_err(db_error)?;
         super::funder_grouping::lock_declaration_loader(&mut tx).await?;
+        if sqlx::query_scalar!(
+            "SELECT EXISTS(SELECT 1 FROM exposed.declaration_sync_head) AS \"exists!\""
+        )
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(db_error)?
+        {
+            return Err(data_error(
+                "declaration sync owns the projection; use declarations sync or reconcile",
+            ));
+        }
         if let Some(existing) = sqlx::query!(
             "SELECT fingerprint, declarations, funders, funding_entries FROM exposed.declaration_load_runs WHERE ingestion_key = $1",
             load.ingestion_key.uuid()
@@ -580,6 +591,59 @@ impl DeclarationLoadRepository for ExposedDatabase {
             });
         }
 
+        let summary = self.apply_declaration_load(&mut tx, load).await?;
+        tx.commit().await.map_err(db_error)?;
+        Ok(summary)
+    }
+}
+
+fn data_error(message: impl Into<String>) -> EntityIngestionError {
+    EntityIngestionError::DataError(message.into())
+}
+fn sql_timestamp(value: DateTime<Utc>) -> Result<time::OffsetDateTime, EntityIngestionError> {
+    time::OffsetDateTime::from_unix_timestamp(value.timestamp())
+        .and_then(|timestamp| timestamp.replace_nanosecond(value.timestamp_subsec_nanos()))
+        .map_err(db_error)
+}
+fn read_error(error: impl std::fmt::Display) -> EntityIngestionError {
+    EntityIngestionError::IoError(EntitySearchPipelineError::ReadError(error.to_string()))
+}
+
+#[cfg(test)]
+mod tests;
+fn db_error(error: impl std::fmt::Display) -> EntityIngestionError {
+    EntityIngestionError::DataError(error.to_string())
+}
+
+async fn ensure_initial_projection_is_captured(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    load: &DeclarationLoad,
+) -> Result<(), EntityIngestionError> {
+    let captured = load
+        .declarations
+        .iter()
+        .map(|declaration| {
+            i32::try_from(declaration.source_declaration_id.value()).map_err(db_error)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let omitted = sqlx::query_scalar!(
+        "SELECT EXISTS(SELECT 1 FROM exposed.declarations WHERE NOT (source_declaration_id = ANY($1))) AS \"omitted!\"",
+        &captured
+    ).fetch_one(&mut **tx).await.map_err(db_error)?;
+    if omitted {
+        return Err(data_error(
+            "initial publication omitted current declarations; complete raw evidence is unavailable, reacquire the baseline",
+        ));
+    }
+    Ok(())
+}
+
+impl ExposedDatabase {
+    async fn apply_declaration_load(
+        &self,
+        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+        load: &DeclarationLoad,
+    ) -> Result<DeclarationLoadSummary, EntityIngestionError> {
         let mut funder_ids = BTreeMap::new();
         for funder in &load.funders {
             let id = sqlx::query!(
@@ -588,13 +652,13 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 funder.kind,
                 funder.company_number,
                 funder.identity_id
-            ).fetch_one(&mut *tx).await.map_err(db_error)?.id;
+            ).fetch_one(&mut **tx).await.map_err(db_error)?.id;
             funder_ids.insert(funder.identity_id.as_str(), id);
             sqlx::query!(
                 "DELETE FROM exposed.funder_aliases WHERE funder_id = $1",
                 id
             )
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await
             .map_err(db_error)?;
             for alias in funder.aliases.iter().chain(std::iter::once(&funder.name)) {
@@ -603,7 +667,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
                     id,
                     alias
                 )
-                .execute(&mut *tx)
+                .execute(&mut **tx)
                 .await
                 .map_err(db_error)?;
             }
@@ -613,7 +677,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 "SELECT id FROM exposed.members WHERE parliament_member_id = $1",
                 i32::try_from(declaration.member_id.value()).map_err(db_error)?
             )
-            .fetch_optional(&mut *tx)
+            .fetch_optional(&mut **tx)
             .await
             .map_err(db_error)?
             .ok_or_else(|| {
@@ -631,7 +695,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 declaration.category_name,
                 sql_timestamp(declaration.fetched_at)?,
                 declaration.registration_date.map(|date| date.and_hms_opt(0, 0, 0).expect("midnight is valid").and_utc()).map(sql_timestamp).transpose()?
-            ).fetch_optional(&mut *tx).await.map_err(db_error)?;
+            ).fetch_optional(&mut **tx).await.map_err(db_error)?;
             if inserted.is_none() {
                 return Err(data_error(format!(
                     "declaration {} is already loaded at a newer capture time",
@@ -642,7 +706,7 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 "DELETE FROM exposed.funding_entries WHERE source_declaration_id = $1",
                 i32::try_from(declaration.source_declaration_id.value()).map_err(db_error)?
             )
-            .execute(&mut *tx)
+            .execute(&mut **tx)
             .await
             .map_err(db_error)?;
         }
@@ -672,21 +736,21 @@ impl DeclarationLoadRepository for ExposedDatabase {
                 entry.selected_parent_declaration_id.map(|id| i32::try_from(id.value())).transpose().map_err(db_error)?,
                 unavailable_reason,
                 serde_json::to_value(&entry.issues).map_err(db_error)?
-            ).execute(&mut *tx).await.map_err(db_error)?;
+            ).execute(&mut **tx).await.map_err(db_error)?;
         }
         sqlx::query!(
             "DELETE FROM exposed.funder_aliases AS alias WHERE NOT EXISTS (SELECT 1 FROM exposed.funding_entries AS entry WHERE entry.funder_id = alias.funder_id)"
         )
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await
         .map_err(db_error)?;
         sqlx::query!(
             "DELETE FROM exposed.funders AS funder WHERE NOT EXISTS (SELECT 1 FROM exposed.funding_entries AS entry WHERE entry.funder_id = funder.id)"
         )
-        .execute(&mut *tx)
+        .execute(&mut **tx)
         .await
         .map_err(db_error)?;
-        super::funder_grouping::replace_funder_groups(&mut tx).await?;
+        super::funder_grouping::replace_funder_groups(tx).await?;
         let summary = load.summary();
         sqlx::query!(
             "INSERT INTO exposed.declaration_load_runs (ingestion_key, fingerprint, declarations, funders, funding_entries) VALUES ($1, $2, $3, $4, $5)",
@@ -695,26 +759,109 @@ impl DeclarationLoadRepository for ExposedDatabase {
             i64::try_from(summary.declarations).map_err(db_error)?,
             i64::try_from(summary.funders).map_err(db_error)?,
             i64::try_from(summary.funding_entries).map_err(db_error)?
-        ).execute(&mut *tx).await.map_err(db_error)?;
-        tx.commit().await.map_err(db_error)?;
+        ).execute(&mut **tx).await.map_err(db_error)?;
         Ok(summary)
     }
-}
 
-fn data_error(message: impl Into<String>) -> EntityIngestionError {
-    EntityIngestionError::DataError(message.into())
-}
-fn sql_timestamp(value: DateTime<Utc>) -> Result<time::OffsetDateTime, EntityIngestionError> {
-    time::OffsetDateTime::from_unix_timestamp(value.timestamp())
-        .and_then(|timestamp| timestamp.replace_nanosecond(value.timestamp_subsec_nanos()))
-        .map_err(db_error)
-}
-fn read_error(error: impl std::fmt::Display) -> EntityIngestionError {
-    EntityIngestionError::IoError(EntitySearchPipelineError::ReadError(error.to_string()))
-}
-
-#[cfg(test)]
-mod tests;
-fn db_error(error: impl std::fmt::Display) -> EntityIngestionError {
-    EntityIngestionError::DataError(error.to_string())
+    pub(super) async fn publish_declaration_sync(
+        &self,
+        publication: &crate::domain::models::declaration_sync::PreparedPublication,
+        load: Option<&DeclarationLoad>,
+    ) -> Result<bool, EntityIngestionError> {
+        use crate::domain::services::declaration_sync::sha256_digest;
+        let manifest_bytes = fs::read(&publication.manifest_path).map_err(read_error)?;
+        if sha256_digest(&manifest_bytes) != publication.manifest_sha256 {
+            return Err(data_error("sealed capture changed before publication"));
+        }
+        let snapshot: crate::domain::models::declaration_sync::CompleteDeclarationSnapshot =
+            serde_json::from_slice(&manifest_bytes).map_err(db_error)?;
+        if snapshot.run != publication.run
+            || snapshot.expected_revision != publication.expected_revision
+            || snapshot.window.through != publication.coverage_date
+            || snapshot.content_changed != load.is_some()
+        {
+            return Err(data_error("publication disagrees with its sealed manifest"));
+        }
+        if load.is_some_and(|load| load.ingestion_key.uuid() != publication.run) {
+            return Err(data_error("projection belongs to another capture"));
+        }
+        let fingerprint = sha256_digest(
+            format!(
+                "{}:{}",
+                publication.manifest_sha256,
+                load.map_or("unchanged", |load| load.fingerprint.as_str())
+            )
+            .as_bytes(),
+        );
+        let mut tx = self.pool().begin().await.map_err(db_error)?;
+        super::funder_grouping::lock_declaration_loader(&mut tx).await?;
+        if let Some(existing) = sqlx::query!(
+            "SELECT fingerprint FROM exposed.declaration_sync_runs WHERE ingestion_key = $1",
+            publication.run
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(db_error)?
+        {
+            if existing.fingerprint != fingerprint {
+                return Err(data_error(
+                    "committed sync run has different evidence or projection",
+                ));
+            }
+            tx.commit().await.map_err(db_error)?;
+            return Ok(false);
+        }
+        let revision = sqlx::query_scalar!("SELECT run.revision FROM exposed.declaration_sync_head head JOIN exposed.declaration_sync_runs run USING (ingestion_key) WHERE head.singleton").fetch_optional(&mut *tx).await.map_err(db_error)?.unwrap_or(0);
+        if revision != publication.expected_revision {
+            return Err(data_error(
+                "stale declaration publication base; start a new capture from the committed head",
+            ));
+        }
+        if load.is_none() {
+            let committed_content = sqlx::query_scalar!("SELECT run.content_sha256 FROM exposed.declaration_sync_head head JOIN exposed.declaration_sync_runs run USING (ingestion_key) WHERE head.singleton").fetch_optional(&mut *tx).await.map_err(db_error)?;
+            if committed_content.as_deref() != Some(snapshot.content_sha256.as_str()) {
+                return Err(data_error(
+                    "unchanged publication content differs from the committed snapshot",
+                ));
+            }
+        }
+        let scope = snapshot
+            .scope
+            .iter()
+            .map(|member| i32::try_from(member.value()).map_err(db_error))
+            .collect::<Result<Vec<_>, _>>()?;
+        let stored_scope = sqlx::query_scalar!("SELECT parliament_member_id FROM exposed.members WHERE parliament_member_id = ANY($1) ORDER BY parliament_member_id FOR KEY SHARE", &scope).fetch_all(&mut *tx).await.map_err(db_error)?;
+        if stored_scope != scope {
+            return Err(data_error(
+                "a member in the sealed declaration scope is no longer stored",
+            ));
+        }
+        if let Some(load) = load {
+            if revision == 0 {
+                ensure_initial_projection_is_captured(&mut tx, load).await?;
+            }
+            self.apply_declaration_load(&mut tx, load).await?;
+        }
+        let coverage_date = time::Date::from_calendar_date(
+            chrono::Datelike::year(&publication.coverage_date),
+            time::Month::try_from(
+                u8::try_from(chrono::Datelike::month(&publication.coverage_date))
+                    .map_err(db_error)?,
+            )
+            .map_err(db_error)?,
+            u8::try_from(chrono::Datelike::day(&publication.coverage_date)).map_err(db_error)?,
+        )
+        .map_err(db_error)?;
+        let revision = revision
+            .checked_add(1)
+            .ok_or_else(|| data_error("publication revision overflow"))?;
+        let path = publication
+            .manifest_path
+            .to_str()
+            .ok_or_else(|| data_error("manifest path is not UTF-8"))?;
+        sqlx::query!("INSERT INTO exposed.declaration_sync_runs (ingestion_key, fingerprint, content_sha256, revision, manifest_path, manifest_sha256, coverage_date) VALUES ($1, $2, $3, $4, $5, $6, $7)", publication.run, fingerprint, snapshot.content_sha256, revision, path, publication.manifest_sha256, coverage_date).execute(&mut *tx).await.map_err(db_error)?;
+        sqlx::query!("INSERT INTO exposed.declaration_sync_head (singleton, ingestion_key) VALUES (true, $1) ON CONFLICT (singleton) DO UPDATE SET ingestion_key = EXCLUDED.ingestion_key", publication.run).execute(&mut *tx).await.map_err(db_error)?;
+        tx.commit().await.map_err(db_error)?;
+        Ok(true)
+    }
 }
