@@ -18,7 +18,6 @@ use crate::domain::{
 
 const BASE_URL: &str = "https://members-api.parliament.uk";
 
-mod declaration_sync;
 mod declarations;
 
 /// Parliament API implementation
@@ -26,7 +25,6 @@ mod declarations;
 pub struct ParliamentApiClient {
     client: Client,
     batch_size: NonZeroU8,
-    interests_url: String,
 }
 
 impl ParliamentApiClient {
@@ -35,31 +33,13 @@ impl ParliamentApiClient {
     /// # Errors
     /// - Client error
     pub fn new(batch_size: u8) -> Result<Self, ApiError> {
-        Self::with_interests_url(
-            batch_size,
-            "https://interests-api.parliament.uk/api/v2/Interests".into(),
-        )
-    }
-
-    /// Constructs a declaration client with an explicit endpoint for controlled acquisition.
-    ///
-    /// # Errors
-    /// Rejects invalid URLs or a zero batch size.
-    pub fn with_interests_url(batch_size: u8, interests_url: String) -> Result<Self, ApiError> {
-        reqwest::Url::parse(&interests_url)
-            .map_err(|error| ApiError::BuilderError(error.to_string()))?;
         let batch_size = NonZeroU8::new(batch_size)
             .ok_or_else(|| ApiError::BuilderError("batch size must be nonzero".into()))?;
         let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(45))
             .build()
             .map_err(|e| ApiError::BuilderError(e.to_string()))?;
 
-        Ok(Self {
-            client,
-            batch_size,
-            interests_url,
-        })
+        Ok(Self { client, batch_size })
     }
 }
 

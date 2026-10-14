@@ -67,10 +67,6 @@ pub enum MemberIngestionStage {
 #[derive(Clone, Debug, PartialEq, Eq, EnumString)]
 #[strum(ascii_case_insensitive)]
 pub enum DeclarationIngestionStage {
-    /// Discover changed declaration IDs and publish complete retained evidence.
-    Sync,
-    /// Explicitly capture complete declaration histories for stored members.
-    Reconcile,
     /// Capture source evidence for later offline processing.
     Fetch,
     /// Split captured funding occurrences and funder observations offline.
