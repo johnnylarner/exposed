@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, $2) ON CONFLICT (funder_id, funder_alias) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3375ec7c8bd6d6fe6c4c13927da122d849895ed5cb37d54e67fe1b8ff9716c05"
+}

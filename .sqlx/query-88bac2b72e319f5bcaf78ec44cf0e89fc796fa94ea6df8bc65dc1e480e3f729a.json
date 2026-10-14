@@ -1,0 +1,85 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT  \n                m.name,\n                m.parliament_member_id,\n                m.party_name,\n                m.party_id,\n                m.latest_membership_from as constituency,\n                 word_similarity($1, m.name) as similarity_score\n            FROM exposed.members m\n            WHERE m.name %> $1 AND word_similarity($1, m.name) >= $2\n            ORDER BY similarity_score DESC, m.id\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "parliament_member_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliament_member_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "party_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "party_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "constituency",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "latest_membership_from"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "similarity_score",
+        "type_info": "Float4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "88bac2b72e319f5bcaf78ec44cf0e89fc796fa94ea6df8bc65dc1e480e3f729a"
+}

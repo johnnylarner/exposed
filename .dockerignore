@@ -1,0 +1,12 @@
+**
+!Cargo.toml
+!Cargo.lock
+!exposed/
+!exposed/**
+!.sqlx/
+!.sqlx/**
+!docker/
+!docker/Dockerfile
+**/.env
+**/target
+**/.git

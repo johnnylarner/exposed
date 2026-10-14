@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT fingerprint, declarations, funders, funding_entries FROM exposed.declaration_load_runs WHERE ingestion_key = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "fingerprint",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "declaration_load_runs",
+            "name": "fingerprint"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "declarations",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "declaration_load_runs",
+            "name": "declarations"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "funders",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "declaration_load_runs",
+            "name": "funders"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "funding_entries",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "declaration_load_runs",
+            "name": "funding_entries"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "f0473aa3c84d3dba46233afc0c10097ff3c531f1572094b64574a19a00e7321c"
+}

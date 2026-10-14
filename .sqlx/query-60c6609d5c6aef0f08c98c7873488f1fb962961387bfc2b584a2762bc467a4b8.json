@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT funder_id, funder_alias FROM exposed.funder_aliases ORDER BY funder_id, funder_alias",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "funder_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funder_aliases",
+            "name": "funder_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "funder_alias",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funder_aliases",
+            "name": "funder_alias"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "60c6609d5c6aef0f08c98c7873488f1fb962961387bfc2b584a2762bc467a4b8"
+}

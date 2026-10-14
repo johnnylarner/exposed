@@ -1,0 +1,43 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(n.preferred_name, f.funder_name) AS \"funder_name!\", f.funder_kind,\n                (SELECT CASE WHEN count(DISTINCT member.company_number) = 1\n                    THEN min(member.company_number) END FROM exposed.funders member\n                 WHERE member.id = ANY($2)) AS company_number\n             FROM exposed.funders f LEFT JOIN exposed.funder_group_names n ON n.group_id = f.id WHERE f.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "funder_name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "funder_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "funder_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "company_number",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      null,
+      true,
+      null
+    ]
+  },
+  "hash": "a37783cf1f15c184277669009f39f288496ea1eef1514ab335f38e4675598835"
+}

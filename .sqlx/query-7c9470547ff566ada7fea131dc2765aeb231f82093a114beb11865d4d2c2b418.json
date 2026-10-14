@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exposed.funder_alias_links (left_funder_id, right_funder_id, normalized_alias, left_alias, right_alias) VALUES ($1, $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7c9470547ff566ada7fea131dc2765aeb231f82093a114beb11865d4d2c2b418"
+}

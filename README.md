@@ -235,3 +235,8 @@ if the expected donor status changes, and `--raw` lets you inspect the response.
 
 Contains Parliamentary information licensed under the
 [Open Parliament Licence v3.0](https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/).
+
+## Production image
+
+See [Build and run the production image](docs/production-image.md) for standalone
+Docker builds, database setup, SQLx metadata updates, and main-branch releases.

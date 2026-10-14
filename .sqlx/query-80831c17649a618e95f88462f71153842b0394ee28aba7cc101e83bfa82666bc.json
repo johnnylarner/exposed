@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT links.left_funder_id AS \"left_funder_id!\", links.right_funder_id AS \"right_funder_id!\",\n                links.normalized_alias AS \"normalized_alias!\", links.left_alias AS \"left_alias!\", links.right_alias AS \"right_alias!\"\n             FROM exposed.funder_alias_links links\n             WHERE links.left_funder_id = ANY($1)\n             ORDER BY links.left_funder_id, links.right_funder_id, links.normalized_alias COLLATE \"C\",\n                links.left_alias COLLATE \"C\", links.right_alias COLLATE \"C\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "left_funder_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funder_alias_links",
+            "name": "left_funder_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "right_funder_id!",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funder_alias_links",
+            "name": "right_funder_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "normalized_alias!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funder_alias_links",
+            "name": "normalized_alias"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "left_alias!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funder_alias_links",
+            "name": "left_alias"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "right_alias!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funder_alias_links",
+            "name": "right_alias"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "80831c17649a618e95f88462f71153842b0394ee28aba7cc101e83bfa82666bc"
+}
