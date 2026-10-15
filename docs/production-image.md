@@ -46,29 +46,26 @@ No database URL or credentials enter the Docker build.
 
 A push to `main` that changes Rust sources or shared build, migration, query
 metadata, Docker, or release inputs builds and publishes a `linux/amd64` image.
-A pull request with those changes builds the image and runs its help command.
-Pull requests do not publish images or releases. CI uses Docker, shell commands,
-`gh`, and `jq`, with no Python release helper or host Rust installation.
+A pull request with those changes builds a local `exposed:pr` image and runs its
+help command. Pull requests do not publish images or releases. CI uses Docker,
+`gh`, and `jq`, with no database or host Rust installation.
 
-Publication jobs run independently without cancelling earlier pushes.
-Each release uses the current UTC minute in `yyyy.mm.dd.hh.mm` format.
-The job atomically creates a Git tag at the exact source SHA. If that tag
-already occupies the minute, publication waits for the next actual minute.
-It copies the built image to the same timestamp tag and checks that the manifest
-digest is unchanged.
+Each push runs independently without cancelling earlier pushes. Before building,
+the job atomically creates a Git tag at the exact source SHA using the current
+UTC minute in `yyyy.mm.dd.hh.mm` format. If that tag already occupies the minute,
+the job waits for the next actual minute. If tag creation fails without an
+existing matching tag, the job fails.
 
-Images use `ghcr.io/<repository-owner>/<repository-name>:<UTC-tag>`. Each GitHub
-release contains the source link, a digest-pinned run command, and an `image.txt`
-asset with the immutable pull reference. Use that digest reference for deployment.
-The `run-<Actions-run-ID>` image tag is temporary build staging.
+The build publishes directly to
+`ghcr.io/<repository-owner>/<repository-name>:<UTC-tag>`. The job pulls that image
+and runs its help command, then uses `softprops/action-gh-release` to create the
+GitHub release. Each release contains the source link, tagged image, a
+digest-pinned run command, and an `image.txt` asset with the immutable pull
+reference. Use that digest reference for deployment.
 
-A hidden marker in the release notes identifies the Actions run. A retry skips
-publication if that run already has a published release. An interrupted attempt
-can leave a Git tag or image without a release. A retry allocates another unused
-UTC minute rather than recovering or overwriting that partial attempt. If
-tag creation fails without an existing matching tag, the job fails.
+An interrupted or failed attempt can leave a reserved Git tag or published image
+without a release. A retry allocates a new unused UTC minute.
 
-The repository's Actions token needs package write permission and release write
-permission. The publish job alone has repository content write permission.
+The job's Actions token needs repository content and package write permissions.
 GHCR package visibility follows the package settings. Set its visibility to public
 if unauthenticated pulls are required.

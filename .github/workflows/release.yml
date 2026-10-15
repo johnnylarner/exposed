@@ -19,19 +19,12 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: exposed-release-${{ github.run_id }}
-  cancel-in-progress: false
-
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
-    outputs:
-      image: ${{ steps.metadata.outputs.image }}
-      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -39,6 +32,25 @@ jobs:
       - name: Set image name
         id: metadata
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - name: Allocate release tag
+        if: github.event_name == 'push'
+        id: release-tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          while true; do
+            tag=$(date -u +%Y.%m.%d.%H.%M)
+            if gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
+              -f "ref=refs/tags/$tag" -f "sha=$GITHUB_SHA"; then
+              echo "tag=$tag" >> "$GITHUB_OUTPUT"
+              break
+            fi
+            refs=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$tag")
+            jq -e --arg ref "refs/tags/$tag" 'any(.[]; .ref == $ref)' <<< "$refs" > /dev/null
+            while [ "$(date -u +%Y.%m.%d.%H.%M)" = "$tag" ]; do
+              sleep "$((60 - 10#$(date -u +%S)))"
+            done
+          done
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         if: github.event_name == 'push'
@@ -58,61 +70,34 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: ${{ github.event_name == 'push' }}
-          tags: ${{ steps.metadata.outputs.image }}:run-${{ github.run_id }}
+          tags: ${{ github.event_name == 'push' && format('{0}:{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) || 'exposed:pr' }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
       - name: Smoke test the runtime image
         env:
-          IMAGE: ${{ steps.metadata.outputs.image }}:run-${{ github.run_id }}
+          IMAGE: ${{ github.event_name == 'push' && format('{0}:{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) || 'exposed:pr' }}
         run: docker run --rm "$IMAGE" --help
-
-  publish:
-    if: github.event_name == 'push'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-    steps:
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Publish timestamp image and GitHub release
+      - name: Write immutable image reference
+        if: github.event_name == 'push'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          IMAGE: ${{ needs.build.outputs.image }}
-          IMAGE_DIGEST: ${{ needs.build.outputs.digest }}
-        run: |
-          marker="<!-- exposed-release-run:${GITHUB_RUN_ID} -->"
-          releases=$(gh api --paginate --slurp "repos/$GITHUB_REPOSITORY/releases")
-          if jq -e --arg marker "$marker" 'any(.[][]; .draft == false and ((.body // "") | contains($marker)))' <<< "$releases" > /dev/null; then
-            echo "This Actions run already has a published release."
-            exit 0
-          fi
+          IMAGE: ${{ steps.metadata.outputs.image }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: printf '%s@%s\n' "$IMAGE" "$IMAGE_DIGEST" > image.txt
+      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        if: github.event_name == 'push'
+        with:
+          tag_name: ${{ steps.release-tag.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ steps.release-tag.outputs.tag }}
+          files: image.txt
+          fail_on_unmatched_files: true
+          body: |
+            Source: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
 
-          while true; do
-            tag=$(date -u +%Y.%m.%d.%H.%M)
-            if gh api --method POST "repos/$GITHUB_REPOSITORY/git/refs" \
-              -f "ref=refs/tags/$tag" -f "sha=$GITHUB_SHA"; then
-              break
-            fi
-            refs=$(gh api "repos/$GITHUB_REPOSITORY/git/matching-refs/tags/$tag")
-            jq -e --arg ref "refs/tags/$tag" 'any(.[]; .ref == $ref)' <<< "$refs" > /dev/null
-            while [ "$(date -u +%Y.%m.%d.%H.%M)" = "$tag" ]; do
-              sleep "$((60 - 10#$(date -u +%S)))"
-            done
-          done
+            Image: `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}`
 
-          reference="$IMAGE@$IMAGE_DIGEST"
-          docker buildx imagetools create --prefer-index=false --tag "$IMAGE:$tag" "$reference"
-          published_digest=$(docker buildx imagetools inspect "$IMAGE:$tag" --format '{{json .Manifest}}' | jq -r .digest)
-          test "$published_digest" = "$IMAGE_DIGEST"
+            Pinned image: `${{ steps.metadata.outputs.image }}@${{ steps.build.outputs.digest }}`
 
-          printf '%s\n' "$reference" > image.txt
-          printf 'Source: https://github.com/%s/commit/%s\n\nImage: %s:%s\n\nPinned image: %s\n\n    docker run --rm --env DATABASE_URL -p 6999:6999 %s\n\n%s\n' \
-            "$GITHUB_REPOSITORY" "$GITHUB_SHA" "$IMAGE" "$tag" "$reference" "$reference" "$marker" > release-notes.md
-          gh release create "$tag" image.txt --repo "$GITHUB_REPOSITORY" \
-            --verify-tag --target "$GITHUB_SHA" --title "$tag" --notes-file release-notes.md
+            ```sh
+            docker run --rm --env DATABASE_URL -p 6999:6999 ${{ steps.metadata.outputs.image }}@${{ steps.build.outputs.digest }}
+            ```
