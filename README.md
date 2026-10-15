@@ -2,6 +2,20 @@
 
 Where do MPs get their money from?
 
+## Development hooks
+
+Enable the repository's pre-commit hook after cloning:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+The hook runs `cargo clippy --workspace --all-targets --all-features -- -D warnings`
+and blocks the commit if Clippy fails. It checks the working tree, including
+unstaged changes. Configure `DATABASE_URL` in the root `.env` or environment and
+apply the [database migrations](db/README.md) before committing. SQLx needs the
+database to check queries in test targets.
+
 To fetch and load members, use the same ingestion key for both stages:
 
 ```sh

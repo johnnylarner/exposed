@@ -128,97 +128,14 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
             stage,
             config,
             ingestion_key,
-        } => match DeclarationIngestionStage::from_str(&stage)? {
-            DeclarationIngestionStage::Fetch => {
-                let config = DeclarationFetcherConfig::try_from(&config)?;
-                let data_config = DataConfig::from_env()?;
-                let api = ParliamentApiClient::new(config.batch_size)?;
-                let db = ExposedDatabase::new(&data_config.connection_string).await;
-                let fs = ExposedDataPipeline::new_with_ingestion_key(
-                    &config.data_dir,
-                    ingestion_key.unwrap_or_default(),
-                )?;
-                DeclarationFetcherService::new(db, api, fs)
-                    .fetch_declarations()
-                    .await?;
-            }
-            DeclarationIngestionStage::Resolve => {
-                let ingestion_key = ingestion_key.ok_or_else(|| {
-                    anyhow::anyhow!("declarations resolve requires --ingestion-key")
-                })?;
-                let config = DeclarationResolverConfig::try_from(&config)?;
-                let storage = ExposedDataPipeline::open_cleaned_declarations(
-                    &config.data_dir,
-                    ingestion_key.clone(),
-                )?;
-                let scorer = WeldrsFunderScorer::new()?;
-                let summary =
-                    DeclarationResolverService::new(storage, scorer, config.candidate_budget)
-                        .resolve_declarations()
-                        .await?;
-                println!("Ingestion key: {ingestion_key}");
-                println!(
-                    "Resolved declarations: {}",
-                    std::path::absolute(config.data_dir)?
-                        .join(ingestion_key.to_string())
-                        .join("resolved/declarations")
-                        .display()
-                );
-                println!("Observations: {}", summary.observations);
-                println!("Funding occurrences: {}", summary.payments);
-                println!("Pair decisions: {}", summary.pairs);
-            }
-            DeclarationIngestionStage::Load => {
-                let ingestion_key = ingestion_key
-                    .ok_or_else(|| anyhow::anyhow!("declarations load requires --ingestion-key"))?;
-                let config = LoaderConfig::try_from(&config)?;
-                let data_config = DataConfig::from_env()?;
-                let storage = ExposedDataPipeline::open_resolved_declarations(
-                    &config.data_dir,
-                    ingestion_key.clone(),
-                )?;
-                let db = ExposedDatabase::new(&data_config.connection_string).await;
-                let summary = DeclarationLoaderService::new(storage, db)
-                    .load_declarations()
-                    .await?;
-                println!("Ingestion key: {ingestion_key}");
-                match summary.outcome {
-                    crate::domain::models::declaration_loading::DeclarationLoadOutcome::Imported => {
-                        println!("Loaded declarations: {}", summary.declarations);
-                    }
-                    crate::domain::models::declaration_loading::DeclarationLoadOutcome::AlreadyLoaded => {
-                        println!("Run already loaded. Declarations: {}", summary.declarations);
-                    }
-                }
-                println!("Resolved identities: {}", summary.funders);
-                println!("Funding occurrences: {}", summary.funding_entries);
-            }
-            DeclarationIngestionStage::Clean => {
-                let ingestion_key = ingestion_key.ok_or_else(|| {
-                    anyhow::anyhow!("declarations clean requires --ingestion-key")
-                })?;
-                let config = LoaderConfig::try_from(&config)?;
-                let fs = ExposedDataPipeline::open_existing_declarations(
-                    &config.data_dir,
-                    ingestion_key.clone(),
-                )?;
-                let summary = DeclarationCleanerService::new(fs)
-                    .clean_declarations()
-                    .await?;
-                println!("Ingestion key: {ingestion_key}");
-                println!(
-                    "Cleaned declarations: {}",
-                    std::path::absolute(&config.data_dir)?
-                        .join(ingestion_key.to_string())
-                        .join("cleaned/declarations")
-                        .display()
-                );
-                println!("Member partitions: {}", summary.member_partitions);
-                println!("Declarations: {}", summary.declarations);
-                println!("Funding entries: {}", summary.funding_entries);
-                println!("Funder observations: {}", summary.funders);
-            }
-        },
+        } => {
+            run_declarations(
+                DeclarationIngestionStage::from_str(&stage)?,
+                config,
+                ingestion_key,
+            )
+            .await?;
+        }
         DataCommands::Members {
             stage,
             config,
@@ -252,6 +169,102 @@ pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
                     service.load_members().await?;
                 }
             }
+        }
+    }
+    Ok(())
+}
+
+async fn run_declarations(
+    stage: DeclarationIngestionStage,
+    config: PathBuf,
+    ingestion_key: Option<IngestionKey>,
+) -> anyhow::Result<()> {
+    match stage {
+        DeclarationIngestionStage::Fetch => {
+            let config = DeclarationFetcherConfig::try_from(&config)?;
+            let data_config = DataConfig::from_env()?;
+            let api = ParliamentApiClient::new(config.batch_size)?;
+            let db = ExposedDatabase::new(&data_config.connection_string).await;
+            let fs = ExposedDataPipeline::new_with_ingestion_key(
+                &config.data_dir,
+                ingestion_key.unwrap_or_default(),
+            )?;
+            DeclarationFetcherService::new(db, api, fs)
+                .fetch_declarations()
+                .await?;
+        }
+        DeclarationIngestionStage::Resolve => {
+            let ingestion_key = ingestion_key
+                .ok_or_else(|| anyhow::anyhow!("declarations resolve requires --ingestion-key"))?;
+            let config = DeclarationResolverConfig::try_from(&config)?;
+            let storage = ExposedDataPipeline::open_cleaned_declarations(
+                &config.data_dir,
+                ingestion_key.clone(),
+            )?;
+            let scorer = WeldrsFunderScorer::new()?;
+            let summary = DeclarationResolverService::new(storage, scorer, config.candidate_budget)
+                .resolve_declarations()
+                .await?;
+            println!("Ingestion key: {ingestion_key}");
+            println!(
+                "Resolved declarations: {}",
+                std::path::absolute(config.data_dir)?
+                    .join(ingestion_key.to_string())
+                    .join("resolved/declarations")
+                    .display()
+            );
+            println!("Observations: {}", summary.observations);
+            println!("Funding occurrences: {}", summary.payments);
+            println!("Pair decisions: {}", summary.pairs);
+        }
+        DeclarationIngestionStage::Load => {
+            let ingestion_key = ingestion_key
+                .ok_or_else(|| anyhow::anyhow!("declarations load requires --ingestion-key"))?;
+            let config = LoaderConfig::try_from(&config)?;
+            let data_config = DataConfig::from_env()?;
+            let storage = ExposedDataPipeline::open_resolved_declarations(
+                &config.data_dir,
+                ingestion_key.clone(),
+            )?;
+            let db = ExposedDatabase::new(&data_config.connection_string).await;
+            let summary = DeclarationLoaderService::new(storage, db)
+                .load_declarations()
+                .await?;
+            println!("Ingestion key: {ingestion_key}");
+            match summary.outcome {
+                    crate::domain::models::declaration_loading::DeclarationLoadOutcome::Imported => {
+                        println!("Loaded declarations: {}", summary.declarations);
+                    }
+                    crate::domain::models::declaration_loading::DeclarationLoadOutcome::AlreadyLoaded => {
+                        println!("Run already loaded. Declarations: {}", summary.declarations);
+                    }
+                }
+            println!("Resolved identities: {}", summary.funders);
+            println!("Funding occurrences: {}", summary.funding_entries);
+        }
+        DeclarationIngestionStage::Clean => {
+            let ingestion_key = ingestion_key
+                .ok_or_else(|| anyhow::anyhow!("declarations clean requires --ingestion-key"))?;
+            let config = LoaderConfig::try_from(&config)?;
+            let fs = ExposedDataPipeline::open_existing_declarations(
+                &config.data_dir,
+                ingestion_key.clone(),
+            )?;
+            let summary = DeclarationCleanerService::new(fs)
+                .clean_declarations()
+                .await?;
+            println!("Ingestion key: {ingestion_key}");
+            println!(
+                "Cleaned declarations: {}",
+                std::path::absolute(&config.data_dir)?
+                    .join(ingestion_key.to_string())
+                    .join("cleaned/declarations")
+                    .display()
+            );
+            println!("Member partitions: {}", summary.member_partitions);
+            println!("Declarations: {}", summary.declarations);
+            println!("Funding entries: {}", summary.funding_entries);
+            println!("Funder observations: {}", summary.funders);
         }
     }
     Ok(())

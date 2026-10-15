@@ -37,7 +37,10 @@ fn canonical_funder_name_prefers_the_most_reported_source_spelling() {
 struct TestScorer(f64);
 
 impl FunderScorer for TestScorer {
-    async fn score(&self, input: &ScoringInput) -> Result<ScoredPairs, EntityIngestionError> {
+    fn score(
+        &self,
+        input: &ScoringInput,
+    ) -> impl Future<Output = Result<ScoredPairs, EntityIngestionError>> {
         let pairs = input
             .rows
             .iter()
@@ -59,7 +62,11 @@ impl FunderScorer for TestScorer {
                 })
             })
             .collect();
-        ScoredPairs::checked(pairs, json!({"calibrated": false}), input)
+        std::future::ready(ScoredPairs::checked(
+            pairs,
+            json!({"calibrated": false}),
+            input,
+        ))
     }
 }
 
