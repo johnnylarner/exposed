@@ -27,6 +27,8 @@ fn stdout(output: &Output) -> &str {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
+    assert_eq!(output.status.code(), Some(0));
+    assert!(output.stderr.is_empty());
     std::str::from_utf8(&output.stdout).unwrap()
 }
 
@@ -110,7 +112,7 @@ fn invalid_store_path_fails_with_a_read_error() -> anyhow::Result<()> {
 
     let output = run_latest(tmp.path())?;
 
-    assert!(!output.status.success());
+    assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());
     assert!(String::from_utf8_lossy(&output.stderr).contains("unable to read pipeline data"));
     Ok(())

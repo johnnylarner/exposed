@@ -75,7 +75,9 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
         ingestion_key.to_string().into(),
     ])
     .unwrap();
-    run_cli(args).await.unwrap();
+    let mut output = Vec::new();
+    run_cli(args).await.write_to(&mut output).unwrap();
+    assert!(output.is_empty());
 
     let url = pool.connect_options().to_url_lossy();
     let (_file, path) = cli_loader_config(&tmp);

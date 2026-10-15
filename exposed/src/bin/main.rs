@@ -10,7 +10,8 @@ fn main() -> anyhow::Result<()> {
         Commands::Server => run_server(),
         Commands::Data(args) => {
             dotenvy::dotenv().ok();
-            tokio::runtime::Runtime::new()?.block_on(run_cli(args))
+            let response = tokio::runtime::Runtime::new()?.block_on(run_cli(args));
+            response.write_to(std::io::stdout().lock())
         }
     }
 }
