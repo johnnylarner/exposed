@@ -68,7 +68,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
-          tags: ${{ format('{0}:{1}-server', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          tags: ${{ format('{0}:server-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
       - name: Build frontend-server
@@ -84,7 +84,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
-          tags: ${{ format('{0}:{1}-app', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          tags: ${{ format('{0}:app-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
       - name: Build migrate
@@ -100,7 +100,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
-          tags: ${{ format('{0}:{1}-migrate', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          tags: ${{ format('{0}:migrate-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
       - name: Build data
@@ -116,7 +116,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
-          tags: ${{ format('{0}:{1}-cli', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          tags: ${{ format('{0}:cli-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
       - name: Write immutable references
@@ -150,10 +150,10 @@ jobs:
 
             | Variant | Image |
             | --- | --- |
-            | Server | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-server` |
-            | App | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-app` |
-            | Migrate | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-migrate` |
-            | CLI | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-cli` |
+            | Server | `${{ steps.metadata.outputs.image }}:server-${{ steps.release-tag.outputs.tag }}` |
+            | App | `${{ steps.metadata.outputs.image }}:app-${{ steps.release-tag.outputs.tag }}` |
+            | Migrate | `${{ steps.metadata.outputs.image }}:migrate-${{ steps.release-tag.outputs.tag }}` |
+            | CLI | `${{ steps.metadata.outputs.image }}:cli-${{ steps.release-tag.outputs.tag }}` |
 
             ```sh
             docker run --rm --env DATABASE_URL -p 6999:6999 ${{ steps.metadata.outputs.image }}@${{ steps.binary.outputs.digest }}

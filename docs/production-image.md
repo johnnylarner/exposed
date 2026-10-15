@@ -88,10 +88,10 @@ All variants use the same allocated version and GHCR repository.
 
 | Target | Published tag | Default command |
 | --- | --- | --- |
-| `binary` | `VERSION-server` | `exposed server` |
-| `frontend-server` | `VERSION-app` | Supervisor for nginx and `exposed server` |
-| `migrate` | `VERSION-migrate` | `exposed migrate run --source /app/db/migrations` |
-| `data` | `VERSION-cli` | `exposed data --help` |
+| `binary` | `server-VERSION` | `exposed server` |
+| `frontend-server` | `app-VERSION` | Supervisor for nginx and `exposed server` |
+| `migrate` | `migrate-VERSION` | `exposed migrate run --source /app/db/migrations` |
+| `data` | `cli-VERSION` | `exposed data --help` |
 
 The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI pushes each
 image directly to its version tag with `mode=max` provenance. The shared BuildKit
