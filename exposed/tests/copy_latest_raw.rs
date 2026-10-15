@@ -1,3 +1,5 @@
+#[path = "common/response_schema.rs"]
+mod response_schema;
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -30,7 +32,9 @@ fn success(output: &Output) -> serde_json::Value {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    serde_json::from_slice(&output.stdout).unwrap()
+    let payload = serde_json::from_slice(&output.stdout).unwrap();
+    response_schema::validate("copy-latest-raw", "Success JSON schema:", &payload);
+    payload
 }
 
 fn create_run(root: &Path, key: &IngestionKey, seconds: u64) -> anyhow::Result<PathBuf> {

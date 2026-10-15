@@ -1,5 +1,7 @@
 //! CLI coverage for the latest ingestion key and path.
 
+#[path = "common/response_schema.rs"]
+mod response_schema;
 use std::{
     fs,
     path::Path,
@@ -29,7 +31,9 @@ fn stdout(output: &Output) -> serde_json::Value {
     );
     assert_eq!(output.status.code(), Some(0));
     assert!(output.stderr.is_empty());
-    serde_json::from_slice(&output.stdout).unwrap()
+    let payload = serde_json::from_slice(&output.stdout).unwrap();
+    response_schema::validate("latest", "Success JSON schema:", &payload);
+    payload
 }
 
 fn create_run(data: &Path, key: &IngestionKey, seconds: u64) -> anyhow::Result<()> {

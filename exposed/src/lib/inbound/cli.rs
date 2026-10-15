@@ -1,5 +1,6 @@
 //! CLI inbound port
 
+use schemars::JsonSchema;
 use std::{path::PathBuf, str::FromStr};
 
 use clap::{Parser, Subcommand};
@@ -28,6 +29,7 @@ use crate::{
 
 pub mod config;
 pub mod response;
+mod response_help;
 
 pub use response::{CliSuccess, IntoResponse, Response};
 
@@ -60,12 +62,14 @@ pub struct DataArgs {
 #[allow(missing_docs)]
 pub enum DataCommands {
     /// Show the latest ingestion key and directory path.
+    #[command(after_long_help = response_help::single(latest))]
     Latest {
         /// YAML configuration with the ingestion `data_dir`.
         #[arg(long)]
         config: PathBuf,
     },
     /// Copy the latest raw capture into a new ingestion run.
+    #[command(after_long_help = response_help::single(copy_latest_raw))]
     CopyLatestRaw {
         /// YAML configuration with the ingestion `data_dir`.
         #[arg(long)]
@@ -74,6 +78,7 @@ pub enum DataCommands {
         #[arg(long)]
         ingestion_key: Option<IngestionKey>,
     },
+    #[command(after_long_help = response_help::declarations())]
     Declarations {
         /// Stage to run: fetch, clean, resolve, or load.
         #[arg(value_parser = ["fetch", "clean", "resolve", "load"])]
@@ -85,6 +90,7 @@ pub enum DataCommands {
         #[arg(long)]
         ingestion_key: Option<IngestionKey>,
     },
+    #[command(after_long_help = response_help::single(members))]
     Members {
         stage: String,
         #[arg(long)]
@@ -124,56 +130,73 @@ pub async fn run_cli(args: DataArgs) -> Response {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct IngestionResponse<T> {
+    /// Ingestion result, or null when the store has no source runs.
     ingestion: Option<T>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct IngestionLocation {
     ingestion_key: IngestionKey,
+    /// Absolute ingestion run directory.
     path: PathBuf,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct CopiedIngestion {
+    /// Run whose raw capture was copied.
     source_ingestion_key: IngestionKey,
     ingestion_key: IngestionKey,
+    /// Absolute destination ingestion run directory.
     path: PathBuf,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct StageAcknowledgement<S> {
     ingestion_key: IngestionKey,
     stage: S,
+    /// Absolute raw artifact: raw/declarations directory or raw/members.parquet file.
     path: PathBuf,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct DeclarationCleaningResponse {
     ingestion_key: IngestionKey,
+    /// Absolute cleaned/declarations artifact directory.
     path: PathBuf,
+    /// Raw member partitions, including empty partitions.
     member_partitions: usize,
+    /// Declarations, including those with no funding.
     declarations: usize,
+    /// Original funding occurrences.
     funding_entries: usize,
+    /// Source-role funder observations across declaration and funding scopes.
     funders: usize,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct DeclarationResolutionResponse {
     ingestion_key: IngestionKey,
+    /// Absolute resolved/declarations artifact directory.
     path: PathBuf,
+    /// Source funder observations, including unresolved names.
     observations: usize,
+    /// Original funding occurrences, counted once.
     payments: usize,
+    /// Retained pair decisions between funder observations.
     pairs: usize,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct DeclarationLoadingResponse {
     ingestion_key: IngestionKey,
+    /// Whether this call imported the run or confirmed an exact retry.
     outcome: DeclarationLoadOutcome,
     declarations: usize,
+    /// Distinct resolved identities referenced by selected attributions.
     funders: usize,
+    /// Original funding occurrences, including unavailable attributions.
     funding_entries: usize,
 }
 
@@ -364,4 +387,3 @@ async fn members(
         stage,
     }))
 }
-

@@ -1,5 +1,6 @@
 //! JSON command results and their conversion to CLI output.
 
+use schemars::JsonSchema;
 use serde::Serialize;
 use std::{
     io::{self, Write},
@@ -7,11 +8,20 @@ use std::{
 };
 
 /// Generic JSON success response.
-pub struct CliSuccess<S: Serialize> {
+///
+/// Payloads must expose their JSON schema as well as their serialization.
+///
+/// ```compile_fail
+/// use exposed::inbound::cli::CliSuccess;
+/// #[derive(serde::Serialize)]
+/// struct Undocumented { count: usize }
+/// let _ = CliSuccess::new(Undocumented { count: 1 });
+/// ```
+pub struct CliSuccess<S: Serialize + JsonSchema> {
     response: S,
 }
 
-impl<S: Serialize> CliSuccess<S> {
+impl<S: Serialize + JsonSchema> CliSuccess<S> {
     /// Creates a success response with a typed payload.
     pub const fn new(response: S) -> Self {
         Self { response }
@@ -21,12 +31,12 @@ impl<S: Serialize> CliSuccess<S> {
 /// A serialized success or the original command failure.
 pub struct Response(anyhow::Result<Vec<u8>>);
 
-#[derive(Serialize)]
-struct ErrorResponse {
+#[derive(Serialize, JsonSchema)]
+pub(super) struct ErrorResponse {
     error: ErrorMessage,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct ErrorMessage {
     message: String,
 }
@@ -74,7 +84,7 @@ impl IntoResponse for Response {
     }
 }
 
-impl<S: Serialize> IntoResponse for CliSuccess<S> {
+impl<S: Serialize + JsonSchema> IntoResponse for CliSuccess<S> {
     fn into_response(self) -> Response {
         Response(serde_json::to_vec(&self.response).map_err(Into::into))
     }

@@ -2,6 +2,11 @@
 
 Where do MPs get their money from?
 
+Use `exposed data <command> --help` to discover generated JSON Schema response
+contracts. Declaration help lists a success schema for each stage. Every command
+includes the shared failure schema and output routing. Schemas come from the
+handler response types; `-h` shows concise usage without the schemas.
+
 Data commands write one JSON document to stdout on success. Command failures
 write `{"error":{"message":"..."}}` to stderr and exit with code 1. Help and
 argument parsing use Clap's standard output.

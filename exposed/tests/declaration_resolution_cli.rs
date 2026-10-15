@@ -1,3 +1,5 @@
+#[path = "common/response_schema.rs"]
+mod response_schema;
 use arrow::json::ArrayWriter;
 use chrono::{NaiveDate, Utc};
 use exposed::domain::models::parliament_member::MemberId;
@@ -187,6 +189,7 @@ async fn clean_then_resolve_with_native_weldrs_preserves_occurrences_and_refuses
         String::from_utf8_lossy(&resolved.stderr)
     );
     let response: serde_json::Value = serde_json::from_slice(&resolved.stdout)?;
+    response_schema::validate("declarations", "Success JSON schema (resolve):", &response);
     assert_eq!(response["ingestion_key"], key.to_string());
     assert_eq!(response["observations"].as_u64(), Some(16));
     assert!(response["payments"].as_u64().is_some());

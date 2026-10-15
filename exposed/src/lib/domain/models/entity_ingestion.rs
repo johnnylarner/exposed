@@ -1,11 +1,12 @@
 //! Contains entity ingestion models
 
+use schemars::JsonSchema;
 use std::{fmt::Display, str::FromStr};
 
 // use std::str::FromStr;
 //
 use serde::Serialize;
-use strum::EnumString;
+use strum::{EnumIter, EnumString};
 use thiserror::Error;
 use uuid::Uuid;
 
@@ -18,7 +19,7 @@ use crate::domain::repositories::{
 pub struct EntityIngestionRequest;
 
 /// Key used for ingestion
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, JsonSchema)]
 #[serde(transparent)]
 pub struct IngestionKey(Uuid);
 
@@ -58,7 +59,7 @@ impl Default for IngestionKey {
 }
 
 /// From what stage to run in the Member pipeline
-#[derive(Clone, Debug, PartialEq, Eq, EnumString, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, EnumString, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[allow(missing_docs)]
 #[strum(ascii_case_insensitive)]
@@ -67,7 +68,7 @@ pub enum MemberIngestionStage {
     Load,
 }
 /// Supported acquisition stage for declarations.
-#[derive(Clone, Debug, PartialEq, Eq, EnumString, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, EnumString, EnumIter, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[strum(ascii_case_insensitive)]
 pub enum DeclarationIngestionStage {

@@ -1,3 +1,6 @@
+#[path = "common/response_schema.rs"]
+mod response_schema;
+use schemars::JsonSchema;
 use std::{
     io::{self, Write},
     process::ExitCode,
@@ -6,12 +9,12 @@ use std::{
 use exposed::inbound::cli::{CliSuccess, IntoResponse};
 use serde::{Serialize, Serializer};
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct Counts {
     records: usize,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, JsonSchema)]
 struct Imported {
     ingestion: Option<Counts>,
 }
@@ -53,6 +56,7 @@ fn command_error_routes_full_context_to_stderr_and_fails() {
     assert_eq!(code, ExitCode::FAILURE);
     assert!(stdout.is_empty());
     let payload: serde_json::Value = serde_json::from_slice(&stderr).unwrap();
+    response_schema::validate("latest", "Failure JSON schema:", &payload);
     assert_eq!(
         payload,
         serde_json::json!({"error": {"message": "loading declarations: missing run"}})
@@ -62,6 +66,7 @@ fn command_error_routes_full_context_to_stderr_and_fails() {
 
 #[test]
 fn serialization_failure_cannot_emit_partial_success() {
+    #[derive(JsonSchema)]
     struct BrokenPayload;
     impl Serialize for BrokenPayload {
         fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
@@ -80,6 +85,7 @@ fn serialization_failure_cannot_emit_partial_success() {
     assert_eq!(code, ExitCode::FAILURE);
     assert!(stdout.is_empty());
     let payload: serde_json::Value = serde_json::from_slice(&stderr).unwrap();
+    response_schema::validate("latest", "Failure JSON schema:", &payload);
     assert_eq!(payload["error"]["message"], "payload failed");
 }
 
@@ -143,10 +149,18 @@ fn canonical_ingestion_types_define_json_spellings() {
 #[test]
 fn invalid_database_connection_returns_json_instead_of_panicking() -> anyhow::Result<()> {
     let temporary = tempfile::TempDir::new()?;
+    let config = temporary.path().join("config.yaml");
+    std::fs::write(
+        &config,
+        rust_yaml::to_string(&exposed::inbound::cli::config::LoaderConfig {
+            data_dir: temporary.path().join("data"),
+        })?,
+    )?;
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_exposed"))
         .current_dir(temporary.path())
         .env("DATABASE_URL", "invalid-url")
-        .args(["data", "refresh-funder-groups"])
+        .args(["data", "members", "load", "--config"])
+        .arg(&config)
         .output()?;
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());

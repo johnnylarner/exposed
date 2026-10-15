@@ -1,3 +1,5 @@
+#[path = "common/response_schema.rs"]
+mod response_schema;
 use exposed::domain::models::parliament_member::MemberId;
 use std::{
     collections::HashSet,
@@ -114,7 +116,9 @@ fn assert_success(output: &Output) -> Value {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    serde_json::from_slice(&output.stdout).unwrap()
+    let payload = serde_json::from_slice(&output.stdout).unwrap();
+    response_schema::validate("declarations", "Success JSON schema (clean):", &payload);
+    payload
 }
 
 fn read_table(path: &Path) -> anyhow::Result<Vec<Value>> {
@@ -218,7 +222,9 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
             &key.to_string(),
         ])
         .output()?;
-    assert_success(&copied);
+    assert!(copied.status.success());
+    let copied_payload = serde_json::from_slice(&copied.stdout)?;
+    response_schema::validate("copy-latest-raw", "Success JSON schema:", &copied_payload);
     let copied_raw = tmp
         .path()
         .join("data")
