@@ -183,63 +183,8 @@ impl EntityDetailsRepo for ExposedDatabase {
             alias_links,
             family_links,
         };
-        let rows = sqlx::query!(
-            "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name,
-                m.latest_membership_from, m.is_current_commons,
-                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
-                e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type
-             FROM exposed.funding_entries e
-             JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id
-             JOIN exposed.members m ON m.id = d.member_id
-             WHERE e.funder_id = ANY($1)
-             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
-            &stored_member_ids,
-            CURRENCY_WHITESPACE
-        )
-        .fetch_all(&mut *tx)
-        .await?;
-        let mut declarations: Vec<FunderDeclaration> = Vec::new();
-        for row in rows {
-            if declarations
-                .last()
-                .is_none_or(|source| source.declaration.source_id != row.source_declaration_id)
-            {
-                declarations.push(FunderDeclaration {
-                    member: MemberProfile {
-                        id: row
-                            .parliament_member_id
-                            .to_string()
-                            .parse::<MemberId>()
-                            .map_err(|error| {
-                                EntityDetailsRepoError::DatabaseError(error.to_string())
-                            })?,
-                        name: row.name,
-                        party_id: row.party_id,
-                        party_name: row.party_name,
-                        membership_from: row.latest_membership_from,
-                        is_current_commons: row.is_current_commons,
-                    },
-                    declaration: MemberDeclaration {
-                        source_id: row.source_declaration_id,
-                        category: DeclarationCategory::from_source_id(row.category_id),
-                        category_name: row.category_name,
-                        registered_at: row.registration_date.map(registration_date).transpose()?,
-                        entries: Vec::new(),
-                    },
-                });
-            }
-            if let Some(source) = declarations.last_mut() {
-                source.declaration.entries.push(DeclaredFunding {
-                    funder: Some(FunderReference {
-                        id,
-                        name: profile.funder.name().to_owned(),
-                    }),
-                    amount: row.amount,
-                    currency: row.currency,
-                    payment_type: row.payment_type,
-                });
-            }
-        }
+        let declarations =
+            funder_declarations(&mut tx, &stored_member_ids, &profile.funder).await?;
         tx.commit().await?;
         Ok(Some(FunderFunding {
             profile,
@@ -263,4 +208,69 @@ fn registration_date(
     chrono::DateTime::from_timestamp(date.unix_timestamp(), date.nanosecond()).ok_or_else(|| {
         EntityDetailsRepoError::DatabaseError("Stored registration date is out of range".into())
     })
+}
+
+async fn funder_declarations(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    stored_member_ids: &[uuid::Uuid],
+    funder: &Funder,
+) -> Result<Vec<FunderDeclaration>, EntityDetailsRepoError> {
+    let rows = sqlx::query!(
+        "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name,
+                m.latest_membership_from, m.is_current_commons,
+                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
+                e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type
+             FROM exposed.funding_entries e
+             JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id
+             JOIN exposed.members m ON m.id = d.member_id
+             WHERE e.funder_id = ANY($1)
+             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
+        stored_member_ids,
+        CURRENCY_WHITESPACE
+    )
+    .fetch_all(&mut **tx)
+    .await?;
+    let mut declarations: Vec<FunderDeclaration> = Vec::new();
+    for row in rows {
+        if declarations
+            .last()
+            .is_none_or(|source| source.declaration.source_id != row.source_declaration_id)
+        {
+            declarations.push(FunderDeclaration {
+                member: MemberProfile {
+                    id: row
+                        .parliament_member_id
+                        .to_string()
+                        .parse::<MemberId>()
+                        .map_err(|error| {
+                            EntityDetailsRepoError::DatabaseError(error.to_string())
+                        })?,
+                    name: row.name,
+                    party_id: row.party_id,
+                    party_name: row.party_name,
+                    membership_from: row.latest_membership_from,
+                    is_current_commons: row.is_current_commons,
+                },
+                declaration: MemberDeclaration {
+                    source_id: row.source_declaration_id,
+                    category: DeclarationCategory::from_source_id(row.category_id),
+                    category_name: row.category_name,
+                    registered_at: row.registration_date.map(registration_date).transpose()?,
+                    entries: Vec::new(),
+                },
+            });
+        }
+        if let Some(source) = declarations.last_mut() {
+            source.declaration.entries.push(DeclaredFunding {
+                funder: Some(FunderReference {
+                    id: funder.id(),
+                    name: funder.name().to_owned(),
+                }),
+                amount: row.amount,
+                currency: row.currency,
+                payment_type: row.payment_type,
+            });
+        }
+    }
+    Ok(declarations)
 }

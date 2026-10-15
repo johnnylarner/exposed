@@ -39,435 +39,581 @@ use crate::domain::{
 };
 
 impl DeclarationLoadStorage for ExposedDataPipeline {
-    async fn read_declaration_load(&self) -> Result<DeclarationLoad, EntityIngestionError> {
-        let cleaned = self.cleaned_declarations_path();
-        let resolved = self.resolved_declarations_path();
-        let (funders, funders_digest) = read_table::<FunderRow>(
-            &cleaned.join("funders.parquet"),
-            &declaration_cleaning::funders_schema(),
-        )?;
-        let (payments, payments_digest) = read_table::<CleanPaymentRow>(
-            &cleaned.join("funding_entries.parquet"),
-            &declaration_cleaning::funding_schema(),
-        )?;
-        let (identity_rows, _) = read_table::<ObservationResolution>(
-            &resolved.join("observation_resolution.parquet"),
-            &declaration_resolution::observation_schema(),
-        )?;
-        let (attribution_rows, _) = read_table::<PaymentAttribution>(
-            &resolved.join("payment_attribution.parquet"),
-            &declaration_resolution::attribution_schema(),
-        )?;
-        let (pair_rows, _) = read_table::<PairDecision>(
-            &resolved.join("pair_decisions.parquet"),
-            &declaration_resolution::pair_schema(),
-        )?;
-        let manifest_bytes = fs::read(resolved.join("manifest.json")).map_err(read_error)?;
-        let manifest: ResolutionManifest =
-            serde_json::from_slice(&manifest_bytes).map_err(read_error)?;
-        if manifest.schema_version != 2
-            || !matches!(
-                manifest.policy_version.as_str(),
-                "funder-resolution-v2"
-                    | crate::domain::models::declaration_resolution::POLICY_VERSION
-            )
-        {
-            return Err(data_error(
-                "unsupported resolved declaration manifest; capture a new ingestion run, then clean, resolve and load it",
-            ));
-        }
-        if manifest.input_sha256.get("funders.parquet") != Some(&funders_digest)
-            || manifest.input_sha256.get("funding_entries.parquet") != Some(&payments_digest)
-            || manifest.observations != identity_rows.len()
-            || manifest.payments != attribution_rows.len()
-            || manifest.pair_decisions != pair_rows.len()
-            || funders.len() != identity_rows.len()
-            || payments.len() != attribution_rows.len()
-        {
-            return Err(data_error(
-                "resolved outputs do not match their manifest inputs or counts",
-            ));
-        }
+    fn read_declaration_load(
+        &self,
+    ) -> impl Future<Output = Result<DeclarationLoad, EntityIngestionError>> {
+        std::future::ready(read_declaration_load(self))
+    }
+}
 
-        let mut raw_paths = fs::read_dir(self.raw_path().join("declarations"))
-            .map_err(read_error)?
-            .map(|entry| entry.map(|entry| entry.path()).map_err(read_error))
-            .collect::<Result<Vec<_>, _>>()?;
-        raw_paths.retain(|path| {
-            path.extension()
-                .is_some_and(|extension| extension == "parquet")
-        });
-        raw_paths.sort();
-        if raw_paths.is_empty() {
-            return Err(data_error("no raw declaration partitions found"));
-        }
+fn read_declaration_load(
+    pipeline: &ExposedDataPipeline,
+) -> Result<DeclarationLoad, EntityIngestionError> {
+    let cleaned = pipeline.cleaned_declarations_path();
+    let resolved = pipeline.resolved_declarations_path();
+    let ResolvedArtifacts {
+        funders,
+        payments,
+        identities: identity_rows,
+        attributions: attribution_rows,
+        pairs: pair_rows,
+    } = read_resolved_artifacts(pipeline)?;
+    let RawCapture {
+        paths: raw_paths,
+        declarations,
+        funding: raw_funding,
+        funding_ids: expected_funding_ids,
+    } = read_raw_capture(pipeline)?;
+    let cleaned_funding_ids = payments
+        .iter()
+        .map(|payment| payment.funding_entry_id.as_str())
+        .collect::<BTreeSet<_>>();
+    if cleaned_funding_ids.len() != payments.len()
+        || cleaned_funding_ids.len() != expected_funding_ids.len()
+        || expected_funding_ids
+            .iter()
+            .any(|id| !cleaned_funding_ids.contains(id.as_str()))
+    {
+        return Err(data_error(
+            "cleaned funding occurrences do not cover the raw capture",
+        ));
+    }
 
-        let mut declarations = BTreeMap::new();
-        let mut expected_funding_ids = BTreeSet::new();
-        let mut raw_funding = BTreeMap::new();
-        for path in &raw_paths {
-            let partition =
-                declaration_cleaning::read_partition(path).map_err(EntityIngestionError::from)?;
-            let CapturedMemberDeclarations {
-                member,
-                declarations: rows,
-            } = partition;
-            for evidence in rows {
-                let declaration = evidence.declaration();
-                let row = LoadDeclaration {
-                    source_declaration_id: declaration.id(),
-                    member_id: member,
-                    category_id: declaration.category_id(),
-                    category_name: declaration.category_name().to_owned(),
-                    register_id: declaration.register_id(),
-                    register_published_date: declaration.register_published_date(),
-                    parent_declaration_id: declaration.parent_id(),
-                    fetched_at: declaration.fetched_at(),
-                    registration_date: declaration.registration_date(),
-                };
-                if declarations
-                    .insert(row.source_declaration_id, row)
-                    .is_some()
+    let ResolvedObservations {
+        identities,
+        observations,
+    } = resolved_observations(identity_rows, funders)?;
+    let payments_by_id = payments
+        .iter()
+        .map(|payment| (payment.funding_entry_id.clone(), payment.clone()))
+        .collect::<BTreeMap<_, _>>();
+    check_pairs(&pair_rows, &observations)?;
+    let LoadedFunding {
+        entries: funding_entries,
+        selected_identity_ids,
+    } = load_funding(
+        payments,
+        attribution_rows,
+        raw_funding,
+        &declarations,
+        &observations,
+        &identities,
+    )?;
+    check_observations(&observations, &payments_by_id, &declarations)?;
+    let load_funders = load_funders(&identities, &observations, &selected_identity_ids);
+    let fingerprint = fingerprint_files(raw_paths.iter().cloned().chain([
+        cleaned.join("funders.parquet"),
+        cleaned.join("funding_entries.parquet"),
+        resolved.join("observation_resolution.parquet"),
+        resolved.join("payment_attribution.parquet"),
+        resolved.join("pair_decisions.parquet"),
+        resolved.join("manifest.json"),
+    ]))?;
+    DeclarationLoad::checked(
+        pipeline.key().into(),
+        fingerprint,
+        declarations.into_values().collect(),
+        load_funders,
+        funding_entries,
+    )
+}
+
+struct RawCapture {
+    paths: Vec<PathBuf>,
+    declarations: BTreeMap<DeclarationId, LoadDeclaration>,
+    funding: BTreeMap<String, CapturedFundingEntry>,
+    funding_ids: BTreeSet<String>,
+}
+
+fn read_raw_capture(pipeline: &ExposedDataPipeline) -> Result<RawCapture, EntityIngestionError> {
+    let mut raw_paths = fs::read_dir(pipeline.raw_path().join("declarations"))
+        .map_err(read_error)?
+        .map(|entry| entry.map(|entry| entry.path()).map_err(read_error))
+        .collect::<Result<Vec<_>, _>>()?;
+    raw_paths.retain(|path| {
+        path.extension()
+            .is_some_and(|extension| extension == "parquet")
+    });
+    raw_paths.sort();
+    if raw_paths.is_empty() {
+        return Err(data_error("no raw declaration partitions found"));
+    }
+
+    let mut declarations = BTreeMap::new();
+    let mut expected_funding_ids = BTreeSet::new();
+    let mut raw_funding = BTreeMap::new();
+    for path in &raw_paths {
+        let partition =
+            declaration_cleaning::read_partition(path).map_err(EntityIngestionError::from)?;
+        let CapturedMemberDeclarations {
+            member,
+            declarations: rows,
+        } = partition;
+        for evidence in rows {
+            let declaration = evidence.declaration();
+            let row = LoadDeclaration {
+                source_declaration_id: declaration.id(),
+                member_id: member,
+                category_id: declaration.category_id(),
+                category_name: declaration.category_name().to_owned(),
+                register_id: declaration.register_id(),
+                register_published_date: declaration.register_published_date(),
+                parent_declaration_id: declaration.parent_id(),
+                fetched_at: declaration.fetched_at(),
+                registration_date: declaration.registration_date(),
+            };
+            if declarations
+                .insert(row.source_declaration_id, row)
+                .is_some()
+            {
+                return Err(data_error(
+                    "duplicate source declaration across raw partitions",
+                ));
+            }
+            for (ordinal, funding) in declaration.funding_entries().iter().enumerate() {
+                let ordinal = u32::try_from(ordinal).map_err(db_error)?;
+                let funding_id =
+                    SourceScope::new(member, declaration.id(), declaration.register_id())
+                        .funding_entry(ordinal)
+                        .as_str()
+                        .to_owned();
+                if !expected_funding_ids.insert(funding_id.clone())
+                    || raw_funding.insert(funding_id, funding.clone()).is_some()
                 {
-                    return Err(data_error(
-                        "duplicate source declaration across raw partitions",
-                    ));
-                }
-                for (ordinal, funding) in declaration.funding_entries().iter().enumerate() {
-                    let ordinal = u32::try_from(ordinal).map_err(db_error)?;
-                    let funding_id =
-                        SourceScope::new(member, declaration.id(), declaration.register_id())
-                            .funding_entry(ordinal)
-                            .as_str()
-                            .to_owned();
-                    if !expected_funding_ids.insert(funding_id.clone())
-                        || raw_funding.insert(funding_id, funding.clone()).is_some()
-                    {
-                        return Err(data_error("duplicate raw funding occurrence"));
-                    }
+                    return Err(data_error("duplicate raw funding occurrence"));
                 }
             }
         }
-        let cleaned_funding_ids = payments
-            .iter()
-            .map(|payment| payment.funding_entry_id.as_str())
-            .collect::<BTreeSet<_>>();
-        if cleaned_funding_ids.len() != payments.len()
-            || cleaned_funding_ids.len() != expected_funding_ids.len()
-            || expected_funding_ids
-                .iter()
-                .any(|id| !cleaned_funding_ids.contains(id.as_str()))
+    }
+    Ok(RawCapture {
+        paths: raw_paths,
+        declarations,
+        funding: raw_funding,
+        funding_ids: expected_funding_ids,
+    })
+}
+
+struct ResolvedArtifacts {
+    funders: Vec<FunderRow>,
+    payments: Vec<CleanPaymentRow>,
+    identities: Vec<ObservationResolution>,
+    attributions: Vec<PaymentAttribution>,
+    pairs: Vec<PairDecision>,
+}
+
+fn read_resolved_artifacts(
+    pipeline: &ExposedDataPipeline,
+) -> Result<ResolvedArtifacts, EntityIngestionError> {
+    let cleaned = pipeline.cleaned_declarations_path();
+    let resolved = pipeline.resolved_declarations_path();
+    let (funders, funders_digest) = read_table::<FunderRow>(
+        &cleaned.join("funders.parquet"),
+        &declaration_cleaning::funders_schema(),
+    )?;
+    let (payments, payments_digest) = read_table::<CleanPaymentRow>(
+        &cleaned.join("funding_entries.parquet"),
+        &declaration_cleaning::funding_schema(),
+    )?;
+    let (identity_rows, _) = read_table::<ObservationResolution>(
+        &resolved.join("observation_resolution.parquet"),
+        &declaration_resolution::observation_schema(),
+    )?;
+    let (attribution_rows, _) = read_table::<PaymentAttribution>(
+        &resolved.join("payment_attribution.parquet"),
+        &declaration_resolution::attribution_schema(),
+    )?;
+    let (pair_rows, _) = read_table::<PairDecision>(
+        &resolved.join("pair_decisions.parquet"),
+        &declaration_resolution::pair_schema(),
+    )?;
+    let manifest_bytes = fs::read(resolved.join("manifest.json")).map_err(read_error)?;
+    let manifest: ResolutionManifest =
+        serde_json::from_slice(&manifest_bytes).map_err(read_error)?;
+    if manifest.schema_version != 2
+        || !matches!(
+            manifest.policy_version.as_str(),
+            "funder-resolution-v2" | crate::domain::models::declaration_resolution::POLICY_VERSION
+        )
+    {
+        return Err(data_error(
+            "unsupported resolved declaration manifest; capture a new ingestion run, then clean, resolve and load it",
+        ));
+    }
+    if manifest.input_sha256.get("funders.parquet") != Some(&funders_digest)
+        || manifest.input_sha256.get("funding_entries.parquet") != Some(&payments_digest)
+        || manifest.observations != identity_rows.len()
+        || manifest.payments != attribution_rows.len()
+        || manifest.pair_decisions != pair_rows.len()
+        || funders.len() != identity_rows.len()
+        || payments.len() != attribution_rows.len()
+    {
+        return Err(data_error(
+            "resolved outputs do not match their manifest inputs or counts",
+        ));
+    }
+
+    Ok(ResolvedArtifacts {
+        funders,
+        payments,
+        identities: identity_rows,
+        attributions: attribution_rows,
+        pairs: pair_rows,
+    })
+}
+
+struct ResolvedObservations {
+    identities: BTreeMap<String, Option<String>>,
+    observations: BTreeMap<String, FunderRow>,
+}
+
+fn resolved_observations(
+    identity_rows: Vec<ObservationResolution>,
+    funders: Vec<FunderRow>,
+) -> Result<ResolvedObservations, EntityIngestionError> {
+    let identity_row_count = identity_rows.len();
+    let mut identities = BTreeMap::new();
+    for row in identity_rows {
+        let unresolved = match row.identity_basis {
+            IdentityBasis::Unresolved => true,
+            IdentityBasis::SourceReportedCompany
+            | IdentityBasis::StatisticalLink
+            | IdentityBasis::DonorNameLink
+            | IdentityBasis::ExtractedNameLink
+            | IdentityBasis::TradeUnionFamilyLink
+            | IdentityBasis::StatisticalAndDonorNameLink
+            | IdentityBasis::StatisticalAndSupportingNameLink
+            | IdentityBasis::ProvisionalSingleton => false,
+        };
+        if unresolved != row.identity_id.is_none()
+            || row.identity_id.as_deref().is_some_and(str::is_empty)
+            || identities
+                .insert(row.funder_id.as_str().to_owned(), row.identity_id)
+                .is_some()
         {
             return Err(data_error(
-                "cleaned funding occurrences do not cover the raw capture",
+                "invalid or duplicate resolved observation identity",
             ));
         }
+    }
+    let observation_row_count = funders.len();
+    let observations = funders
+        .into_iter()
+        .map(|row| (row.funder_id.clone(), row))
+        .collect::<BTreeMap<_, _>>();
+    if identities.len() != identity_row_count
+        || observations.len() != observation_row_count
+        || identities.len() != observations.len()
+    {
+        return Err(data_error("duplicate resolved observation identity"));
+    }
+    Ok(ResolvedObservations {
+        identities,
+        observations,
+    })
+}
 
-        let identity_row_count = identity_rows.len();
-        let mut identities = BTreeMap::new();
-        for row in identity_rows {
-            let unresolved = match row.identity_basis {
-                IdentityBasis::Unresolved => true,
-                IdentityBasis::SourceReportedCompany
-                | IdentityBasis::StatisticalLink
-                | IdentityBasis::DonorNameLink
-                | IdentityBasis::ExtractedNameLink
-                | IdentityBasis::TradeUnionFamilyLink
-                | IdentityBasis::StatisticalAndDonorNameLink
-                | IdentityBasis::StatisticalAndSupportingNameLink
-                | IdentityBasis::ProvisionalSingleton => false,
-            };
-            if unresolved != row.identity_id.is_none()
-                || row.identity_id.as_deref().is_some_and(str::is_empty)
-                || identities
-                    .insert(row.funder_id.as_str().to_owned(), row.identity_id)
-                    .is_some()
-            {
-                return Err(data_error(
-                    "invalid or duplicate resolved observation identity",
-                ));
-            }
-        }
-        let observation_row_count = funders.len();
-        let observations = funders
-            .into_iter()
-            .map(|row| (row.funder_id.clone(), row))
-            .collect::<BTreeMap<_, _>>();
-        if identities.len() != identity_row_count
-            || observations.len() != observation_row_count
-            || identities.len() != observations.len()
+fn check_pairs(
+    pair_rows: &[PairDecision],
+    observations: &BTreeMap<String, FunderRow>,
+) -> Result<(), EntityIngestionError> {
+    let mut pair_ids = BTreeSet::new();
+    for row in pair_rows {
+        if row.left_funder_id == row.right_funder_id
+            || row.left_funder_id >= row.right_funder_id
+            || !pair_ids.insert((row.left_funder_id.as_str(), row.right_funder_id.as_str()))
+            || !observations.contains_key(row.left_funder_id.as_str())
+            || !observations.contains_key(row.right_funder_id.as_str())
+            || !row.probability.is_finite()
+            || !(0.0..=1.0).contains(&row.probability)
         {
-            return Err(data_error("duplicate resolved observation identity"));
+            return Err(data_error("invalid resolved pair decision"));
         }
-        let mut pair_ids = BTreeSet::new();
-        let payments_by_id = payments
-            .iter()
-            .map(|payment| (payment.funding_entry_id.clone(), payment.clone()))
-            .collect::<BTreeMap<_, _>>();
-        for row in &pair_rows {
-            if row.left_funder_id == row.right_funder_id
-                || row.left_funder_id >= row.right_funder_id
-                || !pair_ids.insert((row.left_funder_id.as_str(), row.right_funder_id.as_str()))
-                || !observations.contains_key(row.left_funder_id.as_str())
-                || !observations.contains_key(row.right_funder_id.as_str())
-                || !row.probability.is_finite()
-                || !(0.0..=1.0).contains(&row.probability)
-            {
-                return Err(data_error("invalid resolved pair decision"));
-            }
-        }
+    }
+    Ok(())
+}
 
-        let mut attributions = BTreeMap::new();
-        for row in attribution_rows {
-            let funding_id = row.funding_entry_id.as_str().to_owned();
-            if attributions.insert(funding_id, row).is_some() {
-                return Err(data_error("duplicate funding attribution"));
-            }
-        }
-        let mut selected_identity_ids = BTreeSet::new();
-        let mut funding_entries = Vec::with_capacity(payments.len());
-        for payment in payments {
-            if raw_funding.remove(&payment.funding_entry_id) != Some(payment.funding.clone()) {
-                return Err(data_error(
-                    "cleaned funding values disagree with raw capture",
-                ));
-            }
-            let declaration = declarations.get(&payment.declaration_id).ok_or_else(|| {
-                data_error("cleaned funding row references a missing declaration")
-            })?;
-            if payment.member_id != declaration.member_id
-                || payment.category_id != declaration.category_id
-                || payment.category_name != declaration.category_name
-                || payment.register_id != declaration.register_id
-                || payment.register_published_date != declaration.register_published_date
-                || payment.parent_declaration_id != declaration.parent_declaration_id
-                || payment.funding_entry_id
-                    != SourceScope::new(
-                        declaration.member_id,
-                        payment.declaration_id,
-                        payment.register_id,
-                    )
-                    .funding_entry(payment.funding_ordinal)
-                    .as_str()
-                || payment.fetched_at != declaration.fetched_at
-                || payment.registration_date != declaration.registration_date
-            {
-                return Err(data_error(
-                    "cleaned funding row disagrees with raw declaration metadata",
-                ));
-            }
-            let attribution = attributions
-                .remove(&payment.funding_entry_id)
-                .ok_or_else(|| data_error("funding entry has no resolved attribution"))?;
-            let (
-                selected_observation_id,
-                identity_id,
-                attribution_basis,
-                parent_id,
-                unavailable_reason,
-                issues,
-            ) = match attribution.decision {
-                AttributionDecision::Selected {
-                    selected_funder_id,
-                    attribution_basis,
-                    selected_parent_declaration_id,
-                } => {
-                    let observation =
-                        observations
-                            .get(selected_funder_id.as_str())
-                            .ok_or_else(|| {
-                                data_error("attribution references a missing observation")
-                            })?;
-                    let expected_declaration_id =
-                        selected_parent_declaration_id.unwrap_or(payment.declaration_id);
-                    let expected_role = match attribution_basis {
-                        AttributionBasis::ExplicitUltimatePayer => FunderRole::UltimatePayer,
-                        AttributionBasis::ParentPayer | AttributionBasis::Payer => {
-                            FunderRole::Payer
-                        }
-                        AttributionBasis::Donor => FunderRole::Donor,
-                    };
-                    if observation.member_id != payment.member_id
-                        || observation.declaration_id != expected_declaration_id
-                        || observation.role != expected_role
-                        || (selected_parent_declaration_id.is_some()
-                            && selected_parent_declaration_id != payment.parent_declaration_id)
-                        || (selected_parent_declaration_id.is_some()
-                            && observation.role != FunderRole::Payer)
-                        || (selected_parent_declaration_id.is_none()
-                            && observation.source_scope == "funding_entry"
-                            && observation
-                                .funding_entry_id
-                                .as_ref()
-                                .map(FundingEntryId::as_str)
-                                != Some(payment.funding_entry_id.as_str()))
-                    {
-                        return Err(data_error(
-                            "selected observation does not belong to this payment or its parent",
-                        ));
-                    }
-                    let identity_id = identities
-                        .get(selected_funder_id.as_str())
-                        .ok_or_else(|| data_error("attribution references a missing observation"))?
-                        .clone();
-                    let identity_id = identity_id.ok_or_else(|| {
-                        data_error("selected observation has no resolved identity")
-                    })?;
-                    selected_identity_ids.insert(identity_id.clone());
-                    (
-                        Some(selected_funder_id.as_str().to_owned()),
-                        Some(identity_id),
-                        Some(attribution_basis),
-                        selected_parent_declaration_id,
-                        None,
-                        attribution.issues,
-                    )
-                }
-                AttributionDecision::Unavailable { unavailable_reason } => (
-                    None,
-                    None,
-                    None,
-                    None,
-                    Some(unavailable_reason),
-                    attribution.issues,
-                ),
+fn check_payment(
+    payment: &CleanPaymentRow,
+    declarations: &BTreeMap<DeclarationId, LoadDeclaration>,
+) -> Result<(), EntityIngestionError> {
+    let declaration = declarations
+        .get(&payment.declaration_id)
+        .ok_or_else(|| data_error("cleaned funding row references a missing declaration"))?;
+    if payment.member_id != declaration.member_id
+        || payment.category_id != declaration.category_id
+        || payment.category_name != declaration.category_name
+        || payment.register_id != declaration.register_id
+        || payment.register_published_date != declaration.register_published_date
+        || payment.parent_declaration_id != declaration.parent_declaration_id
+        || payment.funding_entry_id
+            != SourceScope::new(
+                declaration.member_id,
+                payment.declaration_id,
+                payment.register_id,
+            )
+            .funding_entry(payment.funding_ordinal)
+            .as_str()
+        || payment.fetched_at != declaration.fetched_at
+        || payment.registration_date != declaration.registration_date
+    {
+        return Err(data_error(
+            "cleaned funding row disagrees with raw declaration metadata",
+        ));
+    }
+    Ok(())
+}
+
+fn load_funding_entry(
+    payment: CleanPaymentRow,
+    attribution: PaymentAttribution,
+    observations: &BTreeMap<String, FunderRow>,
+    identities: &BTreeMap<String, Option<String>>,
+) -> Result<LoadFundingEntry, EntityIngestionError> {
+    let (
+        selected_observation_id,
+        identity_id,
+        attribution_basis,
+        parent_id,
+        unavailable_reason,
+        issues,
+    ) = match attribution.decision {
+        AttributionDecision::Selected {
+            selected_funder_id,
+            attribution_basis,
+            selected_parent_declaration_id,
+        } => {
+            let observation = observations
+                .get(selected_funder_id.as_str())
+                .ok_or_else(|| data_error("attribution references a missing observation"))?;
+            let expected_declaration_id =
+                selected_parent_declaration_id.unwrap_or(payment.declaration_id);
+            let expected_role = match attribution_basis {
+                AttributionBasis::ExplicitUltimatePayer => FunderRole::UltimatePayer,
+                AttributionBasis::ParentPayer | AttributionBasis::Payer => FunderRole::Payer,
+                AttributionBasis::Donor => FunderRole::Donor,
             };
-            funding_entries.push(LoadFundingEntry {
-                source_id: payment.funding_entry_id,
-                source_declaration_id: payment.declaration_id,
-                identity_id,
-                selected_observation_id,
-                attribution_basis,
-                selected_parent_declaration_id: parent_id,
-                unavailable_reason,
-                issues,
-                amount: payment
-                    .funding
-                    .amount()
-                    .map(str::parse::<BigDecimal>)
-                    .transpose()
-                    .map_err(|error| data_error(format!("invalid funding amount: {error}")))?,
-                currency: payment.funding.currency().map(str::to_owned),
-                payment_type: payment.funding.payment_type().map(str::to_owned),
-            });
-        }
-        if !attributions.is_empty() {
-            return Err(data_error(
-                "resolved output contains an attribution without a funding entry",
-            ));
-        }
-        if !raw_funding.is_empty() {
-            return Err(data_error("cleaned funding rows omit raw funding values"));
-        }
-        if observations.values().any(|row| {
-            !matches!(row.source_scope.as_str(), "declaration" | "funding_entry")
-                || row.funder_id
-                    != row
+            if observation.member_id != payment.member_id
+                || observation.declaration_id != expected_declaration_id
+                || observation.role != expected_role
+                || (selected_parent_declaration_id.is_some()
+                    && selected_parent_declaration_id != payment.parent_declaration_id)
+                || (selected_parent_declaration_id.is_some()
+                    && observation.role != FunderRole::Payer)
+                || (selected_parent_declaration_id.is_none()
+                    && observation.source_scope == "funding_entry"
+                    && observation
                         .funding_entry_id
                         .as_ref()
-                        .map_or_else(
-                            || {
-                                SourceScope::new(row.member_id, row.declaration_id, row.register_id)
-                                    .declaration_observation(row.role)
-                            },
-                            |id| id.observation(row.role),
-                        )
-                        .as_str()
-                || (row.source_scope == "declaration" && row.funding_entry_id.is_some())
-                || (row.source_scope == "funding_entry"
-                    && row.funding_entry_id.as_ref().is_none_or(|id| {
-                        payments_by_id.get(id.as_str()).is_none_or(|payment| {
-                            payment.member_id != row.member_id
-                                || payment.register_id != row.register_id
-                                || payment.declaration_id != row.declaration_id
-                                || match row.role {
-                                    FunderRole::Donor => payment.donor_funder_id.as_deref(),
-                                    FunderRole::Payer => payment.payer_funder_id.as_deref(),
-                                    FunderRole::UltimatePayer => {
-                                        payment.ultimate_payer_funder_id.as_deref()
-                                    }
-                                } != Some(row.funder_id.as_str())
-                        })
-                    }))
-                || (row.source_scope == "declaration"
-                    && declarations
-                        .get(&row.declaration_id)
-                        .is_none_or(|declaration| {
-                            declaration.member_id != row.member_id
-                                || declaration.register_id != row.register_id
-                        }))
-        }) {
-            return Err(data_error("invalid cleaned funder observation"));
-        }
-        let mut funder_groups = BTreeMap::<String, Vec<&FunderRow>>::new();
-        for (observation_id, identity_id) in &identities {
-            let Some(identity_id) = identity_id.as_ref() else {
-                continue;
-            };
-            if selected_identity_ids.contains(identity_id) {
-                funder_groups
-                    .entry(identity_id.clone())
-                    .or_default()
-                    .push(&observations[observation_id]);
+                        .map(FundingEntryId::as_str)
+                        != Some(payment.funding_entry_id.as_str()))
+            {
+                return Err(data_error(
+                    "selected observation does not belong to this payment or its parent",
+                ));
             }
+            let identity_id = identities
+                .get(selected_funder_id.as_str())
+                .ok_or_else(|| data_error("attribution references a missing observation"))?
+                .clone();
+            let identity_id = identity_id
+                .ok_or_else(|| data_error("selected observation has no resolved identity"))?;
+            (
+                Some(selected_funder_id.as_str().to_owned()),
+                Some(identity_id),
+                Some(attribution_basis),
+                selected_parent_declaration_id,
+                None,
+                attribution.issues,
+            )
         }
-        let mut load_funders = Vec::with_capacity(funder_groups.len());
-        for (identity_id, mut group) in funder_groups {
-            group.sort_by(|left, right| left.funder_id.cmp(&right.funder_id));
-            let company_number = group
-                .iter()
-                .filter(|row| row.donor_kind.as_deref() == Some("Company"))
-                .find_map(|row| row.donor_company_number.clone());
-            let kind = if company_number.is_some() {
-                Some("Company".to_owned())
-            } else {
-                group.iter().find_map(|row| row.donor_kind.clone())
-            };
-            let names = group
-                .iter()
-                .filter_map(|row| row.name_raw.as_deref())
-                .filter(|name| !name.trim().is_empty());
-            let aliases = group
-                .iter()
-                .filter_map(|row| row.name_raw.as_ref())
-                .filter(|name| !name.trim().is_empty())
-                .cloned()
-                .collect::<BTreeSet<_>>();
-            let name = canonical_name(names).map_or_else(
-                || {
-                    company_number.as_ref().map_or_else(
-                        || "Unnamed resolved funder".to_owned(),
-                        |number| format!("Companies House {number}"),
-                    )
-                },
-                str::to_owned,
-            );
-            let aliases = aliases.into_iter().collect();
-            load_funders.push(LoadFunder {
-                identity_id,
-                name,
-                aliases,
-                kind,
-                company_number,
-            });
-        }
+        AttributionDecision::Unavailable { unavailable_reason } => (
+            None,
+            None,
+            None,
+            None,
+            Some(unavailable_reason),
+            attribution.issues,
+        ),
+    };
+    Ok(LoadFundingEntry {
+        source_id: payment.funding_entry_id,
+        source_declaration_id: payment.declaration_id,
+        identity_id,
+        selected_observation_id,
+        attribution_basis,
+        selected_parent_declaration_id: parent_id,
+        unavailable_reason,
+        issues,
+        amount: payment
+            .funding
+            .amount()
+            .map(str::parse::<BigDecimal>)
+            .transpose()
+            .map_err(|error| data_error(format!("invalid funding amount: {error}")))?,
+        currency: payment.funding.currency().map(str::to_owned),
+        payment_type: payment.funding.payment_type().map(str::to_owned),
+    })
+}
 
-        let fingerprint = fingerprint_files(raw_paths.iter().cloned().chain([
-            cleaned.join("funders.parquet"),
-            cleaned.join("funding_entries.parquet"),
-            resolved.join("observation_resolution.parquet"),
-            resolved.join("payment_attribution.parquet"),
-            resolved.join("pair_decisions.parquet"),
-            resolved.join("manifest.json"),
-        ]))?;
-        DeclarationLoad::checked(
-            self.key().into(),
-            fingerprint,
-            declarations.into_values().collect(),
-            load_funders,
-            funding_entries,
-        )
+struct LoadedFunding {
+    entries: Vec<LoadFundingEntry>,
+    selected_identity_ids: BTreeSet<String>,
+}
+
+fn load_funding(
+    payments: Vec<CleanPaymentRow>,
+    attribution_rows: Vec<PaymentAttribution>,
+    mut raw_funding: BTreeMap<String, CapturedFundingEntry>,
+    declarations: &BTreeMap<DeclarationId, LoadDeclaration>,
+    observations: &BTreeMap<String, FunderRow>,
+    identities: &BTreeMap<String, Option<String>>,
+) -> Result<LoadedFunding, EntityIngestionError> {
+    let mut attributions = BTreeMap::new();
+    for row in attribution_rows {
+        let funding_id = row.funding_entry_id.as_str().to_owned();
+        if attributions.insert(funding_id, row).is_some() {
+            return Err(data_error("duplicate funding attribution"));
+        }
     }
+    let mut selected_identity_ids = BTreeSet::new();
+    let mut funding_entries = Vec::with_capacity(payments.len());
+    for payment in payments {
+        if raw_funding.remove(&payment.funding_entry_id) != Some(payment.funding.clone()) {
+            return Err(data_error(
+                "cleaned funding values disagree with raw capture",
+            ));
+        }
+        check_payment(&payment, declarations)?;
+        let attribution = attributions
+            .remove(&payment.funding_entry_id)
+            .ok_or_else(|| data_error("funding entry has no resolved attribution"))?;
+        let entry = load_funding_entry(payment, attribution, observations, identities)?;
+        if let Some(identity_id) = &entry.identity_id {
+            selected_identity_ids.insert(identity_id.clone());
+        }
+        funding_entries.push(entry);
+    }
+
+    if !attributions.is_empty() {
+        return Err(data_error(
+            "resolved output contains an attribution without a funding entry",
+        ));
+    }
+    if !raw_funding.is_empty() {
+        return Err(data_error("cleaned funding rows omit raw funding values"));
+    }
+    Ok(LoadedFunding {
+        entries: funding_entries,
+        selected_identity_ids,
+    })
+}
+
+fn check_observations(
+    observations: &BTreeMap<String, FunderRow>,
+    payments_by_id: &BTreeMap<String, CleanPaymentRow>,
+    declarations: &BTreeMap<DeclarationId, LoadDeclaration>,
+) -> Result<(), EntityIngestionError> {
+    if observations.values().any(|row| {
+        !matches!(row.source_scope.as_str(), "declaration" | "funding_entry")
+            || row.funder_id
+                != row
+                    .funding_entry_id
+                    .as_ref()
+                    .map_or_else(
+                        || {
+                            SourceScope::new(row.member_id, row.declaration_id, row.register_id)
+                                .declaration_observation(row.role)
+                        },
+                        |id| id.observation(row.role),
+                    )
+                    .as_str()
+            || (row.source_scope == "declaration" && row.funding_entry_id.is_some())
+            || (row.source_scope == "funding_entry"
+                && row.funding_entry_id.as_ref().is_none_or(|id| {
+                    payments_by_id.get(id.as_str()).is_none_or(|payment| {
+                        payment.member_id != row.member_id
+                            || payment.register_id != row.register_id
+                            || payment.declaration_id != row.declaration_id
+                            || match row.role {
+                                FunderRole::Donor => payment.donor_funder_id.as_deref(),
+                                FunderRole::Payer => payment.payer_funder_id.as_deref(),
+                                FunderRole::UltimatePayer => {
+                                    payment.ultimate_payer_funder_id.as_deref()
+                                }
+                            } != Some(row.funder_id.as_str())
+                    })
+                }))
+            || (row.source_scope == "declaration"
+                && declarations
+                    .get(&row.declaration_id)
+                    .is_none_or(|declaration| {
+                        declaration.member_id != row.member_id
+                            || declaration.register_id != row.register_id
+                    }))
+    }) {
+        return Err(data_error("invalid cleaned funder observation"));
+    }
+    Ok(())
+}
+
+fn load_funders(
+    identities: &BTreeMap<String, Option<String>>,
+    observations: &BTreeMap<String, FunderRow>,
+    selected_identity_ids: &BTreeSet<String>,
+) -> Vec<LoadFunder> {
+    let mut funder_groups = BTreeMap::<String, Vec<&FunderRow>>::new();
+    for (observation_id, identity_id) in identities {
+        let Some(identity_id) = identity_id.as_ref() else {
+            continue;
+        };
+        if selected_identity_ids.contains(identity_id) {
+            funder_groups
+                .entry(identity_id.clone())
+                .or_default()
+                .push(&observations[observation_id]);
+        }
+    }
+    let mut load_funders = Vec::with_capacity(funder_groups.len());
+    for (identity_id, mut group) in funder_groups {
+        group.sort_by(|left, right| left.funder_id.cmp(&right.funder_id));
+        let company_number = group
+            .iter()
+            .filter(|row| row.donor_kind.as_deref() == Some("Company"))
+            .find_map(|row| row.donor_company_number.clone());
+        let kind = if company_number.is_some() {
+            Some("Company".to_owned())
+        } else {
+            group.iter().find_map(|row| row.donor_kind.clone())
+        };
+        let names = group
+            .iter()
+            .filter_map(|row| row.name_raw.as_deref())
+            .filter(|name| !name.trim().is_empty());
+        let aliases = group
+            .iter()
+            .filter_map(|row| row.name_raw.as_ref())
+            .filter(|name| !name.trim().is_empty())
+            .cloned()
+            .collect::<BTreeSet<_>>();
+        let name = canonical_name(names).map_or_else(
+            || {
+                company_number.as_ref().map_or_else(
+                    || "Unnamed resolved funder".to_owned(),
+                    |number| format!("Companies House {number}"),
+                )
+            },
+            str::to_owned,
+        );
+        let aliases = aliases.into_iter().collect();
+        load_funders.push(LoadFunder {
+            identity_id,
+            name,
+            aliases,
+            kind,
+            company_number,
+        });
+    }
+    load_funders
 }
 
 fn canonical_name<'a>(names: impl IntoIterator<Item = &'a str>) -> Option<&'a str> {
@@ -580,72 +726,8 @@ impl DeclarationLoadRepository for ExposedDatabase {
             });
         }
 
-        let mut funder_ids = BTreeMap::new();
-        for funder in &load.funders {
-            let id = sqlx::query!(
-                "INSERT INTO exposed.funders (funder_name, funder_kind, company_number, resolution_identity_id) VALUES ($1, $2, $3, $4) ON CONFLICT (resolution_identity_id) DO UPDATE SET funder_name = EXCLUDED.funder_name, funder_kind = EXCLUDED.funder_kind, company_number = EXCLUDED.company_number RETURNING id",
-                funder.name,
-                funder.kind,
-                funder.company_number,
-                funder.identity_id
-            ).fetch_one(&mut *tx).await.map_err(db_error)?.id;
-            funder_ids.insert(funder.identity_id.as_str(), id);
-            sqlx::query!(
-                "DELETE FROM exposed.funder_aliases WHERE funder_id = $1",
-                id
-            )
-            .execute(&mut *tx)
-            .await
-            .map_err(db_error)?;
-            for alias in funder.aliases.iter().chain(std::iter::once(&funder.name)) {
-                sqlx::query!(
-                    "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, $2) ON CONFLICT (funder_id, funder_alias) DO NOTHING",
-                    id,
-                    alias
-                )
-                .execute(&mut *tx)
-                .await
-                .map_err(db_error)?;
-            }
-        }
-        for declaration in &load.declarations {
-            let stored_member_id = sqlx::query!(
-                "SELECT id FROM exposed.members WHERE parliament_member_id = $1",
-                i32::try_from(declaration.member_id.value()).map_err(db_error)?
-            )
-            .fetch_optional(&mut *tx)
-            .await
-            .map_err(db_error)?
-            .ok_or_else(|| {
-                data_error(format!(
-                    "member {} must be loaded before declarations",
-                    declaration.member_id
-                ))
-            })?
-            .id;
-            let inserted = sqlx::query!(
-                "INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (source_declaration_id) DO UPDATE SET member_id = EXCLUDED.member_id, category_id = EXCLUDED.category_id, category_name = EXCLUDED.category_name, fetched_at = EXCLUDED.fetched_at, registration_date = EXCLUDED.registration_date WHERE exposed.declarations.fetched_at <= EXCLUDED.fetched_at RETURNING source_declaration_id",
-                i32::try_from(declaration.source_declaration_id.value()).map_err(db_error)?,
-                stored_member_id,
-                i32::try_from(declaration.category_id).map_err(db_error)?,
-                declaration.category_name,
-                sql_timestamp(declaration.fetched_at)?,
-                declaration.registration_date.map(|date| date.and_hms_opt(0, 0, 0).expect("midnight is valid").and_utc()).map(sql_timestamp).transpose()?
-            ).fetch_optional(&mut *tx).await.map_err(db_error)?;
-            if inserted.is_none() {
-                return Err(data_error(format!(
-                    "declaration {} is already loaded at a newer capture time",
-                    declaration.source_declaration_id
-                )));
-            }
-            sqlx::query!(
-                "DELETE FROM exposed.funding_entries WHERE source_declaration_id = $1",
-                i32::try_from(declaration.source_declaration_id.value()).map_err(db_error)?
-            )
-            .execute(&mut *tx)
-            .await
-            .map_err(db_error)?;
-        }
+        let funder_ids = replace_funders(&mut tx, &load.funders).await?;
+        replace_declarations(&mut tx, &load.declarations).await?;
         for entry in &load.funding_entries {
             let funder_id = entry
                 .identity_id
@@ -717,4 +799,84 @@ fn read_error(error: impl std::fmt::Display) -> EntityIngestionError {
 mod tests;
 fn db_error(error: impl std::fmt::Display) -> EntityIngestionError {
     EntityIngestionError::DataError(error.to_string())
+}
+
+async fn replace_declarations(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    declarations: &[LoadDeclaration],
+) -> Result<(), EntityIngestionError> {
+    for declaration in declarations {
+        let stored_member_id = sqlx::query!(
+            "SELECT id FROM exposed.members WHERE parliament_member_id = $1",
+            i32::try_from(declaration.member_id.value()).map_err(db_error)?
+        )
+        .fetch_optional(&mut **tx)
+        .await
+        .map_err(db_error)?
+        .ok_or_else(|| {
+            data_error(format!(
+                "member {} must be loaded before declarations",
+                declaration.member_id
+            ))
+        })?
+        .id;
+        let inserted = sqlx::query!(
+                "INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (source_declaration_id) DO UPDATE SET member_id = EXCLUDED.member_id, category_id = EXCLUDED.category_id, category_name = EXCLUDED.category_name, fetched_at = EXCLUDED.fetched_at, registration_date = EXCLUDED.registration_date WHERE exposed.declarations.fetched_at <= EXCLUDED.fetched_at RETURNING source_declaration_id",
+                i32::try_from(declaration.source_declaration_id.value()).map_err(db_error)?,
+                stored_member_id,
+                i32::try_from(declaration.category_id).map_err(db_error)?,
+                declaration.category_name,
+                sql_timestamp(declaration.fetched_at)?,
+                declaration.registration_date.map(|date| date.and_hms_opt(0, 0, 0).expect("midnight is valid").and_utc()).map(sql_timestamp).transpose()?
+            ).fetch_optional(&mut **tx).await.map_err(db_error)?;
+        if inserted.is_none() {
+            return Err(data_error(format!(
+                "declaration {} is already loaded at a newer capture time",
+                declaration.source_declaration_id
+            )));
+        }
+        sqlx::query!(
+            "DELETE FROM exposed.funding_entries WHERE source_declaration_id = $1",
+            i32::try_from(declaration.source_declaration_id.value()).map_err(db_error)?
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(db_error)?;
+    }
+    Ok(())
+}
+
+async fn replace_funders<'a>(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    funders: &'a [LoadFunder],
+) -> Result<BTreeMap<&'a str, uuid::Uuid>, EntityIngestionError> {
+    let mut funder_ids = BTreeMap::new();
+    for funder in funders {
+        let id = sqlx::query!(
+                "INSERT INTO exposed.funders (funder_name, funder_kind, company_number, resolution_identity_id) VALUES ($1, $2, $3, $4) ON CONFLICT (resolution_identity_id) DO UPDATE SET funder_name = EXCLUDED.funder_name, funder_kind = EXCLUDED.funder_kind, company_number = EXCLUDED.company_number RETURNING id",
+                funder.name,
+                funder.kind,
+                funder.company_number,
+                funder.identity_id
+            ).fetch_one(&mut **tx).await.map_err(db_error)?.id;
+        funder_ids.insert(funder.identity_id.as_str(), id);
+        sqlx::query!(
+            "DELETE FROM exposed.funder_aliases WHERE funder_id = $1",
+            id
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(db_error)?;
+        for alias in funder.aliases.iter().chain(std::iter::once(&funder.name)) {
+            sqlx::query!(
+                    "INSERT INTO exposed.funder_aliases (funder_id, funder_alias) VALUES ($1, $2) ON CONFLICT (funder_id, funder_alias) DO NOTHING",
+                    id,
+                    alias
+                )
+                .execute(&mut **tx)
+                .await
+                .map_err(db_error)?;
+        }
+    }
+    Ok(funder_ids)
 }
