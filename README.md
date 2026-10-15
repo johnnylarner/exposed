@@ -9,8 +9,8 @@ Schema inspection needs no configuration or database and writes no files:
 
 ```sh
 exposed data declarations clean --schema
-exposed util latest --schema
-exposed util uuid-v7 --schema
+exposed data util latest --schema
+exposed data util uuid-v7 --schema
 ```
 
 Schemas come from handler response types. `exposed --version` prints the version.
@@ -42,7 +42,7 @@ To fetch and load members, use the same ingestion key for both stages:
 
 ```sh
 test -f .env || cp .env.example .env
-ingestion_key=$(cargo run --quiet --package exposed --bin exposed -- util uuid-v7 | jq -r .uuid)
+ingestion_key=$(cargo run --quiet --package exposed --bin exposed -- data util uuid-v7 | jq -r .uuid)
 cargo run --package exposed --bin exposed -- data members fetch --config exposed/config/cli-dev.yaml --ingestion-key "$ingestion_key"
 cargo run --package exposed --bin exposed -- data members load --config exposed/config/cli-dev.yaml --ingestion-key "$ingestion_key"
 cargo run --package exposed --bin exposed -- data declarations fetch --config exposed/config/declarations-dev.yaml
@@ -52,9 +52,9 @@ Choose the utility command for your task:
 
 | Command | When to use it |
 | --- | --- |
-| `util uuid-v7` | Preselect an ingestion key to share across fetch and load stages, or across reprocessing stages. |
-| `util latest` | Find the ingestion key and directory of the most recently modified local run before inspecting its artifacts or running a pipeline stage. It reads the store without changing it. |
-| `util copy-latest-raw` | Reprocess a completed capture after changing cleaning or resolution logic, or try different resolution settings. It creates a separate run with the same raw inputs and no derived results. |
+| `data util uuid-v7` | Preselect an ingestion key to share across fetch and load stages, or across reprocessing stages. |
+| `data util latest` | Find the ingestion key and directory of the most recently modified local run before inspecting its artifacts or running a pipeline stage. It reads the store without changing it. |
+| `data util copy-latest-raw` | Reprocess a completed capture after changing cleaning or resolution logic, or try different resolution settings. It creates a separate run with the same raw inputs and no derived results. |
 
 Use `data members fetch` or `data declarations fetch` when you need fresh data
 from Parliament. These utilities do not fetch data or run pipeline stages. After a
@@ -63,7 +63,7 @@ copy, pass the destination ingestion key to each stage you want to run.
 To generate a fresh UUID-v7:
 
 ```sh
-cargo run --package exposed --bin exposed -- util uuid-v7
+cargo run --package exposed --bin exposed -- data util uuid-v7
 ```
 
 The command returns one JSON object, for example
@@ -74,7 +74,7 @@ for stages that should share a run.
 To inspect the latest stored ingestion run, use either fetch configuration:
 
 ```sh
-cargo run --package exposed --bin exposed -- util latest --config exposed/config/cli-dev.yaml
+cargo run --package exposed --bin exposed -- data util latest --config exposed/config/cli-dev.yaml
 ```
 
 The command returns `{"ingestion":{"ingestion_key":"...","path":"..."}}`
@@ -90,8 +90,8 @@ fails with its path in the error.
 To reprocess the latest raw capture in a new run, copy it with a fresh ingestion key:
 
 ```sh
-ingestion_key=$(cargo run --quiet --package exposed --bin exposed -- util uuid-v7 | jq -r .uuid)
-cargo run --package exposed --bin exposed -- util copy-latest-raw --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
+ingestion_key=$(cargo run --quiet --package exposed --bin exposed -- data util uuid-v7 | jq -r .uuid)
+cargo run --package exposed --bin exposed -- data util copy-latest-raw --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 cargo run --package exposed --bin exposed -- data declarations clean --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 ```
 
@@ -100,7 +100,7 @@ object with `source_ingestion_key`, `ingestion_key`, and the absolute destinatio
 run `path`. It requires only `data_dir`
 and runs without a database or API connection.
 
-The command uses the same latest-run selection as `util latest`. It copies the
+The command uses the same latest-run selection as `data util latest`. It copies the
 entire `raw` directory, preserving file bytes and empty directories. It excludes
 cleaned and resolved results and fails if the selected run has no raw directory.
 Symlinks and special files fail the copy. Existing destinations remain unchanged.

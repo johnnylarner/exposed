@@ -8,35 +8,26 @@ use std::process::Command;
 
 #[test]
 fn every_command_documents_responses_without_configuration_or_side_effects() {
-    for (group, command_tree) in [("data", DataArgs::command()), ("util", UtilArgs::command())] {
-        for command in command_tree
+    for command in DataArgs::command()
+        .get_subcommands()
+        .filter(|command| command.get_name() != "help")
+    {
+        for stage in command
             .get_subcommands()
-            .filter(|command| command.get_name() != "help")
+            .filter(|stage| stage.get_name() != "help")
         {
-            let mut commands = vec![];
-            if group == "data" {
-                for stage in command
-                    .get_subcommands()
-                    .filter(|stage| stage.get_name() != "help")
-                {
-                    commands.push(vec![group, command.get_name(), stage.get_name()]);
-                }
-            } else {
-                commands.push(vec![group, command.get_name()]);
-            }
-            for args in commands {
-                let help = response_schema::help(&args);
-                assert!(!help.contains("JSON schema:"));
-                response_schema::validator(&args, "Success JSON schema:");
-                response_schema::validator(&args, "Failure JSON schema:");
-                let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
-                    .args(&args)
-                    .arg("-h")
-                    .output()
-                    .unwrap();
-                assert!(output.status.success());
-                assert!(!String::from_utf8_lossy(&output.stdout).contains("JSON schema:"));
-            }
+            let args = ["data", command.get_name(), stage.get_name()];
+            let help = response_schema::help(&args);
+            assert!(!help.contains("JSON schema:"));
+            response_schema::validator(&args, "Success JSON schema:");
+            response_schema::validator(&args, "Failure JSON schema:");
+            let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
+                .args(args)
+                .arg("-h")
+                .output()
+                .unwrap();
+            assert!(output.status.success());
+            assert!(!String::from_utf8_lossy(&output.stdout).contains("JSON schema:"));
         }
     }
     let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
@@ -49,7 +40,7 @@ fn every_command_documents_responses_without_configuration_or_side_effects() {
 
 #[test]
 fn required_nullable_fields_and_typed_values_reject_malformed_responses() {
-    let latest = response_schema::validator(&["util", "latest"], "Success JSON schema:");
+    let latest = response_schema::validator(&["data", "util", "latest"], "Success JSON schema:");
     assert!(latest.is_valid(&json!({"ingestion": null})));
     assert!(!latest.is_valid(&json!({})));
     assert!(!latest.is_valid(&json!({"ingestion": {"ingestion_key": "bad", "path": "/data"}})));
@@ -76,7 +67,7 @@ fn required_nullable_fields_and_typed_values_reject_malformed_responses() {
     assert!(member.is_valid(&payload));
     payload["stage"] = json!("resolve");
     assert!(!member.is_valid(&payload));
-    let error = response_schema::validator(&["util", "latest"], "Failure JSON schema:");
+    let error = response_schema::validator(&["data", "util", "latest"], "Failure JSON schema:");
     assert!(!error.is_valid(&json!({"error":{}})));
     assert!(!error.is_valid(&json!({"error":{"message":1}})));
 }
@@ -86,13 +77,33 @@ fn help_groups_pipeline_commands_and_utilities() {
     let mut root = ExposedCli::command();
     let help = root.render_long_help().to_string();
     assert!(
-        help.lines()
+        !help
+            .lines()
             .any(|line| line.trim_start().starts_with("util "))
     );
+    let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
+        .args(["util", "uuid-v7"])
+        .output()
+        .unwrap();
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("unrecognized subcommand"));
+    let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
+        .args(["data", "util", "--help"])
+        .output()
+        .unwrap();
+    assert!(output.status.success());
+    let help = String::from_utf8(output.stdout).unwrap();
+    for command in ["latest", "copy-latest-raw", "uuid-v7"] {
+        assert!(
+            help.lines()
+                .any(|line| line.trim_start().starts_with(&format!("{command} ")))
+        );
+    }
     for (mut tree, expected, absent) in [
         (
             DataArgs::command(),
-            &["declarations", "members"][..],
+            &["declarations", "members", "util"][..],
             &["latest", "copy-latest-raw", "uuid-v7"][..],
         ),
         (
@@ -134,9 +145,9 @@ fn schema_inspection_skips_dotenv_and_async_runtime_startup() -> anyhow::Result<
         vec!["data", "declarations", "load"],
         vec!["data", "members", "fetch"],
         vec!["data", "members", "load"],
-        vec!["util", "latest"],
-        vec!["util", "copy-latest-raw"],
-        vec!["util", "uuid-v7"],
+        vec!["data", "util", "latest"],
+        vec!["data", "util", "copy-latest-raw"],
+        vec!["data", "util", "uuid-v7"],
     ] {
         let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
             .current_dir(temporary.path())

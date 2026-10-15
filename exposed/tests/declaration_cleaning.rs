@@ -218,6 +218,7 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
         .current_dir(tmp.path())
         .env_remove("DATABASE_URL")
         .args([
+            "data",
             "util",
             "copy-latest-raw",
             "--config",
@@ -229,7 +230,7 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
     assert!(copied.status.success());
     let copied_payload = serde_json::from_slice(&copied.stdout)?;
     response_schema::validate(
-        &["util", "copy-latest-raw"],
+        &["data", "util", "copy-latest-raw"],
         "Success JSON schema:",
         &copied_payload,
     );

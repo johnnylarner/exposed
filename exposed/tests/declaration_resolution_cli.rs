@@ -127,7 +127,7 @@ async fn clean_then_resolve_with_native_weldrs_preserves_occurrences_and_refuses
     let source_key = key;
     let key = IngestionKey::default();
     let copied = Command::new(env!("CARGO_BIN_EXE_exposed"))
-        .args(["util", "copy-latest-raw"])
+        .args(["data", "util", "copy-latest-raw"])
         .arg("--config")
         .arg(&config)
         .arg("--ingestion-key")

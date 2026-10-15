@@ -15,6 +15,7 @@ fn run_copy(root: &Path, key: Option<&IngestionKey>) -> anyhow::Result<Output> {
     fs::write(root.join("config.yaml"), "data_dir: ./data\n")?;
     let mut command = Command::new(env!("CARGO_BIN_EXE_exposed"));
     command.current_dir(root).env_remove("DATABASE_URL").args([
+        "data",
         "util",
         "copy-latest-raw",
         "--config",
@@ -34,7 +35,7 @@ fn success(output: &Output) -> serde_json::Value {
     );
     let payload = serde_json::from_slice(&output.stdout).unwrap();
     response_schema::validate(
-        &["util", "copy-latest-raw"],
+        &["data", "util", "copy-latest-raw"],
         "Success JSON schema:",
         &payload,
     );

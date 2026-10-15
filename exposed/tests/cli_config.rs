@@ -5,8 +5,8 @@ use exposed::inbound::cli::ExposedCli;
 use tempfile::TempDir;
 
 const COMMANDS: &[&[&str]] = &[
-    &["util", "latest"],
-    &["util", "copy-latest-raw"],
+    &["data", "util", "latest"],
+    &["data", "util", "copy-latest-raw"],
     &["data", "declarations", "fetch"],
     &["data", "declarations", "clean"],
     &["data", "declarations", "resolve"],
@@ -23,7 +23,7 @@ fn commands_accept_named_config() {
             .chain(command.iter().copied())
             .chain(["--config", "config.yaml"])
             .collect::<Vec<_>>();
-        if *command != ["util", "latest"] {
+        if *command != ["data", "util", "latest"] {
             args.extend(["--ingestion-key", "00000000-0000-4000-8000-000000000001"]);
         }
         assert!(ExposedCli::try_parse_from(args).is_ok(), "{command:?}");
@@ -60,12 +60,12 @@ fn commands_require_named_config() -> anyhow::Result<()> {
 }
 
 #[test]
-fn utility_commands_are_rejected_under_data() {
-    for command in ["latest", "copy-latest-raw"] {
+fn utility_commands_require_the_util_group_under_data() {
+    for command in ["latest", "copy-latest-raw", "uuid-v7"] {
         let error =
             ExposedCli::try_parse_from(["exposed", "data", command, "--config", "config.yaml"])
                 .err()
-                .expect("utilities belong under util");
+                .expect("utilities belong under data util");
         assert_eq!(error.kind(), clap::error::ErrorKind::InvalidSubcommand);
     }
 }
@@ -122,7 +122,7 @@ fn existing_stages_require_keys_before_reading_files_or_environment() -> anyhow:
     let temporary = TempDir::new()?;
     for command in COMMANDS
         .iter()
-        .filter(|command| command.first() == Some(&"data") && command.last() != Some(&"fetch"))
+        .filter(|command| command.get(1) != Some(&"util") && command.last() != Some(&"fetch"))
     {
         let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
             .current_dir(temporary.path())
@@ -183,7 +183,7 @@ fn every_yaml_config_error_names_selected_path() -> anyhow::Result<()> {
                 .args(*command)
                 .arg("--config")
                 .arg(&path)
-                .args(if *command == ["util", "latest"] {
+                .args(if *command == ["data", "util", "latest"] {
                     vec![]
                 } else {
                     vec!["--ingestion-key", "00000000-0000-4000-8000-000000000001"]

@@ -19,7 +19,7 @@ fn run_latest(root: &Path) -> anyhow::Result<Output> {
     Ok(Command::new(env!("CARGO_BIN_EXE_exposed"))
         .current_dir(root)
         .env_remove("DATABASE_URL")
-        .args(["util", "latest", "--config", "config.yaml"])
+        .args(["data", "util", "latest", "--config", "config.yaml"])
         .output()?)
 }
 
@@ -32,7 +32,11 @@ fn stdout(output: &Output) -> serde_json::Value {
     assert_eq!(output.status.code(), Some(0));
     assert!(output.stderr.is_empty());
     let payload = serde_json::from_slice(&output.stdout).unwrap();
-    response_schema::validate(&["util", "latest"], "Success JSON schema:", &payload);
+    response_schema::validate(
+        &["data", "util", "latest"],
+        "Success JSON schema:",
+        &payload,
+    );
     payload
 }
 

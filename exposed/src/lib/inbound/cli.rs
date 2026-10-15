@@ -53,8 +53,6 @@ pub enum Commands {
     Server,
     /// Options to run the `exposed` data pipeline
     Data(DataArgs),
-    /// Utilities for inspecting and preparing ingestion runs.
-    Util(UtilArgs),
     /// Apply database migrations explicitly.
     Migrate(MigrateArgs),
 }
@@ -78,7 +76,7 @@ enum UtilCommands {
     /// Generate a fresh UUID-v7.
     #[command(
         name = "uuid-v7",
-        after_long_help = "Example:\n  exposed util uuid-v7\n\nUse --schema to inspect success and failure JSON schemas without generating a UUID."
+        after_long_help = "Example:\n  exposed data util uuid-v7\n\nUse --schema to inspect success and failure JSON schemas without generating a UUID."
     )]
     UuidV7 {
         /// Print response schemas without running the command.
@@ -87,12 +85,12 @@ enum UtilCommands {
     },
     /// Show the latest ingestion key and directory path.
     #[command(
-        after_long_help = "Example:\n  exposed util latest --config config.yaml\n\nSelects the most recently modified UUID run directory. Equal timestamps use the greatest UUID. An existing empty store returns ingestion: null. A missing or unreadable store fails with its path.\n\nUse --schema to inspect success and failure JSON schemas without reading configuration or storage."
+        after_long_help = "Example:\n  exposed data util latest --config config.yaml\n\nSelects the most recently modified UUID run directory. Equal timestamps use the greatest UUID. An existing empty store returns ingestion: null. A missing or unreadable store fails with its path.\n\nUse --schema to inspect success and failure JSON schemas without reading configuration or storage."
     )]
     Latest(StoreArgs),
     /// Copy the latest raw capture into a new ingestion run.
     #[command(
-        after_long_help = "Example:\n  exposed util copy-latest-raw --config config.yaml\n\nCopies the latest run's raw data into a fresh UUID-v7 run. Use --ingestion-key to select the destination UUID. An existing empty store returns ingestion: null. A missing or unreadable store fails with its path. The selected run must contain raw data.\n\nUse --schema to inspect success and failure JSON schemas without reading configuration or storage."
+        after_long_help = "Example:\n  exposed data util copy-latest-raw --config config.yaml\n\nCopies the latest run's raw data into a fresh UUID-v7 run. Use --ingestion-key to select the destination UUID. An existing empty store returns ingestion: null. A missing or unreadable store fails with its path. The selected run must contain raw data.\n\nUse --schema to inspect success and failure JSON schemas without reading configuration or storage."
     )]
     CopyLatestRaw {
         #[command(flatten)]
@@ -123,6 +121,8 @@ impl StoreArgs {
 /// Data pipeline commands.
 #[derive(Subcommand)]
 pub enum DataCommands {
+    /// Utilities for inspecting and preparing ingestion runs.
+    Util(UtilArgs),
     /// Capture, clean, resolve, and load declarations, in that order.
     Declarations(stages::StageArgs<DeclarationIngestionStage>),
     /// Capture and load members, in that order.
@@ -134,6 +134,7 @@ impl DataArgs {
     #[must_use]
     pub fn schema_response(&self) -> Option<Response> {
         match &self.command {
+            DataCommands::Util(args) => args.schema_response(),
             DataCommands::Declarations(args) => matches!(args.input, stages::StageInput::Schema)
                 .then(|| Response::schema(&response_help::declaration(&args.stage))),
             DataCommands::Members(args) => matches!(args.input, stages::StageInput::Schema)
@@ -174,6 +175,7 @@ pub async fn run_cli(args: DataArgs) -> Response {
         return response;
     }
     match args.command {
+        DataCommands::Util(args) => run_util(args).await,
         DataCommands::Declarations(args) => {
             let (config, ingestion_key) = args.input.into_execution();
             match args.stage {
@@ -200,11 +202,7 @@ pub async fn run_cli(args: DataArgs) -> Response {
     }
 }
 
-/// Entry point for ingestion utility commands.
-pub async fn run_util(args: UtilArgs) -> Response {
-    if let Some(response) = args.schema_response() {
-        return response;
-    }
+async fn run_util(args: UtilArgs) -> Response {
     match args.command {
         UtilCommands::UuidV7 { .. } => uuid_v7().await.into_response(),
         UtilCommands::Latest(store) => latest(store.into_config()).await.into_response(),

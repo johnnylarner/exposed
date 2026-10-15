@@ -14,7 +14,7 @@ fn generates_fresh_uuid_v7_without_configuration_database_or_files() -> anyhow::
         let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
             .current_dir(tmp.path())
             .env("DATABASE_URL", "invalid-url")
-            .args(["util", "uuid-v7"])
+            .args(["data", "util", "uuid-v7"])
             .output()?;
         assert_eq!(
             output.status.code(),
@@ -28,7 +28,11 @@ fn generates_fresh_uuid_v7_without_configuration_database_or_files() -> anyhow::
         let uuid = Uuid::parse_str(payload["uuid"].as_str().unwrap())?;
         assert_eq!(uuid.get_version(), Some(Version::SortRand));
         assert_eq!(uuid.get_variant(), Variant::RFC4122);
-        response_schema::validate(&["util", "uuid-v7"], "Success JSON schema:", &payload);
+        response_schema::validate(
+            &["data", "util", "uuid-v7"],
+            "Success JSON schema:",
+            &payload,
+        );
         generated.push(uuid);
     }
     assert_ne!(generated[0], generated[1]);
