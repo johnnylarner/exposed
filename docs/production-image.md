@@ -73,9 +73,9 @@ No database URL or credentials enter the Docker build.
 
 ## Releases from main
 
-A push to `main` that changes Rust, frontend, migrations, SQLx metadata, Docker,
-or release inputs builds all four `linux/amd64` images. Pull requests build all
-targets without publishing packages, Git tags, or releases.
+The release workflow runs only on pushes to `main` that change Rust, frontend,
+migrations, SQLx metadata, Docker, or release inputs. It builds and publishes all
+four `linux/amd64` images.
 CI uses Docker, `gh`, and `jq`, without host Rust or SQLx installations.
 
 Each push runs independently without cancelling earlier pushes. Before building,
