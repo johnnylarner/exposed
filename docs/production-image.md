@@ -54,18 +54,6 @@ Use `data_dir: /data` in the mounted configuration and give UID 10001 access to
 the mounted data directory. Pass `--env DATABASE_URL` for data commands that
 access PostgreSQL.
 
-To test all four local images, run the smoke script. It starts an isolated
-PostgreSQL 18 container, applies migrations twice, runs the offline data command,
-and checks static files, frontend routes, API forwarding, and service shutdown.
-Docker, curl, and jq must be available.
-
-```sh
-BINARY_IMAGE=exposed:local \
-FRONTEND_SERVER_IMAGE=exposed:frontend-server \
-MIGRATE_IMAGE=exposed:migrate \
-DATA_IMAGE=exposed:data scripts/smoke-production-images.sh
-```
-
 ## Refresh SQLx query metadata
 
 Use an isolated PostgreSQL 18 database. Set `DATABASE_URL` to that database, then
@@ -80,17 +68,17 @@ cargo sqlx prepare --check --workspace -- --bin exposed
 
 Commit the resulting `.sqlx` files with query or migration changes. The image
 build uses this metadata offline. Refresh and check it against PostgreSQL manually
-when queries or migrations change. CI starts an isolated database for image smoke checks but does not install SQLx.
+when queries or migrations change.
 No database URL or credentials enter the Docker build.
 
 ## Releases from main
 
 A push to `main` that changes Rust, frontend, migrations, SQLx metadata, Docker,
-or release inputs builds all four `linux/amd64` images. Pull requests build and
-test all targets locally without publishing packages, Git tags, or releases.
-CI uses Docker, curl, `gh`, and `jq`, without host Rust or SQLx installations.
+or release inputs builds all four `linux/amd64` images. Pull requests build all
+targets without publishing packages, Git tags, or releases.
+CI uses Docker, `gh`, and `jq`, without host Rust or SQLx installations.
 
-Each push runs independently without cancelling earlier pushes. After all smoke checks pass,
+Each push runs independently without cancelling earlier pushes. Before building,
 the job atomically creates a Git tag at the exact source SHA using the current
 UTC minute in `yyyy.mm.dd.hh.mm` format. If that tag already occupies the minute,
 the job waits for the next actual minute. If tag creation fails without an
@@ -105,21 +93,17 @@ All variants use the same allocated version and GHCR repository.
 | `migrate` | `VERSION-migrate` | `exposed migrate run --source /app/db/migrations` |
 | `data` | `VERSION-data` | `exposed data --help` |
 
-The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI first pushes
-unique staging tags with `mode=max` provenance. It tests the immutable image
-references and promotes the same manifest indexes to the version tags only after
-all checks pass. Promotion retains provenance and verifies that each final digest
-matches the tested digest. The shared BuildKit builder reuses Rust compilation
-across all targets.
+The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI pushes each
+image directly to its version tag with `mode=max` provenance. The shared BuildKit
+builder reuses Rust compilation across all targets.
 
 The GitHub release contains `images.json` with `version`, source commit `source`,
 and an `images` object mapping each target to its immutable GHCR pull reference.
 The `image.txt` asset keeps the binary image reference for existing deployments.
 Use the digest references for deployment.
 
-An interrupted or failed attempt can leave staging images, a reserved Git tag,
-or some version tags without a release. A retry allocates a new unused UTC minute.
-Staging tags include the Actions run ID and attempt number and remain in GHCR.
+An interrupted or failed attempt can leave a reserved Git tag or some version
+tags without a release. A retry allocates a new unused UTC minute.
 
 The job's Actions token needs repository content and package write permissions.
 GHCR package visibility follows the package settings. Set its visibility to public
