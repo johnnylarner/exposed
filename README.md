@@ -35,6 +35,17 @@ cargo run --package exposed --bin exposed -- data members load --config exposed/
 cargo run --package exposed --bin exposed -- data declarations fetch --config exposed/config/declarations-dev.yaml
 ```
 
+Choose the utility command for your task:
+
+| Command | When to use it |
+| --- | --- |
+| `util latest` | Find the ingestion key and directory of the most recently modified local run before inspecting its artifacts or running a pipeline stage. It reads the store without changing it. |
+| `util copy-latest-raw` | Reprocess a completed capture after changing cleaning or resolution logic, or try different resolution settings. It creates a separate run with the same raw inputs and no derived results. |
+
+Use `data members fetch` or `data declarations fetch` when you need fresh data
+from Parliament. Neither utility fetches data or runs pipeline stages. After a
+copy, pass the destination ingestion key to each stage you want to run.
+
 To inspect the latest stored ingestion run, use either fetch configuration:
 
 ```sh
