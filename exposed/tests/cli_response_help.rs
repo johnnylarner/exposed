@@ -86,11 +86,11 @@ fn help_groups_pipeline_commands_and_utilities() {
         (
             DataArgs::command(),
             &["declarations", "members"][..],
-            &["latest", "copy-latest-raw"][..],
+            &["latest", "copy-latest-raw", "uuid-v7"][..],
         ),
         (
             UtilArgs::command(),
-            &["latest", "copy-latest-raw"][..],
+            &["latest", "copy-latest-raw", "uuid-v7"][..],
             &["declarations", "members"][..],
         ),
     ] {

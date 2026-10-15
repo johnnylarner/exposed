@@ -39,12 +39,24 @@ Choose the utility command for your task:
 
 | Command | When to use it |
 | --- | --- |
+| `util uuid-v7` | Preselect an ingestion key to share across fetch and load stages, or across reprocessing stages. |
 | `util latest` | Find the ingestion key and directory of the most recently modified local run before inspecting its artifacts or running a pipeline stage. It reads the store without changing it. |
 | `util copy-latest-raw` | Reprocess a completed capture after changing cleaning or resolution logic, or try different resolution settings. It creates a separate run with the same raw inputs and no derived results. |
 
 Use `data members fetch` or `data declarations fetch` when you need fresh data
-from Parliament. Neither utility fetches data or runs pipeline stages. After a
+from Parliament. These utilities do not fetch data or run pipeline stages. After a
 copy, pass the destination ingestion key to each stage you want to run.
+
+To generate a fresh UUID-v7:
+
+```sh
+cargo run --package exposed --bin exposed -- util uuid-v7
+```
+
+The command returns one JSON object, for example
+`{"uuid":"0199e6c5-2d80-7a12-8b34-56789abcdef0"}`. It needs no configuration or
+database connection and writes no files. Use the `uuid` value as `--ingestion-key`
+for stages that should share a run.
 
 To inspect the latest stored ingestion run, use either fetch configuration:
 

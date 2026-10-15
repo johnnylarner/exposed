@@ -72,6 +72,9 @@ pub struct UtilArgs {
 
 #[derive(Subcommand)]
 enum UtilCommands {
+    /// Generate a fresh UUID-v7.
+    #[command(name = "uuid-v7", after_long_help = response_help::single(uuid_v7))]
+    UuidV7,
     /// Show the latest ingestion key and directory path.
     #[command(after_long_help = response_help::single(latest))]
     Latest {
@@ -145,12 +148,18 @@ pub async fn run_cli(args: DataArgs) -> Response {
 /// Entry point for ingestion utility commands.
 pub async fn run_util(args: UtilArgs) -> Response {
     match args.command {
+        UtilCommands::UuidV7 => uuid_v7().await.into_response(),
         UtilCommands::Latest { config } => latest(config).await.into_response(),
         UtilCommands::CopyLatestRaw {
             config,
             ingestion_key,
         } => copy_latest_raw(config, ingestion_key).await.into_response(),
     }
+}
+
+#[derive(Serialize, JsonSchema)]
+struct UuidResponse {
+    uuid: uuid::Uuid,
 }
 
 #[derive(Serialize, JsonSchema)]
@@ -221,6 +230,12 @@ struct DeclarationLoadingResponse {
     funders: usize,
     /// Original funding occurrences, including unavailable attributions.
     funding_entries: usize,
+}
+
+async fn uuid_v7() -> anyhow::Result<CliSuccess<UuidResponse>> {
+    Ok(CliSuccess::new(UuidResponse {
+        uuid: uuid::Uuid::now_v7(),
+    }))
 }
 
 async fn latest(
