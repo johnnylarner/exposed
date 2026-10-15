@@ -143,11 +143,17 @@ to existing records.
 
 Set `DATABASE_URL` to the target database. Before serving requests after the
 grouping or preferred-name migration, stop the API, apply migrations, then run
-the new binary against the same database:
+the new binary against the same database. Use an ingestion key already loaded
+into that database, with its unchanged raw, cleaned, and resolved artifacts. Set
+`ingestion_key` to that key and use a YAML config whose `data_dir` contains the run.
+`data latest --config exposed/config/cli-dev.yaml` shows the latest local
+run, but confirm that the target database has already loaded it before proceeding.
+
+Retry the load with those exact artifacts:
 
 ```sh
 sqlx migrate run --config sqlx.toml --source db/migrations
-cargo run --package exposed --bin exposed -- data refresh-funder-groups
+cargo run --package exposed --bin exposed -- data declarations load --config exposed/config/cli-dev.yaml --ingestion-key "$ingestion_key"
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 -c '
 SELECT count(*) AS missing_memberships
 FROM exposed.funders f
@@ -155,12 +161,16 @@ LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = f.id
 WHERE g.funder_id IS NULL;'
 ```
 
-Require `missing_memberships = 0` before restarting the API. The command refreshes
-all persisted funders and their aliases in one transaction under the declaration
-loader lock. Run it again after a reviewed policy update. Successful declaration
-loads, including exact retries, also refresh the projection after pruning. The
-refresh never replays capture or resolution artifacts and preserves source data.
-Manual changes to funder names or aliases also require a refresh before serving.
+Require the load to report `Run already loaded` and `missing_memberships = 0`
+before restarting the API. An exact retry refreshes all persisted funder groups,
+direct evidence, and preferred names in one transaction under the declaration
+loader lock. It preserves imported source data. Changed artifacts for an already
+loaded key are rejected. Loading a new key can replace source data and prune
+unreferenced funders and aliases, so use an exact retry for this procedure.
+
+Repeat the exact retry after a reviewed policy update or manual changes to funder
+names or aliases. Successful new declaration loads also refresh the projection in
+their transaction. Keep the original artifacts available for future retries.
 
 The alias evidence table uses a generated ID so long recorded names can be stored
 without exceeding an index key limit.

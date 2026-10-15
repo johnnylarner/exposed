@@ -37,8 +37,6 @@ pub struct DataArgs {
 #[derive(Subcommand)]
 #[allow(missing_docs)]
 pub enum DataCommands {
-    /// Refresh stored funder groups and direct evidence using the current pipeline policy.
-    RefreshFunderGroups,
     /// Show the latest ingestion key and directory path.
     Latest {
         /// YAML configuration with the ingestion `data_dir`.
@@ -84,12 +82,6 @@ pub enum DataCommands {
 /// - Service level failures
 pub async fn run_cli(args: DataArgs) -> anyhow::Result<()> {
     match args.command {
-        DataCommands::RefreshFunderGroups => {
-            let config = DataConfig::from_env()?;
-            let db = ExposedDatabase::new(&config.connection_string).await;
-            let count = db.refresh_funder_groups().await?;
-            println!("Refreshed funder groups: {count} identities");
-        }
         DataCommands::Latest { config } => {
             let config = LoaderConfig::try_from(&config)?;
             match ExposedDataPipeline::latest_ingestion(&config.data_dir).await? {
