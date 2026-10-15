@@ -145,14 +145,14 @@ fn cli_copies_into_an_explicit_arbitrary_uuid() -> anyhow::Result<()> {
 }
 
 #[test]
-fn missing_or_empty_store_returns_no_runs_without_mutation() -> anyhow::Result<()> {
+fn missing_store_fails_and_empty_store_returns_no_runs() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
     let destination = IngestionKey::default();
-    assert_eq!(
-        success(&run_copy(tmp.path(), Some(&destination))?),
-        serde_json::json!({"ingestion": null})
-    );
     let data = tmp.path().join("data");
+    let output = run_copy(tmp.path(), Some(&destination))?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains(data.to_str().unwrap()));
     assert!(!data.exists());
     fs::create_dir(&data)?;
     assert_eq!(

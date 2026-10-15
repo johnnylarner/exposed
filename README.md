@@ -2,10 +2,23 @@
 
 Where do MPs get their money from?
 
-Use `exposed data <command> --help` to discover generated JSON Schema response
-contracts. Declaration help lists a success schema for each stage. Every command
-includes the shared failure schema and output routing. Schemas come from the
-handler response types; `-h` shows concise usage without the schemas.
+Use `exposed data declarations clean --help` for stage-specific YAML fields,
+examples, and environment requirements. Use `--schema` on a data stage or utility
+to discover its generated success and failure JSON Schema response contracts.
+Schema inspection needs no configuration or database and writes no files:
+
+```sh
+exposed data declarations clean --schema
+exposed util latest --schema
+exposed util uuid-v7 --schema
+```
+
+Schemas come from handler response types. `exposed --version` prints the version.
+Declaration stages run in order: `fetch`, `clean`, `resolve`, then `load`. Member
+stages run `fetch` then `load`. Fetch can generate a fresh UUID-v7 when
+`--ingestion-key` is omitted. Every later stage requires an explicit existing run
+key and `--config`. Put the stage before its flags, as in the examples above.
+Relative `data_dir` paths resolve from the working directory.
 
 Data commands write one JSON document to stdout on success. Command failures
 write `{"error":{"message":"..."}}` to stderr and exit with code 1. Help and
@@ -29,7 +42,7 @@ To fetch and load members, use the same ingestion key for both stages:
 
 ```sh
 test -f .env || cp .env.example .env
-ingestion_key=$(uuidgen)
+ingestion_key=$(cargo run --quiet --package exposed --bin exposed -- util uuid-v7 | jq -r .uuid)
 cargo run --package exposed --bin exposed -- data members fetch --config exposed/config/cli-dev.yaml --ingestion-key "$ingestion_key"
 cargo run --package exposed --bin exposed -- data members load --config exposed/config/cli-dev.yaml --ingestion-key "$ingestion_key"
 cargo run --package exposed --bin exposed -- data declarations fetch --config exposed/config/declarations-dev.yaml
@@ -70,13 +83,14 @@ modified run directory. It considers only directories with UUID names. Equal
 timestamps use the greatest UUID.
 
 This command requires only `data_dir` in the YAML file and no database connection
-at runtime. It does not change files. An absent or empty data directory produces
-`{"ingestion":null}` and a successful exit.
+at runtime. It does not change files. An existing empty data directory produces
+`{"ingestion":null}` and a successful exit. A missing or unreadable directory
+fails with its path in the error.
 
 To reprocess the latest raw capture in a new run, copy it with a fresh ingestion key:
 
 ```sh
-ingestion_key=$(uuidgen)
+ingestion_key=$(cargo run --quiet --package exposed --bin exposed -- util uuid-v7 | jq -r .uuid)
 cargo run --package exposed --bin exposed -- util copy-latest-raw --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 cargo run --package exposed --bin exposed -- data declarations clean --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 ```
@@ -90,8 +104,9 @@ The command uses the same latest-run selection as `util latest`. It copies the
 entire `raw` directory, preserving file bytes and empty directories. It excludes
 cleaned and resolved results and fails if the selected run has no raw directory.
 Symlinks and special files fail the copy. Existing destinations remain unchanged.
-The complete run appears only after the copy succeeds. An absent or empty store
-returns `{"ingestion":null}` without creating directories. Copy only captures
+The complete run appears only after the copy succeeds. An existing empty store
+returns `{"ingestion":null}` without creating directories. A missing store fails with a path-bearing error.
+Copy only captures
 that are no longer being written.
 
 To split a captured declaration run into funding occurrences and funder

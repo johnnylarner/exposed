@@ -42,12 +42,13 @@ both services on termination or when either service exits. An unexpected service
 exit fails the container, including a service that exits with status zero.
 
 The data image runs `exposed data --help` by default. Pass a data subcommand
-directly. Mount configuration and writable data directories for ingestion.
+directly. Override the entrypoint to run utility commands. Mount configuration
+and writable data directories for ingestion.
 
 ```sh
-docker run --rm --mount type=bind,src="$PWD/config.yaml",dst=/config.yaml,readonly \
+docker run --rm --entrypoint exposed --mount type=bind,src="$PWD/config.yaml",dst=/config.yaml,readonly \
     --mount type=bind,src="$PWD/data",dst=/data \
-    exposed:data latest --config /config.yaml
+    exposed:data util latest --config /config.yaml
 ```
 
 Use `data_dir: /data` in the mounted configuration and give UID 10001 access to

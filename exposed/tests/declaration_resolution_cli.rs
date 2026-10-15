@@ -190,8 +190,8 @@ async fn clean_then_resolve_with_native_weldrs_preserves_occurrences_and_refuses
     );
     let response: serde_json::Value = serde_json::from_slice(&resolved.stdout)?;
     response_schema::validate(
-        &["data", "declarations"],
-        "Success JSON schema (resolve):",
+        &["data", "declarations", "resolve"],
+        "Success JSON schema:",
         &response,
     );
     assert_eq!(response["ingestion_key"], key.to_string());

@@ -156,11 +156,16 @@ fn invalid_database_connection_returns_json_instead_of_panicking() -> anyhow::Re
             data_dir: temporary.path().join("data"),
         })?,
     )?;
+    let key = "00000000-0000-4000-8000-000000000001";
+    let raw = temporary.path().join("data").join(key).join("raw");
+    std::fs::create_dir_all(&raw)?;
+    std::fs::write(raw.join("members.parquet"), [])?;
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_exposed"))
         .current_dir(temporary.path())
         .env("DATABASE_URL", "invalid-url")
         .args(["data", "members", "load", "--config"])
         .arg(&config)
+        .args(["--ingestion-key", key])
         .output()?;
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());

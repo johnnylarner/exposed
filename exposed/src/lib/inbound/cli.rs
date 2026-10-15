@@ -1,7 +1,7 @@
 //! CLI inbound port
 
 use schemars::JsonSchema;
-use std::{path::PathBuf, str::FromStr};
+use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 use serde::Serialize;
@@ -28,15 +28,18 @@ use crate::{
 };
 
 pub mod config;
+mod config_help;
 mod migrate;
 pub mod response;
 mod response_help;
+mod stages;
 
 pub use migrate::{MigrateArgs, run_migrate};
 pub use response::{CliSuccess, IntoResponse, Response};
 
 /// CLI entrypoint for the `exposed` project
 #[derive(Parser)]
+#[command(version)]
 pub struct ExposedCli {
     /// Commands for CLI
     #[command(subcommand)]
@@ -73,87 +76,144 @@ pub struct UtilArgs {
 #[derive(Subcommand)]
 enum UtilCommands {
     /// Generate a fresh UUID-v7.
-    #[command(name = "uuid-v7", after_long_help = response_help::single(uuid_v7))]
-    UuidV7,
-    /// Show the latest ingestion key and directory path.
-    #[command(after_long_help = response_help::single(latest))]
-    Latest {
-        /// YAML configuration with the ingestion `data_dir`.
+    #[command(
+        name = "uuid-v7",
+        after_long_help = "Example:\n  exposed util uuid-v7\n\nUse --schema to inspect success and failure JSON schemas without generating a UUID."
+    )]
+    UuidV7 {
+        /// Print response schemas without running the command.
         #[arg(long)]
-        config: PathBuf,
+        schema: bool,
     },
+    /// Show the latest ingestion key and directory path.
+    #[command(
+        after_long_help = "Example:\n  exposed util latest --config config.yaml\n\nSelects the most recently modified UUID run directory. Equal timestamps use the greatest UUID. An existing empty store returns ingestion: null. A missing or unreadable store fails with its path.\n\nUse --schema to inspect success and failure JSON schemas without reading configuration or storage."
+    )]
+    Latest(StoreArgs),
     /// Copy the latest raw capture into a new ingestion run.
-    #[command(after_long_help = response_help::single(copy_latest_raw))]
+    #[command(
+        after_long_help = "Example:\n  exposed util copy-latest-raw --config config.yaml\n\nCopies the latest run's raw data into a fresh UUID-v7 run. Use --ingestion-key to select the destination UUID. An existing empty store returns ingestion: null. A missing or unreadable store fails with its path. The selected run must contain raw data.\n\nUse --schema to inspect success and failure JSON schemas without reading configuration or storage."
+    )]
     CopyLatestRaw {
-        /// YAML configuration with the ingestion `data_dir`.
-        #[arg(long)]
-        config: PathBuf,
+        #[command(flatten)]
+        store: StoreArgs,
         /// Destination ingestion key. Defaults to a fresh UUID-v7.
         #[arg(long)]
         ingestion_key: Option<IngestionKey>,
     },
 }
 
-/// CLI Subcommands
-#[derive(Subcommand)]
-#[allow(missing_docs)]
-pub enum DataCommands {
-    #[command(after_long_help = response_help::declarations())]
-    Declarations {
-        /// Stage to run: fetch, clean, resolve, or load.
-        #[arg(value_parser = ["fetch", "clean", "resolve", "load"])]
-        stage: String,
-        /// YAML configuration containing the declaration `data_dir`.
-        #[arg(long)]
-        config: PathBuf,
-        /// Ingestion run to clean, resolve, or load.
-        #[arg(long)]
-        ingestion_key: Option<IngestionKey>,
-    },
-    #[command(after_long_help = response_help::single(members))]
-    Members {
-        stage: String,
-        #[arg(long)]
-        config: PathBuf,
-        #[arg(long)]
-        ingestion_key: Option<IngestionKey>,
-    },
+#[derive(clap::Args)]
+struct StoreArgs {
+    /// YAML configuration with the ingestion `data_dir`.
+    #[arg(long, required_unless_present = "schema", long_help = config_help::store())]
+    config: Option<PathBuf>,
+    /// Print response schemas without reading configuration or storage.
+    #[arg(long)]
+    schema: bool,
 }
 
-/// Entry point for CLI commands
+impl StoreArgs {
+    fn into_config(self) -> PathBuf {
+        self.config
+            .expect("execution requires config at the argument boundary")
+    }
+}
+
+/// Data pipeline commands.
+#[derive(Subcommand)]
+pub enum DataCommands {
+    /// Capture, clean, resolve, and load declarations, in that order.
+    Declarations(stages::StageArgs<DeclarationIngestionStage>),
+    /// Capture and load members, in that order.
+    Members(stages::StageArgs<MemberIngestionStage>),
+}
+
+impl DataArgs {
+    /// Returns response schemas without reading configuration or running a stage.
+    #[must_use]
+    pub fn schema_response(&self) -> Option<Response> {
+        match &self.command {
+            DataCommands::Declarations(args) => matches!(args.input, stages::StageInput::Schema)
+                .then(|| Response::schema(&response_help::declaration(&args.stage))),
+            DataCommands::Members(args) => matches!(args.input, stages::StageInput::Schema)
+                .then(|| Response::schema(&response_help::member(&args.stage))),
+        }
+    }
+}
+
+impl UtilArgs {
+    /// Returns response schemas without reading configuration or running a utility.
+    #[must_use]
+    pub fn schema_response(&self) -> Option<Response> {
+        match &self.command {
+            UtilCommands::UuidV7 { schema } => {
+                schema.then(|| Response::schema(&response_help::inspection(uuid_v7)))
+            }
+            UtilCommands::Latest(store) => store
+                .schema
+                .then(|| Response::schema(&response_help::inspection(latest))),
+            UtilCommands::CopyLatestRaw { store, .. } => store
+                .schema
+                .then(|| Response::schema(&response_help::inspection(copy_latest_raw))),
+        }
+    }
+}
+
+/// Entry point for CLI commands.
 ///
 /// Command failures remain in the response until [`Response::write_to`] is called.
 ///
 /// Failures include:
-/// - Bad stage arg
 /// - Bad config path
 /// - Bad config shape
 /// - Missing or non-Unicode `DATABASE_URL` for commands that use the database
 /// - Service level failures
 pub async fn run_cli(args: DataArgs) -> Response {
+    if let Some(response) = args.schema_response() {
+        return response;
+    }
     match args.command {
-        DataCommands::Declarations {
-            stage,
-            config,
-            ingestion_key,
-        } => declarations(stage, config, ingestion_key).await,
-        DataCommands::Members {
-            stage,
-            config,
-            ingestion_key,
-        } => members(stage, config, ingestion_key).await.into_response(),
+        DataCommands::Declarations(args) => {
+            let (config, ingestion_key) = args.input.into_execution();
+            match args.stage {
+                DeclarationIngestionStage::Fetch => fetch_declarations(config, ingestion_key)
+                    .await
+                    .into_response(),
+                DeclarationIngestionStage::Clean => clean_declarations(config, ingestion_key)
+                    .await
+                    .into_response(),
+                DeclarationIngestionStage::Resolve => resolve_declarations(config, ingestion_key)
+                    .await
+                    .into_response(),
+                DeclarationIngestionStage::Load => load_declarations(config, ingestion_key)
+                    .await
+                    .into_response(),
+            }
+        }
+        DataCommands::Members(args) => {
+            let (config, ingestion_key) = args.input.into_execution();
+            members(args.stage, config, ingestion_key)
+                .await
+                .into_response()
+        }
     }
 }
 
 /// Entry point for ingestion utility commands.
 pub async fn run_util(args: UtilArgs) -> Response {
+    if let Some(response) = args.schema_response() {
+        return response;
+    }
     match args.command {
-        UtilCommands::UuidV7 => uuid_v7().await.into_response(),
-        UtilCommands::Latest { config } => latest(config).await.into_response(),
+        UtilCommands::UuidV7 { .. } => uuid_v7().await.into_response(),
+        UtilCommands::Latest(store) => latest(store.into_config()).await.into_response(),
         UtilCommands::CopyLatestRaw {
-            config,
+            store,
             ingestion_key,
-        } => copy_latest_raw(config, ingestion_key).await.into_response(),
+        } => copy_latest_raw(store.into_config(), ingestion_key)
+            .await
+            .into_response(),
     }
 }
 
@@ -267,40 +327,14 @@ async fn copy_latest_raw(
     Ok(CliSuccess::new(IngestionResponse { ingestion }))
 }
 
-async fn declarations(
-    stage: String,
-    config: PathBuf,
-    ingestion_key: Option<IngestionKey>,
-) -> Response {
-    let stage = match DeclarationIngestionStage::from_str(&stage) {
-        Ok(stage) => stage,
-        Err(error) => return Err::<Response, _>(error).into_response(),
-    };
-    match stage {
-        DeclarationIngestionStage::Fetch => fetch_declarations(config, ingestion_key)
-            .await
-            .into_response(),
-        DeclarationIngestionStage::Clean => clean_declarations(config, ingestion_key)
-            .await
-            .into_response(),
-        DeclarationIngestionStage::Resolve => resolve_declarations(config, ingestion_key)
-            .await
-            .into_response(),
-        DeclarationIngestionStage::Load => load_declarations(config, ingestion_key)
-            .await
-            .into_response(),
-    }
-}
-
 async fn fetch_declarations(
     config: PathBuf,
-    ingestion_key: Option<IngestionKey>,
+    ingestion_key: IngestionKey,
 ) -> anyhow::Result<CliSuccess<StageAcknowledgement<DeclarationIngestionStage>>> {
     let config = DeclarationFetcherConfig::try_from(&config)?;
     let data_config = DataConfig::from_env()?;
     let api = ParliamentApiClient::new(config.batch_size)?;
     let db = ExposedDatabase::new(&data_config.connection_string).await?;
-    let ingestion_key = ingestion_key.unwrap_or_default();
     let fs = ExposedDataPipeline::new_with_ingestion_key(&config.data_dir, ingestion_key.clone())?;
     DeclarationFetcherService::new(db, api, fs)
         .fetch_declarations()
@@ -316,10 +350,8 @@ async fn fetch_declarations(
 
 async fn resolve_declarations(
     config: PathBuf,
-    ingestion_key: Option<IngestionKey>,
+    ingestion_key: IngestionKey,
 ) -> anyhow::Result<CliSuccess<DeclarationResolutionResponse>> {
-    let ingestion_key = ingestion_key
-        .ok_or_else(|| anyhow::anyhow!("declarations resolve requires --ingestion-key"))?;
     let config = DeclarationResolverConfig::try_from(&config)?;
     let storage =
         ExposedDataPipeline::open_cleaned_declarations(&config.data_dir, ingestion_key.clone())?;
@@ -340,10 +372,8 @@ async fn resolve_declarations(
 
 async fn load_declarations(
     config: PathBuf,
-    ingestion_key: Option<IngestionKey>,
+    ingestion_key: IngestionKey,
 ) -> anyhow::Result<CliSuccess<DeclarationLoadingResponse>> {
-    let ingestion_key = ingestion_key
-        .ok_or_else(|| anyhow::anyhow!("declarations load requires --ingestion-key"))?;
     let config = LoaderConfig::try_from(&config)?;
     let data_config = DataConfig::from_env()?;
     let storage =
@@ -363,10 +393,8 @@ async fn load_declarations(
 
 async fn clean_declarations(
     config: PathBuf,
-    ingestion_key: Option<IngestionKey>,
+    ingestion_key: IngestionKey,
 ) -> anyhow::Result<CliSuccess<DeclarationCleaningResponse>> {
-    let ingestion_key = ingestion_key
-        .ok_or_else(|| anyhow::anyhow!("declarations clean requires --ingestion-key"))?;
     let config = LoaderConfig::try_from(&config)?;
     let fs =
         ExposedDataPipeline::open_existing_declarations(&config.data_dir, ingestion_key.clone())?;
@@ -386,12 +414,10 @@ async fn clean_declarations(
 }
 
 async fn members(
-    stage: String,
+    stage: MemberIngestionStage,
     config: PathBuf,
-    ingestion_key: Option<IngestionKey>,
+    ingestion_key: IngestionKey,
 ) -> anyhow::Result<CliSuccess<StageAcknowledgement<MemberIngestionStage>>> {
-    let stage = MemberIngestionStage::from_str(&stage)?;
-    let ingestion_key = ingestion_key.unwrap_or_default();
     let data_dir = match stage {
         MemberIngestionStage::Fetch => {
             let config = FetcherConfig::try_from(&config)?;
@@ -408,7 +434,7 @@ async fn members(
         MemberIngestionStage::Load => {
             let config = LoaderConfig::try_from(&config)?;
             let data_config = DataConfig::from_env()?;
-            let fs = ExposedDataPipeline::new_with_ingestion_key(
+            let fs = ExposedDataPipeline::open_existing_members(
                 &config.data_dir,
                 ingestion_key.clone(),
             )?;
