@@ -42,6 +42,10 @@ struct ErrorMessage {
 }
 
 impl Response {
+    pub(super) fn schema(document: &serde_json::Value) -> Self {
+        Self(serde_json::to_vec(document).map_err(Into::into))
+    }
+
     /// Writes one JSON document to stdout on success or stderr on failure.
     ///
     /// # Errors

@@ -2,10 +2,9 @@ use std::future::Future;
 
 use schemars::{JsonSchema, Schema, generate::SchemaSettings};
 use serde::Serialize;
-use strum::IntoEnumIterator;
 
 use super::{CliSuccess, response::ErrorResponse};
-use crate::domain::models::entity_ingestion::DeclarationIngestionStage;
+use crate::domain::models::entity_ingestion::{DeclarationIngestionStage, MemberIngestionStage};
 
 fn schema<T: JsonSchema>() -> Schema {
     SchemaSettings::draft2020_12()
@@ -70,31 +69,31 @@ pub(super) fn single<Args>(handler: impl HandlerSchema<Args>) -> String {
     )
 }
 
-pub(super) fn declarations() -> String {
-    let mut help = String::new();
-    for stage in DeclarationIngestionStage::iter() {
-        let mut schema = match stage {
-            DeclarationIngestionStage::Fetch => super::fetch_declarations.response_schema(),
-            DeclarationIngestionStage::Clean => super::clean_declarations.response_schema(),
-            DeclarationIngestionStage::Resolve => super::resolve_declarations.response_schema(),
-            DeclarationIngestionStage::Load => super::load_declarations.response_schema(),
-        };
-        if stage == DeclarationIngestionStage::Fetch {
-            schema
-                .as_object_mut()
-                .expect("response schema is an object")["properties"]["stage"]["const"] =
-                serde_json::to_value(&stage).expect("stage serializes");
-        }
-        let label = serde_json::to_value(&stage).expect("stage serializes");
-        help.push_str(&section(
-            &format!(
-                "Success JSON schema ({}):",
-                label.as_str().expect("stage is a string")
-            ),
-            &schema,
-        ));
-        help.push('\n');
+pub(super) fn declaration(stage: &DeclarationIngestionStage) -> serde_json::Value {
+    let mut schema = match stage {
+        DeclarationIngestionStage::Fetch => super::fetch_declarations.response_schema(),
+        DeclarationIngestionStage::Clean => super::clean_declarations.response_schema(),
+        DeclarationIngestionStage::Resolve => super::resolve_declarations.response_schema(),
+        DeclarationIngestionStage::Load => super::load_declarations.response_schema(),
+    };
+    if *stage == DeclarationIngestionStage::Fetch {
+        schema.as_object_mut().expect("schema object")["properties"]["stage"]["const"] =
+            serde_json::to_value(stage).expect("stage serializes");
     }
-    help.push_str(&failure());
-    help
+    inspection_schema(&schema)
+}
+
+pub(super) fn member(stage: &MemberIngestionStage) -> serde_json::Value {
+    let mut schema = super::members.response_schema();
+    schema.as_object_mut().expect("schema object")["properties"]["stage"]["const"] =
+        serde_json::to_value(stage).expect("stage serializes");
+    inspection_schema(&schema)
+}
+
+fn inspection_schema(success: &Schema) -> serde_json::Value {
+    serde_json::json!({"success": success, "failure": schema::<ErrorResponse>()})
+}
+
+pub(super) fn inspection<Args>(handler: impl HandlerSchema<Args>) -> serde_json::Value {
+    inspection_schema(&handler.response_schema())
 }

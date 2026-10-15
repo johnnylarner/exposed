@@ -118,8 +118,8 @@ fn assert_success(output: &Output) -> Value {
     );
     let payload = serde_json::from_slice(&output.stdout).unwrap();
     response_schema::validate(
-        &["data", "declarations"],
-        "Success JSON schema (clean):",
+        &["data", "declarations", "clean"],
+        "Success JSON schema:",
         &payload,
     );
     payload
@@ -218,6 +218,7 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
         .current_dir(tmp.path())
         .env_remove("DATABASE_URL")
         .args([
+            "data",
             "util",
             "copy-latest-raw",
             "--config",
@@ -229,7 +230,7 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
     assert!(copied.status.success());
     let copied_payload = serde_json::from_slice(&copied.stdout)?;
     response_schema::validate(
-        &["util", "copy-latest-raw"],
+        &["data", "util", "copy-latest-raw"],
         "Success JSON schema:",
         &copied_payload,
     );
@@ -396,7 +397,7 @@ fn missing_key_or_run_fails_without_creating_storage() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
     let output = run_clean(tmp.path(), None)?;
     assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains("requires --ingestion-key"));
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--ingestion-key <INGESTION_KEY>"));
     assert!(!tmp.path().join("data").exists());
     let output = run_clean(tmp.path(), Some(&IngestionKey::default()))?;
     assert!(!output.status.success());
