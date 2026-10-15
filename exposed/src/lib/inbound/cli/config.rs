@@ -6,7 +6,7 @@ use thiserror::Error;
 
 use serde::{Deserialize, Serialize};
 
-/// Environment configuration for data commands that use the database.
+/// Environment configuration for CLI commands that use the database.
 pub struct DataConfig {
     /// PostgreSQL connection string.
     pub connection_string: String,

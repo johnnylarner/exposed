@@ -37,7 +37,7 @@ dotenvy = "0.15.7"
 rust-yaml = { version = "1.1.0", features = ["serde"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = { version = "1.0.151", features = ["arbitrary_precision"] }
-sqlx = { version = "0.9.0", features = ["postgres", "runtime-tokio","uuid", "time", "bigdecimal"] }
+sqlx = { version = "0.9.0", features = ["postgres", "runtime-tokio", "migrate", "uuid", "time", "bigdecimal"] }
 strum = { version = "0.28.0", features = ["derive", "strum_macros"] }
 thiserror = "2.0.20"
 tokio = { version = "1.53.1", features = ["rt-multi-thread"] }
