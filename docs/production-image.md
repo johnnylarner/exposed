@@ -88,18 +88,19 @@ All variants use the same allocated version and GHCR repository.
 
 | Target | Published tag | Default command |
 | --- | --- | --- |
-| `binary` | `VERSION` | `exposed server` |
-| `frontend-server` | `VERSION-frontend-server` | Supervisor for nginx and `exposed server` |
+| `binary` | `VERSION-server` | `exposed server` |
+| `frontend-server` | `VERSION-app` | Supervisor for nginx and `exposed server` |
 | `migrate` | `VERSION-migrate` | `exposed migrate run --source /app/db/migrations` |
-| `data` | `VERSION-data` | `exposed data --help` |
+| `data` | `VERSION-cli` | `exposed data --help` |
 
 The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI pushes each
 image directly to its version tag with `mode=max` provenance. The shared BuildKit
 builder reuses Rust compilation across all targets.
 
 The GitHub release contains `images.json` with `version`, source commit `source`,
-and an `images` object mapping each target to its immutable GHCR pull reference.
-The `image.txt` asset keeps the binary image reference for existing deployments.
+and an `images` object with `server`, `app`, `migrate`, and `cli` keys. Each key
+maps to the corresponding variant's immutable GHCR pull reference.
+The `image.txt` asset keeps the server image reference for existing deployments.
 Use the digest references for deployment.
 
 An interrupted or failed attempt can leave a reserved Git tag or some version

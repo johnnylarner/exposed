@@ -68,7 +68,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
-          tags: ${{ format('{0}:{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          tags: ${{ format('{0}:{1}-server', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
       - name: Build frontend-server
@@ -84,7 +84,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
-          tags: ${{ format('{0}:{1}-frontend-server', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          tags: ${{ format('{0}:{1}-app', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
       - name: Build migrate
@@ -116,7 +116,7 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
-          tags: ${{ format('{0}:{1}-data', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          tags: ${{ format('{0}:{1}-cli', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
       - name: Write immutable references
@@ -129,10 +129,10 @@ jobs:
           DATA_DIGEST: ${{ steps.data.outputs.digest }}
         run: |
           jq -n --arg version "$VERSION" --arg source "$GITHUB_SHA" \
-            --arg binary "$IMAGE@$BINARY_DIGEST" \
-            --arg frontend_server "$IMAGE@$FRONTEND_SERVER_DIGEST" \
-            --arg migrate "$IMAGE@$MIGRATE_DIGEST" --arg data "$IMAGE@$DATA_DIGEST" \
-            '{version: $version, source: $source, images: {binary: $binary, "frontend-server": $frontend_server, migrate: $migrate, data: $data}}' > images.json
+            --arg server "$IMAGE@$BINARY_DIGEST" \
+            --arg app "$IMAGE@$FRONTEND_SERVER_DIGEST" \
+            --arg migrate "$IMAGE@$MIGRATE_DIGEST" --arg cli "$IMAGE@$DATA_DIGEST" \
+            '{version: $version, source: $source, images: {server: $server, app: $app, migrate: $migrate, cli: $cli}}' > images.json
           printf '%s@%s\n' "$IMAGE" "$BINARY_DIGEST" > image.txt
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
@@ -150,10 +150,10 @@ jobs:
 
             | Variant | Image |
             | --- | --- |
-            | Binary | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}` |
-            | Frontend and server | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-frontend-server` |
-            | Migrations | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-migrate` |
-            | Data CLI | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-data` |
+            | Server | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-server` |
+            | App | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-app` |
+            | Migrate | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-migrate` |
+            | CLI | `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}-cli` |
 
             ```sh
             docker run --rm --env DATABASE_URL -p 6999:6999 ${{ steps.metadata.outputs.image }}@${{ steps.binary.outputs.digest }}
