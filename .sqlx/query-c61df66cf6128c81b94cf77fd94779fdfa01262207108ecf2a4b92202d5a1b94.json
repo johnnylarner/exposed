@@ -1,0 +1,168 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name,\n                m.latest_membership_from, m.is_current_commons,\n                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type\n             FROM exposed.funding_entries e\n             JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id\n             JOIN exposed.members m ON m.id = d.member_id\n             WHERE e.funder_id = ANY($1)\n             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "parliament_member_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliament_member_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "party_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "party_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "latest_membership_from",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "latest_membership_from"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "is_current_commons",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "is_current_commons"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "source_declaration_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "declarations",
+            "name": "source_declaration_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "category_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "declarations",
+            "name": "category_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "category_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "declarations",
+            "name": "category_name"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "registration_date",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "declarations",
+            "name": "registration_date"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "amount",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "amount"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "currency",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 12,
+        "name": "payment_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "payment_type"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      null,
+      true
+    ]
+  },
+  "hash": "c61df66cf6128c81b94cf77fd94779fdfa01262207108ecf2a4b92202d5a1b94"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM exposed.funder_group_names",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": []
+  },
+  "hash": "ff70ca75d35f3111b2b679b2ed2fe4296403e7df8ea1f3a47a4439acef4d5103"
+}

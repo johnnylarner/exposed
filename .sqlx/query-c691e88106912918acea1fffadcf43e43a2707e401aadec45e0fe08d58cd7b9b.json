@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM exposed.funding_entries WHERE source_declaration_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c691e88106912918acea1fffadcf43e43a2707e401aadec45e0fe08d58cd7b9b"
+}

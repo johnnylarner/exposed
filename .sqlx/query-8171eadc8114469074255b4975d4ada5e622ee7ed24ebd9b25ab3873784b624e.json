@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT COALESCE(g.group_id, f.id) AS \"group_id!\" FROM exposed.funders f\n             LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = f.id WHERE f.id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "group_id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "8171eadc8114469074255b4975d4ada5e622ee7ed24ebd9b25ab3873784b624e"
+}

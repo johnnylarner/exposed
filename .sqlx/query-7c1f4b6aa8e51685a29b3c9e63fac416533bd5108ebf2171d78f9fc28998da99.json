@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM exposed.funder_aliases WHERE funder_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7c1f4b6aa8e51685a29b3c9e63fac416533bd5108ebf2171d78f9fc28998da99"
+}

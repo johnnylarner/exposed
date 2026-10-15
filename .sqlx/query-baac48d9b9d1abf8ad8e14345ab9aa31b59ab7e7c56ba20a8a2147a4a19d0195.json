@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH names AS (\n                SELECT funder_id, funder_alias FROM exposed.funder_aliases\n                UNION SELECT id, funder_name FROM exposed.funders\n             )\n             SELECT DISTINCT funder_alias COLLATE \"C\" AS \"funder_alias!\" FROM names\n             WHERE funder_id = ANY($1)\n             ORDER BY funder_alias COLLATE \"C\"",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "funder_alias!",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "baac48d9b9d1abf8ad8e14345ab9aa31b59ab7e7c56ba20a8a2147a4a19d0195"
+}
