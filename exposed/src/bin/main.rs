@@ -1,16 +1,20 @@
 use clap::Parser;
 use exposed::inbound::{
-    cli::{Commands, ExposedCli, run_cli},
+    cli::{Commands, ExposedCli, IntoResponse, Response, run_cli},
     http::server::run_server,
 };
 
-fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<std::process::ExitCode> {
     let args = ExposedCli::parse();
     match args.command {
-        Commands::Server => run_server(),
+        Commands::Server => run_server().map(|()| std::process::ExitCode::SUCCESS),
         Commands::Data(args) => {
             dotenvy::dotenv().ok();
-            tokio::runtime::Runtime::new()?.block_on(run_cli(args))
+            let response = match tokio::runtime::Runtime::new() {
+                Ok(runtime) => runtime.block_on(run_cli(args)),
+                Err(error) => Err::<Response, _>(error).into_response(),
+            };
+            Ok(response.write_to(std::io::stdout().lock(), std::io::stderr().lock())?)
         }
     }
 }

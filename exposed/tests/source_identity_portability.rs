@@ -284,7 +284,10 @@ async fn unchanged_source_artifacts_load_after_member_uuid_rebuild(
             "{}",
             String::from_utf8_lossy(&retry.stderr)
         );
-        assert!(String::from_utf8_lossy(&retry.stdout).contains("Run already loaded"));
+        let response: serde_json::Value = serde_json::from_slice(&retry.stdout)?;
+        assert_eq!(response["outcome"], "already_loaded");
+        assert_eq!(response["ingestion_key"], key.to_string());
+        assert!(response["declarations"].as_u64().is_some());
         let counts = sqlx::query!(
             "SELECT (SELECT count(*) FROM exposed.declarations) AS declarations, (SELECT count(*) FROM exposed.funding_entries) AS funding_entries, (SELECT count(*) FROM exposed.declaration_load_runs) AS runs"
         )
