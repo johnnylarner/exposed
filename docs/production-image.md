@@ -55,6 +55,22 @@ Use `data_dir: /data` in the mounted configuration and give UID 10001 access to
 the mounted data directory. Pass `--env DATABASE_URL` for data commands that
 access PostgreSQL.
 
+## Run on macOS
+
+New releases publish all four variants for Docker Desktop on Intel and Apple Silicon Macs.
+The containers run inside Docker Desktop's Linux VM. Docker selects `linux/amd64`
+on Intel Macs and `linux/arm64` on Apple Silicon Macs, including when you use the
+pinned digest references from `images.json` or `image.txt`.
+
+Earlier amd64-only releases remain unchanged. After an ARM64 pull fails, update
+the image reference to a new release and rerun the migration before the server.
+
+Use the release references with the `docker run` commands above. You do not need
+to set `--platform`. Local builds also use the Docker builder's default platform.
+
+If PostgreSQL runs on your Mac, use `host.docker.internal` as the host in
+`DATABASE_URL`. PostgreSQL must accept connections from Docker Desktop.
+
 ## Refresh SQLx query metadata
 
 Use an isolated PostgreSQL 18 database. Set `DATABASE_URL` to that database, then
@@ -76,7 +92,7 @@ No database URL or credentials enter the Docker build.
 
 The release workflow runs only on pushes to `main` that change Rust, frontend,
 migrations, SQLx metadata, Docker, or release inputs. It builds and publishes all
-four `linux/amd64` images.
+four image variants for both `linux/amd64` and `linux/arm64`.
 CI uses Docker, `gh`, and `jq`, without host Rust or SQLx installations.
 
 Each push runs independently without cancelling earlier pushes. Before building,
@@ -96,11 +112,16 @@ All variants use the same allocated version and GHCR repository.
 
 The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI pushes each
 image directly to its version tag with `mode=max` provenance. The shared BuildKit
-builder reuses Rust compilation across all targets.
+builder reuses Rust compilation across all targets for each architecture.
+The amd64 runner uses QEMU to build arm64 images, so arm64 compilation takes
+longer than a native build. Both architectures use the shared
+`exposed-linux-multiarch` GitHub Actions cache.
 
 The GitHub release contains `images.json` with `version`, source commit `source`,
 and an `images` object with `server`, `app`, `migrate`, and `cli` keys. Each key
-maps to the corresponding variant's immutable GHCR pull reference.
+maps to the corresponding variant's immutable GHCR pull reference. Each reference
+pins an OCI image index containing both architectures. Docker selects the matching
+image when you pull or run the reference.
 The `image.txt` asset keeps the server image reference for existing deployments.
 Use the digest references for deployment.
 

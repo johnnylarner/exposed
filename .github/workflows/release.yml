@@ -31,6 +31,9 @@ jobs:
       - name: Set image name
         id: metadata
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+        with:
+          platforms: arm64
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -62,15 +65,15 @@ jobs:
           context: .
           file: docker/Dockerfile
           target: binary
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           provenance: mode=max
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
           tags: ${{ format('{0}:server-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
-          cache-from: type=gha,scope=exposed-linux-amd64
-          cache-to: type=gha,scope=exposed-linux-amd64,mode=max
+          cache-from: type=gha,scope=exposed-linux-multiarch
+          cache-to: type=gha,scope=exposed-linux-multiarch,mode=max
       - name: Build frontend-server
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         id: frontend-server
@@ -78,15 +81,15 @@ jobs:
           context: .
           file: docker/Dockerfile
           target: frontend-server
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           provenance: mode=max
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
           tags: ${{ format('{0}:app-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
-          cache-from: type=gha,scope=exposed-linux-amd64
-          cache-to: type=gha,scope=exposed-linux-amd64,mode=max
+          cache-from: type=gha,scope=exposed-linux-multiarch
+          cache-to: type=gha,scope=exposed-linux-multiarch,mode=max
       - name: Build migrate
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         id: migrate
@@ -94,15 +97,15 @@ jobs:
           context: .
           file: docker/Dockerfile
           target: migrate
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           provenance: mode=max
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
           tags: ${{ format('{0}:migrate-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
-          cache-from: type=gha,scope=exposed-linux-amd64
-          cache-to: type=gha,scope=exposed-linux-amd64,mode=max
+          cache-from: type=gha,scope=exposed-linux-multiarch
+          cache-to: type=gha,scope=exposed-linux-multiarch,mode=max
       - name: Build data
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         id: data
@@ -110,15 +113,15 @@ jobs:
           context: .
           file: docker/Dockerfile
           target: data
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           provenance: mode=max
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
           tags: ${{ format('{0}:cli-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
-          cache-from: type=gha,scope=exposed-linux-amd64
-          cache-to: type=gha,scope=exposed-linux-amd64,mode=max
+          cache-from: type=gha,scope=exposed-linux-multiarch
+          cache-to: type=gha,scope=exposed-linux-multiarch,mode=max
       - name: Write immutable references
         env:
           IMAGE: ${{ steps.metadata.outputs.image }}
@@ -145,6 +148,8 @@ jobs:
           fail_on_unmatched_files: true
           body: |
             Source: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+
+            All four images support Linux amd64 and arm64, including Docker Desktop on Intel and Apple Silicon Macs.
 
             Download images.json for the immutable pull references of all four images.
 
