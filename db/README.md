@@ -1,13 +1,29 @@
 # Database migrations
 
 [SQLx CLI 0.9.0](https://github.com/launchbadge/sqlx/tree/v0.9.0/sqlx-cli) applies
-versioned reversible migrations from `db/migrations`. Application code does not
-apply migrations. Run these commands from the repository root:
+versioned reversible migrations from `db/migrations`. The application exposes
+`exposed migrate run` as an explicit migration command. Server startup and data
+commands do not apply migrations. Run these commands from the repository root:
 
 ```sh
 sqlx migrate run --config sqlx.toml --source db/migrations
 sqlx migrate info --config sqlx.toml --source db/migrations
 ```
+
+To apply migrations with the application binary:
+
+```sh
+exposed migrate run
+exposed migrate run --source /srv/exposed/migrations
+```
+
+The default source is `db/migrations`, relative to the current working directory.
+The binary reads migration files at runtime and applies pending up migrations.
+It returns `{"source":"db/migrations"}` on stdout after success, or the existing
+JSON error envelope on stderr with exit code 1 after failure. The response's
+`source` is the supplied path. Use SQLx CLI for adding, inspecting, or reverting
+migrations. The wrapper does not read `sqlx.toml`; it fixes the same history table
+at `public._sqlx_migrations` and retains SQLx's locking and checksum checks.
 
 Commands read the root `.env`. Set `DATABASE_URL` explicitly to target another
 database. The root [`sqlx.toml`](../sqlx.toml) fixes the history table at

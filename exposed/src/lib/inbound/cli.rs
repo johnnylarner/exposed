@@ -28,9 +28,11 @@ use crate::{
 };
 
 pub mod config;
+mod migrate;
 pub mod response;
 mod response_help;
 
+pub use migrate::{MigrateArgs, run_migrate};
 pub use response::{CliSuccess, IntoResponse, Response};
 
 /// CLI entrypoint for the `exposed` project
@@ -41,13 +43,15 @@ pub struct ExposedCli {
     pub command: Commands,
 }
 
-/// Run a server or prepare application data
+/// Run a server, prepare application data, or apply database migrations
 #[derive(Subcommand)]
 pub enum Commands {
     /// Start an instance of the `exposed` server
     Server,
     /// Options to run the `exposed` data pipeline
     Data(DataArgs),
+    /// Apply database migrations explicitly.
+    Migrate(MigrateArgs),
 }
 
 /// CLI Data Args
