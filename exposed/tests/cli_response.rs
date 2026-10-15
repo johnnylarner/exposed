@@ -56,7 +56,11 @@ fn command_error_routes_full_context_to_stderr_and_fails() {
     assert_eq!(code, ExitCode::FAILURE);
     assert!(stdout.is_empty());
     let payload: serde_json::Value = serde_json::from_slice(&stderr).unwrap();
-    response_schema::validate(&["util", "latest"], "Failure JSON schema:", &payload);
+    response_schema::validate(
+        &["data", "util", "latest"],
+        "Failure JSON schema:",
+        &payload,
+    );
     assert_eq!(
         payload,
         serde_json::json!({"error": {"message": "loading declarations: missing run"}})
@@ -85,7 +89,11 @@ fn serialization_failure_cannot_emit_partial_success() {
     assert_eq!(code, ExitCode::FAILURE);
     assert!(stdout.is_empty());
     let payload: serde_json::Value = serde_json::from_slice(&stderr).unwrap();
-    response_schema::validate(&["util", "latest"], "Failure JSON schema:", &payload);
+    response_schema::validate(
+        &["data", "util", "latest"],
+        "Failure JSON schema:",
+        &payload,
+    );
     assert_eq!(payload["error"]["message"], "payload failed");
 }
 
@@ -156,11 +164,16 @@ fn invalid_database_connection_returns_json_instead_of_panicking() -> anyhow::Re
             data_dir: temporary.path().join("data"),
         })?,
     )?;
+    let key = "00000000-0000-4000-8000-000000000001";
+    let raw = temporary.path().join("data").join(key).join("raw");
+    std::fs::create_dir_all(&raw)?;
+    std::fs::write(raw.join("members.parquet"), [])?;
     let output = std::process::Command::new(env!("CARGO_BIN_EXE_exposed"))
         .current_dir(temporary.path())
         .env("DATABASE_URL", "invalid-url")
         .args(["data", "members", "load", "--config"])
         .arg(&config)
+        .args(["--ingestion-key", key])
         .output()?;
     assert_eq!(output.status.code(), Some(1));
     assert!(output.stdout.is_empty());

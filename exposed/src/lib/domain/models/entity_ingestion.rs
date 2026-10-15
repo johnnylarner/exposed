@@ -3,8 +3,6 @@
 use schemars::JsonSchema;
 use std::{fmt::Display, str::FromStr};
 
-// use std::str::FromStr;
-//
 use serde::Serialize;
 use strum::{EnumIter, EnumString};
 use thiserror::Error;
@@ -32,8 +30,8 @@ impl Display for IngestionKey {
 impl FromStr for IngestionKey {
     type Err = EntityIngestionError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let id =
-            Uuid::from_str(s).map_err(|e| EntityIngestionError::InvalidStage(e.to_string()))?;
+        let id = Uuid::from_str(s)
+            .map_err(|e| EntityIngestionError::UnvalidIngestionId(e.to_string()))?;
         Ok(Self(id))
     }
 }
@@ -59,7 +57,7 @@ impl Default for IngestionKey {
 }
 
 /// From what stage to run in the Member pipeline
-#[derive(Clone, Debug, PartialEq, Eq, EnumString, Serialize, JsonSchema)]
+#[derive(Clone, Debug, PartialEq, Eq, EnumString, EnumIter, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[allow(missing_docs)]
 #[strum(ascii_case_insensitive)]
@@ -101,7 +99,7 @@ pub enum EntityIngestionError {
     #[error("invalid stage provided: {0}")]
     InvalidStage(String),
 
-    /// Invalid stage
+    /// Invalid ingestion UUID.
     #[error("invalid ingestion ID: {0}")]
     UnvalidIngestionId(String),
 

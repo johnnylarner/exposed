@@ -4,12 +4,16 @@ use serde_json::Value;
 use std::process::Command;
 
 pub fn help(command: &[&str]) -> String {
+    inspect(command, "--help")
+}
+
+fn inspect(command: &[&str], flag: &str) -> String {
     let temp = tempfile::tempdir().unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
         .current_dir(temp.path())
         .env("DATABASE_URL", "invalid-url")
         .args(command)
-        .arg("--help")
+        .arg(flag)
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -19,7 +23,23 @@ pub fn help(command: &[&str]) -> String {
 }
 
 pub fn schema(command: &[&str], label: &str) -> Value {
-    let text = help(command);
+    let text = inspect(
+        command,
+        if command.first() == Some(&"migrate") {
+            "--help"
+        } else {
+            "--schema"
+        },
+    );
+    if command.first() != Some(&"migrate") {
+        let document: Value = serde_json::from_str(&text).expect("schema inspection is JSON");
+        return document[if label.starts_with("Failure") {
+            "failure"
+        } else {
+            "success"
+        }]
+        .clone();
+    }
     let tail = text
         .split_once(label)
         .expect("schema section exists")

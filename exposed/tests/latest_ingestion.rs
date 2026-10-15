@@ -19,7 +19,7 @@ fn run_latest(root: &Path) -> anyhow::Result<Output> {
     Ok(Command::new(env!("CARGO_BIN_EXE_exposed"))
         .current_dir(root)
         .env_remove("DATABASE_URL")
-        .args(["util", "latest", "--config", "config.yaml"])
+        .args(["data", "util", "latest", "--config", "config.yaml"])
         .output()?)
 }
 
@@ -32,7 +32,11 @@ fn stdout(output: &Output) -> serde_json::Value {
     assert_eq!(output.status.code(), Some(0));
     assert!(output.stderr.is_empty());
     let payload = serde_json::from_slice(&output.stdout).unwrap();
-    response_schema::validate(&["util", "latest"], "Success JSON schema:", &payload);
+    response_schema::validate(
+        &["data", "util", "latest"],
+        "Success JSON schema:",
+        &payload,
+    );
     payload
 }
 
@@ -91,13 +95,13 @@ fn equal_timestamps_use_the_greatest_uuid_regardless_of_creation_order() -> anyh
 }
 
 #[test]
-fn missing_or_empty_store_has_no_runs_and_stays_unchanged() -> anyhow::Result<()> {
+fn missing_store_fails_and_empty_store_has_no_runs() -> anyhow::Result<()> {
     let tmp = TempDir::new()?;
     let data = tmp.path().join("data");
-    assert_eq!(
-        stdout(&run_latest(tmp.path())?),
-        serde_json::json!({"ingestion": null})
-    );
+    let output = run_latest(tmp.path())?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&output.stderr).contains(data.to_str().unwrap()));
     assert!(!data.exists());
 
     fs::create_dir(&data)?;

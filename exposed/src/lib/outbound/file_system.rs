@@ -1,7 +1,6 @@
 //! File system interface for entity search ingestion
 
 use std::{
-    io::ErrorKind,
     path::{self, Path, PathBuf},
     time::SystemTime,
 };
@@ -62,6 +61,29 @@ impl Default for FsSchema {
 }
 
 impl ExposedDataPipeline {
+    /// Opens an existing raw member artifact without creating directories.
+    ///
+    /// # Errors
+    /// Returns a read error if the member artifact is missing or is not a file.
+    pub fn open_existing_members(
+        root: &Path,
+        key: IngestionKey,
+    ) -> Result<Self, EntitySearchPipelineError> {
+        let root = path::absolute(root).map_err(|error| read_error(root, error))?;
+        let artifact = root.join(key.to_string()).join("raw/members.parquet");
+        if !std::fs::metadata(&artifact)
+            .map_err(|error| read_error(&artifact, error))?
+            .is_file()
+        {
+            return Err(read_error(&artifact, "expected a member parquet file"));
+        }
+        Ok(Self {
+            root,
+            key: PipelineKey::from(key),
+            fs_schema: FsSchema::default(),
+        })
+    }
+
     /// Opens an existing raw declaration dataset without creating directories.
     ///
     /// # Errors
@@ -147,7 +169,7 @@ impl ExposedDataPipeline {
     }
 
     /// Returns the absolute path and key of the most recently modified run directory.
-    /// Equal timestamps use the greatest UUID. An absent or empty store returns `None`.
+    /// Equal timestamps use the greatest UUID. An empty store returns `None`.
     /// This operation does not create or change files.
     ///
     /// # Errors
@@ -158,7 +180,6 @@ impl ExposedDataPipeline {
         let root = path::absolute(root).map_err(|e| read_error(root, e))?;
         let mut entries = match fs::read_dir(&root).await {
             Ok(entries) => entries,
-            Err(error) if error.kind() == ErrorKind::NotFound => return Ok(None),
             Err(error) => return Err(read_error(&root, error)),
         };
         let mut latest: Option<(SystemTime, PathBuf, IngestionKey)> = None;
@@ -199,7 +220,7 @@ impl ExposedDataPipeline {
 
     /// Copies the latest run's entire raw layer into a new ingestion run.
     /// Returns the published destination run path and the selected source key.
-    /// An absent or empty store returns `None` without creating directories.
+    /// An empty store returns `None` without creating directories.
     ///
     /// # Errors
     /// Returns an error for unreadable raw data, symlinks, special files, or an
