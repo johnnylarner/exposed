@@ -1,0 +1,132 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $2), '') AS currency,\n                e.payment_type, f.id AS \"funder_id?\", f.funder_name AS \"funder_name?\"\n             FROM exposed.declarations d JOIN exposed.members m ON m.id = d.member_id\n             LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id\n             LEFT JOIN exposed.funders f ON f.id = e.funder_id\n             WHERE m.parliament_member_id = $1\n             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source_declaration_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "declarations",
+            "name": "source_declaration_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "category_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "declarations",
+            "name": "category_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "category_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "declarations",
+            "name": "category_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "registration_date",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "declarations",
+            "name": "registration_date"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "entry_id?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "amount",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "amount"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "currency",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 7,
+        "name": "payment_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "payment_type"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "funder_id?",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "funder_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "funder_name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      null,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "8aa77edabde17ce5f89b6f921be9a6544d243ea3853fdcdb6f68f8a52a88e5fe"
+}

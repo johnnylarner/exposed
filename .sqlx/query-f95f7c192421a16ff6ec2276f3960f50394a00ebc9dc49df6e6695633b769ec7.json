@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exposed.declaration_load_runs (ingestion_key, fingerprint, declarations, funders, funding_entries) VALUES ($1, $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int8",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f95f7c192421a16ff6ec2276f3960f50394a00ebc9dc49df6e6695633b769ec7"
+}

@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exposed.funders (funder_name, funder_kind, company_number, resolution_identity_id) VALUES ($1, $2, $3, $4) ON CONFLICT (resolution_identity_id) DO UPDATE SET funder_name = EXCLUDED.funder_name, funder_kind = EXCLUDED.funder_kind, company_number = EXCLUDED.company_number RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "352a9aa487521010aa24242745bf954a1ea82878b49b60e23733e3ae255e6916"
+}

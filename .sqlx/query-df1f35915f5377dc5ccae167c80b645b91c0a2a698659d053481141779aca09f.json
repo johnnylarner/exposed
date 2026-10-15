@@ -1,0 +1,71 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH names AS (\n                SELECT id, funder_name AS candidate, NULL::text AS alias\n                FROM exposed.funders\n                WHERE funder_kind = $2 AND exposed.person_name_codes(funder_name) @> exposed.person_name_codes($1)\n                UNION ALL\n                SELECT f.id, a.funder_alias, a.funder_alias\n                FROM exposed.funder_aliases a JOIN exposed.funders f ON f.id = a.funder_id\n                WHERE f.funder_kind = $2 AND exposed.person_name_codes(a.funder_alias) @> exposed.person_name_codes($1)\n            ), scored AS (\n                SELECT names.*, correction.distance,\n                       word_similarity(correction.corrected_query, candidate) AS similarity_score\n                FROM names\n                CROSS JOIN LATERAL (\n                    SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,\n                           sum(best.distance)::integer AS distance\n                    FROM unnest(exposed.person_name_words($1)) WITH ORDINALITY AS q(word, position)\n                    LEFT JOIN LATERAL (\n                        SELECT cw.word, CASE\n                            WHEN char_length(q.word) <= 255 AND char_length(cw.word) <= 255\n                            THEN exposed.levenshtein_less_equal(q.word, cw.word, 1)\n                            ELSE 2\n                        END AS distance\n                        FROM unnest(exposed.person_name_words(candidate)) AS cw(word)\n                        WHERE exposed.soundex(cw.word) = exposed.soundex(q.word)\n                        ORDER BY distance, cw.word COLLATE \"C\"\n                        LIMIT 1\n                    ) best ON best.distance <= 1\n                    HAVING count(best.word) = count(*) AND count(*) > 0\n                ) correction\n            ), winners AS (\n                SELECT DISTINCT ON (COALESCE(g.group_id, s.id)) COALESCE(g.group_id, s.id) AS id,\n                    CASE WHEN s.id <> COALESCE(g.group_id, s.id) THEN COALESCE(s.alias, s.candidate)\n                        ELSE s.alias END AS alias, s.candidate, s.distance, s.similarity_score\n                FROM scored s LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = s.id\n                WHERE s.similarity_score >= $4\n                ORDER BY COALESCE(g.group_id, s.id), s.distance, s.similarity_score DESC, s.id,\n                    s.alias IS NOT NULL, s.alias COLLATE \"C\"\n            )\n            SELECT f.id, COALESCE(n.preferred_name, f.funder_name) AS \"name!\", f.funder_kind AS kind,\n                   CASE WHEN w.alias IS NOT NULL THEN w.alias\n                        WHEN w.candidate <> COALESCE(n.preferred_name, f.funder_name) THEN w.candidate END AS alias,\n                   w.distance AS \"distance!\",\n                   w.similarity_score AS \"similarity_score!\"\n            FROM winners w JOIN exposed.funders f ON f.id = w.id\n            LEFT JOIN exposed.funder_group_names n ON n.group_id = f.id\n            ORDER BY w.distance, w.similarity_score DESC, f.id\n            LIMIT $3\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "funder_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "alias",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "distance!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "similarity_score!",
+        "type_info": "Float4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Int8",
+        "Float4"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "df1f35915f5377dc5ccae167c80b645b91c0a2a698659d053481141779aca09f"
+}
