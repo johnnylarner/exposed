@@ -127,7 +127,7 @@ async fn clean_then_resolve_with_native_weldrs_preserves_occurrences_and_refuses
     let source_key = key;
     let key = IngestionKey::default();
     let copied = Command::new(env!("CARGO_BIN_EXE_exposed"))
-        .args(["data", "copy-latest-raw"])
+        .args(["util", "copy-latest-raw"])
         .arg("--config")
         .arg(&config)
         .arg("--ingestion-key")
@@ -189,7 +189,11 @@ async fn clean_then_resolve_with_native_weldrs_preserves_occurrences_and_refuses
         String::from_utf8_lossy(&resolved.stderr)
     );
     let response: serde_json::Value = serde_json::from_slice(&resolved.stdout)?;
-    response_schema::validate("declarations", "Success JSON schema (resolve):", &response);
+    response_schema::validate(
+        &["data", "declarations"],
+        "Success JSON schema (resolve):",
+        &response,
+    );
     assert_eq!(response["ingestion_key"], key.to_string());
     assert_eq!(response["observations"].as_u64(), Some(16));
     assert!(response["payments"].as_u64().is_some());

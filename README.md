@@ -35,10 +35,33 @@ cargo run --package exposed --bin exposed -- data members load --config exposed/
 cargo run --package exposed --bin exposed -- data declarations fetch --config exposed/config/declarations-dev.yaml
 ```
 
+Choose the utility command for your task:
+
+| Command | When to use it |
+| --- | --- |
+| `util uuid-v7` | Preselect an ingestion key to share across fetch and load stages, or across reprocessing stages. |
+| `util latest` | Find the ingestion key and directory of the most recently modified local run before inspecting its artifacts or running a pipeline stage. It reads the store without changing it. |
+| `util copy-latest-raw` | Reprocess a completed capture after changing cleaning or resolution logic, or try different resolution settings. It creates a separate run with the same raw inputs and no derived results. |
+
+Use `data members fetch` or `data declarations fetch` when you need fresh data
+from Parliament. These utilities do not fetch data or run pipeline stages. After a
+copy, pass the destination ingestion key to each stage you want to run.
+
+To generate a fresh UUID-v7:
+
+```sh
+cargo run --package exposed --bin exposed -- util uuid-v7
+```
+
+The command returns one JSON object, for example
+`{"uuid":"0199e6c5-2d80-7a12-8b34-56789abcdef0"}`. It needs no configuration or
+database connection and writes no files. Use the `uuid` value as `--ingestion-key`
+for stages that should share a run.
+
 To inspect the latest stored ingestion run, use either fetch configuration:
 
 ```sh
-cargo run --package exposed --bin exposed -- data latest --config exposed/config/cli-dev.yaml
+cargo run --package exposed --bin exposed -- util latest --config exposed/config/cli-dev.yaml
 ```
 
 The command returns `{"ingestion":{"ingestion_key":"...","path":"..."}}`
@@ -54,7 +77,7 @@ To reprocess the latest raw capture in a new run, copy it with a fresh ingestion
 
 ```sh
 ingestion_key=$(uuidgen)
-cargo run --package exposed --bin exposed -- data copy-latest-raw --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- util copy-latest-raw --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 cargo run --package exposed --bin exposed -- data declarations clean --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 ```
 
@@ -63,7 +86,7 @@ object with `source_ingestion_key`, `ingestion_key`, and the absolute destinatio
 run `path`. It requires only `data_dir`
 and runs without a database or API connection.
 
-The command uses the same latest-run selection as `data latest`. It copies the
+The command uses the same latest-run selection as `util latest`. It copies the
 entire `raw` directory, preserving file bytes and empty directories. It excludes
 cleaned and resolved results and fails if the selected run has no raw directory.
 Symlinks and special files fail the copy. Existing destinations remain unchanged.

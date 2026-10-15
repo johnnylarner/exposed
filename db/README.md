@@ -162,7 +162,7 @@ grouping or preferred-name migration, stop the API, apply migrations, then run
 the new binary against the same database. Use an ingestion key already loaded
 into that database, with its unchanged raw, cleaned, and resolved artifacts. Set
 `ingestion_key` to that key and use a YAML config whose `data_dir` contains the run.
-`data latest --config exposed/config/cli-dev.yaml` shows the latest local
+`util latest --config exposed/config/cli-dev.yaml` shows the latest local
 run, but confirm that the target database has already loaded it before proceeding.
 
 Retry the load with those exact artifacts:
