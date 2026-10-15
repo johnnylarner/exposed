@@ -3,12 +3,13 @@
 use serde_json::Value;
 use std::process::Command;
 
-pub fn help(command: &str) -> String {
+pub fn help(command: &[&str]) -> String {
     let temp = tempfile::tempdir().unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
         .current_dir(temp.path())
         .env("DATABASE_URL", "invalid-url")
-        .args(["data", command, "--help"])
+        .args(command)
+        .arg("--help")
         .output()
         .unwrap();
     assert!(output.status.success());
@@ -17,7 +18,7 @@ pub fn help(command: &str) -> String {
     String::from_utf8(output.stdout).unwrap()
 }
 
-pub fn schema(command: &str, label: &str) -> Value {
+pub fn schema(command: &[&str], label: &str) -> Value {
     let text = help(command);
     let tail = text
         .split_once(label)
@@ -31,13 +32,13 @@ pub fn schema(command: &str, label: &str) -> Value {
         .unwrap()
 }
 
-pub fn validator(command: &str, label: &str) -> jsonschema::Validator {
+pub fn validator(command: &[&str], label: &str) -> jsonschema::Validator {
     jsonschema::options()
         .should_validate_formats(true)
         .build(&schema(command, label))
         .unwrap()
 }
 
-pub fn validate(command: &str, label: &str, payload: &Value) {
+pub fn validate(command: &[&str], label: &str, payload: &Value) {
     validator(command, label).validate(payload).unwrap();
 }

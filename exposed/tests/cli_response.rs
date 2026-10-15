@@ -56,7 +56,7 @@ fn command_error_routes_full_context_to_stderr_and_fails() {
     assert_eq!(code, ExitCode::FAILURE);
     assert!(stdout.is_empty());
     let payload: serde_json::Value = serde_json::from_slice(&stderr).unwrap();
-    response_schema::validate("latest", "Failure JSON schema:", &payload);
+    response_schema::validate(&["util", "latest"], "Failure JSON schema:", &payload);
     assert_eq!(
         payload,
         serde_json::json!({"error": {"message": "loading declarations: missing run"}})
@@ -85,7 +85,7 @@ fn serialization_failure_cannot_emit_partial_success() {
     assert_eq!(code, ExitCode::FAILURE);
     assert!(stdout.is_empty());
     let payload: serde_json::Value = serde_json::from_slice(&stderr).unwrap();
-    response_schema::validate("latest", "Failure JSON schema:", &payload);
+    response_schema::validate(&["util", "latest"], "Failure JSON schema:", &payload);
     assert_eq!(payload["error"]["message"], "payload failed");
 }
 

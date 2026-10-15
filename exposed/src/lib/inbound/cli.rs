@@ -50,6 +50,8 @@ pub enum Commands {
     Server,
     /// Options to run the `exposed` data pipeline
     Data(DataArgs),
+    /// Utilities for inspecting and preparing ingestion runs.
+    Util(UtilArgs),
     /// Apply database migrations explicitly.
     Migrate(MigrateArgs),
 }
@@ -61,10 +63,15 @@ pub struct DataArgs {
     command: DataCommands,
 }
 
-/// CLI Subcommands
+/// CLI utility arguments.
+#[derive(Parser)]
+pub struct UtilArgs {
+    #[command(subcommand)]
+    command: UtilCommands,
+}
+
 #[derive(Subcommand)]
-#[allow(missing_docs)]
-pub enum DataCommands {
+enum UtilCommands {
     /// Show the latest ingestion key and directory path.
     #[command(after_long_help = response_help::single(latest))]
     Latest {
@@ -82,6 +89,12 @@ pub enum DataCommands {
         #[arg(long)]
         ingestion_key: Option<IngestionKey>,
     },
+}
+
+/// CLI Subcommands
+#[derive(Subcommand)]
+#[allow(missing_docs)]
+pub enum DataCommands {
     #[command(after_long_help = response_help::declarations())]
     Declarations {
         /// Stage to run: fetch, clean, resolve, or load.
@@ -116,11 +129,6 @@ pub enum DataCommands {
 /// - Service level failures
 pub async fn run_cli(args: DataArgs) -> Response {
     match args.command {
-        DataCommands::Latest { config } => latest(config).await.into_response(),
-        DataCommands::CopyLatestRaw {
-            config,
-            ingestion_key,
-        } => copy_latest_raw(config, ingestion_key).await.into_response(),
         DataCommands::Declarations {
             stage,
             config,
@@ -131,6 +139,17 @@ pub async fn run_cli(args: DataArgs) -> Response {
             config,
             ingestion_key,
         } => members(stage, config, ingestion_key).await.into_response(),
+    }
+}
+
+/// Entry point for ingestion utility commands.
+pub async fn run_util(args: UtilArgs) -> Response {
+    match args.command {
+        UtilCommands::Latest { config } => latest(config).await.into_response(),
+        UtilCommands::CopyLatestRaw {
+            config,
+            ingestion_key,
+        } => copy_latest_raw(config, ingestion_key).await.into_response(),
     }
 }
 

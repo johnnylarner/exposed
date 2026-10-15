@@ -117,7 +117,11 @@ fn assert_success(output: &Output) -> Value {
         String::from_utf8_lossy(&output.stderr)
     );
     let payload = serde_json::from_slice(&output.stdout).unwrap();
-    response_schema::validate("declarations", "Success JSON schema (clean):", &payload);
+    response_schema::validate(
+        &["data", "declarations"],
+        "Success JSON schema (clean):",
+        &payload,
+    );
     payload
 }
 
@@ -214,7 +218,7 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
         .current_dir(tmp.path())
         .env_remove("DATABASE_URL")
         .args([
-            "data",
+            "util",
             "copy-latest-raw",
             "--config",
             "config.yaml",
@@ -224,7 +228,11 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
         .output()?;
     assert!(copied.status.success());
     let copied_payload = serde_json::from_slice(&copied.stdout)?;
-    response_schema::validate("copy-latest-raw", "Success JSON schema:", &copied_payload);
+    response_schema::validate(
+        &["util", "copy-latest-raw"],
+        "Success JSON schema:",
+        &copied_payload,
+    );
     let copied_raw = tmp
         .path()
         .join("data")

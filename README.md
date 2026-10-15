@@ -38,7 +38,7 @@ cargo run --package exposed --bin exposed -- data declarations fetch --config ex
 To inspect the latest stored ingestion run, use either fetch configuration:
 
 ```sh
-cargo run --package exposed --bin exposed -- data latest --config exposed/config/cli-dev.yaml
+cargo run --package exposed --bin exposed -- util latest --config exposed/config/cli-dev.yaml
 ```
 
 The command returns `{"ingestion":{"ingestion_key":"...","path":"..."}}`
@@ -54,7 +54,7 @@ To reprocess the latest raw capture in a new run, copy it with a fresh ingestion
 
 ```sh
 ingestion_key=$(uuidgen)
-cargo run --package exposed --bin exposed -- data copy-latest-raw --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
+cargo run --package exposed --bin exposed -- util copy-latest-raw --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 cargo run --package exposed --bin exposed -- data declarations clean --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 ```
 
@@ -63,7 +63,7 @@ object with `source_ingestion_key`, `ingestion_key`, and the absolute destinatio
 run `path`. It requires only `data_dir`
 and runs without a database or API connection.
 
-The command uses the same latest-run selection as `data latest`. It copies the
+The command uses the same latest-run selection as `util latest`. It copies the
 entire `raw` directory, preserving file bytes and empty directories. It excludes
 cleaned and resolved results and fails if the selected run has no raw directory.
 Symlinks and special files fail the copy. Existing destinations remain unchanged.
