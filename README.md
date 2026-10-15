@@ -192,9 +192,11 @@ cargo run --package exposed --bin exposed -- data declarations load --config exp
 ```
 
 The loader includes declarations with no funding occurrences. It replaces only
-declarations whose captured timestamps are newer, and an exact retry of an imported
-run leaves the database unchanged. Keep the raw, cleaned, and resolved files for the
-ingestion key because the loader validates and fingerprints all three stages. It
+declarations whose captured timestamps are newer. Every successful load refreshes
+stored funder groups, direct evidence, and preferred names. An exact retry of an
+imported run refreshes those groups while preserving source data. Keep the raw,
+cleaned, and resolved files for the ingestion key because the loader validates
+and fingerprints all three stages. It
 replaces each incoming funder's name, kind, company number, and searchable aliases
 with that run's resolved values, including missing optional values. A shared
 identity keeps its database ID, but its metadata and aliases reflect the last

@@ -8,8 +8,10 @@ use crate::domain::models::{
     funder_grouping::{GroupingFunder, build_funder_groups},
 };
 
+#[cfg(test)]
 use super::ExposedDatabase;
 
+#[cfg(test)]
 impl ExposedDatabase {
     /// Rebuilds grouping for every persisted identity without replaying ingestion artifacts.
     ///

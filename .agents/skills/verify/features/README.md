@@ -11,7 +11,8 @@ with a limit of ten results per entity type.
 The populated funder grouping regression checks the documented BBC, GB News,
 and Premier League results through `/search` and `/funders/{id}`. It requires an
 isolated copy of the 12 October 2026 development data with the group and preferred-name migrations
-applied and `exposed data refresh-funder-groups` run. Follow the
+applied. Retry an already loaded declaration run with its unchanged artifacts to
+refresh the stored groups while preserving source data. Follow the
 [populated funder groups procedure](../SKILL.md#populated-funder-groups).
 
 The test expects one result per search, the documented source and funding entry
