@@ -25,6 +25,37 @@ RUN apt-get update \
 WORKDIR /app
 COPY --from=builder /app/target/release/exposed /usr/local/bin/exposed
 USER 10001:10001
+
+FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS frontend-builder
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+COPY frontend/ ./
+RUN npm run build
+
+FROM runtime AS frontend-server
+USER root
+RUN apt-get update \
+    && apt-get install --no-install-recommends -y nginx-light tini bash \
+    && rm -rf /var/lib/apt/lists/*
+COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY --chmod=755 docker/frontend-server.sh /usr/local/bin/frontend-server
+COPY --from=frontend-builder /app/frontend/dist /app/frontend
+USER 10001:10001
+EXPOSE 8080
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/frontend-server"]
+CMD []
+
+FROM runtime AS migrate
+COPY db/migrations/ /app/db/migrations/
+ENTRYPOINT ["exposed", "migrate"]
+CMD ["run", "--source", "/app/db/migrations"]
+
+FROM runtime AS data
+ENTRYPOINT ["exposed", "data"]
+CMD ["--help"]
+
+FROM runtime AS binary
 EXPOSE 6999
 ENTRYPOINT ["exposed"]
 CMD ["server"]

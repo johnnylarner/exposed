@@ -3,18 +3,17 @@ name: Build and release exposed
 on:
   push:
     branches: [main]
-    paths: &build-paths
+    paths:
       - exposed/**
       - Cargo.toml
       - Cargo.lock
       - .sqlx/**
       - db/migrations/**
       - sqlx.toml
-      - docker/Dockerfile
+      - frontend/**
+      - docker/**
       - .dockerignore
       - .github/workflows/release.yml
-  pull_request:
-    paths: *build-paths
 
 permissions:
   contents: read
@@ -32,8 +31,13 @@ jobs:
       - name: Set image name
         id: metadata
         run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: Allocate release tag
-        if: github.event_name == 'push'
         id: release-tag
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -51,53 +55,106 @@ jobs:
               sleep "$((60 - 10#$(date -u +%S)))"
             done
           done
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
-        if: github.event_name == 'push'
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        id: build
+      - name: Build binary
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        id: binary
         with:
           context: .
           file: docker/Dockerfile
+          target: binary
           platforms: linux/amd64
-          load: ${{ github.event_name == 'pull_request' }}
-          provenance: ${{ github.event_name == 'push' && 'mode=max' || 'false' }}
+          provenance: mode=max
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
-          push: ${{ github.event_name == 'push' }}
-          tags: ${{ github.event_name == 'push' && format('{0}:{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) || 'exposed:pr' }}
+          push: true
+          tags: ${{ format('{0}:server-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
           cache-from: type=gha,scope=exposed-linux-amd64
           cache-to: type=gha,scope=exposed-linux-amd64,mode=max
-      - name: Smoke test the runtime image
-        env:
-          IMAGE: ${{ github.event_name == 'push' && format('{0}:{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) || 'exposed:pr' }}
-        run: docker run --rm "$IMAGE" --help
-      - name: Write immutable image reference
-        if: github.event_name == 'push'
+      - name: Build frontend-server
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        id: frontend-server
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: frontend-server
+          platforms: linux/amd64
+          provenance: mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          push: true
+          tags: ${{ format('{0}:app-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          cache-from: type=gha,scope=exposed-linux-amd64
+          cache-to: type=gha,scope=exposed-linux-amd64,mode=max
+      - name: Build migrate
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        id: migrate
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: migrate
+          platforms: linux/amd64
+          provenance: mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          push: true
+          tags: ${{ format('{0}:migrate-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          cache-from: type=gha,scope=exposed-linux-amd64
+          cache-to: type=gha,scope=exposed-linux-amd64,mode=max
+      - name: Build data
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        id: data
+        with:
+          context: .
+          file: docker/Dockerfile
+          target: data
+          platforms: linux/amd64
+          provenance: mode=max
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          push: true
+          tags: ${{ format('{0}:cli-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          cache-from: type=gha,scope=exposed-linux-amd64
+          cache-to: type=gha,scope=exposed-linux-amd64,mode=max
+      - name: Write immutable references
         env:
           IMAGE: ${{ steps.metadata.outputs.image }}
-          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
-        run: printf '%s@%s\n' "$IMAGE" "$IMAGE_DIGEST" > image.txt
+          VERSION: ${{ steps.release-tag.outputs.tag }}
+          BINARY_DIGEST: ${{ steps.binary.outputs.digest }}
+          FRONTEND_SERVER_DIGEST: ${{ steps.frontend-server.outputs.digest }}
+          MIGRATE_DIGEST: ${{ steps.migrate.outputs.digest }}
+          DATA_DIGEST: ${{ steps.data.outputs.digest }}
+        run: |
+          jq -n --arg version "$VERSION" --arg source "$GITHUB_SHA" \
+            --arg server "$IMAGE@$BINARY_DIGEST" \
+            --arg app "$IMAGE@$FRONTEND_SERVER_DIGEST" \
+            --arg migrate "$IMAGE@$MIGRATE_DIGEST" --arg cli "$IMAGE@$DATA_DIGEST" \
+            '{version: $version, source: $source, images: {server: $server, app: $app, migrate: $migrate, cli: $cli}}' > images.json
+          printf '%s@%s\n' "$IMAGE" "$BINARY_DIGEST" > image.txt
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        if: github.event_name == 'push'
         with:
           tag_name: ${{ steps.release-tag.outputs.tag }}
           target_commitish: ${{ github.sha }}
           name: ${{ steps.release-tag.outputs.tag }}
-          files: image.txt
+          files: |
+            image.txt
+            images.json
           fail_on_unmatched_files: true
           body: |
             Source: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
 
-            Image: `${{ steps.metadata.outputs.image }}:${{ steps.release-tag.outputs.tag }}`
+            Download images.json for the immutable pull references of all four images.
 
-            Pinned image: `${{ steps.metadata.outputs.image }}@${{ steps.build.outputs.digest }}`
+            | Variant | Image |
+            | --- | --- |
+            | Server | `${{ steps.metadata.outputs.image }}:server-${{ steps.release-tag.outputs.tag }}` |
+            | App | `${{ steps.metadata.outputs.image }}:app-${{ steps.release-tag.outputs.tag }}` |
+            | Migrate | `${{ steps.metadata.outputs.image }}:migrate-${{ steps.release-tag.outputs.tag }}` |
+            | CLI | `${{ steps.metadata.outputs.image }}:cli-${{ steps.release-tag.outputs.tag }}` |
 
             ```sh
-            docker run --rm --env DATABASE_URL -p 6999:6999 ${{ steps.metadata.outputs.image }}@${{ steps.build.outputs.digest }}
+            docker run --rm --env DATABASE_URL -p 6999:6999 ${{ steps.metadata.outputs.image }}@${{ steps.binary.outputs.digest }}
             ```
