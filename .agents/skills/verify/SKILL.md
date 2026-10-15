@@ -78,11 +78,16 @@ After changes to alias grouping or reviewed families, run the additional
 `loaded_data_grouped_funders_regression` test. It starts the worktree's API and
 checks BBC, GB News, and Premier League searches and detail pages against an
 isolated copy of the 12 October 2026 development data. This database is separate
-from `exposed_search_regression`. Apply the current migrations and run
-`exposed data refresh-funder-groups` on the copy before the test. Do not change
-the source database or refresh the frozen search snapshot during verification.
+from `exposed_search_regression`. Apply the current migrations to the copy, then
+retry the latest declaration run already loaded into it using its unchanged raw,
+cleaned, and resolved artifacts. Follow the
+[stored funder groups deployment procedure](../../../db/README.md#deploy-stored-funder-groups)
+with `DATABASE_URL` set to the copy. Require `Run already loaded` before the test.
+Loading a new run can replace source data and invalidate the regression fixture.
+Do not change the source database or refresh the frozen search snapshot during
+verification.
 
-The preferred-name migration creates empty metadata; the refresh applies the
+The preferred-name migration creates empty metadata; the exact load retry applies the
 compiled reviewed-family names. Expect BBC, GB News, and Premier League in search
 and detail names. Member declaration history continues to show recorded source
 names.
