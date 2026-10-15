@@ -34,9 +34,9 @@ pub fn run_server() -> anyhow::Result<()> {
 /// Starts an `exposed` HTTP server
 ///
 /// # Errors
-/// - When the HTTP server fails
+/// Returns an error if connecting to the database or serving HTTP fails.
 pub async fn serve_exposed(config: &ServerConfig, listener: TcpListener) -> anyhow::Result<()> {
-    let db = ExposedDatabase::new(&config.connection_string).await;
+    let db = ExposedDatabase::new(&config.connection_string).await?;
     let service = EntitySearchService::new(db.clone(), db.clone());
 
     let state = AppState {

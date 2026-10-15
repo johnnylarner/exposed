@@ -11,13 +11,12 @@ pub struct ExposedDatabase {
 impl ExposedDatabase {
     /// Creates a new instance of [`ExposedDatabase`]
     ///
-    /// # Panics
-    /// Invalid connection string
-    #[must_use]
-    pub async fn new(conn_str: &str) -> Self {
-        let pool = PgPool::connect(conn_str).await.unwrap();
+    /// # Errors
+    /// Returns an error if the connection string is invalid or connecting fails.
+    pub async fn new(conn_str: &str) -> sqlx::Result<Self> {
+        let pool = PgPool::connect(conn_str).await?;
 
-        Self { pool }
+        Ok(Self { pool })
     }
 
     /// Get a reference to the underlying pool

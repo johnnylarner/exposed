@@ -1,3 +1,5 @@
+#[path = "common/response_schema.rs"]
+mod response_schema;
 use exposed::domain::models::parliament_member::MemberId;
 use std::{
     collections::HashSet,
@@ -108,13 +110,15 @@ fn run_clean(root: &Path, key: Option<&IngestionKey>) -> anyhow::Result<Output> 
     Ok(command.output()?)
 }
 
-fn assert_success(output: &Output) -> &str {
+fn assert_success(output: &Output) -> Value {
     assert!(
         output.status.success(),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    std::str::from_utf8(&output.stdout).unwrap()
+    let payload = serde_json::from_slice(&output.stdout).unwrap();
+    response_schema::validate("declarations", "Success JSON schema (clean):", &payload);
+    payload
 }
 
 fn read_table(path: &Path) -> anyhow::Result<Vec<Value>> {
@@ -218,7 +222,9 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
             &key.to_string(),
         ])
         .output()?;
-    assert_success(&copied);
+    assert!(copied.status.success());
+    let copied_payload = serde_json::from_slice(&copied.stdout)?;
+    response_schema::validate("copy-latest-raw", "Success JSON schema:", &copied_payload);
     let copied_raw = tmp
         .path()
         .join("data")
@@ -228,11 +234,12 @@ async fn offline_cli_preserves_occurrences_scopes_roles_and_name_features() -> a
     assert_eq!(fs::read(&copied_raw)?, before);
     let output = run_clean(tmp.path(), Some(&key))?;
     let stdout = assert_success(&output);
-    assert!(
-        stdout.contains(
-            "Member partitions: 2\nDeclarations: 7\nFunding entries: 7\nFunder observations: 12\n"
-        ),
-        "{stdout}"
+    assert_eq!(
+        stdout,
+        serde_json::json!({
+            "ingestion_key": key.to_string(), "path": cleaned_path(tmp.path(), &key).canonicalize()?,
+            "member_partitions": 2, "declarations": 7, "funding_entries": 7, "funders": 12
+        })
     );
     assert_eq!(fs::read(raw_path)?, before);
     assert_eq!(fs::read(copied_raw)?, before);
@@ -455,10 +462,10 @@ async fn empty_valid_partitions_produce_two_empty_tables_but_invalid_empty_schem
         }
         let output = run_clean(tmp.path(), Some(&key))?;
         if valid {
-            assert!(
-                assert_success(&output)
-                    .contains("Declarations: 0\nFunding entries: 0\nFunder observations: 0\n")
-            );
+            let response = assert_success(&output);
+            for count in ["declarations", "funding_entries", "funders"] {
+                assert_eq!(response[count].as_u64(), Some(0));
+            }
             for table in ["funding_entries.parquet", "funders.parquet"] {
                 assert!(read_table(&cleaned_path(tmp.path(), &key).join(table))?.is_empty());
             }
