@@ -12,18 +12,59 @@ Rust 1.98.1, and cargo-chef 0.1.78. Dependency compilation uses ordinary Docker
 layers so the CI GitHub Actions cache includes compiled dependencies. The default
 build parallelism is two jobs. Set `--build-arg CARGO_BUILD_JOBS=4` to change it.
 
-Apply the [database migrations](../db/README.md) before starting the server.
-Provide a database URL that the container can reach:
+All targets share the same release binary and Debian runtime. The default target
+is `binary`, which runs `exposed server` on port 6999 as UID and GID 10001.
+Build the other targets with `--target frontend-server`, `--target migrate`, or
+`--target data`. Use distinct local tags for each target.
 
 ```sh
-export DATABASE_URL='postgresql://user:password@database:5432/exposed'
+docker buildx build --load -f docker/Dockerfile --target migrate -t exposed:migrate .
+docker buildx build --load -f docker/Dockerfile --target frontend-server -t exposed:frontend-server .
+docker buildx build --load -f docker/Dockerfile --target data -t exposed:data .
+export DATABASE_URL='postgresql://user:password@database:5432/exposed?options=-csearch_path%3Dexposed,public'
+docker run --rm --env DATABASE_URL exposed:migrate
+docker run --rm --env DATABASE_URL -p 8080:8080 exposed:frontend-server
 docker run --rm --env DATABASE_URL -p 6999:6999 exposed:local
 ```
 
-The image runs `exposed server` as UID and GID 10001. It contains the Rust
-application, Debian runtime libraries, and CA certificates. It does not include
-the frontend or run migrations. Replace the default command to run a data CLI
-command. Mount configuration and writable data directories for ingestion.
+Include `exposed` and `public` in the database connection search path, as shown
+above, so the server can resolve the `pg_trgm` functions in the `exposed` schema.
+
+The migration image runs `exposed migrate run --source /app/db/migrations` and
+contains the versioned SQL assets. Run it explicitly before starting either
+server. See [database migrations](../db/README.md) for existing database upgrades.
+
+The combined image serves the locked frontend build through nginx on port 8080.
+It forwards `/api/` requests to the Rust server after removing `/api` and falls
+back to `index.html` for frontend routes. Missing assets return 404. Both services
+run as UID and GID 10001. Tini reaps orphan processes, and a Bash supervisor stops
+both services on termination or when either service exits. An unexpected service
+exit fails the container, including a service that exits with status zero.
+
+The data image runs `exposed data --help` by default. Pass a data subcommand
+directly. Mount configuration and writable data directories for ingestion.
+
+```sh
+docker run --rm --mount type=bind,src="$PWD/config.yaml",dst=/config.yaml,readonly \
+    --mount type=bind,src="$PWD/data",dst=/data \
+    exposed:data latest --config /config.yaml
+```
+
+Use `data_dir: /data` in the mounted configuration and give UID 10001 access to
+the mounted data directory. Pass `--env DATABASE_URL` for data commands that
+access PostgreSQL.
+
+To test all four local images, run the smoke script. It starts an isolated
+PostgreSQL 18 container, applies migrations twice, runs the offline data command,
+and checks static files, frontend routes, API forwarding, and service shutdown.
+Docker, curl, and jq must be available.
+
+```sh
+BINARY_IMAGE=exposed:local \
+FRONTEND_SERVER_IMAGE=exposed:frontend-server \
+MIGRATE_IMAGE=exposed:migrate \
+DATA_IMAGE=exposed:data scripts/smoke-production-images.sh
+```
 
 ## Refresh SQLx query metadata
 
@@ -39,32 +80,46 @@ cargo sqlx prepare --check --workspace -- --bin exposed
 
 Commit the resulting `.sqlx` files with query or migration changes. The image
 build uses this metadata offline. Refresh and check it against PostgreSQL manually
-when queries or migrations change. CI does not start a database or install SQLx.
+when queries or migrations change. CI starts an isolated database for image smoke checks but does not install SQLx.
 No database URL or credentials enter the Docker build.
 
 ## Releases from main
 
-A push to `main` that changes Rust sources or shared build, migration, query
-metadata, Docker, or release inputs builds and publishes a `linux/amd64` image.
-A pull request with those changes builds a local `exposed:pr` image and runs its
-help command. Pull requests do not publish images or releases. CI uses Docker,
-`gh`, and `jq`, with no database or host Rust installation.
+A push to `main` that changes Rust, frontend, migrations, SQLx metadata, Docker,
+or release inputs builds all four `linux/amd64` images. Pull requests build and
+test all targets locally without publishing packages, Git tags, or releases.
+CI uses Docker, curl, `gh`, and `jq`, without host Rust or SQLx installations.
 
-Each push runs independently without cancelling earlier pushes. Before building,
+Each push runs independently without cancelling earlier pushes. After all smoke checks pass,
 the job atomically creates a Git tag at the exact source SHA using the current
 UTC minute in `yyyy.mm.dd.hh.mm` format. If that tag already occupies the minute,
 the job waits for the next actual minute. If tag creation fails without an
 existing matching tag, the job fails.
 
-The build publishes directly to
-`ghcr.io/<repository-owner>/<repository-name>:<UTC-tag>`. The job pulls that image
-and runs its help command, then uses `softprops/action-gh-release` to create the
-GitHub release. Each release contains the source link, tagged image, a
-digest-pinned run command, and an `image.txt` asset with the immutable pull
-reference. Use that digest reference for deployment.
+All variants use the same allocated version and GHCR repository.
 
-An interrupted or failed attempt can leave a reserved Git tag or published image
-without a release. A retry allocates a new unused UTC minute.
+| Target | Published tag | Default command |
+| --- | --- | --- |
+| `binary` | `VERSION` | `exposed server` |
+| `frontend-server` | `VERSION-frontend-server` | Supervisor for nginx and `exposed server` |
+| `migrate` | `VERSION-migrate` | `exposed migrate run --source /app/db/migrations` |
+| `data` | `VERSION-data` | `exposed data --help` |
+
+The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI first pushes
+unique staging tags with `mode=max` provenance. It tests the immutable image
+references and promotes the same manifest indexes to the version tags only after
+all checks pass. Promotion retains provenance and verifies that each final digest
+matches the tested digest. The shared BuildKit builder reuses Rust compilation
+across all targets.
+
+The GitHub release contains `images.json` with `version`, source commit `source`,
+and an `images` object mapping each target to its immutable GHCR pull reference.
+The `image.txt` asset keeps the binary image reference for existing deployments.
+Use the digest references for deployment.
+
+An interrupted or failed attempt can leave staging images, a reserved Git tag,
+or some version tags without a release. A retry allocates a new unused UTC minute.
+Staging tags include the Actions run ID and attempt number and remain in GHCR.
 
 The job's Actions token needs repository content and package write permissions.
 GHCR package visibility follows the package settings. Set its visibility to public
