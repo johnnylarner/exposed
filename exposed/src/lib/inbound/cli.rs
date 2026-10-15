@@ -26,6 +26,23 @@ use crate::{
 
 pub mod config;
 
+/// CLI entrypoint for the `exposed` project
+#[derive(Parser)]
+pub struct ExposedCli {
+    /// Commands for CLI
+    #[command(subcommand)]
+    pub command: Commands,
+}
+
+/// Run a server or prepare application data
+#[derive(Subcommand)]
+pub enum Commands {
+    /// Start an instance of the `exposed` server
+    Server,
+    /// Options to run the `exposed` data pipeline
+    Data(DataArgs),
+}
+
 /// CLI Data Args
 #[derive(Parser)]
 pub struct DataArgs {
