@@ -135,7 +135,7 @@ impl DeclarationLoad {
                     .is_some_and(|id| !funder_ids.contains(id))
                 || (row.identity_id.is_some() != row.selected_observation_id.is_some())
                 || row.attribution_basis.is_some() != selected
-                || row.unavailable_reason.is_some() != !selected
+                || row.unavailable_reason.is_some() == selected
                 || row.selected_parent_declaration_id.is_some()
                     != match row.attribution_basis {
                         Some(AttributionBasis::ParentPayer) => true,
@@ -163,7 +163,7 @@ impl DeclarationLoad {
 
     /// Row counts for the committed run.
     #[must_use]
-    pub fn summary(&self) -> DeclarationLoadSummary {
+    pub const fn summary(&self) -> DeclarationLoadSummary {
         DeclarationLoadSummary {
             outcome: DeclarationLoadOutcome::Imported,
             declarations: self.declarations.len(),
