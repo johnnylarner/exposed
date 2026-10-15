@@ -1,23 +1,11 @@
-use clap::{Parser, Subcommand};
+use clap::Parser;
 use exposed::inbound::{
-    cli::{DataArgs, run_cli},
+    cli::{Commands, ExposedCli, run_cli},
     http::server::run_server,
 };
 
-#[derive(Parser)]
-struct Cli {
-    #[command(subcommand)]
-    command: Commands,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    Server,
-    Data(DataArgs),
-}
-
 fn main() -> anyhow::Result<()> {
-    let args = Cli::parse();
+    let args = ExposedCli::parse();
     match args.command {
         Commands::Server => run_server(),
         Commands::Data(args) => {
