@@ -2,6 +2,10 @@
 
 Where do MPs get their money from?
 
+Data commands write one JSON document to stdout on success. Command failures
+write `{"error":{"message":"..."}}` to stderr and exit with code 1. Help and
+argument parsing use Clap's standard output.
+
 ## Development hooks
 
 Enable the repository's pre-commit hook after cloning:
@@ -32,13 +36,14 @@ To inspect the latest stored ingestion run, use either fetch configuration:
 cargo run --package exposed --bin exposed -- data latest --config exposed/config/cli-dev.yaml
 ```
 
-The command prints the ingestion key and absolute path of the most recently
+The command returns `{"ingestion":{"ingestion_key":"...","path":"..."}}`
+with the key and absolute path of the most recently
 modified run directory. It considers only directories with UUID names. Equal
 timestamps use the greatest UUID.
 
 This command requires only `data_dir` in the YAML file and no database connection
 at runtime. It does not change files. An absent or empty data directory produces
-`No ingestion runs found.` and a successful exit.
+`{"ingestion":null}` and a successful exit.
 
 To reprocess the latest raw capture in a new run, copy it with a fresh ingestion key:
 
@@ -48,8 +53,9 @@ cargo run --package exposed --bin exposed -- data copy-latest-raw --config expos
 cargo run --package exposed --bin exposed -- data declarations clean --config exposed/config/declarations-dev.yaml --ingestion-key "$ingestion_key"
 ```
 
-Omit `--ingestion-key` to generate a UUID-v7. The command prints the source key,
-destination key, and absolute destination run path. It requires only `data_dir`
+Omit `--ingestion-key` to generate a UUID-v7. The command returns an `ingestion`
+object with `source_ingestion_key`, `ingestion_key`, and the absolute destination
+run `path`. It requires only `data_dir`
 and runs without a database or API connection.
 
 The command uses the same latest-run selection as `data latest`. It copies the
@@ -57,7 +63,7 @@ entire `raw` directory, preserving file bytes and empty directories. It excludes
 cleaned and resolved results and fails if the selected run has no raw directory.
 Symlinks and special files fail the copy. Existing destinations remain unchanged.
 The complete run appears only after the copy succeeds. An absent or empty store
-prints `No ingestion runs found.` without creating directories. Copy only captures
+returns `{"ingestion":null}` without creating directories. Copy only captures
 that are no longer being written.
 
 To split a captured declaration run into funding occurrences and funder

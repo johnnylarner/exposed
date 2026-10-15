@@ -2,6 +2,7 @@
 
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, Utc};
+use serde::Serialize;
 
 use super::{
     declaration_ingestion::DeclarationId,
@@ -70,7 +71,8 @@ pub struct DeclarationLoadSummary {
 }
 
 /// Result of the atomic load operation.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum DeclarationLoadOutcome {
     /// This call committed the run.
     Imported,

@@ -24,13 +24,13 @@ fn run_copy(root: &Path, key: Option<&IngestionKey>) -> anyhow::Result<Output> {
     Ok(command.output()?)
 }
 
-fn success(output: &Output) -> &str {
+fn success(output: &Output) -> serde_json::Value {
     assert!(
         output.status.success(),
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    std::str::from_utf8(&output.stdout).unwrap()
+    serde_json::from_slice(&output.stdout).unwrap()
 }
 
 fn create_run(root: &Path, key: &IngestionKey, seconds: u64) -> anyhow::Result<PathBuf> {
@@ -93,9 +93,8 @@ fn cli_defaults_to_a_fresh_uuid_v7_and_reports_source_destination_and_path() -> 
     fs::write(source_path.join("raw/capture"), "retained")?;
     let output = run_copy(tmp.path(), None)?;
     let text = success(&output);
-    let key: IngestionKey = text
-        .lines()
-        .find_map(|line| line.strip_prefix("Ingestion key: "))
+    let key: IngestionKey = text["ingestion"]["ingestion_key"]
+        .as_str()
         .unwrap()
         .parse()?;
     assert_ne!(key, source);
@@ -107,10 +106,7 @@ fn cli_defaults_to_a_fresh_uuid_v7_and_reports_source_destination_and_path() -> 
         .join(key.to_string());
     assert_eq!(
         text,
-        format!(
-            "Source ingestion key: {source}\nIngestion key: {key}\nPath: {}\n",
-            path.display()
-        )
+        serde_json::json!({"ingestion": {"source_ingestion_key": source.to_string(), "ingestion_key": key.to_string(), "path": path}})
     );
     assert_eq!(fs::read_to_string(path.join("raw/capture"))?, "retained");
     Ok(())
@@ -124,7 +120,10 @@ fn cli_copies_into_an_explicit_arbitrary_uuid() -> anyhow::Result<()> {
     let path = create_run(tmp.path(), &source, 10)?;
     fs::write(path.join("raw/capture"), "retained")?;
     let output = run_copy(tmp.path(), Some(&destination))?;
-    assert!(success(&output).contains(&format!("Ingestion key: {destination}\n")));
+    assert_eq!(
+        success(&output)["ingestion"]["ingestion_key"],
+        destination.to_string()
+    );
     assert_eq!(
         fs::read_to_string(
             tmp.path()
@@ -143,14 +142,14 @@ fn missing_or_empty_store_returns_no_runs_without_mutation() -> anyhow::Result<(
     let destination = IngestionKey::default();
     assert_eq!(
         success(&run_copy(tmp.path(), Some(&destination))?),
-        "No ingestion runs found.\n"
+        serde_json::json!({"ingestion": null})
     );
     let data = tmp.path().join("data");
     assert!(!data.exists());
     fs::create_dir(&data)?;
     assert_eq!(
         success(&run_copy(tmp.path(), None)?),
-        "No ingestion runs found.\n"
+        serde_json::json!({"ingestion": null})
     );
     assert_eq!(fs::read_dir(data)?.count(), 0);
     Ok(())

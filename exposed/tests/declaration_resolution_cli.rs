@@ -186,7 +186,13 @@ async fn clean_then_resolve_with_native_weldrs_preserves_occurrences_and_refuses
         "{}",
         String::from_utf8_lossy(&resolved.stderr)
     );
+    let response: serde_json::Value = serde_json::from_slice(&resolved.stdout)?;
+    assert_eq!(response["ingestion_key"], key.to_string());
+    assert_eq!(response["observations"].as_u64(), Some(16));
+    assert!(response["payments"].as_u64().is_some());
+    assert!(response["pairs"].as_u64().is_some());
     let output = root.join(key.to_string()).join("resolved/declarations");
+    assert_eq!(response["path"], serde_json::to_value(&output)?);
     let observations = rows(&output.join("observation_resolution.parquet"))?;
     assert_eq!(observations.len(), 16);
     assert_eq!(

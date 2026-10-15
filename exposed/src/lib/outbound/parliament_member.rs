@@ -171,7 +171,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
             .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
 
         for m in members {
-            let res = sqlx::query!(
+            sqlx::query!(
                 "
             INSERT INTO 
                 exposed.members (
@@ -198,11 +198,8 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 m.constituency()
             )
             .fetch_one(&mut *tx)
-            .await;
-
-            if let Err(e) = res {
-                println!("{e}");
-            }
+            .await
+            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
         }
         tx.commit()
             .await

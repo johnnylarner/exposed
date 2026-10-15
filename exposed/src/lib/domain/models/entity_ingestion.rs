@@ -4,6 +4,7 @@ use std::{fmt::Display, str::FromStr};
 
 // use std::str::FromStr;
 //
+use serde::Serialize;
 use strum::EnumString;
 use thiserror::Error;
 use uuid::Uuid;
@@ -17,7 +18,8 @@ use crate::domain::repositories::{
 pub struct EntityIngestionRequest;
 
 /// Key used for ingestion
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(transparent)]
 pub struct IngestionKey(Uuid);
 
 impl Display for IngestionKey {
@@ -56,7 +58,8 @@ impl Default for IngestionKey {
 }
 
 /// From what stage to run in the Member pipeline
-#[derive(Clone, Debug, PartialEq, Eq, EnumString)]
+#[derive(Clone, Debug, PartialEq, Eq, EnumString, Serialize)]
+#[serde(rename_all = "snake_case")]
 #[allow(missing_docs)]
 #[strum(ascii_case_insensitive)]
 pub enum MemberIngestionStage {
@@ -64,7 +67,8 @@ pub enum MemberIngestionStage {
     Load,
 }
 /// Supported acquisition stage for declarations.
-#[derive(Clone, Debug, PartialEq, Eq, EnumString)]
+#[derive(Clone, Debug, PartialEq, Eq, EnumString, Serialize)]
+#[serde(rename_all = "snake_case")]
 #[strum(ascii_case_insensitive)]
 pub enum DeclarationIngestionStage {
     /// Capture source evidence for later offline processing.

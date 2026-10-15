@@ -76,8 +76,25 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
     ])
     .unwrap();
     let mut output = Vec::new();
-    run_cli(args).await.write_to(&mut output).unwrap();
-    assert!(output.is_empty());
+    let mut errors = Vec::new();
+    let code = run_cli(args)
+        .await
+        .write_to(&mut output, &mut errors)
+        .unwrap();
+    assert_eq!(code, std::process::ExitCode::SUCCESS);
+    assert!(errors.is_empty());
+    let response: serde_json::Value = serde_json::from_slice(&output).unwrap();
+    assert_eq!(response["ingestion_key"], ingestion_key.to_string());
+    assert_eq!(response["stage"], "fetch");
+    assert_eq!(
+        response["path"],
+        serde_json::to_value(
+            tmp.path()
+                .join(ingestion_key.to_string())
+                .join("raw/members.parquet")
+        )
+        .unwrap()
+    );
 
     let url = pool.connect_options().to_url_lossy();
     let (_file, path) = cli_loader_config(&tmp);
@@ -99,7 +116,7 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
     );
 
     let url = pool.connect_options().to_url_lossy();
-    let db = ExposedDatabase::new(url.as_str()).await;
+    let db = ExposedDatabase::new(url.as_str()).await?;
 
     let params =
         EntitySearchRequest::new_with_strictness("John McDonnell".into(), 10, 0.8).unwrap();
@@ -209,8 +226,14 @@ fn database_commands_require_environment_url() -> anyhow::Result<()> {
             .output()?;
 
         assert!(!output.status.success());
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        assert!(stderr.contains("DATABASE_URL must be set"), "{stderr}");
+        assert!(output.stdout.is_empty());
+        let stderr: serde_json::Value = serde_json::from_slice(&output.stderr)?;
+        assert!(
+            stderr["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("DATABASE_URL must be set")
+        );
     }
     Ok(())
 }

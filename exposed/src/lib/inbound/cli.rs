@@ -1,8 +1,9 @@
 //! CLI inbound port
 
-use std::{fmt::Write, path::PathBuf, str::FromStr};
+use std::{path::PathBuf, str::FromStr};
 
 use clap::{Parser, Subcommand};
+use serde::Serialize;
 
 use crate::{
     domain::{
@@ -28,7 +29,7 @@ use crate::{
 pub mod config;
 pub mod response;
 
-pub use response::{IntoResponse, Response};
+pub use response::{CliSuccess, IntoResponse, Response};
 
 /// CLI entrypoint for the `exposed` project
 #[derive(Parser)]
@@ -114,9 +115,7 @@ pub async fn run_cli(args: DataArgs) -> Response {
             stage,
             config,
             ingestion_key,
-        } => declarations(stage, config, ingestion_key)
-            .await
-            .into_response(),
+        } => declarations(stage, config, ingestion_key).await,
         DataCommands::Members {
             stage,
             config,
@@ -125,70 +124,139 @@ pub async fn run_cli(args: DataArgs) -> Response {
     }
 }
 
-async fn latest(config: PathBuf) -> anyhow::Result<String> {
+#[derive(Serialize)]
+struct IngestionResponse<T> {
+    ingestion: Option<T>,
+}
+
+#[derive(Serialize)]
+struct IngestionLocation {
+    ingestion_key: IngestionKey,
+    path: PathBuf,
+}
+
+#[derive(Serialize)]
+struct CopiedIngestion {
+    source_ingestion_key: IngestionKey,
+    ingestion_key: IngestionKey,
+    path: PathBuf,
+}
+
+#[derive(Serialize)]
+struct StageAcknowledgement<S> {
+    ingestion_key: IngestionKey,
+    stage: S,
+    path: PathBuf,
+}
+
+#[derive(Serialize)]
+struct DeclarationCleaningResponse {
+    ingestion_key: IngestionKey,
+    path: PathBuf,
+    member_partitions: usize,
+    declarations: usize,
+    funding_entries: usize,
+    funders: usize,
+}
+
+#[derive(Serialize)]
+struct DeclarationResolutionResponse {
+    ingestion_key: IngestionKey,
+    path: PathBuf,
+    observations: usize,
+    payments: usize,
+    pairs: usize,
+}
+
+#[derive(Serialize)]
+struct DeclarationLoadingResponse {
+    ingestion_key: IngestionKey,
+    outcome: DeclarationLoadOutcome,
+    declarations: usize,
+    funders: usize,
+    funding_entries: usize,
+}
+
+async fn latest(
+    config: PathBuf,
+) -> anyhow::Result<CliSuccess<IngestionResponse<IngestionLocation>>> {
     let config = LoaderConfig::try_from(&config)?;
-    match ExposedDataPipeline::latest_ingestion(&config.data_dir).await? {
-        Some((path, key)) => Ok(format!("Ingestion key: {key}\nPath: {}\n", path.display())),
-        None => Ok("No ingestion runs found.\n".to_owned()),
-    }
+    let ingestion = ExposedDataPipeline::latest_ingestion(&config.data_dir)
+        .await?
+        .map(|(path, ingestion_key)| IngestionLocation {
+            ingestion_key,
+            path,
+        });
+    Ok(CliSuccess::new(IngestionResponse { ingestion }))
 }
 
 async fn copy_latest_raw(
     config: PathBuf,
     ingestion_key: Option<IngestionKey>,
-) -> anyhow::Result<String> {
+) -> anyhow::Result<CliSuccess<IngestionResponse<CopiedIngestion>>> {
     let config = LoaderConfig::try_from(&config)?;
-    let key = ingestion_key.unwrap_or_default();
-    match ExposedDataPipeline::copy_latest_raw(&config.data_dir, key.clone()).await? {
-        Some((path, source_key)) => Ok(format!(
-            "Source ingestion key: {source_key}\nIngestion key: {key}\nPath: {}\n",
-            path.display()
-        )),
-        None => Ok("No ingestion runs found.\n".to_owned()),
-    }
+    let ingestion_key = ingestion_key.unwrap_or_default();
+    let ingestion = ExposedDataPipeline::copy_latest_raw(&config.data_dir, ingestion_key.clone())
+        .await?
+        .map(|(path, source_ingestion_key)| CopiedIngestion {
+            source_ingestion_key,
+            ingestion_key,
+            path,
+        });
+    Ok(CliSuccess::new(IngestionResponse { ingestion }))
 }
 
 async fn declarations(
     stage: String,
     config: PathBuf,
     ingestion_key: Option<IngestionKey>,
-) -> anyhow::Result<String> {
-    match DeclarationIngestionStage::from_str(&stage)? {
-        DeclarationIngestionStage::Fetch => {
-            fetch_declarations(config, ingestion_key).await?;
-            Ok(String::new())
-        }
-        DeclarationIngestionStage::Resolve => resolve_declarations(config, ingestion_key).await,
-        DeclarationIngestionStage::Load => load_declarations(config, ingestion_key).await,
-        DeclarationIngestionStage::Clean => clean_declarations(config, ingestion_key).await,
+) -> Response {
+    let stage = match DeclarationIngestionStage::from_str(&stage) {
+        Ok(stage) => stage,
+        Err(error) => return Err::<Response, _>(error).into_response(),
+    };
+    match stage {
+        DeclarationIngestionStage::Fetch => fetch_declarations(config, ingestion_key)
+            .await
+            .into_response(),
+        DeclarationIngestionStage::Clean => clean_declarations(config, ingestion_key)
+            .await
+            .into_response(),
+        DeclarationIngestionStage::Resolve => resolve_declarations(config, ingestion_key)
+            .await
+            .into_response(),
+        DeclarationIngestionStage::Load => load_declarations(config, ingestion_key)
+            .await
+            .into_response(),
     }
 }
 
 async fn fetch_declarations(
     config: PathBuf,
     ingestion_key: Option<IngestionKey>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<CliSuccess<StageAcknowledgement<DeclarationIngestionStage>>> {
     let config = DeclarationFetcherConfig::try_from(&config)?;
     let data_config = DataConfig::from_env()?;
     let api = ParliamentApiClient::new(config.batch_size)?;
-    let db = ExposedDatabase::new(&data_config.connection_string).await;
-    let fs = ExposedDataPipeline::new_with_ingestion_key(
-        &config.data_dir,
-        ingestion_key.unwrap_or_default(),
-    )?;
+    let db = ExposedDatabase::new(&data_config.connection_string).await?;
+    let ingestion_key = ingestion_key.unwrap_or_default();
+    let fs = ExposedDataPipeline::new_with_ingestion_key(&config.data_dir, ingestion_key.clone())?;
     DeclarationFetcherService::new(db, api, fs)
         .fetch_declarations()
         .await?;
-
-    Ok(())
+    Ok(CliSuccess::new(StageAcknowledgement {
+        path: std::path::absolute(config.data_dir)?
+            .join(ingestion_key.to_string())
+            .join("raw/declarations"),
+        ingestion_key,
+        stage: DeclarationIngestionStage::Fetch,
+    }))
 }
 
 async fn resolve_declarations(
     config: PathBuf,
     ingestion_key: Option<IngestionKey>,
-) -> anyhow::Result<String> {
-    let mut output = String::new();
-
+) -> anyhow::Result<CliSuccess<DeclarationResolutionResponse>> {
     let ingestion_key = ingestion_key
         .ok_or_else(|| anyhow::anyhow!("declarations resolve requires --ingestion-key"))?;
     let config = DeclarationResolverConfig::try_from(&config)?;
@@ -198,63 +266,44 @@ async fn resolve_declarations(
     let summary = DeclarationResolverService::new(storage, scorer, config.candidate_budget)
         .resolve_declarations()
         .await?;
-    writeln!(output, "Ingestion key: {ingestion_key}")?;
-    writeln!(
-        output,
-        "Resolved declarations: {}",
-        std::path::absolute(config.data_dir)?
+    Ok(CliSuccess::new(DeclarationResolutionResponse {
+        path: std::path::absolute(config.data_dir)?
             .join(ingestion_key.to_string())
-            .join("resolved/declarations")
-            .display()
-    )?;
-    writeln!(output, "Observations: {}", summary.observations)?;
-    writeln!(output, "Funding occurrences: {}", summary.payments)?;
-    writeln!(output, "Pair decisions: {}", summary.pairs)?;
-
-    Ok(output)
+            .join("resolved/declarations"),
+        ingestion_key,
+        observations: summary.observations,
+        payments: summary.payments,
+        pairs: summary.pairs,
+    }))
 }
 
 async fn load_declarations(
     config: PathBuf,
     ingestion_key: Option<IngestionKey>,
-) -> anyhow::Result<String> {
-    let mut output = String::new();
-
+) -> anyhow::Result<CliSuccess<DeclarationLoadingResponse>> {
     let ingestion_key = ingestion_key
         .ok_or_else(|| anyhow::anyhow!("declarations load requires --ingestion-key"))?;
     let config = LoaderConfig::try_from(&config)?;
     let data_config = DataConfig::from_env()?;
     let storage =
         ExposedDataPipeline::open_resolved_declarations(&config.data_dir, ingestion_key.clone())?;
-    let db = ExposedDatabase::new(&data_config.connection_string).await;
+    let db = ExposedDatabase::new(&data_config.connection_string).await?;
     let summary = DeclarationLoaderService::new(storage, db)
         .load_declarations()
         .await?;
-    writeln!(output, "Ingestion key: {ingestion_key}")?;
-    match summary.outcome {
-        DeclarationLoadOutcome::Imported => {
-            writeln!(output, "Loaded declarations: {}", summary.declarations)?;
-        }
-        DeclarationLoadOutcome::AlreadyLoaded => {
-            writeln!(
-                output,
-                "Run already loaded. Declarations: {}",
-                summary.declarations
-            )?;
-        }
-    }
-    writeln!(output, "Resolved identities: {}", summary.funders)?;
-    writeln!(output, "Funding occurrences: {}", summary.funding_entries)?;
-
-    Ok(output)
+    Ok(CliSuccess::new(DeclarationLoadingResponse {
+        ingestion_key,
+        outcome: summary.outcome,
+        declarations: summary.declarations,
+        funders: summary.funders,
+        funding_entries: summary.funding_entries,
+    }))
 }
 
 async fn clean_declarations(
     config: PathBuf,
     ingestion_key: Option<IngestionKey>,
-) -> anyhow::Result<String> {
-    let mut output = String::new();
-
+) -> anyhow::Result<CliSuccess<DeclarationCleaningResponse>> {
     let ingestion_key = ingestion_key
         .ok_or_else(|| anyhow::anyhow!("declarations clean requires --ingestion-key"))?;
     let config = LoaderConfig::try_from(&config)?;
@@ -263,50 +312,56 @@ async fn clean_declarations(
     let summary = DeclarationCleanerService::new(fs)
         .clean_declarations()
         .await?;
-    writeln!(output, "Ingestion key: {ingestion_key}")?;
-    writeln!(
-        output,
-        "Cleaned declarations: {}",
-        std::path::absolute(&config.data_dir)?
+    Ok(CliSuccess::new(DeclarationCleaningResponse {
+        path: std::path::absolute(&config.data_dir)?
             .join(ingestion_key.to_string())
-            .join("cleaned/declarations")
-            .display()
-    )?;
-    writeln!(output, "Member partitions: {}", summary.member_partitions)?;
-    writeln!(output, "Declarations: {}", summary.declarations)?;
-    writeln!(output, "Funding entries: {}", summary.funding_entries)?;
-    writeln!(output, "Funder observations: {}", summary.funders)?;
-
-    Ok(output)
+            .join("cleaned/declarations"),
+        ingestion_key,
+        member_partitions: summary.member_partitions,
+        declarations: summary.declarations,
+        funding_entries: summary.funding_entries,
+        funders: summary.funders,
+    }))
 }
 
 async fn members(
     stage: String,
     config: PathBuf,
     ingestion_key: Option<IngestionKey>,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<CliSuccess<StageAcknowledgement<MemberIngestionStage>>> {
     let stage = MemberIngestionStage::from_str(&stage)?;
     let ingestion_key = ingestion_key.unwrap_or_default();
-    match stage {
+    let data_dir = match stage {
         MemberIngestionStage::Fetch => {
             let config = FetcherConfig::try_from(&config)?;
             let api = ParliamentApiClient::new(config.batch_size)?;
-            let fs = ExposedDataPipeline::new_with_ingestion_key(&config.data_dir, ingestion_key)?;
-            let service = FetcherService::new(fs, api);
-
-            let req = EntityIngestionRequest {};
-            service.fetch_members(&req).await?;
+            let fs = ExposedDataPipeline::new_with_ingestion_key(
+                &config.data_dir,
+                ingestion_key.clone(),
+            )?;
+            FetcherService::new(fs, api)
+                .fetch_members(&EntityIngestionRequest {})
+                .await?;
+            config.data_dir
         }
         MemberIngestionStage::Load => {
             let config = LoaderConfig::try_from(&config)?;
             let data_config = DataConfig::from_env()?;
-            let fs = ExposedDataPipeline::new_with_ingestion_key(&config.data_dir, ingestion_key)?;
-            let db = ExposedDatabase::new(&data_config.connection_string).await;
-            let service = IngesterService::new(fs, db);
-
-            service.load_members().await?;
+            let fs = ExposedDataPipeline::new_with_ingestion_key(
+                &config.data_dir,
+                ingestion_key.clone(),
+            )?;
+            let db = ExposedDatabase::new(&data_config.connection_string).await?;
+            IngesterService::new(fs, db).load_members().await?;
+            config.data_dir
         }
-    }
-    Ok(())
+    };
+    Ok(CliSuccess::new(StageAcknowledgement {
+        path: std::path::absolute(data_dir)?
+            .join(ingestion_key.to_string())
+            .join("raw/members.parquet"),
+        ingestion_key,
+        stage,
+    }))
 }
 
