@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { formatPounds } from "./lib/member-summary";
   import { entityHref } from "./lib/search";
   import {
@@ -38,10 +39,13 @@
             <li>
               <div class="funding-source">
                 {#if entry.funder}<a
-                    href={entityHref({
-                      kind: "Funder",
-                      id: entry.funder.id,
-                    })}>{entry.funder.name}</a
+                    href={entityHref(
+                      {
+                        kind: "Funder",
+                        id: entry.funder.id,
+                      },
+                      page.url.searchParams,
+                    )}>{entry.funder.name}</a
                   >{:else}<span>Funder unavailable</span>{/if}<span
                   class="payment-type"
                   >{entry.paymentType || "Payment type unavailable"}</span

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import MemberDeclarations from "./MemberDeclarations.svelte";
   import RegistrationTimeline from "./RegistrationTimeline.svelte";
   import {
@@ -61,6 +62,7 @@
     </p>{/if}
   <a
     class="text-button history-link"
-    href={memberHref(details.member.id, "history")}>View declaration history</a
+    href={memberHref(details.member.id, "history", page.url.searchParams)}
+    >View declaration history</a
   >
 </section>

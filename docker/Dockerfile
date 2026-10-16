@@ -31,20 +31,23 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
 FROM runtime AS frontend-server
 USER root
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y nginx-light tini bash \
+    && apt-get install --no-install-recommends -y tini bash libstdc++6 \
     && rm -rf /var/lib/apt/lists/*
-COPY docker/nginx.conf /etc/nginx/nginx.conf
+COPY --from=frontend-builder /usr/local/bin/node /usr/local/bin/node
 COPY --chmod=755 docker/frontend-server.sh /usr/local/bin/frontend-server
-COPY --from=frontend-builder /app/frontend/dist /app/frontend
+COPY --from=frontend-builder /app/frontend/build /app/frontend/build
+COPY --from=frontend-builder /app/frontend/package.json /app/frontend/package.json
+COPY --from=frontend-builder /app/frontend/node_modules /app/frontend/node_modules
+ENV PORT=8080 HOST=0.0.0.0 EXPOSED_API_ORIGIN=http://127.0.0.1:6999
 USER 10001:10001
 EXPOSE 8080
 ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/frontend-server"]
-CMD []
+CMD ["exposed", "server"]
 
 FROM runtime AS migrate
 COPY db/migrations/ /app/db/migrations/

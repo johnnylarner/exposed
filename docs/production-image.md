@@ -34,9 +34,10 @@ The migration image runs `exposed migrate run --source /app/db/migrations` and
 contains the versioned SQL assets. Run it explicitly before starting either
 server. See [database migrations](../db/README.md) for existing database upgrades.
 
-The combined image serves the locked frontend build through nginx on port 8080.
-It forwards `/api/` requests to the Rust server after removing `/api` and falls
-back to `index.html` for frontend routes. Missing assets return 404. Both services
+The combined image serves the locked SvelteKit build through Node on port 8080.
+Server page loaders read the Rust API at the private `EXPOSED_API_ORIGIN`, which
+defaults to `http://127.0.0.1:6999`. Browser navigation uses SvelteKit page data.
+Both services
 run as UID and GID 10001. Tini reaps orphan processes, and a Bash supervisor stops
 both services on termination or when either service exits. An unexpected service
 exit fails the container, including a service that exits with status zero.
@@ -106,7 +107,7 @@ All variants use the same allocated version and GHCR repository.
 | Target | Published tag | Default command |
 | --- | --- | --- |
 | `binary` | `server-VERSION` | `exposed server` |
-| `frontend-server` | `app-VERSION` | Supervisor for nginx and `exposed server` |
+| `frontend-server` | `app-VERSION` | Supervisor for Node and `exposed server` |
 | `migrate` | `migrate-VERSION` | `exposed migrate run --source /app/db/migrations` |
 | `data` | `cli-VERSION` | `exposed data --help` |
 

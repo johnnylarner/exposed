@@ -139,10 +139,10 @@ for response semantics and read ownership.
 The HTTP API exposes `/search`, `/members/{Parliament ID}`, and `/funders/{UUID}`.
 Search entities include stable `id` strings interpreted by `kind`. Detail pages
 preserve search query and strictness in native links, so Back, reload, and new tabs
-work normally. A frontend host must serve `index.html` for direct detail paths.
-Vite provides this fallback in development and preview.
+work normally. SvelteKit renders initial search and detail pages on the server.
 
-The frontend service proxies `/api/*` to `http://exposed:6999/*`.
+The frontend server reads the Rust API at `http://exposed:6999` inside Compose.
+Only the frontend port is published; browser navigation uses SvelteKit page data.
 Its source is bind-mounted, with polling for live reload on Docker Desktop and a
 separate Linux dependency volume. Restart `frontend` after changing its package
 manifest or lockfile; dependencies are refreshed at startup. The API may take
@@ -189,12 +189,15 @@ npm ci
 npm run dev
 ```
 
-The host dev server proxies to `http://127.0.0.1:6999` by default. Override
-`EXPOSED_API_ORIGIN` when starting Vite to use another backend. This setting is
-server-side; the browser always uses the same-origin `/api/search` path.
-The frontend image is for local development. `npm run build` produces static
-assets in `frontend/dist`; a production host must also route `/api/search` to
-the Rust API.
+The frontend server reads `http://127.0.0.1:6999` by default. Set the private
+`EXPOSED_API_ORIGIN` environment variable to select another backend. For the
+Compose backend, run the frontend inside Compose because the Rust port is private.
+Browser requests never call the Rust API directly.
+
+`npm run build` produces an adapter-node server in `frontend/build`. Run it with
+`EXPOSED_API_ORIGIN=http://127.0.0.1:6999 node build` from `frontend`.
+Set `HOST` and `PORT` for the listening address. The release Docker target
+`frontend-server` runs Rust and Node together under tini and publishes port 8080.
 
 The similarity threshold slider refreshes results automatically: lower values
 include broader matches, from 0 to 1 in steps of 0.01 (default 0.8). The search URL

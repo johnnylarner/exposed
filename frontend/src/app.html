@@ -1,7 +1,8 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
+    <meta charset="utf-8" />
+    <link rel="icon" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#000000" />
     <meta name="color-scheme" content="dark" />
@@ -16,10 +17,9 @@
       content="Find MPs and funders in the Register of Members’ Financial Interests."
     />
     <title>Search MPs and funders · Exposed</title>
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    %sveltekit.head%
   </head>
-  <body>
-    <div id="app"></div>
-    <script type="module" src="/src/main.ts"></script>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
   </body>
 </html>

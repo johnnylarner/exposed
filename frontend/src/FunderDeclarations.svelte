@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { formatPounds } from "./lib/member-summary";
   import { entityHref } from "./lib/search";
   import {
@@ -16,8 +17,11 @@
       <header class="declaration-heading">
         <div>
           <h3>
-            <a href={entityHref({ kind: "MP", id: source.member.id })}
-              >{source.member.name}</a
+            <a
+              href={entityHref(
+                { kind: "MP", id: source.member.id },
+                page.url.searchParams,
+              )}>{source.member.name}</a
             >
           </h3>
           <span class="entry-count">{source.member.partyName}</span>

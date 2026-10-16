@@ -6,38 +6,49 @@
     highlightName,
     readStrictness,
     searchConfiguration,
-    searchEntities,
     type Entity,
   } from "./lib/search";
 
-  type SearchState =
-    | { status: "idle" }
-    | { status: "loading"; term: string }
-    | { status: "success"; term: string; entities: Entity[] }
-    | { status: "error"; term: string; message: string };
-
+  import { onMount, untrack } from "svelte";
+  import { page } from "$app/state";
+  import { goto, afterNavigate } from "$app/navigation";
+  import type { PageModel, SearchResult } from "./lib/page";
+  let { model }: { model: Extract<PageModel, { kind: "search" }> } = $props();
+  type SearchState = SearchResult | { status: "loading"; term: string };
   type SearchFocusShortcut =
     { modifier: "meta"; hint: "⌘ K" } | { modifier: "ctrl"; hint: "Ctrl K" };
-
-  const searchFocusShortcut: SearchFocusShortcut = /Mac/i.test(
-    navigator.platform,
-  )
-    ? { modifier: "meta", hint: "⌘ K" }
-    : { modifier: "ctrl", hint: "Ctrl K" };
-
-  let query = $state(new URL(window.location.href).searchParams.get("q") ?? "");
-  let strictness = $state(
-    readStrictness(
-      new URL(window.location.href).searchParams.get("strictness"),
-    ),
-  );
+  let searchFocusShortcut = $state<SearchFocusShortcut>({
+    modifier: "ctrl",
+    hint: "Ctrl K",
+  });
+  onMount(() => {
+    if (/Mac/i.test(navigator.platform))
+      searchFocusShortcut = { modifier: "meta", hint: "⌘ K" };
+  });
+  let query = $state(untrack(() => model.query));
+  let strictness = $state(untrack(() => model.strictness));
+  afterNavigate(({ type }) => {
+    if (type === "popstate" || type === "link") {
+      query = page.url.searchParams.get("q") ?? "";
+      strictness = readStrictness(page.url.searchParams.get("strictness"));
+    }
+  });
   let composing = $state(false);
   let attempt = $state(0);
   let input: HTMLInputElement;
-  let searchState = $state<SearchState>({ status: "idle" });
+  let pending = $state(false);
   const term = $derived(query.trim());
   const charactersNeeded = $derived(
     Math.max(0, searchConfiguration.minimumCharacters - [...term].length),
+  );
+  const searchState = $derived<SearchState>(
+    composing || charactersNeeded
+      ? { status: "idle" }
+      : pending ||
+          model.query.trim() !== term ||
+          model.strictness !== strictness
+        ? { status: "loading", term }
+        : model.result,
   );
   const announcement = $derived(
     searchState.status === "loading"
@@ -54,43 +65,36 @@
     if (
       composing ||
       [...currentTerm].length < searchConfiguration.minimumCharacters
-    ) {
-      searchState = { status: "idle" };
+    )
       return;
-    }
-
-    const controller = new AbortController();
+    if (
+      !currentAttempt &&
+      untrack(
+        () =>
+          model.query.trim() === currentTerm &&
+          model.strictness === currentStrictness,
+      )
+    )
+      return;
     let current = true;
-    searchState = { status: "loading", term: currentTerm };
     const timer = setTimeout(
       async () => {
+        const url = new URL(window.location.href);
+        url.searchParams.set("q", currentTerm);
+        url.searchParams.set("strictness", String(currentStrictness));
+        pending = true;
         try {
-          const entities = await searchEntities(
-            currentTerm,
-            controller.signal,
-            currentStrictness,
-          );
-          if (current)
-            searchState = { status: "success", term: currentTerm, entities };
-        } catch (error) {
-          if (current)
-            searchState = {
-              status: "error",
-              term: currentTerm,
-              message:
-                error instanceof Error
-                  ? error.message
-                  : "Search couldn’t load. Try again.",
-            };
+          await goto(url, { replace: true, reset: false, refreshAll: true });
+        } finally {
+          if (current) pending = false;
         }
       },
-      currentAttempt > 0 ? 0 : searchConfiguration.debounceMs,
+      currentAttempt ? 0 : searchConfiguration.debounceMs,
     );
-
     return () => {
       current = false;
+      pending = false;
       clearTimeout(timer);
-      controller.abort();
     };
   });
 
@@ -100,7 +104,12 @@
     const url = new URL(window.location.href);
     if (value.trim()) url.searchParams.set("q", value.trim());
     else url.searchParams.delete("q");
-    window.history.replaceState(null, "", url);
+    void goto(url, {
+      shallow: true,
+      replace: true,
+      reset: false,
+      state: page.state,
+    });
   }
 
   function updateStrictness(value: string) {
@@ -108,7 +117,12 @@
     strictness = readStrictness(value);
     const url = new URL(window.location.href);
     url.searchParams.set("strictness", String(strictness));
-    window.history.replaceState(null, "", url);
+    void goto(url, {
+      shallow: true,
+      replace: true,
+      reset: false,
+      state: page.state,
+    });
   }
 
   function clearSearch() {
@@ -160,15 +174,7 @@
   }
 </script>
 
-<svelte:window
-  onkeydown={shortcut}
-  onpopstate={() => {
-    const params = new URL(window.location.href).searchParams;
-    query = params.get("q") ?? "";
-    strictness = readStrictness(params.get("strictness"));
-    attempt = 0;
-  }}
-/>
+<svelte:window onkeydown={shortcut} />
 
 <main id="search">
   <div class="search-intro">
@@ -336,7 +342,7 @@
             <EntityIndicator {entity} />
             <div class="entity-text">
               <a
-                href={entityHref(entity)}
+                href={entityHref(entity, page.url.searchParams)}
                 class="entity-name"
                 aria-describedby={entity.matchSource.kind === "alias"
                   ? `matched-alias-${entity.id}`
