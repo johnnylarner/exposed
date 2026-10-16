@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { chromium, expect } from "@playwright/test";
 
-const [baseURL, evidenceDirectory] = process.argv.slice(2);
+const [baseURL, evidenceDirectory, responseFile] = process.argv.slice(2);
 assert(
-  baseURL && evidenceDirectory,
-  "Usage: search.mjs <loopback-url> <new-evidence-directory>",
+  baseURL && evidenceDirectory && responseFile,
+  "Usage: search.mjs <frontend-loopback-url> <new-evidence-directory> <reference-api-json>",
 );
 const origin = new URL(baseURL);
 assert(
@@ -32,14 +32,19 @@ try {
   page.setDefaultTimeout(15_000);
   const requests = [];
   const pageErrors = [];
+  const backendRequests = [];
   page.on("request", (request) => {
-    if (new URL(request.url()).pathname === "/api/search")
+    const url = new URL(request.url());
+    if (url.pathname.startsWith("/api/") || url.origin !== origin.origin)
+      backendRequests.push(request.url());
+    if (request.resourceType() === "fetch" && url.searchParams.has("q"))
       requests.push(request.url());
   });
   page.on("pageerror", (error) => pageErrors.push(error.message));
   try {
     console.log("Open Exposed and focus search with the slash shortcut.");
-    await page.goto("/");
+    await page.goto("/?strictness=1");
+    await page.waitForLoadState("networkidle");
     await expect(
       page.getByRole("link", { name: "Exposed home" }),
     ).toBeVisible();
@@ -73,18 +78,9 @@ try {
     console.log(
       "Type John and compare rendered names with the real API response.",
     );
-    const responsePromise = page.waitForResponse((response) => {
-      const url = new URL(response.url());
-      return (
-        url.pathname === "/api/search" &&
-        url.searchParams.get("term") === "John"
-      );
-    });
+    const bodyText = await readFile(responseFile, "utf8");
     await input.fill("  John  ");
-    const response = await responsePromise;
-    const bodyText = await response.text();
     await writeFile(`${evidence}/response.json`, bodyText);
-    assert.equal(response.status(), 200);
     const body = JSON.parse(bodyText);
     assert.deepEqual(
       body.entities
@@ -102,9 +98,6 @@ try {
       ),
       "Search MPs have stable Parliament IDs",
     );
-    const request = new URL(response.url());
-    assert.equal(request.searchParams.get("max_entries"), "10");
-    assert.equal(request.searchParams.get("strictness"), "1");
     await expect(
       page.getByRole("heading", { name: "2 results shown" }),
     ).toBeVisible();
@@ -137,6 +130,15 @@ try {
     await expect(page.locator(".entity-row")).toHaveCount(0);
     assert.equal(new URL(page.url()).searchParams.has("q"), false);
     assert.deepEqual(pageErrors, []);
+    assert.deepEqual(
+      backendRequests,
+      [],
+      "Browser requests only the SvelteKit frontend",
+    );
+    assert(
+      requests.some((url) => new URL(url).searchParams.get("q") === "John"),
+      "Search uses SvelteKit page data",
+    );
     await page.screenshot({ path: `${evidence}/cleared.png`, fullPage: true });
     await writeFile(
       `${evidence}/cleared.aria.txt`,
@@ -155,6 +157,7 @@ try {
           ],
           baseURL: origin.origin,
           requests,
+          backendRequests,
           entities: body.entities,
           pageErrors,
           result: "passed",

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { formatPounds } from "./lib/member-summary";
   import Icon from "./lib/Icon.svelte";
   import { memberHref, type MemberProfile } from "./lib/entity-details";
@@ -31,11 +32,11 @@
     </div>{/if}
   <nav class="member-tabs" aria-label="Member views">
     <a
-      href={memberHref(member.id, "summary")}
+      href={memberHref(member.id, "summary", page.url.searchParams)}
       aria-current={view === "summary" ? "page" : undefined}>Summary</a
     >
     <a
-      href={memberHref(member.id, "history")}
+      href={memberHref(member.id, "history", page.url.searchParams)}
       aria-current={view === "history" ? "page" : undefined}
       >Declaration history</a
     >

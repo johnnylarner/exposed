@@ -1,12 +1,12 @@
 <script lang="ts">
   import SearchPage from "./SearchPage.svelte";
   import EntityDetails from "./EntityDetails.svelte";
-  import { readDetailRoute } from "./lib/entity-details";
-  const route = readDetailRoute(window.location.pathname);
+  import type { PageModel } from "./lib/page";
+  let { model }: { model: PageModel } = $props();
 </script>
 
-<a class="skip-link" href={route.kind === "search" ? "#search" : "#details"}
-  >Skip to {route.kind === "search" ? "search" : "details"}</a
+<a class="skip-link" href={model.kind === "search" ? "#search" : "#details"}
+  >Skip to {model.kind === "search" ? "search" : "details"}</a
 >
 <div class="app-shell">
   <header class="app-header">
@@ -14,8 +14,8 @@
     <span class="header-context">UK Parliament</span>
   </header>
 
-  {#if route.kind === "search"}<SearchPage />{:else}<EntityDetails
-      {route}
+  {#if model.kind === "search"}<SearchPage {model} />{:else}<EntityDetails
+      {model}
     />{/if}
   <footer class="app-footer">
     <span>Contains Parliamentary information.</span><a

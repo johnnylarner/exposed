@@ -21,10 +21,10 @@ Users find MPs and funders by entering a name or choosing an example. Keyboard c
 
 ## Driving it with Playwright
 
-Preconditions: Launch and Doctor passed with the fixture database. Use a fresh browser context and the default threshold of 1.
+Preconditions: Launch and Doctor passed with the fixture database. Use a fresh browser context and an explicit threshold of 1.
 
-- Run `PLAYWRIGHT_BROWSERS_PATH=0 frontend/.agents/skills/verify/scripts/search.mjs "$VERIFY_BASE_URL" "$VERIFY_EVIDENCE/search"` from the repository root. It proves the slash shortcut, short-query Enter, typed `John`, and the clear button against the live backend. Its `proof.json` lists those entry points.
-- To check valid Enter, run `await page.getByRole("searchbox").fill("John"); await page.getByRole("searchbox").press("Enter");`. Require **2 results shown** and a real `/api/search` response with `term=John`, `max_entries=10`, and `strictness=1`.
+- Run `PLAYWRIGHT_BROWSERS_PATH=0 frontend/.agents/skills/verify/scripts/search.mjs "$VERIFY_BASE_URL" "$VERIFY_EVIDENCE/search" "$VERIFY_EVIDENCE/ready.json"` from the repository root. It proves the slash shortcut, short-query Enter, typed `John`, and the clear button against the live backend. Its `proof.json` lists those entry points.
+- To check valid Enter, run `await page.getByRole("searchbox").fill("John"); await page.getByRole("searchbox").press("Enter");`. Require **2 results shown** and a real internal `/search` response with `term=John`, `max_entries=10`, and `strictness=1`.
 - From `/`, run `await page.getByRole("button", { name: "John", exact: true }).click();`. Require both fixture MPs and a focused searchbox. Repeat from `/` with the **HSBC** button and require the empty state for `HSBC`.
 - After typing `John`, run `await page.getByRole("searchbox").press("Escape");`. Require an empty, focused input, no `.entity-row`, no `q` URL parameter, and **Start with a name**.
 - From a fresh `/` load, run `await page.keyboard.press("Tab"); await expect(page.getByRole("link", { name: "Skip to search" })).toBeFocused(); await page.keyboard.press("Enter");`. Require the `#search` fragment and the main search section in view.

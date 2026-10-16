@@ -64,17 +64,17 @@ npm --prefix frontend ci --no-audit --no-fund
 (cd frontend && PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium)
 curl --fail --silent --show-error --retry 90 --retry-delay 2 \
 	--retry-all-errors --max-time 3 \
-	"$VERIFY_BASE_URL/api/search?term=John&max_entries=10&strictness=1" \
+	"$VERIFY_API_URL/search?term=John&max_entries=10&strictness=1" \
 	> "$VERIFY_EVIDENCE/ready.json"
 ```
 
-Readiness requires an HTTP 200 from that proxied search with both fixture MPs. The Rust log says `Listening on http://localhost:6999` inside the container. A frontend HTML response alone does not establish API readiness. The first Rust build can take longer than the frontend startup. If the bounded retry fails, inspect the Compose logs, run Doctor, and clean up before retrying.
+Readiness requires an HTTP 200 from that internal API search with both fixture MPs. The verification override publishes Rust on a random loopback port for observation; the application Compose file publishes only the frontend. SvelteKit server loaders call Rust through the private container network. The Rust log says `Listening on http://localhost:6999` inside the container. A frontend HTML response alone does not establish API readiness. The first Rust build can take longer than the frontend startup. If the bounded retry fails, inspect the Compose logs, run Doctor, and clean up before retrying.
 
 The current checkout contains a later migration that removes term tables as well as the initial baseline. Apply the checked-in migrations as they are. Do not change migration history to run this skill. See `db/README.md` for schema work.
 
 ## Doctor
 
-Run this read-only check before driving and whenever an instance looks wrong. It checks container ownership, the source mount, running state, the Vite proxy, and the expected database fixtures. A failed check means the instance is not ready to drive.
+Run this read-only check before driving and whenever an instance looks wrong. It checks container ownership, the source mount, running state, the SvelteKit server and internal API, and the expected database fixtures. A failed check means the instance is not ready to drive.
 
 ```bash
 (
@@ -90,7 +90,7 @@ Run this read-only check before driving and whenever an instance looks wrong. It
 		fi
 	done
 	curl --fail --silent --show-error --max-time 5 \
-		"$VERIFY_BASE_URL/api/search?term=John&max_entries=10&strictness=1" |
+		"$VERIFY_API_URL/search?term=John&max_entries=10&strictness=1" |
 		python3 -c 'import json,sys; rows=json.load(sys.stdin)["entities"]; assert len(rows)==2 and {r["name"] for r in rows}=={"John McDonnell","John Humphries"} and all(r["kind"]=="MP" for r in rows); print("Doctor passed: owned stack, real API, expected MPs")'
 ) | tee "$VERIFY_EVIDENCE/doctor.log"
 ```
@@ -109,7 +109,7 @@ docker compose -f compose.yaml -f "$VERIFY_COMPOSE" \
 	> "$VERIFY_EVIDENCE/database-before.sql"
 PLAYWRIGHT_BROWSERS_PATH=0 \
 	frontend/.agents/skills/verify/scripts/search.mjs \
-	"$VERIFY_BASE_URL" "$VERIFY_EVIDENCE/search" \
+	"$VERIFY_BASE_URL" "$VERIFY_EVIDENCE/search" "$VERIFY_EVIDENCE/ready.json" \
 	> "$VERIFY_EVIDENCE/search.log" 2>&1
 docker compose -f compose.yaml -f "$VERIFY_COMPOSE" \
 	-p "$VERIFY_PROJECT" exec -T postgres \
@@ -119,11 +119,11 @@ docker compose -f compose.yaml -f "$VERIFY_COMPOSE" \
 cmp "$VERIFY_EVIDENCE/database-before.sql" "$VERIFY_EVIDENCE/database-after.sql"
 ```
 
-The helper uses the installed Playwright package and its Chromium browser. It launches a fresh browser context, exercises the short-query gate, focuses search with `/`, types `John`, compares visible names with the real response, and clears with the button. It closes its browser even after an assertion fails. Exit code 0 and `search/proof.json` establish this path. Other mapped entry points still need their own actions.
+The helper uses the installed Playwright package and its Chromium browser. It reads the real API response captured during readiness and verifies that the browser only requests the SvelteKit frontend. It selects strictness 1 explicitly for the fixture assertions. It launches a fresh browser context, exercises the short-query gate, focuses search with `/`, types `John`, compares visible names with the real response, and clears with the button. It closes its browser even after an assertion fails. Exit code 0 and `search/proof.json` establish this path. Other mapped entry points still need their own actions.
 
 For another feature, copy the helper to a unique `.mjs` file beside it so Node can resolve `frontend/node_modules`. Adapt its actions using the matching feature recipe, and pass a new evidence subdirectory. Keep its trace, failure capture, and browser cleanup. Remove that temporary script in Cleanup. Do not register `page.route` handlers for live proof.
 
-The existing `frontend/tests/search.spec.ts` suite controls the API with fabricated responses. Use it to supplement cancellation and error-edge checks, and label its output as frontend-only. It is not evidence that Rust or PostgreSQL worked. Its fixed port 4173 and server reuse also need care. Run it with `CI=1` and only when port 4173 is free.
+The existing `frontend/tests/search.spec.ts` suite runs the production SvelteKit build against a worker-isolated HTTP test backend. Use it to supplement cancellation and error-edge checks, and label its output as frontend-only. It is not evidence that Rust or PostgreSQL worked. Run it with `npm --prefix frontend test`; each worker starts its own frontend process.
 
 ## Evidence
 
@@ -157,7 +157,7 @@ printf 'Evidence retained at %s\n' "$VERIFY_EVIDENCE"
 
 ## Helpers
 
-- Execute `scripts/search.mjs` as shown in Drive. Its arguments are the owned frontend's loopback URL and a new evidence subdirectory. It requires the fixture database.
+- Execute `scripts/search.mjs` as shown in Drive. Its arguments are the owned frontend loopback URL, a new evidence subdirectory, and the reference API JSON file from readiness. It requires the fixture database.
 - Use `compose.yaml` from this skill as the second Compose file, as shown in Launch. Its `!override` port lists replace the root file's fixed host ports and require Compose 2.24.4 or newer.
 - Open a saved trace with `cd frontend && npx playwright show-trace "$VERIFY_EVIDENCE/search/trace.zip"`.
 

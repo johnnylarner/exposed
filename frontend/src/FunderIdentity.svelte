@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { formatPounds } from "./lib/member-summary";
   import { funderHref, type FunderDetails } from "./lib/entity-details";
   import { funderKindLabel } from "./lib/search";
@@ -34,11 +35,11 @@
     </div>{/if}
   <nav class="member-tabs" aria-label="Funder views">
     <a
-      href={funderHref(details.funder.id, "summary")}
+      href={funderHref(details.funder.id, "summary", page.url.searchParams)}
       aria-current={view === "summary" ? "page" : undefined}>Summary</a
     >
     <a
-      href={funderHref(details.funder.id, "history")}
+      href={funderHref(details.funder.id, "history", page.url.searchParams)}
       aria-current={view === "history" ? "page" : undefined}>Funding history</a
     >
   </nav>
