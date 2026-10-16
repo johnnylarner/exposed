@@ -29,11 +29,13 @@ use crate::{
 
 pub mod config;
 mod config_help;
+mod healthcheck;
 mod migrate;
 pub mod response;
 mod response_help;
 mod stages;
 
+pub use healthcheck::run_healthcheck;
 pub use migrate::{MigrateArgs, run_migrate};
 pub use response::{CliSuccess, IntoResponse, Response};
 
@@ -51,6 +53,8 @@ pub struct ExposedCli {
 pub enum Commands {
     /// Start an instance of the `exposed` server
     Server,
+    /// Check whether the local HTTP server responds.
+    Healthcheck,
     /// Options to run the `exposed` data pipeline
     Data(DataArgs),
     /// Apply database migrations explicitly.
