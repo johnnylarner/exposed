@@ -1,6 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "./backend";
 
 test("live search preserves API ranking, spelling, duplicates and entity context", async ({
+  backend,
   page,
 }) => {
   const entities = [
@@ -55,7 +56,7 @@ test("live search preserves API ranking, spelling, duplicates and entity context
     },
   ];
   const requests: URL[] = [];
-  await page.route("**/api/search?*", async (route) => {
+  await backend.route("**/api/search?*", async (route) => {
     requests.push(new URL(route.request().url()));
     await route.fulfill({ json: { entities } });
   });
@@ -129,6 +130,7 @@ test("live search preserves API ranking, spelling, duplicates and entity context
 });
 
 test("a late response cannot replace a newer query or repopulate a cleared search", async ({
+  backend,
   page,
 }) => {
   let releaseOld: () => void = () => {};
@@ -139,7 +141,7 @@ test("a late response cannot replace a newer query or repopulate a cleared searc
   const oldHandled = new Promise<void>((resolve) => {
     finishOld = resolve;
   });
-  await page.route("**/api/search?*", async (route) => {
+  await backend.route("**/api/search?*", async (route) => {
     const term = new URL(route.request().url()).searchParams.get("term");
     if (term === "John") await oldResponse;
     await route.fulfill({
@@ -159,7 +161,7 @@ test("a late response cannot replace a newer query or repopulate a cleared searc
   });
   await page.goto("/");
   const input = page.getByRole("searchbox");
-  const oldRequest = page.waitForRequest((request) =>
+  const oldRequest = backend.waitForRequest((request) =>
     request.url().includes("term=John"),
   );
   await input.fill("John");
@@ -181,10 +183,11 @@ test("a late response cannot replace a newer query or repopulate a cleared searc
 });
 
 test("an unavailable service offers retry and an empty response offers a useful next step", async ({
+  backend,
   page,
 }) => {
   let calls = 0;
-  await page.route("**/api/search?*", async (route) => {
+  await backend.route("**/api/search?*", async (route) => {
     calls += 1;
     if (calls === 1)
       await route.fulfill({ status: 503, body: "service unavailable" });
@@ -207,10 +210,11 @@ test("an unavailable service offers retry and an empty response offers a useful 
 });
 
 test("search text and names containing markup or regular expression syntax remain literal", async ({
+  backend,
   page,
 }) => {
   const name = 'A.* <img src=x onerror="alert(1)"> & Co';
-  await page.route("**/api/search?*", (route) =>
+  await backend.route("**/api/search?*", (route) =>
     route.fulfill({
       json: {
         entities: [
@@ -233,10 +237,11 @@ test("search text and names containing markup or regular expression syntax remai
 });
 
 test("keyboard search and long results remain usable on a narrow screen", async ({
+  backend,
   page,
 }) => {
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.route("**/api/search?*", (route) =>
+  await backend.route("**/api/search?*", (route) =>
     route.fulfill({
       json: {
         entities: [
@@ -252,6 +257,7 @@ test("keyboard search and long results remain usable on a narrow screen", async 
     }),
   );
   await page.goto("/");
+  await page.waitForLoadState("networkidle");
   await page.keyboard.press("/");
   await expect(page.getByRole("searchbox")).toBeFocused();
   await page.getByRole("searchbox").fill("Association");
@@ -273,13 +279,14 @@ test("keyboard search and long results remain usable on a narrow screen", async 
 });
 
 test("alias provenance preserves canonical navigation and escapes highlighted alias text on mobile", async ({
+  backend,
   page,
 }) => {
   const id = "10000000-0000-0000-0000-000000000009";
   const alias =
     'West Midlands <img src=x onerror="alert(1)"> ' + "Union".repeat(80);
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.route("**/api/search?*", (route) =>
+  await backend.route("**/api/search?*", (route) =>
     route.fulfill({
       json: {
         entities: [
@@ -332,9 +339,10 @@ for (const invalid of [
   { kind: "alias" },
 ]) {
   test(`rejects malformed match source ${JSON.stringify(invalid)}`, async ({
+    backend,
     page,
   }) => {
-    await page.route("**/api/search?*", (route) =>
+    await backend.route("**/api/search?*", (route) =>
       route.fulfill({
         json: {
           entities: [
@@ -357,8 +365,8 @@ for (const invalid of [
   });
 }
 
-test("rejects alias source for an MP", async ({ page }) => {
-  await page.route("**/api/search?*", (route) =>
+test("rejects alias source for an MP", async ({ backend, page }) => {
+  await backend.route("**/api/search?*", (route) =>
     route.fulfill({
       json: {
         entities: [
@@ -383,12 +391,13 @@ for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
   const modifiers = { metaKey: mac, ctrlKey: !mac };
 
   test(`${platform} search shortcut focuses search and preserves its query`, async ({
+    backend,
     page,
   }) => {
     await page.addInitScript((platform) => {
       Object.defineProperty(navigator, "platform", { value: platform });
     }, platform);
-    await page.route("**/api/search?*", (route) =>
+    await backend.route("**/api/search?*", (route) =>
       route.fulfill({ json: { entities: [] } }),
     );
     await page.goto("/");
@@ -476,6 +485,7 @@ for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
     await page.keyboard.press("Escape");
     await expect(input).toHaveValue("");
     await page.getByRole("link", { name: "Exposed home" }).focus();
+    await page.waitForLoadState("networkidle");
     await page.keyboard.press("/");
     await expect(input).toBeFocused();
     await page.goto("/members/1");
@@ -491,5 +501,39 @@ for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
     }, modifiers);
     expect(detailPrevented).toBe(false);
     await expect(page.getByRole("searchbox")).toHaveCount(0);
+  });
+}
+
+for (const replacement of ["", "Jo"]) {
+  test(`a pending search cannot restore the URL after replacing it with ${JSON.stringify(replacement)}`, async ({
+    page,
+    backend,
+  }) => {
+    let release: () => void = () => {};
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await backend.route("**/api/search?*", async (route) => {
+      await pending;
+      await route.fulfill({ json: { entities: [] } });
+    });
+    await page.goto("/");
+    const input = page.getByRole("searchbox");
+    const started = backend.waitForRequest((request) =>
+      request.url().includes("term=John"),
+    );
+    await input.fill("John");
+    await started;
+    if (replacement) await input.fill(replacement);
+    else await page.getByRole("button", { name: "Clear search" }).click();
+    await expect(page).not.toHaveURL(/q=John/);
+    release();
+    await page.waitForLoadState("networkidle");
+    await expect(input).toHaveValue(replacement);
+    await expect(page).not.toHaveURL(/q=John/);
+    expect(new URL(page.url()).searchParams.get("q") ?? "").toBe(replacement);
+    await expect(
+      page.getByRole("heading", { name: "Start with a name" }),
+    ).toBeVisible();
   });
 }

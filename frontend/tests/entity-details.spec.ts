@@ -1,4 +1,4 @@
-import { expect, test, type BrowserContext } from "@playwright/test";
+import { expect, test, type Backend } from "./backend";
 
 const funderId = "10000000-0000-0000-0000-000000000001";
 const member = {
@@ -222,8 +222,8 @@ const funderDetails = {
   ],
 };
 
-async function mockDetails(context: BrowserContext) {
-  await context.route("**/api/search?*", (route) =>
+async function mockDetails(backend: Backend) {
+  await backend.route("**/api/search?*", (route) =>
     route.fulfill({
       json: {
         entities: [
@@ -245,19 +245,20 @@ async function mockDetails(context: BrowserContext) {
       },
     }),
   );
-  await context.route("**/api/members/*", (route) =>
+  await backend.route("**/api/members/*", (route) =>
     route.fulfill({ json: memberDetails }),
   );
-  await context.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({ json: funderDetails }),
   );
 }
 
 test("native links preserve search and threshold through details, back, reload and new tabs", async ({
+  backend,
   page,
   context,
 }) => {
-  await mockDetails(context);
+  await mockDetails(backend);
   await page.goto("/?q=Example&strictness=0.42");
   const link = page.getByRole("link", { name: "Ava Example", exact: true });
   await expect(link).toHaveAttribute(
@@ -307,9 +308,10 @@ test("native links preserve search and threshold through details, back, reload a
 });
 
 test("member summary shows recent declarations when none are donations", async ({
+  backend,
   page,
 }) => {
-  await page.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -353,6 +355,7 @@ test("member summary shows recent declarations when none are donations", async (
 });
 
 test("member summary shows only the first five declarations in history order", async ({
+  backend,
   page,
 }) => {
   const declarations = Array.from({ length: 7 }, (_, index) => ({
@@ -362,7 +365,7 @@ test("member summary shows only the first five declarations in history order", a
     category_name: index === 0 ? "Support" : "Employment",
     entries: [],
   }));
-  await page.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1", (route) =>
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
   await page.goto("/members/1");
@@ -378,10 +381,11 @@ test("member summary shows only the first five declarations in history order", a
 });
 
 test("member declarations retain duplicate precise amounts and missing source fields", async ({
+  backend,
   page,
   context,
 }) => {
-  await mockDetails(context);
+  await mockDetails(backend);
   await page.goto("/members/1/history");
   await expect(page.locator(".profile-type")).toHaveText("MP");
   await expect(page.locator(".member-total")).toHaveCount(0);
@@ -407,10 +411,11 @@ test("member declarations retain duplicate precise amounts and missing source fi
 });
 
 test("funder summary uses authoritative total, positive pie shares and reveals exact party totals", async ({
+  backend,
   page,
   context,
 }) => {
-  await mockDetails(context);
+  await mockDetails(backend);
   await page.goto(`/funders/${funderId}?q=Example&strictness=0.42`);
   await expect(page.locator(".member-total")).toHaveText(
     "£18,014,398,509,481,981.246913578",
@@ -461,6 +466,7 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
 });
 
 test("funding history retains sources, duplicate amounts and date paging", async ({
+  backend,
   page,
 }) => {
   const declarations = Array.from({ length: 12 }, (_, index) => ({
@@ -489,7 +495,7 @@ test("funding history retains sources, duplicate amounts and date paging", async
       ],
     },
   }));
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({ json: { ...funderDetails, declarations } }),
   );
   await page.goto(`/funders/${funderId}/history?q=Example&strictness=0.42`);
@@ -539,6 +545,7 @@ test("funding history retains sources, duplicate amounts and date paging", async
 });
 
 test("funder boundary rejects missing totals and malformed source history", async ({
+  backend,
   page,
 }) => {
   for (const body of [
@@ -560,19 +567,20 @@ test("funder boundary rejects missing totals and malformed source history", asyn
       currencies: [{ ...funderDetails.currencies[1], amount: undefined }],
     },
   ]) {
-    await page.route("**/api/funders/*", (route) =>
+    await backend.route("**/api/funders/*", (route) =>
       route.fulfill({ json: body }),
     );
     await page.goto(`/funders/${funderId}`);
     await expect(page.getByRole("alert")).toContainText("unexpected response");
-    await page.unroute("**/api/funders/*");
+    await backend.unroute("**/api/funders/*");
   }
 });
 
 test("former MPs retain their latest membership description without a constituency label", async ({
+  backend,
   page,
 }) => {
-  await page.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -591,10 +599,11 @@ test("former MPs retain their latest membership description without a constituen
 });
 
 test("errors allow retry and missing or invalid routes offer search navigation", async ({
+  backend,
   page,
 }) => {
   let calls = 0;
-  await page.route("**/api/members/*", async (route) => {
+  await backend.route("**/api/members/*", async (route) => {
     calls += 1;
     await route.fulfill(
       calls === 1
@@ -609,7 +618,7 @@ test("errors allow retry and missing or invalid routes offer search navigation",
   await expect(
     page.getByRole("heading", { name: member.name, exact: true }),
   ).toBeVisible();
-  await page.route("**/api/members/999", (route) =>
+  await backend.route("**/api/members/999", (route) =>
     route.fulfill({ status: 404 }),
   );
   await page.goto("/members/999?q=Example");
@@ -627,9 +636,10 @@ test("errors allow retry and missing or invalid routes offer search navigation",
 });
 
 test("empty details and unknown currency only details remain distinct from errors", async ({
+  backend,
   page,
 }) => {
-  await page.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -643,7 +653,7 @@ test("empty details and unknown currency only details remain distinct from error
       },
     }),
   );
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -664,7 +674,7 @@ test("empty details and unknown currency only details remain distinct from error
   await expect(
     page.getByText("No funding entries are stored for this funder."),
   ).toBeVisible();
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -681,16 +691,17 @@ test("empty details and unknown currency only details remain distinct from error
 });
 
 test("malformed responses and mismatched identities fail at the boundary", async ({
+  backend,
   page,
 }) => {
-  await page.route("**/api/members/*", (route) =>
+  await backend.route("**/api/members/*", (route) =>
     route.fulfill({
       json: { ...memberDetails, member: { ...member, id: "2" } },
     }),
   );
   await page.goto("/members/1");
   await expect(page.getByRole("alert")).toContainText("unexpected response");
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -716,12 +727,13 @@ test("malformed responses and mismatched identities fail at the boundary", async
 });
 
 test("long names and exact amounts fit mobile and source markup stays literal", async ({
+  backend,
   page,
 }) => {
   const longName =
     'Association <img src=x onerror="alert(1)"> for Research and Public Interest Organisations';
   await page.setViewportSize({ width: 360, height: 780 });
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -757,7 +769,7 @@ test("long names and exact amounts fit mobile and source markup stays literal", 
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await page.route("**/api/members/*", (route) =>
+  await backend.route("**/api/members/*", (route) =>
     route.fulfill({
       json: { ...memberDetails, member: { ...member, name: longName } },
     }),
@@ -776,22 +788,18 @@ test("long names and exact amounts fit mobile and source markup stays literal", 
 });
 
 test("detail timeout offers retry and leaving a loading page cancels its result", async ({
+  backend,
   page,
 }) => {
-  await page.clock.install();
   let release: () => void = () => {};
   const pending = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await page.route("**/api/members/*", async (route) => {
+  await backend.route("**/api/members/*", async (route) => {
     await pending;
     await route.fulfill({ json: memberDetails }).catch(() => {});
   });
   await page.goto("/members/1?q=Example");
-  await expect(
-    page.getByRole("heading", { name: "Loading details" }),
-  ).toBeVisible();
-  await page.clock.fastForward(10_001);
   await expect(page.getByRole("alert")).toContainText(
     "Details are taking too long",
   );
@@ -799,12 +807,11 @@ test("detail timeout offers retry and leaving a loading page cancels its result"
   await expect(
     page.getByRole("heading", { name: "Loading details" }),
   ).toBeVisible();
-  await page.route("**/api/search?*", (route) =>
+  await backend.route("**/api/search?*", (route) =>
     route.fulfill({ json: { entities: [] } }),
   );
   await page.getByRole("link", { name: "Back to search", exact: true }).click();
   release();
-  await page.clock.fastForward(300);
   await expect(page.getByRole("searchbox")).toHaveValue("Example");
   await expect(
     page.getByRole("heading", { name: member.name, exact: true }),
@@ -812,10 +819,11 @@ test("detail timeout offers retry and leaving a loading page cancels its result"
 });
 
 test("recorded names retain stored variants for every funder kind and hide empty lists", async ({
+  backend,
   page,
 }) => {
   for (const kind of ["Company", "Individual", null]) {
-    await page.route("**/api/funders/*", (route) =>
+    await backend.route("**/api/funders/*", (route) =>
       route.fulfill({
         json: {
           ...funderDetails,
@@ -831,7 +839,7 @@ test("recorded names retain stored variants for every funder kind and hide empty
     await expect(names).toHaveCount(funderDetails.funder.aliases.length);
     expect(await names.allTextContents()).toEqual(funderDetails.funder.aliases);
   }
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -850,9 +858,10 @@ test("recorded names retain stored variants for every funder kind and hide empty
 
 for (const aliases of [null, "Exact Funder", ["Exact Funder", 42]]) {
   test(`malformed recorded names ${JSON.stringify(aliases)} fail at the boundary`, async ({
+    backend,
     page,
   }) => {
-    await page.route("**/api/funders/*", (route) =>
+    await backend.route("**/api/funders/*", (route) =>
       route.fulfill({
         json: {
           ...funderDetails,
@@ -870,9 +879,10 @@ for (const aliases of [null, "Exact Funder", ["Exact Funder", 42]]) {
 
 for (const negative of [false, true]) {
   test(`category bars show full-track shares with negative amounts ${negative}`, async ({
+    backend,
     page,
   }) => {
-    await page.route("**/api/members/1", (route) =>
+    await backend.route("**/api/members/1", (route) =>
       route.fulfill({
         json: {
           ...memberDetails,
@@ -933,10 +943,11 @@ for (const negative of [false, true]) {
 }
 
 test("member summary displays server totals, signed category bars, zero and unavailable amounts", async ({
+  backend,
   page,
   context,
 }) => {
-  await mockDetails(context);
+  await mockDetails(backend);
   await page.goto("/members/1");
   await expect(page.locator(".member-total")).toHaveText(
     "£18,014,398,509,481,986.246913578",
@@ -965,6 +976,7 @@ test("member summary displays server totals, signed category bars, zero and unav
 });
 
 test("history filters the full dataset before paging and resets page for date changes", async ({
+  backend,
   page,
 }) => {
   const declarations = Array.from({ length: 25 }, (_, index) => ({
@@ -977,7 +989,7 @@ test("history filters the full dataset before paging and resets page for date ch
         : `2026-01-${String(25 - index).padStart(2, "0")}T23:59:59Z`,
     entries: [],
   }));
-  await page.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1", (route) =>
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
   await page.goto("/members/1/history?q=Example&strictness=0.42");
@@ -1036,9 +1048,10 @@ test("history filters the full dataset before paging and resets page for date ch
 });
 
 test("party pie keeps zero and unavailable totals and explains unavailable shares", async ({
+  backend,
   page,
 }) => {
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -1084,6 +1097,7 @@ for (const amounts of [
   [null, "0"],
 ]) {
   test(`party legend exposes totals for ${amounts.join("/")}`, async ({
+    backend,
     page,
   }) => {
     const currencies = funderDetails.currencies.map((group) =>
@@ -1097,7 +1111,7 @@ for (const amounts of [
             })),
           },
     );
-    await page.route("**/api/funders/*", (route) =>
+    await backend.route("**/api/funders/*", (route) =>
       route.fulfill({ json: { ...funderDetails, currencies } }),
     );
     await page.goto(`/funders/${funderId}`);
@@ -1141,6 +1155,7 @@ for (const amounts of [
 }
 
 test("party tooltip persists when the pointer crosses between pie slices", async ({
+  backend,
   page,
 }) => {
   const currencies = funderDetails.currencies.map((group) =>
@@ -1152,7 +1167,7 @@ test("party tooltip persists when the pointer crosses between pie slices", async
           parties: group.parties.map((party) => ({ ...party, amount: "5" })),
         },
   );
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({ json: { ...funderDetails, currencies } }),
   );
   await page.goto(`/funders/${funderId}`);
@@ -1177,6 +1192,7 @@ test("party tooltip persists when the pointer crosses between pie slices", async
 });
 
 test("small pie slice tooltips do not cover neighboring slices", async ({
+  backend,
   page,
 }) => {
   const currencies = funderDetails.currencies.map((group) =>
@@ -1191,7 +1207,7 @@ test("small pie slice tooltips do not cover neighboring slices", async ({
           })),
         },
   );
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({ json: { ...funderDetails, currencies } }),
   );
   await page.goto(`/funders/${funderId}`);
@@ -1218,10 +1234,11 @@ test("small pie slice tooltips do not cover neighboring slices", async ({
 });
 
 test("party tooltips only open on hover and clicks do not focus pie slices", async ({
+  backend,
   page,
   context,
 }) => {
-  await mockDetails(context);
+  await mockDetails(backend);
   await page.goto(`/funders/${funderId}`);
   const slice = page.locator(".funder-party-chart svg g").first();
   const legend = page.locator(".funder-party-legend li").first();
@@ -1249,12 +1266,17 @@ test("party tooltips only open on hover and clicks do not focus pie slices", asy
   await expect(tooltip).toHaveCount(0);
 });
 
-test("party tooltips do not open on touch", async ({ browser }) => {
+test("party tooltips do not open on touch", async ({
+  backend,
+  browser,
+  baseURL,
+}) => {
   const context = await browser.newContext({
+    baseURL,
     hasTouch: true,
     viewport: { width: 800, height: 900 },
   });
-  await mockDetails(context);
+  await mockDetails(backend);
   const page = await context.newPage();
   await page.goto(`/funders/${funderId}`);
   for (const target of [
@@ -1268,8 +1290,12 @@ test("party tooltips do not open on touch", async ({ browser }) => {
   await context.close();
 });
 
-test("party tooltips close on scroll and resize", async ({ page, context }) => {
-  await mockDetails(context);
+test("party tooltips close on scroll and resize", async ({
+  backend,
+  page,
+  context,
+}) => {
+  await mockDetails(backend);
   await page.goto(`/funders/${funderId}`);
   const legend = page.locator(".funder-party-legend li").first();
   await legend.hover();
@@ -1283,6 +1309,7 @@ test("party tooltips close on scroll and resize", async ({ page, context }) => {
 });
 
 test("member summary timeline merges same-month dates and retains negative monthly bars", async ({
+  backend,
   page,
 }) => {
   const declarations = [
@@ -1311,7 +1338,7 @@ test("member summary timeline merges same-month dates and retains negative month
       ],
     },
   ];
-  await page.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1", (route) =>
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
   await page.goto("/members/1");
@@ -1338,6 +1365,7 @@ test("member summary timeline merges same-month dates and retains negative month
 });
 
 test("funder summary keeps bounded party controls and the five authoritative recipients", async ({
+  backend,
   page,
 }) => {
   const recipients = Array.from({ length: 7 }, (_, index) => ({
@@ -1351,7 +1379,7 @@ test("funder summary keeps bounded party controls and the five authoritative rec
     unknown_amount_count: index === 0 ? 1 : 0,
   }));
   let partyCount = 1;
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -1423,10 +1451,11 @@ test("funder summary keeps bounded party controls and the five authoritative rec
 });
 
 test("funder chart combines Labour controls, counts and exact tooltip while retaining recipient parties", async ({
+  backend,
   page,
 }) => {
   const source = funderDetails.currencies[1];
-  await page.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -1471,5 +1500,70 @@ test("funder chart combines Labour controls, counts and exact tooltip while reta
   await expect(page.locator(".funder-party-chart svg circle")).toHaveCount(1);
   await expect(page.locator(".funder-recipients")).toContainText(
     "Labour (Co-op)",
+  );
+});
+
+test("initial HTML renders search and detail views while browser traffic stays inside Kit", async ({
+  backend,
+  browser,
+  baseURL,
+  page,
+  request,
+}) => {
+  await mockDetails(backend);
+  const html = await request.get("/?q=Example&strictness=0.42");
+  const rendered = await html.text();
+  expect(rendered).toContain('class="entity-name"');
+  expect(rendered).toContain("<title>Search MPs and funders · Exposed</title>");
+  expect(rendered).toContain('name="description"');
+  const context = await browser.newContext({
+    baseURL,
+    javaScriptEnabled: false,
+  });
+  const plainPage = await context.newPage();
+  for (const path of [
+    "/members/1",
+    "/members/1/history",
+    `/funders/${funderId}`,
+    `/funders/${funderId}/history`,
+  ]) {
+    await plainPage.goto(path);
+    await expect(
+      plainPage.getByRole("heading", {
+        name: path.startsWith("/members")
+          ? member.name
+          : funderDetails.funder.name,
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      plainPage.getByRole("link", {
+        name: path.endsWith("/history")
+          ? "Summary"
+          : path.startsWith("/members")
+            ? "Declaration history"
+            : "Funding history",
+        exact: true,
+      }),
+    ).toBeVisible();
+  }
+  await context.close();
+  const browserUrls: string[] = [];
+  page.on("request", (incoming) => browserUrls.push(incoming.url()));
+  await page.goto("/?q=Example&strictness=0.42");
+  await expect(page.getByRole("searchbox")).toBeEnabled();
+  await page.getByRole("link", { name: member.name, exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: member.name, exact: true }),
+  ).toBeVisible();
+  expect(
+    browserUrls.some(
+      (url) =>
+        new URL(url).pathname.startsWith("/api/") ||
+        new URL(url).port === "6999",
+    ),
+  ).toBe(false);
+  expect(browserUrls.every((url) => new URL(url).origin === baseURL)).toBe(
+    true,
   );
 });

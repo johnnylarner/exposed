@@ -7,36 +7,25 @@
   import FunderIdentity from "./FunderIdentity.svelte";
   import FunderSummary from "./FunderSummary.svelte";
   import FunderHistory from "./FunderHistory.svelte";
-  import {
-    backToSearch,
-    loadDetails,
-    type DetailRoute,
-    type DetailState,
-  } from "./lib/entity-details";
-  let { route }: { route: Exclude<DetailRoute, { kind: "search" }> } = $props();
-  let attempt = $state(0);
-  let detailState = $state<DetailState>({ kind: "loading" });
-  const backHref = backToSearch();
-  $effect(() => {
-    const currentRoute = route;
-    void attempt;
-    if (currentRoute.kind === "invalid") {
-      detailState = { kind: "not-found" };
-      return;
+  import { backToSearch, type DetailState } from "./lib/entity-details";
+  import { page, navigating } from "$app/state";
+  import { invalidate } from "$app/navigation";
+  import type { PageModel } from "./lib/page";
+  let { model }: { model: Extract<PageModel, { kind: "detail" }> } = $props();
+  const route = $derived(model.route);
+  let retrying = $state(false);
+  async function retry() {
+    retrying = true;
+    try {
+      await invalidate("exposed:page");
+    } finally {
+      retrying = false;
     }
-    const controller = new AbortController();
-    let current = true;
-    detailState = { kind: "loading" };
-    void loadDetails(currentRoute, controller.signal)
-      .then((result) => {
-        if (current) detailState = result;
-      })
-      .catch(() => {});
-    return () => {
-      current = false;
-      controller.abort();
-    };
-  });
+  }
+  const detailState = $derived<DetailState>(
+    navigating.to || retrying ? { kind: "loading" } : model.result,
+  );
+  const backHref = $derived(backToSearch(page.url.searchParams));
 </script>
 
 <main
@@ -65,7 +54,7 @@
     <div class="detail-message" role="alert">
       <h1>Details couldn’t load</h1>
       <p>{detailState.message}</p>
-      <button class="retry-button" onclick={() => (attempt += 1)}
+      <button class="retry-button" onclick={retry}
         ><Icon name="retry" size={16} />Try again</button
       >
     </div>

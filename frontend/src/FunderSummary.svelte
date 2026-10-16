@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from "$app/state";
   import { onDestroy } from "svelte";
   import { formatPounds } from "./lib/member-summary";
   import { memberHref, type FunderDetails } from "./lib/entity-details";
@@ -191,8 +192,12 @@
           ><tbody>
             {#each recipients as recipient}<tr
                 ><th scope="row"
-                  ><a href={memberHref(recipient.member.id, "summary")}
-                    >{recipient.member.name}</a
+                  ><a
+                    href={memberHref(
+                      recipient.member.id,
+                      "summary",
+                      page.url.searchParams,
+                    )}>{recipient.member.name}</a
                   ><span class="entry-count"
                     >{recipient.member.partyName || "Party unavailable"}</span
                   ></th
