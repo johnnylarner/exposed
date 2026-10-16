@@ -1,6 +1,6 @@
 use clap::Parser;
 use exposed::inbound::{
-    cli::{Commands, ExposedCli, IntoResponse, Response, run_cli, run_migrate},
+    cli::{Commands, ExposedCli, IntoResponse, Response, run_cli, run_healthcheck, run_migrate},
     http::server::run_server,
 };
 
@@ -8,6 +8,10 @@ fn main() -> anyhow::Result<std::process::ExitCode> {
     let args = ExposedCli::parse();
     match args.command {
         Commands::Server => run_server().map(|()| std::process::ExitCode::SUCCESS),
+        Commands::Healthcheck => {
+            tokio::runtime::Runtime::new()?.block_on(run_healthcheck())?;
+            Ok(std::process::ExitCode::SUCCESS)
+        }
         Commands::Migrate(args) => {
             dotenvy::dotenv().ok();
             let response = match tokio::runtime::Runtime::new() {

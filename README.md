@@ -24,6 +24,23 @@ Data commands write one JSON document to stdout on success. Command failures
 write `{"error":{"message":"..."}}` to stderr and exit with code 1. Help and
 argument parsing use Clap's standard output.
 
+## Server healthcheck
+
+`exposed server` listens on port 6999 and fails if that port is already in use.
+`GET /healthz` returns HTTP 204 with an empty body while the HTTP server responds.
+This is a liveness check. It does not query the database or establish readiness
+for search and detail requests.
+
+Run `exposed healthcheck` to probe `http://127.0.0.1:6999/healthz`. The command
+needs no configuration or `DATABASE_URL` and does not load `.env`. It bypasses
+proxies, rejects redirects and every status except 204, and times out after two
+seconds. Success exits with code 0 and no output. Failure exits with code 1 and
+writes an error to stderr.
+
+The production `binary` image runs this probe every 30 seconds. The development
+Compose service runs the compiled debug binary and allows 120 seconds for its
+initial compilation before counting failures.
+
 ## Development hooks
 
 Enable the repository's pre-commit hook after cloning:

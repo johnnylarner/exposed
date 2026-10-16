@@ -51,6 +51,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "/app/target/debug/exposed", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      start_period: 120s
+      retries: 10
   postgres:
     image: postgres:18-alpine
     environment:

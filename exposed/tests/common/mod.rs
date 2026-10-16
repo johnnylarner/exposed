@@ -58,6 +58,10 @@ pub async fn search_entities(
     }
 }
 
+pub async fn healthcheck(app: &Guard) -> anyhow::Result<reqwest::Response> {
+    Ok(reqwest::get(format!("http://127.0.0.1:{}/healthz", app.port)).await?)
+}
+
 pub async fn funder_details(app: &Guard, id: &str) -> anyhow::Result<Value> {
     let url = format!("http://127.0.0.1:{}/funders/{id}", app.port);
     let response = reqwest::get(url).await?.error_for_status()?;
