@@ -58,7 +58,7 @@ jobs:
               sleep "$((60 - 10#$(date -u +%S)))"
             done
           done
-      - name: Build binary
+      - name: Build backend server
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         id: binary
         with:
@@ -71,7 +71,9 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
-          tags: ${{ format('{0}:server-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          tags: |
+            ${{ format('{0}:server-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+            ${{ format('{0}:server', steps.metadata.outputs.image) }}
           cache-from: type=gha,scope=exposed-linux-multiarch
           cache-to: type=gha,scope=exposed-linux-multiarch,mode=max
       - name: Build frontend-only app
