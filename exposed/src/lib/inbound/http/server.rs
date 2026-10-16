@@ -8,7 +8,7 @@ use crate::{
     outbound::ExposedDatabase,
 };
 
-/// Loads server configuration and serves HTTP on port 6999 or an available port.
+/// Loads server configuration and serves HTTP on port 6999.
 ///
 /// # Errors
 /// Returns an error if configuration, runtime creation, or server startup fails.
@@ -17,12 +17,7 @@ pub fn run_server() -> anyhow::Result<()> {
     let config = ServerConfig::from_env()?;
 
     tokio::runtime::Runtime::new()?.block_on(async {
-        let listener = match TcpListener::bind("0.0.0.0:6999").await {
-            Err(error) if error.kind() == std::io::ErrorKind::AddrInUse => {
-                TcpListener::bind("0.0.0.0:0").await?
-            }
-            result => result?,
-        };
+        let listener = TcpListener::bind("0.0.0.0:6999").await?;
         println!(
             "Listening on http://localhost:{}",
             listener.local_addr()?.port()

@@ -21,6 +21,18 @@ use crate::common::{
 mod common;
 
 #[sqlx::test(migrations = "../db/migrations")]
+async fn healthz_returns_empty_no_content(pool: PgPool) -> anyhow::Result<()> {
+    let app = start_app(exposed::inbound::http::config::ServerConfig {
+        connection_string: pool.connect_options().to_url_lossy().into(),
+    })
+    .await?;
+    let response = common::healthcheck(&app).await?;
+    assert_eq!(response.status(), reqwest::StatusCode::NO_CONTENT);
+    assert!(response.bytes().await?.is_empty());
+    Ok(())
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
 async fn search_retains_canonical_identity_and_alias_provenance(
     pool: PgPool,
 ) -> anyhow::Result<()> {
