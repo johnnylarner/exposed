@@ -58,7 +58,7 @@ jobs:
               sleep "$((60 - 10#$(date -u +%S)))"
             done
           done
-      - name: Build binary
+      - name: Build backend server
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         id: binary
         with:
@@ -71,10 +71,12 @@ jobs:
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
           push: true
-          tags: ${{ format('{0}:server-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+          tags: |
+            ${{ format('{0}:server-{1}', steps.metadata.outputs.image, steps.release-tag.outputs.tag) }}
+            ${{ format('{0}:server', steps.metadata.outputs.image) }}
           cache-from: type=gha,scope=exposed-linux-multiarch
           cache-to: type=gha,scope=exposed-linux-multiarch,mode=max
-      - name: Build frontend-server
+      - name: Build frontend-only app
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         id: frontend-server
         with:
@@ -151,12 +153,14 @@ jobs:
 
             All four images support Linux amd64 and arm64, including Docker Desktop on Intel and Apple Silicon Macs.
 
+            The app image runs only the Node frontend on port 8080. Deploy the Rust server separately and set the app's private `EXPOSED_API_ORIGIN` to its reachable origin.
+
             Download images.json for the immutable pull references of all four images.
 
             | Variant | Image |
             | --- | --- |
             | Server | `${{ steps.metadata.outputs.image }}:server-${{ steps.release-tag.outputs.tag }}` |
-            | App | `${{ steps.metadata.outputs.image }}:app-${{ steps.release-tag.outputs.tag }}` |
+            | Frontend-only app | `${{ steps.metadata.outputs.image }}:app-${{ steps.release-tag.outputs.tag }}` |
             | Migrate | `${{ steps.metadata.outputs.image }}:migrate-${{ steps.release-tag.outputs.tag }}` |
             | CLI | `${{ steps.metadata.outputs.image }}:cli-${{ steps.release-tag.outputs.tag }}` |
 

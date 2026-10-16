@@ -33,21 +33,16 @@ RUN npm ci
 COPY frontend/ ./
 RUN npm run build && npm prune --omit=dev
 
-FROM runtime AS frontend-server
-USER root
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y tini bash libstdc++6 \
-    && rm -rf /var/lib/apt/lists/*
-COPY --from=frontend-builder /usr/local/bin/node /usr/local/bin/node
-COPY --chmod=755 docker/frontend-server.sh /usr/local/bin/frontend-server
-COPY --from=frontend-builder /app/frontend/build /app/frontend/build
-COPY --from=frontend-builder /app/frontend/package.json /app/frontend/package.json
-COPY --from=frontend-builder /app/frontend/node_modules /app/frontend/node_modules
-ENV PORT=8080 HOST=0.0.0.0 EXPOSED_API_ORIGIN=http://127.0.0.1:6999
+FROM node:24-bookworm-slim@sha256:a5f4366e834695d5f363b920c104953a535d3a9864d1bdf74566a0ebe01daee5 AS frontend-server
+WORKDIR /app/frontend
+COPY --from=frontend-builder /app/frontend/build ./build
+COPY --from=frontend-builder /app/frontend/package.json ./package.json
+COPY --from=frontend-builder /app/frontend/node_modules ./node_modules
+ENV PORT=8080 HOST=0.0.0.0
 USER 10001:10001
 EXPOSE 8080
-ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/bin/frontend-server"]
-CMD ["exposed", "server"]
+ENTRYPOINT ["node", "build"]
+CMD []
 
 FROM runtime AS migrate
 COPY db/migrations/ /app/db/migrations/
