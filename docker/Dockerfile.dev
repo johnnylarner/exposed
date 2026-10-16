@@ -1,3 +1,6 @@
 FROM rust:1.98.1-bookworm
 
 RUN cargo install cargo-watch --version 8.5.3 --locked
+
+# Use Rust's bundled LLD to keep development links within Docker's memory limit.
+RUN ln -s "$(rustc --print target-libdir)/../bin/gcc-ld/ld.lld" /usr/local/bin/ld
