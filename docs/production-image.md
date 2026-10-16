@@ -12,8 +12,10 @@ Rust 1.98.1, and cargo-chef 0.1.78. Dependency compilation uses ordinary Docker
 layers so the CI GitHub Actions cache includes compiled dependencies. The default
 build parallelism is two jobs. Set `--build-arg CARGO_BUILD_JOBS=4` to change it.
 
-All targets share the same release binary and Debian runtime. The default target
-is `binary`, which runs `exposed server` on port 6999 as UID and GID 10001.
+The `binary`, `migrate`, and `data` targets share the release binary and Debian
+runtime. The independent `frontend-server` target contains Node and the SvelteKit
+build. The default target is `binary`, which runs `exposed server` on port 6999
+as UID and GID 10001.
 Build the other targets with `--target frontend-server`, `--target migrate`, or
 `--target data`. Use distinct local tags for each target.
 
@@ -23,7 +25,7 @@ docker buildx build --load -f docker/Dockerfile --target frontend-server -t expo
 docker buildx build --load -f docker/Dockerfile --target data -t exposed:data .
 export DATABASE_URL='postgresql://user:password@database:5432/exposed?options=-csearch_path%3Dexposed,public'
 docker run --rm --env DATABASE_URL exposed:migrate
-docker run --rm --env DATABASE_URL -p 8080:8080 exposed:frontend-server
+docker run --rm --env EXPOSED_API_ORIGIN=http://backend:6999 -p 8080:8080 exposed:frontend-server
 docker run --rm --env DATABASE_URL -p 6999:6999 exposed:local
 ```
 
@@ -31,16 +33,17 @@ Include `exposed` and `public` in the database connection search path, as shown
 above, so the server can resolve the `pg_trgm` functions in the `exposed` schema.
 
 The migration image runs `exposed migrate run --source /app/db/migrations` and
-contains the versioned SQL assets. Run it explicitly before starting either
+contains the versioned SQL assets. Run it explicitly before starting the Rust
 server. See [database migrations](../db/README.md) for existing database upgrades.
 
-The combined image serves the locked SvelteKit build through Node on port 8080.
-Server page loaders read the Rust API at the private `EXPOSED_API_ORIGIN`, which
-defaults to `http://127.0.0.1:6999`. Browser navigation uses SvelteKit page data.
-Both services
-run as UID and GID 10001. Tini reaps orphan processes, and a Bash supervisor stops
-both services on termination or when either service exits. An unexpected service
-exit fails the container, including a service that exits with status zero.
+The frontend image runs the locked SvelteKit build directly through Node on port
+8080 as UID and GID 10001. It contains no Rust binary and needs no `DATABASE_URL`.
+Deploy the Rust server separately and set the frontend's private
+`EXPOSED_API_ORIGIN` environment variable to the backend's reachable origin, such
+as `http://backend:6999`. The example above requires `backend` to resolve on a
+container network shared by both deployments. Server page loaders call this
+origin; browser navigation uses SvelteKit page data. The backend does not need a
+public route or an `/api/` ingress rule.
 
 The data image runs `exposed data --help` by default. Pass a data subcommand
 directly, including `util` commands. Mount configuration and writable data
@@ -107,13 +110,13 @@ All variants use the same allocated version and GHCR repository.
 | Target | Published tag | Default command |
 | --- | --- | --- |
 | `binary` | `server-VERSION` | `exposed server` |
-| `frontend-server` | `app-VERSION` | Supervisor for Node and `exposed server` |
+| `frontend-server` | `app-VERSION` | `node build` |
 | `migrate` | `migrate-VERSION` | `exposed migrate run --source /app/db/migrations` |
 | `data` | `cli-VERSION` | `exposed data --help` |
 
 The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI pushes each
 image directly to its version tag with `mode=max` provenance. The shared BuildKit
-builder reuses Rust compilation across all targets for each architecture.
+builder reuses Rust compilation across the backend targets for each architecture.
 The amd64 runner uses QEMU to build arm64 images, so arm64 compilation takes
 longer than a native build. Both architectures use the shared
 `exposed-linux-multiarch` GitHub Actions cache.
