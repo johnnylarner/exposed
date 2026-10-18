@@ -130,6 +130,8 @@ Manual `workflow_dispatch` runs build all four variants on the same native
 runners without publishing images, reserving Git tags, or creating releases.
 They populate the architecture caches and can validate workflow changes on a
 branch before release.
+Set the manual run's `cold` input to rebuild the Rust toolchain and dependencies
+without cached compiler layers. Later backend targets still reuse that build.
 
 The GitHub release contains `images.json` with `version`, source commit `source`,
 and an `images` object with `server`, `app`, `migrate`, and `cli` keys. Each key

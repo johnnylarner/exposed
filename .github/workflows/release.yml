@@ -2,6 +2,11 @@ name: Build and release exposed
 
 on:
   workflow_dispatch:
+    inputs:
+      cold:
+        description: Rebuild Rust toolchain and dependencies without cached compiler layers
+        type: boolean
+        default: false
   push:
     branches: [main]
     paths:
@@ -84,6 +89,7 @@ jobs:
           file: docker/Dockerfile
           target: binary
           platforms: linux/${{ matrix.arch }}
+          no-cache-filters: ${{ inputs.cold && 'chef,planner,builder' || '' }}
           provenance: mode=max
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
