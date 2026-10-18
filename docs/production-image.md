@@ -94,7 +94,7 @@ No database URL or credentials enter the Docker build.
 
 ## Releases from main
 
-The release workflow runs only on pushes to `main` that change Rust, frontend,
+The release workflow publishes on pushes to `main` that change Rust, frontend,
 migrations, SQLx metadata, Docker, or release inputs. It builds and publishes all
 four image variants for both `linux/amd64` and `linux/arm64`.
 CI uses Docker, `gh`, and `jq`, without host Rust or SQLx installations.
@@ -115,11 +115,21 @@ All variants use the same allocated version and GHCR repository.
 | `data` | `cli-VERSION` | `exposed data --help` |
 
 The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI pushes each
-image directly to its version tag with `mode=max` provenance. The shared BuildKit
-builder reuses Rust compilation across the backend targets for each architecture.
-The amd64 runner uses QEMU to build arm64 images, so arm64 compilation takes
-longer than a native build. Both architectures use the shared
-`exposed-linux-multiarch` GitHub Actions cache.
+architecture's images by digest with `mode=max` provenance. Separate native
+`ubuntu-24.04` and `ubuntu-24.04-arm` runners build amd64 and arm64 in parallel.
+Each runner uses one BuildKit builder for all four variants, so backend targets
+reuse Rust compilation. Each architecture writes its own GitHub Actions cache,
+`exposed-linux-amd64` or `exposed-linux-arm64`. Both also read the previous
+`exposed-linux-multiarch` cache as a fallback.
+
+After both builds succeed, the release job combines their digests into a
+multi-platform index for each version tag. It updates the `server` alias only
+after all four indexes exist. The indexes retain both architectures' provenance.
+
+Manual `workflow_dispatch` runs build all four variants on the same native
+runners without publishing images, reserving Git tags, or creating releases.
+They populate the architecture caches and can validate workflow changes on a
+branch before release.
 
 The GitHub release contains `images.json` with `version`, source commit `source`,
 and an `images` object with `server`, `app`, `migrate`, and `cli` keys. Each key
@@ -132,6 +142,7 @@ Use the digest references for deployment.
 An interrupted or failed attempt can leave a reserved Git tag or some version
 tags without a release. A retry allocates a new unused UTC minute.
 
-The job's Actions token needs repository content and package write permissions.
+The prepare job needs repository content write permission to reserve the tag.
+Build jobs need package write permission, and the release job needs both.
 GHCR package visibility follows the package settings. Set its visibility to public
 if unauthenticated pulls are required.
