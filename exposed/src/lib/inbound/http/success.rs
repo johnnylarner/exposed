@@ -1,9 +1,10 @@
 use axum::{
-    Json,
-    http::StatusCode,
+    http::{StatusCode, header},
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
+
+use super::error::ApiError;
 
 /// Generic success message
 pub struct ApiSuccess<S: Serialize> {
@@ -20,10 +21,14 @@ impl<S: Serialize> ApiSuccess<S> {
 
 impl<S: Serialize> IntoResponse for ApiSuccess<S> {
     fn into_response(self) -> Response {
-        let mut response = Json(self.response).into_response();
-        if response.status().is_success() {
-            *response.status_mut() = self.code;
+        match serde_json::to_vec(&self.response) {
+            Ok(body) => (
+                self.code,
+                [(header::CONTENT_TYPE, "application/json")],
+                body,
+            )
+                .into_response(),
+            Err(error) => ApiError::InternalServerError(error.into()).into_response(),
         }
-        response
     }
 }

@@ -347,7 +347,10 @@ events. Enabling dependency events can add their own error reports.
 HTTP request middleware emits one ERROR for each 4xx or 5xx response, including
 routing and extraction failures. It records method, route template, status,
 duration, and available private error diagnostics. Other responses produce INFO
-completion events. Request URLs, queries, and bodies are not recorded.
+completion events. Every 5xx response keeps its status but returns only
+`internal server error`, or an empty body for HEAD requests. The original body,
+headers, and extensions are removed. Available private diagnostics are logged
+before the response is replaced. Request URLs, queries, and bodies are not recorded.
 
 CLI response emission logs command and serialization failures once. The process
 boundary logs failures that escape dispatch, such as startup or output writes.

@@ -4,10 +4,12 @@ use axum::{
 };
 use thiserror::Error;
 
+const INTERNAL_ERROR_MESSAGE: &str = "internal server error";
+
 #[derive(Error, Debug)]
 /// Errors communicated by the HTTP API
 pub enum ApiError {
-    #[error("internal server error")]
+    #[error("{INTERNAL_ERROR_MESSAGE}")]
     /// Private error, message should only be logged
     InternalServerError(#[source] anyhow::Error),
     /// Entity identity absent from the store.
@@ -20,20 +22,25 @@ pub enum ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let code = match self {
-            Self::NotFound => StatusCode::NOT_FOUND,
-            Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::UnprocessibleEntity(_) => StatusCode::UNPROCESSABLE_ENTITY,
-        };
-        let mut response = (code, self.to_string()).into_response();
-        if let Self::InternalServerError(error) = self {
-            response
-                .extensions_mut()
-                .insert(InternalFailure(format!("{error:#}")));
+        match self {
+            Self::NotFound => (StatusCode::NOT_FOUND, self.to_string()).into_response(),
+            Self::UnprocessibleEntity(_) => {
+                (StatusCode::UNPROCESSABLE_ENTITY, self.to_string()).into_response()
+            }
+            Self::InternalServerError(error) => {
+                let mut response = internal_error_response(StatusCode::INTERNAL_SERVER_ERROR);
+                response
+                    .extensions_mut()
+                    .insert(InternalFailure(format!("{error:#}")));
+                response
+            }
         }
-        response
     }
 }
 
 #[derive(Clone)]
 pub(super) struct InternalFailure(pub(super) String);
+
+pub(super) fn internal_error_response(status: StatusCode) -> Response {
+    (status, INTERNAL_ERROR_MESSAGE).into_response()
+}
