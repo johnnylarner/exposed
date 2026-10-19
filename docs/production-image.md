@@ -23,14 +23,14 @@ Build the other targets with `--target frontend-server`, `--target migrate`, or
 docker buildx build --load -f docker/Dockerfile --target migrate -t exposed:migrate .
 docker buildx build --load -f docker/Dockerfile --target frontend-server -t exposed:frontend-server .
 docker buildx build --load -f docker/Dockerfile --target data -t exposed:data .
-export DATABASE_URL='postgresql://user:password@database:5432/exposed?options=-csearch_path%3Dexposed,public'
+export DATABASE_URL='postgresql://user:password@database:5432/exposed'
 docker run --rm --env DATABASE_URL exposed:migrate
 docker run --rm --env EXPOSED_API_ORIGIN=http://backend:6999 -p 8080:8080 exposed:frontend-server
 docker run --rm --env DATABASE_URL -p 6999:6999 exposed:local
 ```
 
-Include `exposed` and `public` in the database connection search path, as shown
-above, so the server can resolve the `pg_trgm` functions in the `exposed` schema.
+The search queries qualify `pg_trgm` functions and operators with the `exposed`
+schema, so the connection does not need a custom search path.
 
 The migration image runs `exposed migrate run --source /app/db/migrations` and
 contains the versioned SQL assets. Run it explicitly before starting the Rust

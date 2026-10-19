@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT  \n                m.name,\n                m.parliament_member_id,\n                m.party_name,\n                m.party_id,\n                m.latest_membership_from as constituency,\n                 word_similarity($1, m.name) as similarity_score\n            FROM exposed.members m\n            WHERE m.name %> $1 AND word_similarity($1, m.name) >= $2\n            ORDER BY similarity_score DESC, m.id\n            LIMIT $3\n            ",
+  "query": "\n            SELECT  \n                m.name,\n                m.parliament_member_id,\n                m.party_name,\n                m.party_id,\n                m.latest_membership_from as constituency,\n                 exposed.word_similarity($1, m.name) as similarity_score\n            FROM exposed.members m\n            WHERE m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2\n            ORDER BY similarity_score DESC, m.id\n            LIMIT $3\n            ",
   "describe": {
     "columns": [
       {
@@ -81,5 +81,5 @@
       null
     ]
   },
-  "hash": "88bac2b72e319f5bcaf78ec44cf0e89fc796fa94ea6df8bc65dc1e480e3f729a"
+  "hash": "98056a53310788d009c5c7170229b2f2113e57cc8bb5b1ef6b813c4fc3560199"
 }
