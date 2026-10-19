@@ -37,17 +37,17 @@ impl FunderRepo for ExposedDatabase {
         let rows = sqlx::query!(
             "
             WITH candidates AS (
-                SELECT id FROM exposed.funders WHERE funder_name %> $1
+                SELECT id FROM exposed.funders WHERE funder_name OPERATOR(exposed.%>) $1
                 UNION
-                SELECT funder_id FROM exposed.funder_aliases WHERE funder_alias %> $1
+                SELECT funder_id FROM exposed.funder_aliases WHERE funder_alias OPERATOR(exposed.%>) $1
             ), scored AS (
                 SELECT f.id, f.funder_name AS name, f.funder_kind AS kind,
-                    word_similarity($1, f.funder_name) AS canonical_score,
+                    exposed.word_similarity($1, f.funder_name) AS canonical_score,
                     a.funder_alias, a.alias_score
                 FROM candidates c
                 JOIN exposed.funders f ON f.id = c.id
                 LEFT JOIN LATERAL (
-                    SELECT funder_alias, word_similarity($1, funder_alias) AS alias_score
+                    SELECT funder_alias, exposed.word_similarity($1, funder_alias) AS alias_score
                     FROM exposed.funder_aliases WHERE funder_id = f.id
                     ORDER BY alias_score DESC, funder_alias COLLATE \"C\" ASC
                     LIMIT 1
@@ -60,9 +60,9 @@ impl FunderRepo for ExposedDatabase {
                 WHERE GREATEST(canonical_score, COALESCE(alias_score, 0)) >= $2
                 UNION ALL
                 SELECT n.group_id, n.preferred_name, f.funder_kind, NULL::text,
-                    word_similarity($1, n.preferred_name)
+                    exposed.word_similarity($1, n.preferred_name)
                 FROM exposed.funder_group_names n JOIN exposed.funders f ON f.id = n.group_id
-                WHERE n.preferred_name %> $1 AND word_similarity($1, n.preferred_name) >= $2
+                WHERE n.preferred_name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, n.preferred_name) >= $2
             ), grouped AS (
                 SELECT DISTINCT ON (COALESCE(g.group_id, q.id)) COALESCE(g.group_id, q.id) AS id,
                     COALESCE(n.preferred_name, representative.funder_name) AS name, representative.funder_kind AS kind,
@@ -132,7 +132,7 @@ impl FunderRepo for ExposedDatabase {
                 WHERE f.funder_kind = $2 AND exposed.person_name_codes(a.funder_alias) @> exposed.person_name_codes($1)
             ), scored AS (
                 SELECT names.*, correction.distance,
-                       word_similarity(correction.corrected_query, candidate) AS similarity_score
+                       exposed.word_similarity(correction.corrected_query, candidate) AS similarity_score
                 FROM names
                 CROSS JOIN LATERAL (
                     SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,
@@ -404,7 +404,12 @@ mod alias_scoring {
     async fn provenance_thresholds_and_identity_limit(pool: PgPool) -> sqlx::Result<()> {
         let pool = sqlx::postgres::PgPoolOptions::new()
             .max_connections(1)
-            .connect_with(pool.connect_options().as_ref().clone())
+            .connect_with(
+                pool.connect_options()
+                    .as_ref()
+                    .clone()
+                    .options([("search_path", "public")]),
+            )
             .await?;
         let first = uuid::Uuid::from_u128(1);
         let second = uuid::Uuid::from_u128(2);
@@ -472,11 +477,12 @@ mod alias_scoring {
                 .len(),
             1
         );
-        let boundary = sqlx::query!("SELECT word_similarity('West Mid', 'West Midlands') AS score")
-            .fetch_one(&pool)
-            .await?
-            .score
-            .unwrap();
+        let boundary =
+            sqlx::query!("SELECT exposed.word_similarity('West Mid', 'West Midlands') AS score")
+                .fetch_one(&pool)
+                .await?
+                .score
+                .unwrap();
         assert!(boundary > 0.0 && boundary < 1.0);
         assert_eq!(
             db.get_funders_by_text_search_score(&request("West Mid", 2, boundary))

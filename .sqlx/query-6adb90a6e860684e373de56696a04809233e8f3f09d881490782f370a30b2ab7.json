@@ -1,0 +1,66 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH candidates AS (\n                SELECT id FROM exposed.funders WHERE funder_name OPERATOR(exposed.%>) $1\n                UNION\n                SELECT funder_id FROM exposed.funder_aliases WHERE funder_alias OPERATOR(exposed.%>) $1\n            ), scored AS (\n                SELECT f.id, f.funder_name AS name, f.funder_kind AS kind,\n                    exposed.word_similarity($1, f.funder_name) AS canonical_score,\n                    a.funder_alias, a.alias_score\n                FROM candidates c\n                JOIN exposed.funders f ON f.id = c.id\n                LEFT JOIN LATERAL (\n                    SELECT funder_alias, exposed.word_similarity($1, funder_alias) AS alias_score\n                    FROM exposed.funder_aliases WHERE funder_id = f.id\n                    ORDER BY alias_score DESC, funder_alias COLLATE \"C\" ASC\n                    LIMIT 1\n                ) a ON true\n            ), qualified AS (\n                SELECT id, name, kind,\n                    CASE WHEN alias_score > canonical_score THEN funder_alias END AS matched_alias,\n                    GREATEST(canonical_score, COALESCE(alias_score, 0)) AS similarity_score\n                FROM scored\n                WHERE GREATEST(canonical_score, COALESCE(alias_score, 0)) >= $2\n                UNION ALL\n                SELECT n.group_id, n.preferred_name, f.funder_kind, NULL::text,\n                    exposed.word_similarity($1, n.preferred_name)\n                FROM exposed.funder_group_names n JOIN exposed.funders f ON f.id = n.group_id\n                WHERE n.preferred_name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, n.preferred_name) >= $2\n            ), grouped AS (\n                SELECT DISTINCT ON (COALESCE(g.group_id, q.id)) COALESCE(g.group_id, q.id) AS id,\n                    COALESCE(n.preferred_name, representative.funder_name) AS name, representative.funder_kind AS kind,\n                    CASE WHEN q.matched_alias IS NOT NULL THEN q.matched_alias\n                        WHEN q.id <> COALESCE(g.group_id, q.id)\n                            OR q.name <> COALESCE(n.preferred_name, representative.funder_name) THEN q.name END AS matched_alias, q.similarity_score\n                FROM qualified q LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = q.id\n                JOIN exposed.funders representative ON representative.id = COALESCE(g.group_id, q.id)\n                LEFT JOIN exposed.funder_group_names n ON n.group_id = representative.id\n                ORDER BY COALESCE(g.group_id, q.id), q.similarity_score DESC, q.id,\n                    q.name = COALESCE(n.preferred_name, representative.funder_name) DESC,\n                    q.matched_alias IS NOT NULL, q.name COLLATE \"C\"\n            )\n            SELECT id AS \"id!\", name AS \"name!\", kind, matched_alias, similarity_score, EXISTS(SELECT FROM qualified WHERE kind = $4) AS \"has_individual!\"\n            FROM grouped\n            ORDER BY similarity_score DESC, id\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "funder_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "matched_alias",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "similarity_score",
+        "type_info": "Float4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "has_individual!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float4",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      true,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "6adb90a6e860684e373de56696a04809233e8f3f09d881490782f370a30b2ab7"
+}
