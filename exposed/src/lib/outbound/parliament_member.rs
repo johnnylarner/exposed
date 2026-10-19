@@ -60,9 +60,9 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 m.party_name,
                 m.party_id,
                 m.latest_membership_from as constituency,
-                 word_similarity($1, m.name) as similarity_score
+                 exposed.word_similarity($1, m.name) as similarity_score
             FROM exposed.members m
-            WHERE m.name %> $1 AND word_similarity($1, m.name) >= $2
+            WHERE m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
             ORDER BY similarity_score DESC, m.id
             LIMIT $3
             ",
@@ -105,7 +105,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
             SELECT m.name, m.parliament_member_id, m.party_name, m.party_id,
                    m.latest_membership_from AS constituency,
                    correction.distance AS "distance!",
-                   word_similarity(correction.corrected_query, m.name) AS similarity_score
+                   exposed.word_similarity(correction.corrected_query, m.name) AS similarity_score
             FROM exposed.members m
             CROSS JOIN LATERAL (
                 SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,
@@ -125,7 +125,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 HAVING count(best.word) = count(*) AND count(*) > 0
             ) correction
             WHERE exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
-              AND word_similarity(correction.corrected_query, m.name) >= $2
+              AND exposed.word_similarity(correction.corrected_query, m.name) >= $2
             ORDER BY correction.distance, similarity_score DESC, m.parliament_member_id
             LIMIT $3
             "#,
@@ -296,9 +296,14 @@ mod threshold_scoring {
     async fn inclusive_thresholds_are_local(pool: PgPool) -> sqlx::Result<()> {
         let pool = sqlx::postgres::PgPoolOptions::new()
             .max_connections(1)
-            .connect_with(pool.connect_options().as_ref().clone())
+            .connect_with(
+                pool.connect_options()
+                    .as_ref()
+                    .clone()
+                    .options([("search_path", "public")]),
+            )
             .await?;
-        sqlx::query!("SELECT word_similarity('initialize', 'initialize')")
+        sqlx::query!("SELECT exposed.word_similarity('initialize', 'initialize')")
             .fetch_one(&pool)
             .await?;
         let initial = sqlx::query!(
@@ -309,7 +314,7 @@ mod threshold_scoring {
         .threshold;
         let db = ExposedDatabase::from(pool.clone());
         let boundary =
-            sqlx::query!("SELECT word_similarity('John McD', 'John McDonnell') AS score")
+            sqlx::query!("SELECT exposed.word_similarity('John McD', 'John McDonnell') AS score")
                 .fetch_one(&pool)
                 .await?
                 .score
