@@ -33,13 +33,14 @@ mod healthcheck;
 mod migrate;
 pub mod response;
 mod response_help;
+mod runner;
 mod stages;
 mod telemetry;
+mod tracing;
 
-pub use healthcheck::run_healthcheck;
-pub use migrate::{MigrateArgs, run_migrate};
+pub use migrate::MigrateArgs;
 pub use response::{CliSuccess, IntoResponse, Response};
-pub use telemetry::init_tracing;
+pub use runner::run;
 
 /// CLI entrypoint for the `exposed` project
 #[derive(Parser)]
@@ -136,14 +137,13 @@ pub enum DataCommands {
 }
 
 impl DataArgs {
-    /// Creates an operation span using canonical stage names without recording inputs.
     #[must_use]
-    pub fn trace_span(&self) -> tracing::Span {
+    fn trace_span(&self) -> ::tracing::Span {
         match &self.command {
-            DataCommands::Declarations(args) => tracing::error_span!(
+            DataCommands::Declarations(args) => ::tracing::error_span!(
                 "operation", command = "data", family = "declarations", stage = %stages::name(&args.stage)
             ),
-            DataCommands::Members(args) => tracing::error_span!(
+            DataCommands::Members(args) => ::tracing::error_span!(
                 "operation", command = "data", family = "members", stage = %stages::name(&args.stage)
             ),
             DataCommands::Util(args) => {
@@ -152,7 +152,7 @@ impl DataArgs {
                     UtilCommands::Latest(_) => "latest",
                     UtilCommands::CopyLatestRaw { .. } => "copy-latest-raw",
                 };
-                tracing::error_span!("operation", command = "data", family = "util", utility)
+                ::tracing::error_span!("operation", command = "data", family = "util", utility)
             }
         }
     }

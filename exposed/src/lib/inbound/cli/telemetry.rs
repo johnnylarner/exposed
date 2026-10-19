@@ -14,7 +14,7 @@ use tracing_subscriber::{EnvFilter, fmt::writer::BoxMakeWriter};
 ///
 /// Returns an error if the log file cannot be opened, the fallback filter cannot
 /// be parsed, or a global tracing subscriber is already installed.
-pub fn init_tracing(command: &Commands) -> anyhow::Result<()> {
+pub(super) fn init_tracing(command: &Commands) -> anyhow::Result<()> {
     let writer = match std::env::var_os("EXPOSED_LOG_FILE") {
         Some(path) => BoxMakeWriter::new(Mutex::new(
             OpenOptions::new()

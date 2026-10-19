@@ -46,6 +46,10 @@ impl Response {
         Self(serde_json::to_vec(document).map_err(Into::into))
     }
 
+    pub(super) fn failure(&self) -> Option<&anyhow::Error> {
+        self.0.as_ref().err()
+    }
+
     /// Writes one JSON document to stdout on success or stderr on failure.
     ///
     /// # Errors
@@ -54,7 +58,6 @@ impl Response {
         let (mut bytes, writer, code): (_, &mut dyn Write, _) = match self.0 {
             Ok(bytes) => (bytes, &mut stdout, ExitCode::SUCCESS),
             Err(error) => {
-                tracing::error!(error = %format!("{error:#}"), "command failed");
                 let payload = ErrorResponse {
                     error: ErrorMessage {
                         message: format!("{error:#}"),
@@ -66,9 +69,6 @@ impl Response {
         };
         bytes.push(b'\n');
         writer.write_all(&bytes)?;
-        if code == ExitCode::SUCCESS {
-            tracing::info!("command completed");
-        }
         Ok(code)
     }
 }

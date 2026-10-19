@@ -26,7 +26,7 @@ enum MigrateCommand {
 }
 
 /// Runs the selected migration command through the CLI response contract.
-pub async fn run_migrate(args: MigrateArgs) -> Response {
+pub(super) async fn run_migrate(args: MigrateArgs) -> Response {
     match args.command {
         MigrateCommand::Run { source } => run(source).await.into_response(),
     }

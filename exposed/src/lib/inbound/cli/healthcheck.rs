@@ -7,7 +7,7 @@ use reqwest::{Client, StatusCode, Url, redirect::Policy};
 ///
 /// # Errors
 /// Returns an error if the probe fails, times out, or receives a status other than 204.
-pub async fn run_healthcheck() -> anyhow::Result<()> {
+pub(super) async fn run_healthcheck() -> anyhow::Result<()> {
     probe(Url::parse("http://127.0.0.1:6999/healthz")?).await
 }
 

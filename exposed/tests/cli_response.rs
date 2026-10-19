@@ -190,44 +190,24 @@ fn invalid_database_connection_returns_json_instead_of_panicking() -> anyhow::Re
 mod capture;
 
 #[test]
-fn errors_are_logged_when_consumed_and_conversion_is_pure() {
+fn conversion_and_writing_do_not_emit_traces() {
     let capture = capture::Capture::default();
-    let subscriber = capture.subscriber();
-    tracing::subscriber::with_default(subscriber, || {
+    tracing::subscriber::with_default(capture.subscriber(), || {
         let result: anyhow::Result<CliSuccess<Counts>> =
             Err(anyhow::anyhow!("private cause").context("command context"));
         let response = result.into_response().into_response().into_response();
-        assert!(capture.errors().is_empty());
-        let code = response.write_to(Vec::new(), Vec::new()).unwrap();
-        assert_eq!(code, ExitCode::FAILURE);
-    });
-    let errors = capture.errors();
-    assert_eq!(errors.len(), 1);
-    assert_eq!(
-        errors[0]["fields"]["error"],
-        "command context: private cause"
-    );
-}
-
-#[test]
-fn serialization_failures_are_logged_once() {
-    #[derive(JsonSchema)]
-    struct Broken;
-    impl Serialize for Broken {
-        fn serialize<S: Serializer>(&self, _: S) -> Result<S::Ok, S::Error> {
-            Err(serde::ser::Error::custom("cannot serialize payload"))
-        }
-    }
-    let capture = capture::Capture::default();
-    tracing::subscriber::with_default(capture.subscriber(), || {
-        let response = CliSuccess::new(Broken).into_response().into_response();
-        assert!(capture.errors().is_empty());
         assert_eq!(
             response.write_to(Vec::new(), Vec::new()).unwrap(),
             ExitCode::FAILURE
         );
+        assert_eq!(
+            CliSuccess::new(Counts { records: 1 })
+                .into_response()
+                .write_to(Vec::new(), Vec::new())
+                .unwrap(),
+            ExitCode::SUCCESS
+        );
+        assert!(capture.events().is_empty());
+        assert!(capture.errors().is_empty());
     });
-    let errors = capture.errors();
-    assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0]["fields"]["error"], "cannot serialize payload");
 }

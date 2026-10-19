@@ -352,8 +352,8 @@ completion events. Every 5xx response keeps its status but returns only
 headers, and extensions are removed. Available private diagnostics are logged
 before the response is replaced. Request URLs, queries, and bodies are not recorded.
 
-CLI response emission logs command and serialization failures once. The process
-boundary logs failures that escape dispatch, such as startup or output writes.
+The CLI adapter owns command execution and observes command, serialization,
+and output failures once. Response conversion and writing do not emit traces.
 A command failure followed by a failed error-response write produces two events
 because two distinct failures occurred. Services and repositories propagate
 errors without logging them.
