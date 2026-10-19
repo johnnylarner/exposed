@@ -20,6 +20,10 @@ impl<S: Serialize> ApiSuccess<S> {
 
 impl<S: Serialize> IntoResponse for ApiSuccess<S> {
     fn into_response(self) -> Response {
-        (self.code, Json(self.response)).into_response()
+        let mut response = Json(self.response).into_response();
+        if response.status().is_success() {
+            *response.status_mut() = self.code;
+        }
+        response
     }
 }

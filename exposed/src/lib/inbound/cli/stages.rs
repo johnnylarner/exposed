@@ -88,7 +88,7 @@ impl Stage for MemberIngestionStage {
     }
 }
 
-fn name<S: Stage>(stage: &S) -> String {
+pub(super) fn name<S: Stage>(stage: &S) -> String {
     serde_json::to_value(stage)
         .expect("stage serializes")
         .as_str()

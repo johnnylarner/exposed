@@ -327,3 +327,34 @@ Contains Parliamentary information licensed under the
 
 See [Build and run the production image](docs/production-image.md) for standalone
 Docker builds, database setup, SQLx metadata updates, and main-branch releases.
+
+## Tracing
+
+The server writes structured JSON traces to stderr. Set `EXPOSED_LOG_FILE` to
+append traces to a separate file for any command, including the server.
+CLI tracing has no output sink unless you set this variable. Data and migration
+commands keep their JSON response contract even when tracing is enabled.
+
+```sh
+EXPOSED_LOG_FILE=exposed.jsonl cargo run --bin exposed -- data util uuid-v7
+RUST_LOG=off,exposed=debug cargo run --bin exposed -- server
+```
+
+`RUST_LOG` controls filtering and never selects the CLI output sink. The default
+filter enables application events at INFO and above and disables dependency
+events. Enabling dependency events can add their own error reports.
+
+HTTP request middleware emits one ERROR for each 4xx or 5xx response, including
+routing and extraction failures. It records method, route template, status,
+duration, and available private error diagnostics. Other responses produce INFO
+completion events. Request URLs, queries, and bodies are not recorded.
+
+CLI response emission logs command and serialization failures once. The process
+boundary logs failures that escape dispatch, such as startup or output writes.
+A command failure followed by a failed error-response write produces two events
+because two distinct failures occurred. Services and repositories propagate
+errors without logging them.
+
+Trace files use synchronous append writes. The application does not rotate them.
+An unavailable trace file fails command startup. Help and data schema inspection
+bypass tracing setup and do not open the configured file.

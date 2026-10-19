@@ -9,7 +9,7 @@ use thiserror::Error;
 pub enum ApiError {
     #[error("internal server error")]
     /// Private error, message should only be logged
-    InternalServerError,
+    InternalServerError(#[source] anyhow::Error),
     /// Entity identity absent from the store.
     #[error("entity not found")]
     NotFound,
@@ -22,9 +22,18 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let code = match self {
             Self::NotFound => StatusCode::NOT_FOUND,
-            Self::InternalServerError => StatusCode::INTERNAL_SERVER_ERROR,
+            Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
             Self::UnprocessibleEntity(_) => StatusCode::UNPROCESSABLE_ENTITY,
         };
-        (code, self.to_string()).into_response()
+        let mut response = (code, self.to_string()).into_response();
+        if let Self::InternalServerError(error) = self {
+            response
+                .extensions_mut()
+                .insert(InternalFailure(format!("{error:#}")));
+        }
+        response
     }
 }
+
+#[derive(Clone)]
+pub(super) struct InternalFailure(pub(super) String);

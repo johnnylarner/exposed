@@ -134,6 +134,27 @@ pub enum DataCommands {
 }
 
 impl DataArgs {
+    /// Creates an operation span using canonical stage names without recording inputs.
+    #[must_use]
+    pub fn trace_span(&self) -> tracing::Span {
+        match &self.command {
+            DataCommands::Declarations(args) => tracing::error_span!(
+                "operation", command = "data", family = "declarations", stage = %stages::name(&args.stage)
+            ),
+            DataCommands::Members(args) => tracing::error_span!(
+                "operation", command = "data", family = "members", stage = %stages::name(&args.stage)
+            ),
+            DataCommands::Util(args) => {
+                let utility = match &args.command {
+                    UtilCommands::UuidV7 { .. } => "uuid-v7",
+                    UtilCommands::Latest(_) => "latest",
+                    UtilCommands::CopyLatestRaw { .. } => "copy-latest-raw",
+                };
+                tracing::error_span!("operation", command = "data", family = "util", utility)
+            }
+        }
+    }
+
     /// Returns response schemas without reading configuration or running a stage.
     #[must_use]
     pub fn schema_response(&self) -> Option<Response> {

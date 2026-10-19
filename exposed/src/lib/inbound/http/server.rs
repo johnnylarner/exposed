@@ -18,10 +18,8 @@ pub fn run_server() -> anyhow::Result<()> {
 
     tokio::runtime::Runtime::new()?.block_on(async {
         let listener = TcpListener::bind("0.0.0.0:6999").await?;
-        println!(
-            "Listening on http://localhost:{}",
-            listener.local_addr()?.port()
-        );
+        let port = listener.local_addr()?.port();
+        tracing::info!(port, "Listening on http://localhost:{port}");
         serve_exposed(&config, listener).await
     })
 }

@@ -1,4 +1,4 @@
-use axum::{Router, http::StatusCode, routing::get};
+use axum::{Router, http::StatusCode, middleware, routing::get};
 
 use crate::{
     domain::services::{entity_details::EntityDetailsService, entity_search::EntitySearchService},
@@ -12,4 +12,5 @@ pub fn routes<E: EntitySearchService, D: EntityDetailsService>() -> Router<AppSt
         .route("/search", get(handlers::search_entities))
         .route("/members/{id}", get(handlers::member_details))
         .route("/funders/{id}", get(handlers::funder_details))
+        .layer(middleware::from_fn(super::tracing::trace_request))
 }

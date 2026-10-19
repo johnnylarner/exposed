@@ -54,6 +54,7 @@ impl Response {
         let (mut bytes, writer, code): (_, &mut dyn Write, _) = match self.0 {
             Ok(bytes) => (bytes, &mut stdout, ExitCode::SUCCESS),
             Err(error) => {
+                tracing::error!(error = %format!("{error:#}"), "command failed");
                 let payload = ErrorResponse {
                     error: ErrorMessage {
                         message: format!("{error:#}"),
@@ -65,6 +66,9 @@ impl Response {
         };
         bytes.push(b'\n');
         writer.write_all(&bytes)?;
+        if code == ExitCode::SUCCESS {
+            tracing::info!("command completed");
+        }
         Ok(code)
     }
 }

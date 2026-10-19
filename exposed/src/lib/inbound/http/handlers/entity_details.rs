@@ -28,7 +28,7 @@ impl From<EntityDetailsError> for ApiError {
     fn from(error: EntityDetailsError) -> Self {
         match error {
             EntityDetailsError::NotFound => Self::NotFound,
-            EntityDetailsError::Unexpected(_) => Self::InternalServerError,
+            EntityDetailsError::Unexpected(error) => Self::InternalServerError(error.into()),
         }
     }
 }
