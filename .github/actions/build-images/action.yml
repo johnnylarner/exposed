@@ -1,0 +1,117 @@
+name: Build production images
+description: Build the four production targets on a native runner
+inputs:
+  architecture:
+    description: Native Linux architecture, amd64 or arm64
+    required: true
+  context:
+    description: Checked out source directory
+    default: '.'
+  source-sha:
+    description: Resolved source commit for OCI labels
+    required: true
+  image:
+    description: GHCR repository
+    required: true
+  publish:
+    description: Push images by digest instead of warming caches
+    required: true
+  cold:
+    description: Rebuild Rust toolchain and dependencies
+    default: 'false'
+outputs:
+  server:
+    description: Original attested server image index digest
+    value: ${{ steps.binary.outputs.digest }}
+  app:
+    description: Original attested app image index digest
+    value: ${{ steps.frontend-server.outputs.digest }}
+  migrate:
+    description: Original attested migrate image index digest
+    value: ${{ steps.migrate.outputs.digest }}
+  cli:
+    description: Original attested cli image index digest
+    value: ${{ steps.data.outputs.digest }}
+runs:
+  using: composite
+  steps:
+    - name: Validate build inputs
+      shell: bash
+      env:
+        ARCHITECTURE: ${{ inputs.architecture }}
+        PUBLISH: ${{ inputs.publish }}
+        COLD: ${{ inputs.cold }}
+      run: |
+        case "$ARCHITECTURE" in amd64|arm64) ;; *) exit 1 ;; esac
+        case "$PUBLISH" in true|false) ;; *) exit 1 ;; esac
+        case "$COLD" in true|false) ;; *) exit 1 ;; esac
+    - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+    - name: Build backend server
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      id: binary
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.context }}/docker/Dockerfile
+        target: binary
+        platforms: linux/${{ inputs.architecture }}
+        no-cache-filters: ${{ inputs.cold == 'true' && 'chef,planner,builder' || '' }}
+        provenance: mode=max
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.revision=${{ inputs.source-sha }}
+        outputs: ${{ inputs.publish == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', inputs.image) || 'type=cacheonly' }}
+        cache-from: |
+          type=gha,scope=exposed-linux-${{ inputs.architecture }}
+          type=gha,scope=exposed-linux-multiarch
+        cache-to: type=gha,scope=exposed-linux-${{ inputs.architecture }},mode=max
+    - name: Build frontend-only app
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      id: frontend-server
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.context }}/docker/Dockerfile
+        target: frontend-server
+        platforms: linux/${{ inputs.architecture }}
+        provenance: mode=max
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.revision=${{ inputs.source-sha }}
+        outputs: ${{ inputs.publish == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', inputs.image) || 'type=cacheonly' }}
+        cache-from: |
+          type=gha,scope=exposed-linux-${{ inputs.architecture }}
+          type=gha,scope=exposed-linux-multiarch
+        cache-to: type=gha,scope=exposed-linux-${{ inputs.architecture }},mode=max
+    - name: Build migrate
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      id: migrate
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.context }}/docker/Dockerfile
+        target: migrate
+        platforms: linux/${{ inputs.architecture }}
+        provenance: mode=max
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.revision=${{ inputs.source-sha }}
+        outputs: ${{ inputs.publish == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', inputs.image) || 'type=cacheonly' }}
+        cache-from: |
+          type=gha,scope=exposed-linux-${{ inputs.architecture }}
+          type=gha,scope=exposed-linux-multiarch
+        cache-to: type=gha,scope=exposed-linux-${{ inputs.architecture }},mode=max
+    - name: Build data
+      uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      id: data
+      with:
+        context: ${{ inputs.context }}
+        file: ${{ inputs.context }}/docker/Dockerfile
+        target: data
+        platforms: linux/${{ inputs.architecture }}
+        provenance: mode=max
+        labels: |
+          org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          org.opencontainers.image.revision=${{ inputs.source-sha }}
+        outputs: ${{ inputs.publish == 'true' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', inputs.image) || 'type=cacheonly' }}
+        cache-from: |
+          type=gha,scope=exposed-linux-${{ inputs.architecture }}
+          type=gha,scope=exposed-linux-multiarch
+        cache-to: type=gha,scope=exposed-linux-${{ inputs.architecture }},mode=max
