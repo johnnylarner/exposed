@@ -61,7 +61,7 @@ access PostgreSQL.
 
 ## Run on macOS
 
-New releases publish all four variants for Docker Desktop on Intel and Apple Silicon Macs.
+Combined releases publish all four variants for Docker Desktop on Intel and Apple Silicon Macs.
 The containers run inside Docker Desktop's Linux VM. Docker selects `linux/amd64`
 on Intel Macs and `linux/arm64` on Apple Silicon Macs, including when you use the
 pinned digest references from `images.json` or `image.txt`.
@@ -69,7 +69,10 @@ pinned digest references from `images.json` or `image.txt`.
 Earlier amd64-only releases remain unchanged. After an ARM64 pull fails, update
 the image reference to a new release and rerun the migration before the server.
 
-Use the release references with the `docker run` commands above. You do not need
+Architecture releases have an `-amd64` or `-arm64` suffix and support only that
+Linux architecture. Choose `-amd64` for Intel Macs and `-arm64` for Apple Silicon.
+
+Use the matching release references with the `docker run` commands above. You do not need
 to set `--platform`. Local builds also use the Docker builder's default platform.
 
 If PostgreSQL runs on your Mac, use `host.docker.internal` as the host in
@@ -107,12 +110,14 @@ existing matching tag, the job fails.
 
 All variants use the same allocated version and GHCR repository.
 
-| Target | Published tag | Default command |
-| --- | --- | --- |
-| `binary` | `server-VERSION` | `exposed server` |
-| `frontend-server` | `app-VERSION` | `node build` |
-| `migrate` | `migrate-VERSION` | `exposed migrate run --source /app/db/migrations` |
-| `data` | `cli-VERSION` | `exposed data --help` |
+| Target | Combined tag | Architecture tag | Default command |
+| --- | --- | --- | --- |
+| `binary` | `server-VERSION` | `server-VERSION-ARCH` | `exposed server` |
+| `frontend-server` | `app-VERSION` | `app-VERSION-ARCH` | `node build` |
+| `migrate` | `migrate-VERSION` | `migrate-VERSION-ARCH` | `exposed migrate run --source /app/db/migrations` |
+| `data` | `cli-VERSION` | `cli-VERSION-ARCH` | `exposed data --help` |
+
+`ARCH` is `amd64` or `arm64`. Architecture tags have no mutable aliases.
 
 The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI pushes each
 architecture's images by digest with `mode=max` provenance. Separate native
@@ -121,6 +126,11 @@ Each runner uses one BuildKit builder for all four variants, so backend targets
 reuse Rust compilation. Each architecture writes its own GitHub Actions cache,
 `exposed-linux-amd64` or `exposed-linux-arm64`. Both also read the previous
 `exposed-linux-multiarch` cache as a fallback.
+
+After all four variants succeed on one architecture, that runner publishes its
+architecture tags and a separate `VERSION-ARCH` GitHub release at the source SHA.
+These releases retain the original attested image indexes and do not become the
+latest GitHub release. They are available without waiting for the other runner.
 
 After both builds succeed, the release job combines their digests into a
 multi-platform index for each version tag. It updates the `server` alias only
@@ -133,18 +143,23 @@ branch before release.
 Set the manual run's `cold` input to rebuild the Rust toolchain and dependencies
 without cached compiler layers. Later backend targets still reuse that build.
 
-The GitHub release contains `images.json` with `version`, source commit `source`,
+Each GitHub release contains its own `images.json` with `version`, source commit `source`,
 and an `images` object with `server`, `app`, `migrate`, and `cli` keys. Each key
 maps to the corresponding variant's immutable GHCR pull reference. Each reference
-pins an OCI image index containing both architectures. Docker selects the matching
-image when you pull or run the reference.
-The `image.txt` asset keeps the server image reference for existing deployments.
+in a combined `VERSION` release pins an OCI image index containing both
+architectures. Docker selects the matching image when you pull or run the reference.
+An architecture release sets `version` to `VERSION-ARCH`, adds `architecture` with
+`amd64` or `arm64`, and pins the original indexes for that architecture only.
+The `image.txt` asset keeps that release's server image reference for existing deployments.
 Use the digest references for deployment.
 
+If one architecture fails, the other can still publish its architecture release.
+The combined release and `server` alias wait for both successful builds.
 An interrupted or failed attempt can leave a reserved Git tag or some version
-tags without a release. A retry allocates a new unused UTC minute.
+tags without a release. Published architecture releases remain available. A retry
+allocates a new unused UTC minute.
 
 The prepare job needs repository content write permission to reserve the tag.
-Build jobs need package write permission, and the release job needs both.
+Build jobs and the release job need both content and package write permissions.
 GHCR package visibility follows the package settings. Set its visibility to public
 if unauthenticated pulls are required.
