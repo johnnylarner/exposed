@@ -61,19 +61,14 @@ access PostgreSQL.
 
 ## Run on macOS
 
-Combined releases publish all four variants for Docker Desktop on Intel and Apple Silicon Macs.
-The containers run inside Docker Desktop's Linux VM. Docker selects `linux/amd64`
-on Intel Macs and `linux/arm64` on Apple Silicon Macs, including when you use the
-pinned digest references from `images.json` or `image.txt`.
+Automatic releases support `linux/amd64`, including Docker Desktop on Intel
+Macs. On Apple Silicon, use the manual ARM test workflow described below or build
+locally. Local builds use the Docker builder's default platform.
 
-Earlier amd64-only releases remain unchanged. After an ARM64 pull fails, update
-the image reference to a new release and rerun the migration before the server.
-
-Architecture releases have an `-amd64` or `-arm64` suffix and support only that
-Linux architecture. Choose `-amd64` for Intel Macs and `-arm64` for Apple Silicon.
-
-Use the matching release references with the `docker run` commands above. You do not need
-to set `--platform`. Local builds also use the Docker builder's default platform.
+The containers run inside Docker Desktop's Linux VM. Use the matching immutable
+references with the `docker run` commands above. You do not need `--platform` for
+native images. Historical multi-platform digest references remain valid and
+Docker still selects their matching architecture.
 
 If PostgreSQL runs on your Mac, use `host.docker.internal` as the host in
 `DATABASE_URL`. PostgreSQL must accept connections from Docker Desktop.
@@ -98,68 +93,99 @@ No database URL or credentials enter the Docker build.
 ## Releases from main
 
 The release workflow publishes on pushes to `main` that change Rust, frontend,
-migrations, SQLx metadata, Docker, or release inputs. It builds and publishes all
-four image variants for both `linux/amd64` and `linux/arm64`.
-CI uses Docker, `gh`, and `jq`, without host Rust or SQLx installations.
+migrations, SQLx metadata, Docker, or release inputs, including the shared
+`.github/actions/build-images` action. It builds all four variants on a native
+`ubuntu-24.04` runner for `linux/amd64`. CI uses Docker, `gh`, and `jq`, without
+host Rust or SQLx installations.
 
 Each push runs independently without cancelling earlier pushes. Before building,
-the job atomically creates a Git tag at the exact source SHA using the current
-UTC minute in `yyyy.mm.dd.hh.mm` format. If that tag already occupies the minute,
-the job waits for the next actual minute. If tag creation fails without an
-existing matching tag, the job fails.
+the prepare job atomically creates a Git tag at the exact source SHA using the
+current UTC minute in `yyyy.mm.dd.hh.mm` format. If that tag already occupies the
+minute, the job waits for the next actual minute. If tag creation fails without
+an existing matching tag, the job fails.
 
 All variants use the same allocated version and GHCR repository.
 
-| Target | Combined tag | Architecture tag | Default command |
-| --- | --- | --- | --- |
-| `binary` | `server-VERSION` | `server-VERSION-ARCH` | `exposed server` |
-| `frontend-server` | `app-VERSION` | `app-VERSION-ARCH` | `node build` |
-| `migrate` | `migrate-VERSION` | `migrate-VERSION-ARCH` | `exposed migrate run --source /app/db/migrations` |
-| `data` | `cli-VERSION` | `cli-VERSION-ARCH` | `exposed data --help` |
+| Target | Release tag | Default command |
+| --- | --- | --- |
+| `binary` | `server-VERSION` | `exposed server` |
+| `frontend-server` | `app-VERSION` | `node build` |
+| `migrate` | `migrate-VERSION` | `exposed migrate run --source /app/db/migrations` |
+| `data` | `cli-VERSION` | `exposed data --help` |
 
-`ARCH` is `amd64` or `arm64`. Architecture tags have no mutable aliases.
+The repository is `ghcr.io/<repository-owner>/<repository-name>`. The shared build
+action pushes original image indexes by digest with `mode=max` provenance and
+labels the images with the source commit. One BuildKit builder handles all four
+variants so backend targets reuse Rust compilation. Builds write their own
+`exposed-linux-amd64` or `exposed-linux-arm64` GitHub Actions cache and read the
+previous `exposed-linux-multiarch` cache as a fallback.
 
-The repository is `ghcr.io/<repository-owner>/<repository-name>`. CI pushes each
-architecture's images by digest with `mode=max` provenance. Separate native
-`ubuntu-24.04` and `ubuntu-24.04-arm` runners build amd64 and arm64 in parallel.
-Each runner uses one BuildKit builder for all four variants, so backend targets
-reuse Rust compilation. Each architecture writes its own GitHub Actions cache,
-`exposed-linux-amd64` or `exposed-linux-arm64`. Both also read the previous
-`exposed-linux-multiarch` cache as a fallback.
+After the AMD64 build succeeds, the release job copies each original attested
+index to its version tag. It updates the `server` alias only after all four
+version tags succeed. It creates one GitHub release named `VERSION` and marks it
+Latest. ARM builds do not participate in automatic releases.
 
-After all four variants succeed on one architecture, that runner publishes its
-architecture tags and a separate `VERSION-ARCH` GitHub release at the source SHA.
-These releases retain the original attested image indexes and do not become the
-latest GitHub release. They are available without waiting for the other runner.
+Each release includes `images.json` with `version`, source commit `source`, and
+an `images` object with `server`, `app`, `migrate`, and `cli` keys. Each key maps
+to that variant's immutable GHCR pull reference. The `image.txt` asset contains
+the server reference for existing deployments. Use these digest references for
+deployment.
 
-After both builds succeed, the release job combines their digests into a
-multi-platform index for each version tag. It updates the `server` alias only
-after all four indexes exist. The indexes retain both architectures' provenance.
+Manual runs of the release workflow build all four AMD64 variants without
+publishing images, reserving Git tags, or creating releases. They populate the
+AMD64 cache. Set `cold` to rebuild the Rust toolchain and dependencies without
+cached compiler layers. Later backend targets still reuse that build.
 
-Manual `workflow_dispatch` runs build all four variants on the same native
-runners without publishing images, reserving Git tags, or creating releases.
-They populate the architecture caches and can validate workflow changes on a
-branch before release.
-Set the manual run's `cold` input to rebuild the Rust toolchain and dependencies
-without cached compiler layers. Later backend targets still reuse that build.
+An interrupted or failed automatic release can leave a reserved Git tag or some
+version tags without a release. A new run allocates a new unused UTC minute.
+The prepare and release jobs need repository content write permission. The build
+job needs content read and package write permissions. GHCR package visibility
+follows the package settings. Set it to public if unauthenticated pulls are
+required.
 
-Each GitHub release contains its own `images.json` with `version`, source commit `source`,
-and an `images` object with `server`, `app`, `migrate`, and `cli` keys. Each key
-maps to the corresponding variant's immutable GHCR pull reference. Each reference
-in a combined `VERSION` release pins an OCI image index containing both
-architectures. Docker selects the matching image when you pull or run the reference.
-An architecture release sets `version` to `VERSION-ARCH`, adds `architecture` with
-`amd64` or `arm64`, and pins the original indexes for that architecture only.
-The `image.txt` asset keeps that release's server image reference for existing deployments.
-Use the digest references for deployment.
+## Build ARM images for local testing
 
-If one architecture fails, the other can still publish its architecture release.
-The combined release and `server` alias wait for both successful builds.
-An interrupted or failed attempt can leave a reserved Git tag or some version
-tags without a release. Published architecture releases remain available. A retry
-allocates a new unused UTC minute.
+Run **Build ARM test images** from the Actions tab. Select the workflow revision
+to use and optionally set `source_ref` to the source branch, tag, or commit to
+build. If omitted, it builds the selected workflow commit. Set `cold` to rebuild
+Rust dependencies. You can also dispatch it with the GitHub CLI.
 
-The prepare job needs repository content write permission to reserve the tag.
-Build jobs and the release job need both content and package write permissions.
-GHCR package visibility follows the package settings. Set its visibility to public
-if unauthenticated pulls are required.
+```sh
+gh workflow run arm-test.yml -f source_ref=main
+```
+
+To rebuild a specific commit without cached Rust compiler layers, set `cold=true`.
+
+```sh
+gh workflow run arm-test.yml -f source_ref=COMMIT_SHA -f cold=true
+```
+
+The workflow runs only when dispatched. A native `ubuntu-24.04-arm` runner uses
+the shared action from the selected workflow revision and builds the requested
+source in a separate checkout. OCI revision labels and the manifest use the
+resolved source commit, even when it differs from the workflow revision.
+
+It publishes four unique test tags in this form.
+
+```text
+VARIANT-test-arm64-FULL_SOURCE_SHA-RUN_ID-RUN_ATTEMPT
+```
+
+It creates no Git tag or GitHub release and never changes the `server` alias.
+The run summary contains the actual source SHA and copyable `docker pull`
+commands for all four immutable references. Download the `arm64-test-images`
+artifact to obtain `images.json` and `image.txt`. The JSON contains `source`,
+`architecture: "arm64"`, and `images` and `tags` objects with the four variant
+keys. `image.txt` contains the immutable server reference.
+
+On an Apple Silicon Mac with Docker Desktop, pull a reference from the summary
+and use it with the earlier run commands. After you extract the artifact into
+the current directory, run:
+
+```sh
+docker pull "$(jq -r '.images.server' images.json)"
+docker run --rm --env DATABASE_URL -p 6999:6999 "$(cat image.txt)"
+```
+
+These test images contain only `linux/arm64`. The newest automatic release
+continues to contain only `linux/amd64`.

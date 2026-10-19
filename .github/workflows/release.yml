@@ -20,6 +20,7 @@ on:
       - docker/**
       - .dockerignore
       - .github/workflows/release.yml
+      - .github/actions/build-images/**
 
 permissions:
   contents: read
@@ -58,169 +59,45 @@ jobs:
 
   build:
     needs: prepare
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            runner: ubuntu-24.04
-          - arch: arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-24.04
     permissions:
-      contents: write
+      contents: read
       packages: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         if: github.event_name == 'push'
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build backend server
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        id: binary
+      - uses: ./.github/actions/build-images
+        id: images
         with:
-          context: .
-          file: docker/Dockerfile
-          target: binary
-          platforms: linux/${{ matrix.arch }}
-          no-cache-filters: ${{ inputs.cold && 'chef,planner,builder' || '' }}
-          provenance: mode=max
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          outputs: ${{ github.event_name == 'push' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', needs.prepare.outputs.image) || 'type=cacheonly' }}
-          cache-from: |
-            type=gha,scope=exposed-linux-${{ matrix.arch }}
-            type=gha,scope=exposed-linux-multiarch
-          cache-to: type=gha,scope=exposed-linux-${{ matrix.arch }},mode=max
-      - name: Build frontend-only app
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        id: frontend-server
-        with:
-          context: .
-          file: docker/Dockerfile
-          target: frontend-server
-          platforms: linux/${{ matrix.arch }}
-          provenance: mode=max
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          outputs: ${{ github.event_name == 'push' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', needs.prepare.outputs.image) || 'type=cacheonly' }}
-          cache-from: |
-            type=gha,scope=exposed-linux-${{ matrix.arch }}
-            type=gha,scope=exposed-linux-multiarch
-          cache-to: type=gha,scope=exposed-linux-${{ matrix.arch }},mode=max
-      - name: Build migrate
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        id: migrate
-        with:
-          context: .
-          file: docker/Dockerfile
-          target: migrate
-          platforms: linux/${{ matrix.arch }}
-          provenance: mode=max
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          outputs: ${{ github.event_name == 'push' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', needs.prepare.outputs.image) || 'type=cacheonly' }}
-          cache-from: |
-            type=gha,scope=exposed-linux-${{ matrix.arch }}
-            type=gha,scope=exposed-linux-multiarch
-          cache-to: type=gha,scope=exposed-linux-${{ matrix.arch }},mode=max
-      - name: Build data
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        id: data
-        with:
-          context: .
-          file: docker/Dockerfile
-          target: data
-          platforms: linux/${{ matrix.arch }}
-          provenance: mode=max
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          outputs: ${{ github.event_name == 'push' && format('type=image,name={0},push-by-digest=true,name-canonical=true,push=true', needs.prepare.outputs.image) || 'type=cacheonly' }}
-          cache-from: |
-            type=gha,scope=exposed-linux-${{ matrix.arch }}
-            type=gha,scope=exposed-linux-multiarch
-          cache-to: type=gha,scope=exposed-linux-${{ matrix.arch }},mode=max
-      - name: Write architecture digests
+          architecture: amd64
+          source-sha: ${{ github.sha }}
+          image: ${{ needs.prepare.outputs.image }}
+          publish: ${{ github.event_name == 'push' }}
+          cold: ${{ inputs.cold || false }}
+      - name: Write image digests
         if: github.event_name == 'push'
         env:
-          ARCH: ${{ matrix.arch }}
-          BINARY_DIGEST: ${{ steps.binary.outputs.digest }}
-          FRONTEND_SERVER_DIGEST: ${{ steps.frontend-server.outputs.digest }}
-          MIGRATE_DIGEST: ${{ steps.migrate.outputs.digest }}
-          DATA_DIGEST: ${{ steps.data.outputs.digest }}
+          SERVER_DIGEST: ${{ steps.images.outputs.server }}
+          APP_DIGEST: ${{ steps.images.outputs.app }}
+          MIGRATE_DIGEST: ${{ steps.images.outputs.migrate }}
+          CLI_DIGEST: ${{ steps.images.outputs.cli }}
         run: |
-          jq -n --arg server "$BINARY_DIGEST" --arg app "$FRONTEND_SERVER_DIGEST" \
-            --arg migrate "$MIGRATE_DIGEST" --arg cli "$DATA_DIGEST" \
-            '{server: $server, app: $app, migrate: $migrate, cli: $cli}' > "$ARCH.json"
+          jq -n --arg server "$SERVER_DIGEST" --arg app "$APP_DIGEST" \
+            --arg migrate "$MIGRATE_DIGEST" --arg cli "$CLI_DIGEST" \
+            '{server: $server, app: $app, migrate: $migrate, cli: $cli}' > amd64.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: github.event_name == 'push'
         with:
-          name: digests-${{ matrix.arch }}
-          path: ${{ matrix.arch }}.json
+          name: digests-amd64
+          path: amd64.json
           if-no-files-found: error
-
-      - name: Publish architecture images
-        id: architecture-images
-        if: github.event_name == 'push'
-        env:
-          ARCH: ${{ matrix.arch }}
-          IMAGE: ${{ needs.prepare.outputs.image }}
-          VERSION: ${{ needs.prepare.outputs.version }}
-        run: |
-          jq -n --arg version "$VERSION-$ARCH" --arg source "$GITHUB_SHA" --arg architecture "$ARCH" \
-            '{version: $version, source: $source, architecture: $architecture, images: {}}' > images.json
-          for variant in server app migrate cli; do
-            digest=$(jq -er --arg variant "$variant" '.[$variant]' "$ARCH.json")
-            ref="$IMAGE@$digest"
-            docker buildx imagetools create --tag "$IMAGE:$variant-$VERSION-$ARCH" "$ref"
-            jq --arg variant "$variant" --arg ref "$ref" \
-              '.images[$variant] = $ref' images.json > images.tmp.json
-            mv images.tmp.json images.json
-          done
-          server=$(jq -er '.images.server' images.json)
-          printf '%s\n' "$server" > image.txt
-          echo "server=$server" >> "$GITHUB_OUTPUT"
-      - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        if: github.event_name == 'push'
-        with:
-          tag_name: ${{ needs.prepare.outputs.version }}-${{ matrix.arch }}
-          target_commitish: ${{ github.sha }}
-          name: ${{ needs.prepare.outputs.version }}-${{ matrix.arch }}
-          make_latest: 'false'
-          files: |
-            image.txt
-            images.json
-          fail_on_unmatched_files: true
-          body: |
-            Source: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
-
-            All four images support only linux/${{ matrix.arch }}. This architecture release is available independently of the other architecture's build.
-
-            The app image runs only the Node frontend on port 8080. Deploy the Rust server separately and set the app's private `EXPOSED_API_ORIGIN` to its reachable origin.
-
-            Download images.json for the immutable pull references of all four images.
-
-            | Variant | Image |
-            | --- | --- |
-            | Server | `${{ needs.prepare.outputs.image }}:server-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}` |
-            | Frontend-only app | `${{ needs.prepare.outputs.image }}:app-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}` |
-            | Migrate | `${{ needs.prepare.outputs.image }}:migrate-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}` |
-            | CLI | `${{ needs.prepare.outputs.image }}:cli-${{ needs.prepare.outputs.version }}-${{ matrix.arch }}` |
-
-            ```sh
-            docker pull ${{ steps.architecture-images.outputs.server }}
-            docker run --rm --env DATABASE_URL -p 6999:6999 ${{ steps.architecture-images.outputs.server }}
-            ```
 
   release:
     if: github.event_name == 'push'
@@ -238,10 +115,9 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          pattern: digests-*
+          name: digests-amd64
           path: digests
-          merge-multiple: true
-      - name: Publish multi-platform indexes
+      - name: Publish release images
         id: indexes
         env:
           IMAGE: ${{ needs.prepare.outputs.image }}
@@ -250,12 +126,8 @@ jobs:
           jq -n --arg version "$VERSION" --arg source "$GITHUB_SHA" \
             '{version: $version, source: $source, images: {}}' > images.json
           for variant in server app migrate cli; do
-            amd64=$(jq -er --arg variant "$variant" '.[$variant]' digests/amd64.json)
-            arm64=$(jq -er --arg variant "$variant" '.[$variant]' digests/arm64.json)
-            docker buildx imagetools create --tag "$IMAGE:$variant-$VERSION" \
-              "$IMAGE@$amd64" "$IMAGE@$arm64"
-            digest=$(docker buildx imagetools inspect "$IMAGE:$variant-$VERSION" \
-              --format '{{json .Manifest}}' | jq -er '.digest')
+            digest=$(jq -er --arg variant "$variant" '.[$variant]' digests/amd64.json)
+            docker buildx imagetools create --tag "$IMAGE:$variant-$VERSION" "$IMAGE@$digest"
             jq --arg variant "$variant" --arg ref "$IMAGE@$digest" \
               '.images[$variant] = $ref' images.json > images.tmp.json
             mv images.tmp.json images.json
@@ -269,6 +141,7 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.version }}
           target_commitish: ${{ github.sha }}
           name: ${{ needs.prepare.outputs.version }}
+          make_latest: 'true'
           files: |
             image.txt
             images.json
@@ -276,7 +149,7 @@ jobs:
           body: |
             Source: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
 
-            All four images support Linux amd64 and arm64, including Docker Desktop on Intel and Apple Silicon Macs.
+            All four images support linux/amd64. Use the manual ARM test workflow for Apple Silicon builds.
 
             The app image runs only the Node frontend on port 8080. Deploy the Rust server separately and set the app's private `EXPOSED_API_ORIGIN` to its reachable origin.
 
