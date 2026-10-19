@@ -1,9 +1,10 @@
-mod tracing;
-
 use anyhow::Context;
 use clap::Parser;
 use exposed::inbound::{
-    cli::{Commands, ExposedCli, IntoResponse, Response, run_cli, run_healthcheck, run_migrate},
+    cli::{
+        Commands, ExposedCli, IntoResponse, Response, init_tracing, run_cli, run_healthcheck,
+        run_migrate,
+    },
     http::server::run_server,
 };
 use std::process::ExitCode;
@@ -21,7 +22,7 @@ fn main() -> anyhow::Result<ExitCode> {
         }
         Commands::Healthcheck => {}
     }
-    if let Err(error) = tracing::init(&args.command) {
+    if let Err(error) = init_tracing(&args.command) {
         return match args.command {
             Commands::Data(_) | Commands::Migrate(_) => {
                 write_response(Err::<Response, _>(error).into_response())
@@ -30,9 +31,9 @@ fn main() -> anyhow::Result<ExitCode> {
         };
     }
     let span = match &args.command {
-        Commands::Server => ::tracing::error_span!("operation", command = "server"),
-        Commands::Healthcheck => ::tracing::error_span!("operation", command = "healthcheck"),
-        Commands::Migrate(_) => ::tracing::error_span!("operation", command = "migrate"),
+        Commands::Server => tracing::error_span!("operation", command = "server"),
+        Commands::Healthcheck => tracing::error_span!("operation", command = "healthcheck"),
+        Commands::Migrate(_) => tracing::error_span!("operation", command = "migrate"),
         Commands::Data(data) => data.trace_span(),
     };
     let _entered = span.enter();
@@ -43,7 +44,7 @@ fn finish(result: anyhow::Result<ExitCode>) -> anyhow::Result<ExitCode> {
     match result {
         Ok(code) => Ok(code),
         Err(error) => {
-            ::tracing::error!(error = %format!("{error:#}"), "operation failed");
+            tracing::error!(error = %format!("{error:#}"), "operation failed");
             Err(error)
         }
     }
@@ -60,7 +61,7 @@ fn dispatch(command: Commands) -> anyhow::Result<ExitCode> {
         Commands::Server => run_server().map(|()| ExitCode::SUCCESS),
         Commands::Healthcheck => {
             tokio::runtime::Runtime::new()?.block_on(run_healthcheck())?;
-            ::tracing::info!("command completed");
+            tracing::info!("command completed");
             Ok(ExitCode::SUCCESS)
         }
         Commands::Migrate(args) => {
@@ -106,7 +107,7 @@ mod tests {
     fn process_boundary_logs_each_distinct_failure_once() {
         for (command_failed, expected) in [(false, 1), (true, 2)] {
             let capture = capture::Capture::default();
-            ::tracing::subscriber::with_default(capture.subscriber(), || {
+            tracing::subscriber::with_default(capture.subscriber(), || {
                 let result: anyhow::Result<_> = if command_failed {
                     Err(anyhow::anyhow!("command cause"))
                 } else {
@@ -132,7 +133,7 @@ mod tests {
             }
         }
         let capture = capture::Capture::default();
-        ::tracing::subscriber::with_default(capture.subscriber(), || {
+        tracing::subscriber::with_default(capture.subscriber(), || {
             assert!(super::finish(Ok(std::process::ExitCode::FAILURE)).is_ok());
         });
         assert!(capture.errors().is_empty());

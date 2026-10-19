@@ -34,10 +34,12 @@ mod migrate;
 pub mod response;
 mod response_help;
 mod stages;
+mod telemetry;
 
 pub use healthcheck::run_healthcheck;
 pub use migrate::{MigrateArgs, run_migrate};
 pub use response::{CliSuccess, IntoResponse, Response};
+pub use telemetry::init_tracing;
 
 /// CLI entrypoint for the `exposed` project
 #[derive(Parser)]
