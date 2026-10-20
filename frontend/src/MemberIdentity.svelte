@@ -43,9 +43,19 @@
       <div class="earnings-values">
         <div class="member-value">
           <span>Earnings this parliamentary term</span>
-          <p class="member-total">
-            {formatPounds(summary.earningsTotals.currentTerm.amount)}
-          </p>
+          {#if summary.earningsTotals.currentTerm.amount === null}
+            <p class="member-total unavailable">{formatPounds(null)}</p>
+          {:else}
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex (Keyboard users need to scroll wide amounts without losing digits.) -->
+            <div
+              class="member-total"
+              role="region"
+              tabindex="0"
+              aria-label="Earnings this parliamentary term in GBP"
+            >
+              {formatPounds(summary.earningsTotals.currentTerm.amount)}
+            </div>
+          {/if}
           <p class="partial-note">
             Since {dateLabel(CURRENT_PARLIAMENT_START)}
           </p>
@@ -57,8 +67,23 @@
         </div>
         <div class="member-value">
           <span>Historical earnings</span>
-          <p class="member-total">
-            {formatPounds(summary.earningsTotals.historical.amount)}
+          {#if summary.earningsTotals.historical.amount === null}
+            <p class="member-total unavailable">{formatPounds(null)}</p>
+          {:else}
+            <!-- svelte-ignore a11y_no_noninteractive_tabindex (Keyboard users need to scroll wide amounts without losing digits.) -->
+            <div
+              class="member-total"
+              role="region"
+              tabindex="0"
+              aria-label="Historical earnings in GBP"
+            >
+              {formatPounds(summary.earningsTotals.historical.amount)}
+            </div>
+          {/if}
+          <p class="partial-note">
+            {summary.firstRegisteredAt
+              ? `Earliest stored declaration across all categories: ${dateLabel(summary.firstRegisteredAt)}.`
+              : "No dated declarations stored."}
           </p>
           <p class="partial-note">All stored earnings, including this term</p>
           {#if summary.earningsTotals.historical.incomplete}<p
@@ -71,11 +96,6 @@
       <p class="partial-note">
         Known GBP amounts, based on registration date. Other currencies
         excluded.
-      </p>
-      <p class="partial-note">
-        {summary.firstRegisteredAt
-          ? `Earliest stored declaration across all categories: ${dateLabel(summary.firstRegisteredAt)}.`
-          : "No dated declarations stored."}
       </p>
       {#if summary.undated}<p class="partial-note">
           Earnings without a registration date are included in historical

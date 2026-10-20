@@ -1692,3 +1692,107 @@ test("empty member earnings show unavailable totals and no stored date", async (
     "No dated declarations stored.",
   );
 });
+
+test("earnings keep precise figures readable on narrow screens and missing amounts neutral", async ({
+  backend,
+  page,
+}) => {
+  await mockDetails(backend);
+  let amount: string | null = "1234567890.12";
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        declarations: [
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Employment",
+            entries: [
+              { amount, currency: "GBP", funder: null, payment_type: null },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  for (const width of [850, 801, 601, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/members/1");
+    await expect(page.locator(".member-total")).toHaveText([
+      "£1,234,567,890.12",
+      "£1,234,567,890.12",
+    ]);
+    await page.evaluate(() => document.fonts.ready);
+    const figures = await page
+      .locator(".member-total")
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const text = document.createRange();
+          text.selectNodeContents(element);
+          return {
+            fits: element.scrollWidth <= element.clientWidth,
+            lines: text.getClientRects().length,
+            fontSize: parseFloat(getComputedStyle(element).fontSize),
+          };
+        }),
+      );
+    for (const figure of figures) {
+      expect(figure.fits).toBe(true);
+      expect(figure.lines).toBe(1);
+      expect(figure.fontSize).toBeGreaterThanOrEqual(24);
+    }
+  }
+  const knownStyle = await page
+    .locator(".member-total")
+    .first()
+    .evaluate((element) => ({
+      color: getComputedStyle(element).color,
+      fontSize: parseFloat(getComputedStyle(element).fontSize),
+    }));
+  amount = null;
+  await page.reload();
+  await expect(page.locator(".member-total.unavailable")).toHaveCount(2);
+  const missingStyle = await page
+    .locator(".member-total")
+    .first()
+    .evaluate((element) => ({
+      color: getComputedStyle(element).color,
+      fontSize: parseFloat(getComputedStyle(element).fontSize),
+    }));
+  expect(missingStyle.color).not.toBe(knownStyle.color);
+  expect(missingStyle.fontSize).toBeLessThan(knownStyle.fontSize);
+  await expect(page.locator(".member-earnings-totals")).toContainText(
+    "Some amounts unavailable",
+  );
+  amount = "90071992547409939007199254740993.123456789";
+  await page.reload();
+  const figure = page.getByRole("region", {
+    name: "Historical earnings in GBP",
+    exact: true,
+  });
+  await expect(figure).toHaveText(
+    "£90,071,992,547,409,939,007,199,254,740,993.123456789",
+  );
+  await figure.focus();
+  await page.keyboard.press("ArrowRight");
+  expect(
+    await figure.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getClientRects().length;
+    }),
+  ).toBe(1);
+  expect(
+    await figure.evaluate((element) =>
+      parseFloat(getComputedStyle(element).outlineWidth),
+    ),
+  ).toBeGreaterThanOrEqual(2);
+  await expect
+    .poll(() => figure.evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
