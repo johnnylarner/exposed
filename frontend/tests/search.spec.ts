@@ -60,7 +60,7 @@ test("live search preserves API ranking, spelling, duplicates and entity context
     requests.push(new URL(route.request().url()));
     await route.fulfill({ json: { entities } });
   });
-  await page.goto("/");
+  await page.goto("/search");
   const input = page.getByRole("searchbox");
   await input.fill("jo");
   await expect(
@@ -126,7 +126,7 @@ test("live search preserves API ranking, spelling, duplicates and entity context
   await input.hover();
   await expect(page.locator(".entity-tooltip")).toHaveCount(0);
   await expect(page.locator("mark").first()).toHaveText("john");
-  await expect(page).toHaveURL(/\/\?q=John$/u);
+  await expect(page).toHaveURL(/\/search\?q=John$/u);
   await expect(page.getByRole("slider")).toHaveCount(0);
 });
 
@@ -160,7 +160,7 @@ test("a late response cannot replace a newer query or repopulate a cleared searc
     });
     if (term === "John") finishOld();
   });
-  await page.goto("/");
+  await page.goto("/search");
   const input = page.getByRole("searchbox");
   const oldRequest = backend.waitForRequest((request) =>
     request.url().includes("term=John"),
@@ -181,6 +181,7 @@ test("a late response cannot replace a newer query or repopulate a cleared searc
   await expect(page.locator(".entity-row")).toHaveCount(0);
   await expect(input).toBeFocused();
   await expect(page).not.toHaveURL(/q=/);
+  expect(new URL(page.url()).pathname).toBe("/search");
 });
 
 test("an unavailable service offers retry and an empty response offers a useful next step", async ({
@@ -194,7 +195,7 @@ test("an unavailable service offers retry and an empty response offers a useful 
       await route.fulfill({ status: 503, body: "service unavailable" });
     else await route.fulfill({ json: { entities: [] } });
   });
-  await page.goto("/?q=unknown");
+  await page.goto("/search?q=unknown");
   await expect(page.getByRole("alert")).toContainText("Search couldn’t load");
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(
@@ -230,7 +231,7 @@ test("search text and names containing markup or regular expression syntax remai
       },
     }),
   );
-  await page.goto("/");
+  await page.goto("/search");
   await page.getByRole("searchbox").fill("A.*");
   await expect(page.locator(".entity-name")).toHaveText(name);
   await expect(page.locator(".entity-name mark")).toHaveText("A.*");
@@ -257,7 +258,7 @@ test("keyboard search and long results remain usable on a narrow screen", async 
       },
     }),
   );
-  await page.goto("/");
+  await page.goto("/search");
   await page.waitForLoadState("networkidle");
   await page.keyboard.press("/");
   await expect(page.getByRole("searchbox")).toBeFocused();
@@ -309,7 +310,7 @@ test("alias provenance preserves canonical navigation and escapes highlighted al
       },
     }),
   );
-  await page.goto("/?q=West&strictness=0.5");
+  await page.goto("/search?q=West&strictness=0.5");
   const link = page.locator(".entity-name").first();
   await expect(link).toHaveText("Unite the Union");
   await expect(link).toHaveAttribute("href", `/funders/${id}?q=West`);
@@ -355,7 +356,7 @@ for (const invalid of [
         },
       }),
     );
-    await page.goto("/?q=West");
+    await page.goto("/search?q=West");
     await expect(page.getByRole("alert")).toContainText(
       "unexpected match source",
     );
@@ -379,7 +380,7 @@ test("rejects alias source for an MP", async ({ backend, page }) => {
       },
     }),
   );
-  await page.goto("/?q=West");
+  await page.goto("/search?q=West");
   await expect(page.getByRole("alert")).toContainText("unexpected MP identity");
 });
 
@@ -398,7 +399,7 @@ for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
     await backend.route("**/api/search?*", (route) =>
       route.fulfill({ json: { entities: [] } }),
     );
-    await page.goto("/");
+    await page.goto("/search");
     const input = page.getByRole("searchbox");
     const otherControl = page.getByRole("link", { name: "Exposed home" });
     await expect(page.locator(".search-shortcut")).toHaveText(
@@ -518,7 +519,7 @@ for (const replacement of ["", "Jo"]) {
       await pending;
       await route.fulfill({ json: { entities: [] } });
     });
-    await page.goto("/");
+    await page.goto("/search");
     const input = page.getByRole("searchbox");
     const started = backend.waitForRequest((request) =>
       request.url().includes("term=John"),
@@ -541,6 +542,7 @@ for (const replacement of ["", "Jo"]) {
 
 for (const pathname of [
   "/",
+  "/search",
   "/members/1",
   "/members/1/history",
   "/funders/10000000-0000-0000-0000-000000000001",
@@ -560,7 +562,9 @@ for (const pathname of [
       { maxRedirects: 0 },
     );
     expect(response.status()).toBe(308);
-    expect(response.headers().location).toBe(`${pathname}?q=Nigel&keep=value`);
+    expect(response.headers().location).toBe(
+      `${pathname === "/" ? "/search" : pathname}?q=Nigel&keep=value`,
+    );
     expect(calls).toEqual([]);
     if (pathname === "/") {
       const canonical = await request.get(response.headers().location);

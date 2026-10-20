@@ -1,3 +1,5 @@
+import { searchQueryString } from "./search-query";
+
 export type DetailRoute =
   | { kind: "search" }
   | { kind: "member"; id: string; view: "summary" | "history" }
@@ -9,7 +11,7 @@ export const funderIdPattern =
 export const memberIdPattern = /^[1-9]\d*$/u;
 
 export function readDetailRoute(path: string): DetailRoute {
-  if (path === "/") return { kind: "search" };
+  if (path === "/search") return { kind: "search" };
   const member = /^\/members\/([^/]+)(?:\/(history))?\/?$/u.exec(path);
   if (
     member &&
@@ -109,10 +111,7 @@ export type DetailState =
   | { kind: "error"; message: string };
 
 export function backToSearch(params: Pick<URLSearchParams, "get">): string {
-  const retained = new URLSearchParams();
-  const value = params.get("q");
-  if (value !== null) retained.set("q", value);
-  return retained.size ? `/?${retained}` : "/";
+  return `/search${searchQueryString(params)}`;
 }
 
 export function formatAmount(value: string | null): string {
@@ -137,7 +136,7 @@ export function memberHref(
   view: "summary" | "history",
   params: Pick<URLSearchParams, "get">,
 ): string {
-  const search = backToSearch(params).slice(1);
+  const search = searchQueryString(params);
   return `/members/${id}${view === "history" ? "/history" : ""}${search}`;
 }
 
@@ -190,6 +189,6 @@ export function funderHref(
   view: "summary" | "history",
   params: Pick<URLSearchParams, "get">,
 ): string {
-  const search = backToSearch(params).slice(1);
+  const search = searchQueryString(params);
   return `/funders/${id}${view === "history" ? "/history" : ""}${search}`;
 }

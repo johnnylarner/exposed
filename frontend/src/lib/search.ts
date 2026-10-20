@@ -1,3 +1,5 @@
+import { searchQueryString } from "./search-query";
+
 // Search defaults live here. The API applies
 // max_entries independently to MPs and funders, then merges by similarity.
 export const searchConfiguration = {
@@ -31,10 +33,7 @@ export function entityHref(
   entity: Pick<Entity, "kind" | "id">,
   params: Pick<URLSearchParams, "get">,
 ): string {
-  const retained = new URLSearchParams();
-  const value = params.get("q");
-  if (value !== null) retained.set("q", value);
-  const query = retained.size ? `?${retained}` : "";
+  const query = searchQueryString(params);
   return `/${entity.kind === "MP" ? "members" : "funders"}/${encodeURIComponent(entity.id)}${query}`;
 }
 
