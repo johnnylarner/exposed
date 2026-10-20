@@ -940,16 +940,17 @@ for (const negative of [false, true]) {
   });
 }
 
-test("member summary displays server totals, signed category bars, zero and unavailable amounts", async ({
+test("member summary retains signed category bars alongside unavailable earnings", async ({
   backend,
   page,
   context,
 }) => {
   await mockDetails(backend);
   await page.goto("/members/1");
-  await expect(page.locator(".member-total")).toHaveText(
-    "£18,014,398,509,481,986.246913578",
-  );
+  await expect(page.locator(".member-total")).toHaveText([
+    "Amount unavailable",
+    "Amount unavailable",
+  ]);
   await expect(page.locator(".signed-bar .negative")).toHaveCount(1);
   await expect(
     page
@@ -962,9 +963,9 @@ test("member summary displays server totals, signed category bars, zero and unav
     ),
   ).toHaveCount(0);
   await expect(page.locator(".member-identity")).toContainText(
-    "Known declared value",
+    "Earnings this parliamentary term",
   );
-  const total = await page.locator(".member-total").boundingBox();
+  const total = await page.locator(".member-total").first().boundingBox();
   const tabs = await page.locator(".member-tabs").boundingBox();
   expect(total && tabs && total.y + total.height <= tabs.y).toBeTruthy();
   await expect(page.locator(".declarations-list > li")).toHaveCount(2);
@@ -1564,5 +1565,130 @@ test("initial HTML renders search and detail views while browser traffic stays i
   ).toBe(false);
   expect(browserUrls.every((url) => new URL(url).origin === baseURL)).toBe(
     true,
+  );
+});
+
+test("member earnings distinguish this term and history with registration coverage", async ({
+  backend,
+  page,
+}) => {
+  await mockDetails(backend);
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        summary: {
+          ...memberDetails.summary,
+          first_registered_at: "2020-01-01T00:00:00Z",
+        },
+        declarations: [
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Employment",
+            registered_at: "2024-07-09T00:00:00Z",
+            entries: [
+              {
+                amount: "200",
+                currency: "GBP",
+                funder: null,
+                payment_type: null,
+              },
+            ],
+          },
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Employment",
+            registered_at: "2023-01-01T00:00:00Z",
+            entries: [
+              {
+                amount: "100",
+                currency: "GBP",
+                funder: null,
+                payment_type: null,
+              },
+            ],
+          },
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Employment",
+            registered_at: null,
+            entries: [
+              {
+                amount: "50",
+                currency: "GBP",
+                funder: null,
+                payment_type: null,
+              },
+            ],
+          },
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Gifts",
+            registered_at: "2020-01-01T00:00:00Z",
+            entries: [],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(page.locator(".member-total")).toHaveText([
+    "£200.00",
+    "£350.00",
+  ]);
+  await expect(page.locator(".member-identity")).toContainText(
+    "Since 9 July 2024",
+  );
+  await expect(page.locator(".member-identity")).toContainText(
+    "Earliest stored declaration across all categories: 1 January 2020",
+  );
+  await expect(page.locator(".member-identity")).toContainText(
+    "excluded from this term",
+  );
+  if (process.env.EXPOSED_SCREENSHOT_DIR)
+    await page.screenshot({
+      path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-earnings-summary.png`,
+      fullPage: true,
+    });
+  await page
+    .getByRole("link", { name: "Declaration history", exact: true })
+    .click();
+  await expect(page.locator(".member-total")).toHaveCount(0);
+  if (process.env.EXPOSED_SCREENSHOT_DIR)
+    await page.screenshot({
+      path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-earnings-history.png`,
+      fullPage: true,
+    });
+});
+
+test("empty member earnings show unavailable totals and no stored date", async ({
+  backend,
+  page,
+}) => {
+  await mockDetails(backend);
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        declarations: [],
+        summary: {
+          ...memberDetails.summary,
+          currencies: [],
+          first_registered_at: null,
+          last_registered_at: null,
+          entry_count: 0,
+          unknown_currency_count: 0,
+          undated_declaration_count: 0,
+        },
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(page.locator(".member-total")).toHaveText([
+    "Amount unavailable",
+    "Amount unavailable",
+  ]);
+  await expect(page.locator(".member-identity")).toContainText(
+    "No dated declarations stored.",
   );
 });
