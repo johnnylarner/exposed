@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PUBLIC_APP_VERSION } from "$app/env/public";
   import LandingPage from "./LandingPage.svelte";
   import MethodologyPage from "./MethodologyPage.svelte";
   import { pagePresentation } from "./lib/page";
@@ -43,5 +44,6 @@
       target="_blank"
       rel="noreferrer">Open Parliament Licence</a
     >
+    <span>Version {PUBLIC_APP_VERSION}</span>
   </footer>
 </div>

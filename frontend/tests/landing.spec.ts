@@ -1,5 +1,17 @@
 import { expect, test } from "./backend";
 
+test("footer displays the build version on public pages", async ({ page }) => {
+  const version = process.env.PUBLIC_APP_VERSION || "development";
+  for (const path of ["/", "/methodology", "/search"]) {
+    await page.goto(path);
+    await expect(
+      page
+        .getByRole("contentinfo")
+        .getByText(`Version ${version}`, { exact: true }),
+    ).toBeVisible();
+  }
+});
+
 test("landing and methodology navigate without backend requests", async ({
   page,
   backend,
