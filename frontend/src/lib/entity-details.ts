@@ -110,10 +110,8 @@ export type DetailState =
 
 export function backToSearch(params: Pick<URLSearchParams, "get">): string {
   const retained = new URLSearchParams();
-  for (const key of ["q", "strictness"]) {
-    const value = params.get(key);
-    if (value !== null) retained.set(key, value);
-  }
+  const value = params.get("q");
+  if (value !== null) retained.set("q", value);
   return retained.size ? `/?${retained}` : "/";
 }
 

@@ -126,7 +126,8 @@ test("live search preserves API ranking, spelling, duplicates and entity context
   await input.hover();
   await expect(page.locator(".entity-tooltip")).toHaveCount(0);
   await expect(page.locator("mark").first()).toHaveText("john");
-  await expect(page).toHaveURL(/q=John/);
+  await expect(page).toHaveURL(/\/\?q=John$/u);
+  await expect(page.getByRole("slider")).toHaveCount(0);
 });
 
 test("a late response cannot replace a newer query or repopulate a cleared search", async ({
@@ -311,10 +312,7 @@ test("alias provenance preserves canonical navigation and escapes highlighted al
   await page.goto("/?q=West&strictness=0.5");
   const link = page.locator(".entity-name").first();
   await expect(link).toHaveText("Unite the Union");
-  await expect(link).toHaveAttribute(
-    "href",
-    `/funders/${id}?q=West&strictness=0.5`,
-  );
+  await expect(link).toHaveAttribute("href", `/funders/${id}?q=West`);
   await expect(link).toHaveAccessibleDescription(`Matched alias: ${alias}`);
   await expect(page.locator(".entity-alias")).toHaveText(
     `Matched alias: ${alias}`,
@@ -402,11 +400,11 @@ for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
     );
     await page.goto("/");
     const input = page.getByRole("searchbox");
-    const slider = page.getByRole("slider");
+    const otherControl = page.getByRole("link", { name: "Exposed home" });
     await expect(page.locator(".search-shortcut")).toHaveText(
       mac ? "⌘ K" : "Ctrl K",
     );
-    await slider.focus();
+    await otherControl.focus();
     await page.keyboard.press(`${modifier}+k`);
     await expect(input).toBeFocused();
     await input.fill("  John  ");
@@ -414,7 +412,7 @@ for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
       page.getByRole("heading", { name: "No matches for “John”" }),
     ).toBeVisible();
     const url = page.url();
-    await slider.focus();
+    await otherControl.focus();
     await page.keyboard.press(`${modifier}+k`);
     await expect(input).toBeFocused();
     await expect(input).toHaveValue("  John  ");
@@ -431,8 +429,8 @@ for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
       { ...modifiers, isComposing: true },
       {},
     ]) {
-      await slider.focus();
-      const prevented = await slider.evaluate((element, init) => {
+      await otherControl.focus();
+      const prevented = await otherControl.evaluate((element, init) => {
         const event = new KeyboardEvent("keydown", {
           key: "k",
           bubbles: true,
@@ -443,11 +441,11 @@ for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
         return event.defaultPrevented;
       }, init);
       expect(prevented).toBe(false);
-      await expect(slider).toBeFocused();
+      await expect(otherControl).toBeFocused();
     }
 
-    await slider.focus();
-    await slider.evaluate((element, modifiers) => {
+    await otherControl.focus();
+    await otherControl.evaluate((element, modifiers) => {
       const event = new KeyboardEvent("keydown", {
         key: "k",
         bubbles: true,
@@ -457,28 +455,31 @@ for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
       event.preventDefault();
       element.dispatchEvent(event);
     }, modifiers);
-    await expect(slider).toBeFocused();
+    await expect(otherControl).toBeFocused();
     await input.dispatchEvent("compositionstart");
-    await slider.focus();
-    const composingPrevented = await slider.evaluate((element, modifiers) => {
-      const event = new KeyboardEvent("keydown", {
-        key: "k",
-        bubbles: true,
-        cancelable: true,
-        ...modifiers,
-      });
-      element.dispatchEvent(event);
-      return event.defaultPrevented;
-    }, modifiers);
+    await otherControl.focus();
+    const composingPrevented = await otherControl.evaluate(
+      (element, modifiers) => {
+        const event = new KeyboardEvent("keydown", {
+          key: "k",
+          bubbles: true,
+          cancelable: true,
+          ...modifiers,
+        });
+        element.dispatchEvent(event);
+        return event.defaultPrevented;
+      },
+      modifiers,
+    );
     expect(composingPrevented).toBe(false);
-    await expect(slider).toBeFocused();
+    await expect(otherControl).toBeFocused();
     await expect(input).toHaveValue("  John  ");
     await input.dispatchEvent("compositionend");
     await page.keyboard.press(`${modifier}+k`);
     await expect(input).toBeFocused();
     await input.press("/");
     await expect(input).toHaveValue("  John  /");
-    await slider.focus();
+    await otherControl.focus();
     await page.keyboard.press("Escape");
     await expect(input).toHaveValue("  John  /");
     await page.keyboard.press(`${modifier}+k`);
@@ -535,5 +536,37 @@ for (const replacement of ["", "Jo"]) {
     await expect(
       page.getByRole("heading", { name: "Start with a name" }),
     ).toBeVisible();
+  });
+}
+
+for (const pathname of [
+  "/",
+  "/members/1",
+  "/members/1/history",
+  "/funders/10000000-0000-0000-0000-000000000001",
+  "/funders/10000000-0000-0000-0000-000000000001/history",
+]) {
+  test(`legacy strictness redirects before loading ${pathname}`, async ({
+    backend,
+    request,
+  }) => {
+    const calls: string[] = [];
+    await backend.route("**", (route) => {
+      calls.push(route.request().url());
+      return route.fulfill({ json: { entities: [] } });
+    });
+    const response = await request.get(
+      `${pathname}?strictness=0.1&q=Nigel&strictness=1&keep=value`,
+      { maxRedirects: 0 },
+    );
+    expect(response.status()).toBe(308);
+    expect(response.headers().location).toBe(`${pathname}?q=Nigel&keep=value`);
+    expect(calls).toEqual([]);
+    if (pathname === "/") {
+      const canonical = await request.get(response.headers().location);
+      expect(canonical.ok()).toBe(true);
+      expect(calls).toHaveLength(1);
+      expect(new URL(calls[0]).searchParams.get("strictness")).toBe("0.8");
+    }
   });
 }
