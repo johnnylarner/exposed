@@ -63,7 +63,7 @@
     {@const summary = summarizeMember(details)}
     <MemberIdentity
       member={details.member}
-      total={summary.total}
+      {summary}
       view={route.kind === "member" ? route.view : "summary"}
     />
     {#if route.kind === "member" && route.view === "history"}<MemberHistory

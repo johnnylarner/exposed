@@ -940,16 +940,17 @@ for (const negative of [false, true]) {
   });
 }
 
-test("member summary displays server totals, signed category bars, zero and unavailable amounts", async ({
+test("member summary retains signed category bars alongside unavailable earnings", async ({
   backend,
   page,
   context,
 }) => {
   await mockDetails(backend);
   await page.goto("/members/1");
-  await expect(page.locator(".member-total")).toHaveText(
-    "£18,014,398,509,481,986.246913578",
-  );
+  await expect(page.locator(".member-total")).toHaveText([
+    "No declaration data available",
+    "No declaration data available",
+  ]);
   await expect(page.locator(".signed-bar .negative")).toHaveCount(1);
   await expect(
     page
@@ -962,9 +963,9 @@ test("member summary displays server totals, signed category bars, zero and unav
     ),
   ).toHaveCount(0);
   await expect(page.locator(".member-identity")).toContainText(
-    "Known declared value",
+    "Earnings this parliamentary term",
   );
-  const total = await page.locator(".member-total").boundingBox();
+  const total = await page.locator(".member-total").first().boundingBox();
   const tabs = await page.locator(".member-tabs").boundingBox();
   expect(total && tabs && total.y + total.height <= tabs.y).toBeTruthy();
   await expect(page.locator(".declarations-list > li")).toHaveCount(2);
@@ -1565,4 +1566,291 @@ test("initial HTML renders search and detail views while browser traffic stays i
   expect(browserUrls.every((url) => new URL(url).origin === baseURL)).toBe(
     true,
   );
+});
+
+test("member earnings distinguish this term and history with registration coverage", async ({
+  backend,
+  page,
+}) => {
+  await mockDetails(backend);
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        summary: {
+          ...memberDetails.summary,
+          first_registered_at: "2020-01-01T00:00:00Z",
+        },
+        declarations: [
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Employment",
+            registered_at: "2024-07-09T00:00:00Z",
+            entries: [
+              {
+                amount: "200",
+                currency: "GBP",
+                funder: null,
+                payment_type: null,
+              },
+            ],
+          },
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Employment",
+            registered_at: "2023-01-01T00:00:00Z",
+            entries: [
+              {
+                amount: "100",
+                currency: "GBP",
+                funder: null,
+                payment_type: null,
+              },
+            ],
+          },
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Employment",
+            registered_at: null,
+            entries: [
+              {
+                amount: "50",
+                currency: "GBP",
+                funder: null,
+                payment_type: null,
+              },
+            ],
+          },
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Gifts",
+            registered_at: "2020-01-01T00:00:00Z",
+            entries: [],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(page.locator(".member-total")).toHaveText([
+    "£200.00",
+    "£350.00",
+  ]);
+  await expect(page.locator(".member-earnings-totals h2")).toHaveText([
+    "Earnings this parliamentary term",
+    "Historical earnings since 1 January 2020",
+  ]);
+  await expect(
+    page.locator(".member-earnings-totals .partial-note"),
+  ).toHaveCount(0);
+  if (process.env.EXPOSED_SCREENSHOT_DIR)
+    await page.screenshot({
+      path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-earnings-summary.png`,
+      fullPage: true,
+    });
+  await page
+    .getByRole("link", { name: "Declaration history", exact: true })
+    .click();
+  await expect(page.locator(".member-total")).toHaveCount(0);
+  if (process.env.EXPOSED_SCREENSHOT_DIR)
+    await page.screenshot({
+      path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-earnings-history.png`,
+      fullPage: true,
+    });
+});
+
+test("empty member earnings show no declaration data and retain period headings", async ({
+  backend,
+  page,
+}) => {
+  await mockDetails(backend);
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        declarations: [],
+        summary: {
+          ...memberDetails.summary,
+          currencies: [],
+          first_registered_at: null,
+          last_registered_at: null,
+          entry_count: 0,
+          unknown_currency_count: 0,
+          undated_declaration_count: 0,
+        },
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(page.locator(".member-total")).toHaveText([
+    "No declaration data available",
+    "No declaration data available",
+  ]);
+  await expect(page.locator(".member-earnings-totals h2")).toHaveText([
+    "Earnings this parliamentary term",
+    "Historical earnings",
+  ]);
+});
+
+test("earnings keep precise figures readable on narrow screens and missing amounts neutral", async ({
+  backend,
+  page,
+}) => {
+  await mockDetails(backend);
+  let amount: string | null = "1234567890.12";
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        declarations: [
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Employment",
+            entries: [
+              { amount, currency: "GBP", funder: null, payment_type: null },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  for (const width of [850, 801, 601, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/members/1");
+    await expect(page.locator(".member-total")).toHaveText([
+      "£1,234,567,890.12",
+      "£1,234,567,890.12",
+    ]);
+    await page.evaluate(() => document.fonts.ready);
+    const figures = await page
+      .locator(".member-total")
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const text = document.createRange();
+          text.selectNodeContents(element);
+          return {
+            fits: element.scrollWidth <= element.clientWidth,
+            lines: text.getClientRects().length,
+            fontSize: parseFloat(getComputedStyle(element).fontSize),
+          };
+        }),
+      );
+    for (const figure of figures) {
+      expect(figure.fits).toBe(true);
+      expect(figure.lines).toBe(1);
+      expect(figure.fontSize).toBeGreaterThanOrEqual(24);
+    }
+  }
+  const knownStyle = await page
+    .locator(".member-total")
+    .first()
+    .evaluate((element) => ({
+      color: getComputedStyle(element).color,
+      fontSize: parseFloat(getComputedStyle(element).fontSize),
+    }));
+  amount = null;
+  await page.reload();
+  await expect(page.locator(".member-total.unavailable")).toHaveCount(2);
+  const missingStyle = await page
+    .locator(".member-total")
+    .first()
+    .evaluate((element) => ({
+      color: getComputedStyle(element).color,
+      fontSize: parseFloat(getComputedStyle(element).fontSize),
+    }));
+  expect(missingStyle.color).not.toBe(knownStyle.color);
+  expect(missingStyle.fontSize).toBeLessThan(knownStyle.fontSize);
+  await expect(page.locator(".member-total")).toHaveText([
+    "Amount unavailable",
+    "Amount unavailable",
+  ]);
+  amount = "90071992547409939007199254740993.123456789";
+  await page.reload();
+  const figure = page.getByRole("region", {
+    name: "Historical earnings in GBP",
+    exact: true,
+  });
+  await expect(figure).toHaveText(
+    "£90,071,992,547,409,939,007,199,254,740,993.123456789",
+  );
+  await figure.focus();
+  await page.keyboard.press("ArrowRight");
+  expect(
+    await figure.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getClientRects().length;
+    }),
+  ).toBe(1);
+  expect(
+    await figure.evaluate((element) =>
+      parseFloat(getComputedStyle(element).outlineWidth),
+    ),
+  ).toBeGreaterThanOrEqual(2);
+  await expect
+    .poll(() => figure.evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("earnings distinguish an empty term, historical zero and unknown amounts", async ({
+  backend,
+  page,
+}) => {
+  await mockDetails(backend);
+  let registeredAt = "2023-01-01T00:00:00Z";
+  let amount: string | null = "0";
+  let incomplete = false;
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        declarations: [
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Employment",
+            registered_at: registeredAt,
+            entries: [
+              { amount, currency: "GBP", funder: null, payment_type: null },
+              ...(incomplete
+                ? [
+                    {
+                      amount: null,
+                      currency: "GBP",
+                      funder: null,
+                      payment_type: null,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(page.locator(".member-total")).toHaveText([
+    "No declaration data available",
+    "£0.00",
+  ]);
+  registeredAt = "2025-01-01T00:00:00Z";
+  await page.reload();
+  await expect(page.locator(".member-total")).toHaveText(["£0.00", "£0.00"]);
+  incomplete = true;
+  await page.reload();
+  await expect(page.locator(".member-total")).toHaveText(["£0.00", "£0.00"]);
+  await expect(page.locator(".member-total").first()).toHaveAttribute(
+    "title",
+    "Known GBP amounts only. Some amounts unavailable.",
+  );
+  amount = null;
+  await page.reload();
+  await expect(page.locator(".member-total")).toHaveText([
+    "Amount unavailable",
+    "Amount unavailable",
+  ]);
 });

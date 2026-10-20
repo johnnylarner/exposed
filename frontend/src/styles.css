@@ -1267,3 +1267,42 @@ button:disabled {
 .funder-page .declaration-heading a {
   color: inherit;
 }
+
+.member-earnings-totals {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.earnings-values h2 {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.5;
+}
+.earnings-values {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
+  gap: 24px;
+}
+.earnings-values .member-value {
+  text-align: left;
+  max-width: none;
+  min-width: 0;
+  align-self: start;
+}
+.earnings-values .member-total {
+  font-size: clamp(1.5rem, 5vw, 2.75rem);
+  white-space: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+}
+.earnings-values .member-total.unavailable {
+  white-space: normal;
+  font-size: 1.25rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+.earnings-values .member-total:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+}
