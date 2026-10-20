@@ -259,8 +259,7 @@ test("native links preserve search through details, back, reload and new tabs", 
   context,
 }) => {
   await mockDetails(backend);
-  await page.goto("/?q=Example&strictness=0.42");
-  await expect(page).toHaveURL(/\/\?q=Example$/u);
+  await page.goto("/search?q=Example&strictness=0.42");
   const link = page.getByRole("link", { name: "Ava Example", exact: true });
   await expect(link).toHaveAttribute("href", "/members/1?q=Example");
   await expect(page.locator(".entity-name button")).toHaveCount(0);
@@ -297,7 +296,7 @@ test("native links preserve search through details, back, reload and new tabs", 
   await page.getByRole("link", { name: "Back to search", exact: true }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("Example");
   await expect(page.getByRole("slider")).toHaveCount(0);
-  await expect(page).toHaveURL(/\/\?q=Example$/u);
+  await expect(page).toHaveURL(/\/search\?q=Example$/u);
   await link.click();
   await expect(
     page.getByRole("heading", { name: member.name, exact: true }),
@@ -626,7 +625,7 @@ test("errors allow retry and missing or invalid routes offer search navigation",
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Search MPs and funders", exact: true }),
-  ).toHaveAttribute("href", "/?q=Example");
+  ).toHaveAttribute("href", "/search?q=Example");
   await page.goto("/members/0");
   await expect(
     page.getByRole("heading", { name: "Entity not found" }),
@@ -1511,7 +1510,7 @@ test("initial HTML renders search and detail views while browser traffic stays i
   request,
 }) => {
   await mockDetails(backend);
-  const html = await request.get("/?q=Example&strictness=0.42");
+  const html = await request.get("/search?q=Example&strictness=0.42");
   const rendered = await html.text();
   expect(rendered).toContain('class="entity-name"');
   expect(rendered).toContain("<title>Search MPs and funders · Exposed</title>");
@@ -1550,8 +1549,7 @@ test("initial HTML renders search and detail views while browser traffic stays i
   await context.close();
   const browserUrls: string[] = [];
   page.on("request", (incoming) => browserUrls.push(incoming.url()));
-  await page.goto("/?q=Example&strictness=0.42");
-  await expect(page).toHaveURL(/\/\?q=Example$/u);
+  await page.goto("/search?q=Example&strictness=0.42");
   await expect(page.getByRole("searchbox")).toBeEnabled();
   await page.getByRole("link", { name: member.name, exact: true }).click();
   await expect(

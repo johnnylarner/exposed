@@ -1,12 +1,20 @@
 <script lang="ts">
+  import LandingPage from "./LandingPage.svelte";
+  import MethodologyPage from "./MethodologyPage.svelte";
+  import { pagePresentation } from "./lib/page";
   import SearchPage from "./SearchPage.svelte";
   import EntityDetails from "./EntityDetails.svelte";
   import type { PageModel } from "./lib/page";
   let { model }: { model: PageModel } = $props();
+  const presentation = $derived(pagePresentation[model.kind]);
 </script>
 
-<a class="skip-link" href={model.kind === "search" ? "#search" : "#details"}
-  >Skip to {model.kind === "search" ? "search" : "details"}</a
+<svelte:head>
+  <title>{presentation.title}</title>
+  <meta name="description" content={presentation.description} />
+</svelte:head>
+<a class="skip-link" href={`#${presentation.target}`}
+  >Skip to {presentation.label}</a
 >
 <div class="app-shell">
   <header class="app-header">
@@ -14,9 +22,15 @@
     <span class="header-context">UK Parliament</span>
   </header>
 
-  {#if model.kind === "search"}<SearchPage {model} />{:else}<EntityDetails
-      {model}
-    />{/if}
+  {#if model.kind === "landing"}
+    <LandingPage />
+  {:else if model.kind === "methodology"}
+    <MethodologyPage />
+  {:else if model.kind === "search"}
+    <SearchPage {model} />
+  {:else if model.kind === "detail"}
+    <EntityDetails {model} />
+  {/if}
   <footer class="app-footer">
     <span>Contains Parliamentary information.</span><a
       href="https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/"
