@@ -20,7 +20,10 @@ test("landing and methodology navigate without backend requests", async ({
   ).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#landing")).toBeFocused();
-  await page.getByRole("link", { name: "Methodology", exact: true }).click();
+  await page
+    .locator("#landing")
+    .getByRole("link", { name: "Methodology", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/methodology$/u);
   await expect(page).toHaveTitle("Methodology · Exposed");
   await expect(
