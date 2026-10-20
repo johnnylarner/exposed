@@ -8,14 +8,6 @@ export const searchConfiguration = {
   timeoutMs: 10_000,
 };
 
-export function readStrictness(value: string | null): number {
-  if (!value?.trim()) return searchConfiguration.strictness;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 1
-    ? Math.round(parsed * 100) / 100
-    : searchConfiguration.strictness;
-}
-
 export type SearchMatchSource =
   { kind: "name" } | { kind: "alias"; name: string };
 
@@ -40,10 +32,8 @@ export function entityHref(
   params: Pick<URLSearchParams, "get">,
 ): string {
   const retained = new URLSearchParams();
-  for (const key of ["q", "strictness"]) {
-    const value = params.get(key);
-    if (value !== null) retained.set(key, value);
-  }
+  const value = params.get("q");
+  if (value !== null) retained.set("q", value);
   const query = retained.size ? `?${retained}` : "";
   return `/${entity.kind === "MP" ? "members" : "funders"}/${encodeURIComponent(entity.id)}${query}`;
 }

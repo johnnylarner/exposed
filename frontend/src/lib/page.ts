@@ -5,7 +5,7 @@ export type SearchResult =
   | { status: "success"; term: string; entities: Entity[] }
   | { status: "error"; term: string; message: string };
 export type PageModel =
-  | { kind: "search"; query: string; strictness: number; result: SearchResult }
+  | { kind: "search"; query: string; result: SearchResult }
   | {
       kind: "detail";
       route: Exclude<DetailRoute, { kind: "search" }>;

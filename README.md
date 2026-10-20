@@ -155,7 +155,7 @@ for response semantics and read ownership.
 
 The HTTP API exposes `/search`, `/members/{Parliament ID}`, and `/funders/{UUID}`.
 Search entities include stable `id` strings interpreted by `kind`. Detail pages
-preserve search query and strictness in native links, so Back, reload, and new tabs
+preserve the search query in native links, so Back, reload, and new tabs
 work normally. SvelteKit renders initial search and detail pages on the server.
 
 The frontend server reads the Rust API at `http://exposed:6999` inside Compose.
@@ -218,11 +218,12 @@ Set `HOST` and `PORT` for the listening address. The release Docker target
 separately and set the frontend's private `EXPOSED_API_ORIGIN` to its reachable
 origin. The frontend image does not require `DATABASE_URL`.
 
-The similarity threshold slider refreshes results automatically: lower values
-include broader matches, from 0 to 1 in steps of 0.01 (default 0.8). The search URL
-preserves the query and threshold, for example `/?q=John&strictness=0.65`.
-Search delay, result limits and defaults live in
-[`frontend/src/lib/search.ts`](frontend/src/lib/search.ts). The API caps each entity type separately, so the UI describes the returned
+Search URLs preserve only the query, for example `/?q=John`. Search strictness is
+application configuration, set to `0.8` in
+[`frontend/src/lib/search.ts`](frontend/src/lib/search.ts), alongside the search
+delay and result limits. Legacy URLs with `strictness` redirect to the same page
+without that parameter. The frontend always sends its configured strictness to
+the API. The API caps each entity type separately, so the UI describes the returned
 results without claiming a total count or offering unsupported pagination.
 The API also defaults to `0.8` when `strictness` is omitted. Explicit thresholds
 control primary trigram matches and corrected fallback similarity. When primary
