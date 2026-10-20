@@ -81,7 +81,6 @@ function readEntities(body: unknown): Entity[] {
 export async function searchEntities(
   term: string,
   signal: AbortSignal,
-  strictness: number,
   fetch: typeof globalThis.fetch,
   origin: string,
 ): Promise<Entity[]> {
@@ -99,7 +98,7 @@ export async function searchEntities(
     const params = new URLSearchParams({
       term,
       max_entries: String(searchConfiguration.maxEntriesPerType),
-      strictness: String(strictness),
+      strictness: String(searchConfiguration.strictness),
     });
     const response = await fetch(`${origin}/search?${params}`, {
       signal: controller.signal,

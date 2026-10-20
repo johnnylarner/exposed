@@ -1,10 +1,16 @@
 import { readDetailRoute } from "../../lib/entity-details";
-import { readStrictness, searchConfiguration } from "../../lib/search";
+import { redirect } from "@sveltejs/kit";
+import { searchConfiguration } from "../../lib/search";
 import { loadDetails } from "../../lib/server/entity-details";
 import { searchEntities } from "../../lib/server/search";
 import type { PageModel } from "../../lib/page";
 import type { PageServerLoad } from "./$types";
 export const load = (async ({ url, fetch, request, depends }) => {
+  if (url.searchParams.has("strictness")) {
+    const canonical = new URL(url);
+    canonical.searchParams.delete("strictness");
+    redirect(308, canonical.pathname + canonical.search);
+  }
   depends("exposed:page");
   const route = readDetailRoute(url.pathname);
   const origin = (
@@ -22,21 +28,14 @@ export const load = (async ({ url, fetch, request, depends }) => {
     };
   } else {
     const query = url.searchParams.get("q") ?? "";
-    const strictness = readStrictness(url.searchParams.get("strictness"));
     const term = query.trim();
-    model = { kind: "search", query, strictness, result: { status: "idle" } };
+    model = { kind: "search", query, result: { status: "idle" } };
     if ([...term].length >= searchConfiguration.minimumCharacters) {
       try {
         model.result = {
           status: "success",
           term,
-          entities: await searchEntities(
-            term,
-            request.signal,
-            strictness,
-            fetch,
-            origin,
-          ),
+          entities: await searchEntities(term, request.signal, fetch, origin),
         };
       } catch (error) {
         model.result = {

@@ -253,18 +253,16 @@ async function mockDetails(backend: Backend) {
   );
 }
 
-test("native links preserve search and threshold through details, back, reload and new tabs", async ({
+test("native links preserve search through details, back, reload and new tabs", async ({
   backend,
   page,
   context,
 }) => {
   await mockDetails(backend);
   await page.goto("/?q=Example&strictness=0.42");
+  await expect(page).toHaveURL(/\/\?q=Example$/u);
   const link = page.getByRole("link", { name: "Ava Example", exact: true });
-  await expect(link).toHaveAttribute(
-    "href",
-    "/members/1?q=Example&strictness=0.42",
-  );
+  await expect(link).toHaveAttribute("href", "/members/1?q=Example");
   await expect(page.locator(".entity-name button")).toHaveCount(0);
   const popupPromise = context.waitForEvent("page");
   await link.click({ button: "middle" });
@@ -274,7 +272,7 @@ test("native links preserve search and threshold through details, back, reload a
   ).toBeVisible();
   await popup.close();
   await link.click();
-  await expect(page).toHaveURL(/\/members\/1\?q=Example&strictness=0.42$/u);
+  await expect(page).toHaveURL(/\/members\/1\?q=Example$/u);
   await expect(
     page.getByRole("heading", { name: "Recent declarations" }),
   ).toBeVisible();
@@ -290,7 +288,7 @@ test("native links preserve search and threshold through details, back, reload a
     page.getByRole("heading", { name: "Funding by party" }).first(),
   ).toBeVisible();
   await expect(page).toHaveURL(
-    new RegExp(`/funders/${funderId}\\?q=Example&strictness=0.42$`, "u"),
+    new RegExp(`/funders/${funderId}\\?q=Example$`, "u"),
   );
   await page.getByRole("link", { name: "Ava Example", exact: true }).click();
   await expect(
@@ -298,7 +296,8 @@ test("native links preserve search and threshold through details, back, reload a
   ).toBeVisible();
   await page.getByRole("link", { name: "Back to search", exact: true }).click();
   await expect(page.getByRole("searchbox")).toHaveValue("Example");
-  await expect(page.getByRole("slider")).toHaveValue("0.42");
+  await expect(page.getByRole("slider")).toHaveCount(0);
+  await expect(page).toHaveURL(/\/\?q=Example$/u);
   await link.click();
   await expect(
     page.getByRole("heading", { name: member.name, exact: true }),
@@ -459,10 +458,7 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
   await expect(page.getByText("EXACT FUNDER", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Funding history" }),
-  ).toHaveAttribute(
-    "href",
-    `/funders/${funderId}/history?q=Example&strictness=0.42`,
-  );
+  ).toHaveAttribute("href", `/funders/${funderId}/history?q=Example`);
 });
 
 test("funding history retains sources, duplicate amounts and date paging", async ({
@@ -499,6 +495,9 @@ test("funding history retains sources, duplicate amounts and date paging", async
     route.fulfill({ json: { ...funderDetails, declarations } }),
   );
   await page.goto(`/funders/${funderId}/history?q=Example&strictness=0.42`);
+  await expect(page).toHaveURL(
+    new RegExp(`/funders/${funderId}/history\\?q=Example$`, "u"),
+  );
   await expect(page.locator(".member-total")).toHaveCount(0);
   await expect(page.locator(".declaration")).toHaveCount(10);
   await expect(
@@ -516,7 +515,7 @@ test("funding history retains sources, duplicate amounts and date paging", async
       .locator(".declaration")
       .first()
       .getByRole("link", { name: member.name }),
-  ).toHaveAttribute("href", "/members/1?q=Example&strictness=0.42");
+  ).toHaveAttribute("href", "/members/1?q=Example");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.locator(".declaration")).toHaveCount(2);
   await expect(
@@ -540,7 +539,7 @@ test("funding history retains sources, duplicate amounts and date paging", async
   ).toBe(true);
   await page.getByRole("link", { name: "Summary", exact: true }).click();
   await expect(page).toHaveURL(
-    new RegExp(`/funders/${funderId}\\?q=Example&strictness=0.42$`, "u"),
+    new RegExp(`/funders/${funderId}\\?q=Example$`, "u"),
   );
 });
 
@@ -993,6 +992,7 @@ test("history filters the full dataset before paging and resets page for date ch
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
   await page.goto("/members/1/history?q=Example&strictness=0.42");
+  await expect(page).toHaveURL(/members\/1\/history\?q=Example$/u);
   await expect(page.locator(".declaration-reference")).toHaveText(
     Array.from({ length: 10 }, (_, index) => `Declaration ${125 - index}`),
   );
@@ -1032,7 +1032,7 @@ test("history filters the full dataset before paging and resets page for date ch
   ).toBeVisible();
   await page.getByRole("button", { name: "Clear dates" }).click();
   await page.getByRole("link", { name: "Summary", exact: true }).click();
-  await expect(page).toHaveURL(/members\/1\?q=Example&strictness=0.42$/u);
+  await expect(page).toHaveURL(/members\/1\?q=Example$/u);
   await page.goBack();
   await expect(
     page.getByRole("heading", { name: "Declaration history", exact: true }),
@@ -1551,6 +1551,7 @@ test("initial HTML renders search and detail views while browser traffic stays i
   const browserUrls: string[] = [];
   page.on("request", (incoming) => browserUrls.push(incoming.url()));
   await page.goto("/?q=Example&strictness=0.42");
+  await expect(page).toHaveURL(/\/\?q=Example$/u);
   await expect(page.getByRole("searchbox")).toBeEnabled();
   await page.getByRole("link", { name: member.name, exact: true }).click();
   await expect(

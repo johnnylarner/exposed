@@ -4,7 +4,6 @@
   import {
     entityHref,
     highlightName,
-    readStrictness,
     searchConfiguration,
     type Entity,
   } from "./lib/search";
@@ -26,11 +25,9 @@
       searchFocusShortcut = { modifier: "meta", hint: "⌘ K" };
   });
   let query = $state(untrack(() => model.query));
-  let strictness = $state(untrack(() => model.strictness));
   afterNavigate(({ type }) => {
     if (type === "popstate" || type === "link") {
       query = page.url.searchParams.get("q") ?? "";
-      strictness = readStrictness(page.url.searchParams.get("strictness"));
     }
   });
   let composing = $state(false);
@@ -44,9 +41,7 @@
   const searchState = $derived<SearchState>(
     composing || charactersNeeded
       ? { status: "idle" }
-      : pending ||
-          model.query.trim() !== term ||
-          model.strictness !== strictness
+      : pending || model.query.trim() !== term
         ? { status: "loading", term }
         : model.result,
   );
@@ -60,28 +55,19 @@
 
   $effect(() => {
     const currentTerm = term;
-    const currentStrictness = strictness;
     const currentAttempt = attempt;
     if (
       composing ||
       [...currentTerm].length < searchConfiguration.minimumCharacters
     )
       return;
-    if (
-      !currentAttempt &&
-      untrack(
-        () =>
-          model.query.trim() === currentTerm &&
-          model.strictness === currentStrictness,
-      )
-    )
+    if (!currentAttempt && untrack(() => model.query.trim() === currentTerm))
       return;
     let current = true;
     const timer = setTimeout(
       async () => {
         const url = new URL(window.location.href);
         url.searchParams.set("q", currentTerm);
-        url.searchParams.set("strictness", String(currentStrictness));
         pending = true;
         try {
           await goto(url, { replace: true, reset: false, refreshAll: true });
@@ -104,19 +90,6 @@
     const url = new URL(window.location.href);
     if (value.trim()) url.searchParams.set("q", value.trim());
     else url.searchParams.delete("q");
-    void goto(url, {
-      shallow: true,
-      replace: true,
-      reset: false,
-      state: page.state,
-    });
-  }
-
-  function updateStrictness(value: string) {
-    attempt = 0;
-    strictness = readStrictness(value);
-    const url = new URL(window.location.href);
-    url.searchParams.set("strictness", String(strictness));
     void goto(url, {
       shallow: true,
       replace: true,
@@ -231,28 +204,6 @@
         MPs and funders, ordered by the closest name match.
       {/if}
     </p>
-    <div class="threshold-control">
-      <div class="threshold-label">
-        <label for="similarity-threshold">Similarity threshold</label>
-        <output for="similarity-threshold">{strictness.toFixed(2)}</output>
-      </div>
-      <input
-        id="similarity-threshold"
-        type="range"
-        min="0"
-        max="1"
-        step="0.01"
-        value={strictness}
-        oninput={(event) => updateStrictness(event.currentTarget.value)}
-        aria-describedby="threshold-help"
-      />
-      <div class="threshold-scale" aria-hidden="true">
-        <span>Broader matches</span><span>Closer matches</span>
-      </div>
-      <p id="threshold-help">
-        Lower the threshold to include less similar names.
-      </p>
-    </div>
   </form>
 
   <p
