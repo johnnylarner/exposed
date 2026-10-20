@@ -8,7 +8,7 @@ use crate::{
                 RecipientAllocation,
             },
             funder::FunderId,
-            parliament_member::MemberId,
+            parliament_member::{MemberId, MemberIdError},
         },
         services::{
             entity_details::{EntityDetailsError, EntityDetailsService},
@@ -26,10 +26,25 @@ use serde::Serialize;
 
 impl From<EntityDetailsError> for ApiError {
     fn from(error: EntityDetailsError) -> Self {
+        tracing::error!(?error, "entity details failed");
         match error {
             EntityDetailsError::NotFound => Self::NotFound,
             EntityDetailsError::Unexpected(_) => Self::InternalServerError,
         }
+    }
+}
+
+impl From<MemberIdError> for ApiError {
+    fn from(error: MemberIdError) -> Self {
+        tracing::error!(?error, "invalid member ID");
+        Self::UnprocessibleEntity(error.to_string())
+    }
+}
+
+impl From<uuid::Error> for ApiError {
+    fn from(error: uuid::Error) -> Self {
+        tracing::error!(?error, "invalid funder ID");
+        Self::UnprocessibleEntity("Invalid funder ID".into())
     }
 }
 
@@ -359,19 +374,8 @@ pub async fn member_details<E: EntitySearchService, D: EntityDetailsService>(
     State(state): State<AppState<E, D>>,
     Path(id): Path<String>,
 ) -> Result<ApiSuccess<MemberDetailsResponse>, ApiError> {
-    let id = id
-        .parse::<MemberId>()
-        .inspect_err(|error| {
-            tracing::error!(?error, "invalid member ID");
-        })
-        .map_err(|error| ApiError::UnprocessibleEntity(error.to_string()))?;
-    let details = state
-        .entity_details_service
-        .member(id)
-        .await
-        .inspect_err(|error| {
-            tracing::error!(?error, "member details failed");
-        })?;
+    let id = id.parse::<MemberId>()?;
+    let details = state.entity_details_service.member(id).await?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }
 
@@ -379,18 +383,7 @@ pub async fn funder_details<E: EntitySearchService, D: EntityDetailsService>(
     State(state): State<AppState<E, D>>,
     Path(id): Path<String>,
 ) -> Result<ApiSuccess<FunderDetailsResponse>, ApiError> {
-    let id = id
-        .parse::<FunderId>()
-        .inspect_err(|error| {
-            tracing::error!(?error, "invalid funder ID");
-        })
-        .map_err(|_| ApiError::UnprocessibleEntity("Invalid funder ID".into()))?;
-    let details = state
-        .entity_details_service
-        .funder(id)
-        .await
-        .inspect_err(|error| {
-            tracing::error!(?error, "funder details failed");
-        })?;
+    let id = id.parse::<FunderId>()?;
+    let details = state.entity_details_service.funder(id).await?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }

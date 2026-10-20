@@ -79,6 +79,7 @@ impl From<&Entity> for SearchEntity {
 
 impl From<EntitySearchError> for ApiError {
     fn from(value: EntitySearchError) -> Self {
+        tracing::error!(error = ?value, "entity search failed");
         match value {
             EntitySearchError::InvalidTerm(_)
             | EntitySearchError::InvalidStrictness(_)
@@ -92,16 +93,11 @@ pub async fn search_entities<E: EntitySearchService, D: EntityDetailsService>(
     State(state): State<AppState<E, D>>,
     Query(query): Query<SearchEntitiesHttpRequest>,
 ) -> Result<ApiSuccess<SearchEntityResponseData>, ApiError> {
-    let domain_req = query.try_into_domain().inspect_err(|error| {
-        tracing::error!(?error, "invalid search request");
-    })?;
+    let domain_req = query.try_into_domain()?;
     state
         .entity_search_service
         .search_entities(&domain_req)
         .await
-        .inspect_err(|error| {
-            tracing::error!(?error, "entity search failed");
-        })
         .map_err(ApiError::from)
         .map(|ref entities| ApiSuccess::new(StatusCode::OK, entities.as_slice().into()))
 }

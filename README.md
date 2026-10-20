@@ -58,9 +58,9 @@ requests and error responses use INFO. Successful
 response is available, before any streaming body is delivered.
 
 Failure events include `error.type` with a status-based classification of
-`http.client_error` or `http.server_error`. Handlers emit one ERROR diagnostic
-with the full typed error in the `error` Debug field before converting it to an
-HTTP error. This retains nested service sources.
+`http.client_error` or `http.server_error`. Each `ApiError::from` conversion emits
+one ERROR diagnostic with the full typed error in the `error` Debug field
+before mapping it to an HTTP error. This retains nested service sources.
 Framework rejections and unmatched routes produce only the access event.
 HTTP 500 bodies remain `internal server error`. Startup failures propagate to
 `main` and use its standard error output on stderr.
