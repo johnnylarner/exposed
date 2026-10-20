@@ -1,4 +1,0 @@
-disallowed-macros = [
-    "tracing::error", "tracing::warn",
-    "log::error", "log::warn",
-]

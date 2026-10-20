@@ -7,11 +7,11 @@ use axum::{
     response::Response,
 };
 use tracing::{Instrument, Level};
-use tracing_subscriber::EnvFilter;
+use tracing_subscriber::{EnvFilter, util::SubscriberInitExt};
 
 use super::error::ResponseFailure;
 
-pub(super) fn init_subscriber() -> anyhow::Result<()> {
+pub(super) fn init_subscriber() -> Result<(), super::server::SubscriberInitializationError> {
     let directives = match std::env::var("RUST_LOG") {
         Ok(value) => value,
         Err(std::env::VarError::NotPresent) => "warn,exposed=info".into(),
@@ -22,8 +22,9 @@ pub(super) fn init_subscriber() -> anyhow::Result<()> {
         .json()
         .with_env_filter(filter)
         .with_writer(std::io::stderr)
-        .try_init()
-        .map_err(|error| anyhow::anyhow!(error))
+        .finish()
+        .try_init()?;
+    Ok(())
 }
 
 pub(super) fn instrument<S>(router: Router<S>) -> Router<S>
@@ -90,10 +91,9 @@ fn complete(
         });
     let route = route.map(MatchedPath::as_str);
     macro_rules! emit {
-        ($level:expr) => {
-            tracing::event!(
+        ($level:ident) => {
+            tracing::$level!(
                 name: "http.request.completed",
-                $level,
                 name = "http.request.completed",
                 http.request.method = %method,
                 http.route = route,
@@ -105,13 +105,13 @@ fn complete(
         };
     }
     if status.is_server_error() {
-        emit!(Level::ERROR);
+        emit!(error);
     } else if status.is_client_error() {
-        emit!(Level::WARN);
+        emit!(warn);
     } else if health {
-        emit!(Level::DEBUG);
+        emit!(debug);
     } else {
-        emit!(Level::INFO);
+        emit!(info);
     }
 }
 
@@ -345,6 +345,41 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn expected_errors_preserve_exact_response_bodies() {
+        for (error, status, body) in [
+            (
+                ApiError::Search(EntitySearchError::InvalidTerm(1)),
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "unable to process malformed request: term must be at last three characters long; received 1",
+            ),
+            (
+                ApiError::Search(EntitySearchError::InvalidStrictness(2.0)),
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "unable to process malformed request: strictness must be between 0 and 1; get 2",
+            ),
+            (
+                ApiError::Search(EntitySearchError::TooFewEntries),
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "unable to process malformed request: at least one entry must be expected to return",
+            ),
+            (
+                ApiError::UnprocessibleEntity("Invalid funder ID".into()),
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "unable to process malformed request: Invalid funder ID",
+            ),
+            (
+                ApiError::Details(EntityDetailsError::NotFound),
+                StatusCode::NOT_FOUND,
+                "entity not found",
+            ),
+        ] {
+            let response = error.into_response();
+            assert_eq!(response.status(), status);
+            assert_eq!(to_bytes(response.into_body(), 1024).await.unwrap(), body);
+        }
+    }
+
+    #[tokio::test]
     async fn successful_requests_are_info_and_successful_health_is_quiet_by_default() {
         let router = instrument(Router::new().route(
             "/ok",
@@ -380,17 +415,14 @@ mod tests {
 
     #[tokio::test]
     async fn wrapped_causes_are_retained_and_logged_once() {
-        let source = anyhow::Error::new(std::io::Error::new(
-            std::io::ErrorKind::TimedOut,
-            "upstream response timed out",
+        let response = ApiError::Details(EntityDetailsError::Unexpected(
+            EntityDetailsRepoError::DatabaseError("upstream response timed out".into()),
         ))
-        .context("loading entity");
-        let response = ApiError::InternalServerError(source).into_response();
+        .into_response();
+        let diagnostic =
+            "entity details failed: entity details read failed: upstream response timed out";
         let failure = response.extensions().get::<ResponseFailure>().unwrap();
-        assert_eq!(
-            failure.diagnostic(),
-            "loading entity: upstream response timed out"
-        );
+        assert_eq!(failure.diagnostic(), diagnostic);
         let response = Arc::new(Mutex::new(Some(response)));
         let router = instrument(Router::new().route(
             "/wrapped",
@@ -401,11 +433,8 @@ mod tests {
         ));
         let (_, events) = request(router, Method::GET, "/wrapped", "exposed=debug").await;
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0]["fields"]["error.type"], "service.unexpected");
-        assert_eq!(
-            events[0]["fields"]["error.message"],
-            "loading entity: upstream response timed out"
-        );
+        assert_eq!(events[0]["fields"]["error.type"], "entity_details.database");
+        assert_eq!(events[0]["fields"]["error.message"], diagnostic);
     }
 
     #[tokio::test]

@@ -2,31 +2,67 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use std::sync::Arc;
+use std::{error::Error as _, sync::Arc};
 use thiserror::Error;
 
+use crate::domain::{
+    models::entity_search::EntitySearchError, services::entity_details::EntityDetailsError,
+};
+
+/// Errors communicated by the HTTP API.
 #[derive(Error, Debug)]
-/// Errors communicated by the HTTP API
 pub enum ApiError {
-    #[error("internal server error")]
-    /// Private error, message should only be logged
-    InternalServerError(#[source] anyhow::Error),
-    /// Entity identity absent from the store.
-    #[error("entity not found")]
-    NotFound,
+    /// Search service failure.
+    #[error("entity search failed")]
+    Search(#[from] EntitySearchError),
+    /// Entity detail service failure.
+    #[error("entity details failed")]
+    Details(#[from] EntityDetailsError),
+    /// Bad request from user.
     #[error("unable to process malformed request: {0}")]
-    /// Bad request from user
     UnprocessibleEntity(String),
+}
+
+impl ApiError {
+    const fn classification(&self) -> (StatusCode, &'static str) {
+        match self {
+            Self::Search(EntitySearchError::UnexpectedError(_)) => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "entity_search.unexpected",
+            ),
+            Self::Details(EntityDetailsError::Unexpected(_)) => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "entity_details.database")
+            }
+            Self::Details(EntityDetailsError::NotFound) => {
+                (StatusCode::NOT_FOUND, "entity.not_found")
+            }
+            Self::Search(
+                EntitySearchError::InvalidTerm(_)
+                | EntitySearchError::InvalidStrictness(_)
+                | EntitySearchError::TooFewEntries,
+            )
+            | Self::UnprocessibleEntity(_) => {
+                (StatusCode::UNPROCESSABLE_ENTITY, "request.validation")
+            }
+        }
+    }
+
+    fn response_body(&self, status: StatusCode) -> String {
+        match status {
+            StatusCode::INTERNAL_SERVER_ERROR => "internal server error".into(),
+            StatusCode::NOT_FOUND => "entity not found".into(),
+            _ => match self {
+                Self::Search(error) => format!("unable to process malformed request: {error}"),
+                Self::Details(_) | Self::UnprocessibleEntity(_) => self.to_string(),
+            },
+        }
+    }
 }
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        let code = match &self {
-            Self::NotFound => StatusCode::NOT_FOUND,
-            Self::InternalServerError(_) => StatusCode::INTERNAL_SERVER_ERROR,
-            Self::UnprocessibleEntity(_) => StatusCode::UNPROCESSABLE_ENTITY,
-        };
-        let mut response = (code, self.to_string()).into_response();
+        let (status, _) = self.classification();
+        let mut response = (status, self.response_body(status)).into_response();
         response
             .extensions_mut()
             .insert(ResponseFailure(Arc::new(self)));
@@ -39,30 +75,17 @@ pub(super) struct ResponseFailure(Arc<ApiError>);
 
 impl ResponseFailure {
     pub(super) fn diagnostic(&self) -> String {
-        match self.0.as_ref() {
-            ApiError::InternalServerError(source) => format!("{source:#}"),
-            ApiError::NotFound => "entity not found".into(),
-            ApiError::UnprocessibleEntity(_) => "request validation failed".into(),
+        let mut diagnostic = self.0.to_string();
+        let mut source = self.0.source();
+        while let Some(error) = source {
+            use std::fmt::Write;
+            write!(diagnostic, ": {error}").expect("writing to a string cannot fail");
+            source = error.source();
         }
+        diagnostic
     }
 
     pub(super) fn category(&self) -> &'static str {
-        match self.0.as_ref() {
-            ApiError::NotFound => "entity.not_found",
-            ApiError::UnprocessibleEntity(_) => "request.validation",
-            ApiError::InternalServerError(source) => {
-                use crate::domain::{
-                    models::entity_search::EntitySearchError,
-                    services::entity_details::EntityDetailsError,
-                };
-                if source.downcast_ref::<EntitySearchError>().is_some() {
-                    "entity_search.unexpected"
-                } else if source.downcast_ref::<EntityDetailsError>().is_some() {
-                    "entity_details.database"
-                } else {
-                    "service.unexpected"
-                }
-            }
-        }
+        self.0.classification().1
     }
 }

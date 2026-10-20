@@ -10,10 +10,7 @@ use crate::{
             funder::FunderId,
             parliament_member::MemberId,
         },
-        services::{
-            entity_details::{EntityDetailsError, EntityDetailsService},
-            entity_search::EntitySearchService,
-        },
+        services::{entity_details::EntityDetailsService, entity_search::EntitySearchService},
     },
     inbound::http::{error::ApiError, state::AppState, success::ApiSuccess},
 };
@@ -23,15 +20,6 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::Serialize;
-
-impl From<EntityDetailsError> for ApiError {
-    fn from(error: EntityDetailsError) -> Self {
-        match error {
-            EntityDetailsError::NotFound => Self::NotFound,
-            EntityDetailsError::Unexpected(_) => Self::InternalServerError(error.into()),
-        }
-    }
-}
 
 #[derive(Serialize)]
 pub struct MemberResponse {

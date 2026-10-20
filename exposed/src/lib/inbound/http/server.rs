@@ -11,8 +11,17 @@ use crate::{
 
 /// Subscriber installation failed before server startup could use tracing.
 #[derive(Debug, thiserror::Error)]
-#[error("server tracing initialization failed")]
-pub struct SubscriberInitializationError(#[source] anyhow::Error);
+pub enum SubscriberInitializationError {
+    /// `RUST_LOG` contains a non-Unicode value.
+    #[error("server tracing initialization failed: invalid RUST_LOG")]
+    Environment(#[from] std::env::VarError),
+    /// `RUST_LOG` contains invalid filter directives.
+    #[error("server tracing initialization failed: invalid filter")]
+    Filter(#[from] tracing_subscriber::filter::ParseError),
+    /// A process-wide subscriber could not be installed.
+    #[error("server tracing initialization failed: subscriber installation failed")]
+    Install(#[from] tracing_subscriber::util::TryInitError),
+}
 
 /// Loads server configuration and serves HTTP on port 6999.
 ///
@@ -24,7 +33,7 @@ pub struct SubscriberInitializationError(#[source] anyhow::Error);
 /// server startup fails.
 pub fn run_server() -> anyhow::Result<()> {
     dotenvy::dotenv().ok();
-    super::tracing::init_subscriber().map_err(SubscriberInitializationError)?;
+    super::tracing::init_subscriber()?;
     let config = ServerConfig::from_env().context("reading HTTP server configuration")?;
 
     tokio::runtime::Runtime::new()

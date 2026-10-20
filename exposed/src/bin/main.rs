@@ -41,9 +41,8 @@ fn server_command() -> std::process::ExitCode {
             if error.is::<SubscriberInitializationError>() {
                 eprintln!("{error:#}");
             } else {
-                tracing::event!(
+                tracing::error!(
                     name: "server.failed",
-                    tracing::Level::ERROR,
                     name = "server.failed",
                     error.type = "server.startup_or_serve",
                     error.message = %format_args!("{error:#}")

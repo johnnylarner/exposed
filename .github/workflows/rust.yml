@@ -6,7 +6,6 @@ on:
       - exposed/**
       - Cargo.toml
       - Cargo.lock
-      - clippy.toml
       - .sqlx/**
       - .github/workflows/rust.yml
 
@@ -25,16 +24,14 @@ jobs:
         run: |
           rustup toolchain install stable --profile minimal --component clippy
           rustup default stable
-      # Clippy also sees event! expanded by ordinary info!, so check explicit
-      # generic event macros in source while Clippy checks error!/warn! paths.
-      - name: Check generic event macro ownership
+      - name: Check event ownership
         run: |
-          if git grep -n -E '(tracing::event|log::log)[[:space:]]*!' -- exposed/src \
+          if git grep -n -E '(^|[^[:alnum:]_])(error|warn|event|log)[[:space:]]*!' -- exposed/src \
             ':!exposed/src/lib/inbound/http/tracing.rs' ':!exposed/src/bin/main.rs'; then
-            echo 'Generic event macros belong to HTTP tracing or terminal server reporting.' >&2
+            echo 'Error, warning, and generic event macros belong to HTTP tracing or terminal server reporting.' >&2
             exit 1
           fi
-          if git grep -n -E '(tracing::(info|debug|trace)|log::(info|debug|trace))[[:space:]]*!' -- exposed/src \
+          if git grep -n -E '(^|[^[:alnum:]_])(info|debug|trace)[[:space:]]*!' -- exposed/src \
             ':!exposed/src/lib/inbound/http/tracing.rs' ':!exposed/src/bin/main.rs' \
             ':!exposed/src/lib/inbound/http/server.rs'; then
             echo 'Request-handling code must propagate failures to its logging owner.' >&2

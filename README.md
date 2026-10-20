@@ -64,8 +64,8 @@ private database diagnostics, so logs need the same access controls as other
 server diagnostics. Panics, cancelled requests, and streaming-body failures are
 outside this response-completion policy. Subscriber filters can suppress events.
 
-Clippy rejects direct error and warning macros. CI restricts explicit generic
-event macros to the HTTP tracing and executable server-command owner files.
+CI restricts explicit error, warning, and generic event macros to the HTTP
+tracing and executable server-command owner files.
 It also rejects direct info, debug, and trace event macros outside these owners
 and the server startup module.
 These checks guard first-party macro use; they do not prove behavior of arbitrary
