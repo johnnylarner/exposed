@@ -9,7 +9,7 @@ use axum::{
 use tracing::{Instrument, Level};
 use tracing_subscriber::{EnvFilter, util::SubscriberInitExt};
 
-pub(super) fn init_subscriber() -> Result<(), super::server::SubscriberInitializationError> {
+pub(super) fn init_subscriber() -> anyhow::Result<()> {
     let directives = match std::env::var("RUST_LOG") {
         Ok(value) => value,
         Err(std::env::VarError::NotPresent) => "warn,exposed=info".into(),
@@ -91,11 +91,7 @@ fn complete(
             )
         };
     }
-    if status.is_server_error() {
-        emit!(error);
-    } else if status.is_client_error() {
-        emit!(warn);
-    } else if health {
+    if health && status.is_success() {
         emit!(debug);
     } else {
         emit!(info);
@@ -153,8 +149,13 @@ mod tests {
     #[derive(Clone)]
     struct Details;
     impl EntityDetailsService for Details {
-        async fn member(&self, _: MemberId) -> Result<MemberDetails, EntityDetailsError> {
+        async fn member(&self, id: MemberId) -> Result<MemberDetails, EntityDetailsError> {
             tokio::task::yield_now().await;
+            if id.value() == 2 {
+                return Err(
+                    EntityDetailsRepoError::DatabaseError("member database failed".into()).into(),
+                );
+            }
             Err(EntityDetailsError::NotFound)
         }
         async fn funder(&self, _: FunderId) -> Result<FunderDetails, EntityDetailsError> {
@@ -252,7 +253,7 @@ mod tests {
                 Method::GET,
                 "/search?term=x&max_entries=1&private=PRIVATE_QUERY",
                 422,
-                "WARN",
+                "INFO",
                 Some("/search"),
                 Some("http.client_error"),
             ),
@@ -260,7 +261,7 @@ mod tests {
                 Method::GET,
                 "/members/1",
                 404,
-                "WARN",
+                "INFO",
                 Some("/members/{id}"),
                 Some("http.client_error"),
             ),
@@ -268,7 +269,7 @@ mod tests {
                 Method::GET,
                 "/search?max_entries=garbage",
                 400,
-                "WARN",
+                "INFO",
                 Some("/search"),
                 Some("http.client_error"),
             ),
@@ -276,7 +277,7 @@ mod tests {
                 Method::GET,
                 "/PRIVATE_QUERY",
                 404,
-                "WARN",
+                "INFO",
                 None,
                 Some("http.client_error"),
             ),
@@ -284,7 +285,7 @@ mod tests {
                 Method::POST,
                 "/healthz",
                 405,
-                "WARN",
+                "INFO",
                 Some("/healthz"),
                 Some("http.client_error"),
             ),
@@ -292,7 +293,7 @@ mod tests {
                 Method::GET,
                 "/search?term=Alice&max_entries=1",
                 500,
-                "ERROR",
+                "INFO",
                 Some("/search"),
                 Some("http.server_error"),
             ),
@@ -300,7 +301,7 @@ mod tests {
                 Method::GET,
                 "/funders/00000000-0000-0000-0000-000000000000",
                 500,
-                "ERROR",
+                "INFO",
                 Some("/funders/{id}"),
                 Some("http.server_error"),
             ),
@@ -313,15 +314,64 @@ mod tests {
                     "internal server error"
                 );
             }
-            assert_eq!(events.len(), 1, "{uri}: {events:?}");
-            assert_eq!(events[0]["level"], level);
-            let fields = &events[0]["fields"];
+            let diagnostic_count = events
+                .iter()
+                .filter(|event| event["level"] == "ERROR")
+                .count();
+            let handler_failure = matches!(status, 422 | 500) || uri == "/members/1";
+            assert_eq!(
+                diagnostic_count,
+                usize::from(handler_failure),
+                "{uri}: {events:?}"
+            );
+            let access: Vec<_> = events
+                .iter()
+                .filter(|event| event["fields"]["name"] == "http.request.completed")
+                .collect();
+            assert_eq!(access.len(), 1, "{uri}: {events:?}");
+            assert_eq!(events.len(), 1 + usize::from(handler_failure));
+            assert_eq!(access[0]["level"], level);
+            let fields = &access[0]["fields"];
             assert_eq!(fields["name"], "http.request.completed");
             assert_eq!(fields["http.request.method"], method.as_str());
             assert_eq!(fields["http.response.status_code"], status);
             assert!(fields["duration_ms"].is_number());
             assert_eq!(fields.get("http.route").and_then(Value::as_str), route);
             assert_eq!(fields.get("error.type").and_then(Value::as_str), category);
+        }
+    }
+
+    #[tokio::test]
+    async fn typed_errors_are_logged_before_conversion_even_when_spans_are_filtered() {
+        for (uri, expected) in [
+            ("/search?term=x&max_entries=1", "InvalidTerm(1)"),
+            ("/search?term=Alice&max_entries=0", "TooFewEntries"),
+            (
+                "/search?term=Alice&max_entries=1&strictness=2",
+                "InvalidStrictness(2.0)",
+            ),
+            ("/members/invalid", "MemberIdError"),
+            ("/members/0", "MemberIdError"),
+            ("/funders/invalid", "Error"),
+            ("/members/1", "NotFound"),
+            (
+                "/members/2",
+                "Unexpected(DatabaseError(\"member database failed\"))",
+            ),
+            (
+                "/search?term=Alice&max_entries=1",
+                "UnexpectedError(\"database search failed\")",
+            ),
+            (
+                "/funders/00000000-0000-0000-0000-000000000000",
+                "Unexpected(DatabaseError(\"database details failed\"))",
+            ),
+        ] {
+            let (_, events) = request(app(), Method::GET, uri, "error").await;
+            assert_eq!(events.len(), 1, "{uri}: {events:?}");
+            assert_eq!(events[0]["level"], "ERROR");
+            let error = events[0]["fields"]["error"].as_str().unwrap();
+            assert!(error.contains(expected), "{uri}: {error}");
         }
     }
 
@@ -386,9 +436,9 @@ mod tests {
             "/healthz",
             get(|| async { StatusCode::INTERNAL_SERVER_ERROR }),
         ));
-        let (_, events) = request(router, Method::GET, "/healthz", "error").await;
+        let (_, events) = request(router, Method::GET, "/healthz", "info").await;
         assert_eq!(events.len(), 1);
-        assert_eq!(events[0]["level"], "ERROR");
+        assert_eq!(events[0]["level"], "INFO");
         assert_eq!(events[0]["fields"]["http.request.method"], "GET");
         assert_eq!(events[0]["fields"]["http.route"], "/healthz");
         assert_eq!(events[0]["fields"]["error.type"], "http.server_error");
@@ -419,23 +469,33 @@ mod tests {
             ));
         }
         let events = buffer.events();
-        assert_eq!(events.len(), 12);
+        assert_eq!(events.len(), 24);
         assert_eq!(
             events
                 .iter()
-                .filter(|event| event["level"] == "WARN")
+                .filter(|event| event["level"] == "INFO")
                 .count(),
-            6
+            12
         );
         assert_eq!(
             events
                 .iter()
                 .filter(|event| event["level"] == "ERROR")
                 .count(),
-            6
+            12
         );
         for event in &events {
-            assert_eq!(event["span"]["http.route"], event["fields"]["http.route"]);
+            if event["level"] == "INFO" {
+                assert_eq!(event["span"]["http.route"], event["fields"]["http.route"]);
+            } else if event["fields"]["error"] == "NotFound" {
+                assert_eq!(event["span"]["http.route"], "/members/{id}");
+            } else {
+                assert_eq!(event["span"]["http.route"], "/search");
+                assert_eq!(
+                    event["fields"]["error"],
+                    "UnexpectedError(\"database search failed\")"
+                );
+            }
             assert_eq!(event["span"]["http.request.method"], "GET");
             assert_eq!(event["span"]["name"], "http.request");
             assert_eq!(event["spans"].as_array().unwrap().len(), 1);

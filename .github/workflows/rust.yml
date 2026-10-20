@@ -27,12 +27,12 @@ jobs:
       - name: Check event ownership
         run: |
           if git grep -n -E '(^|[^[:alnum:]_])(error|warn|event|log)[[:space:]]*!' -- exposed/src \
-            ':!exposed/src/lib/inbound/http/tracing.rs' ':!exposed/src/bin/main.rs'; then
-            echo 'Error, warning, and generic event macros belong to HTTP tracing or terminal server reporting.' >&2
+            ':!exposed/src/lib/inbound/http/tracing.rs' ':!exposed/src/lib/inbound/http/handlers.rs' ':!exposed/src/lib/inbound/http/handlers/**'; then
+            echo 'Error, warning, and generic event macros belong to HTTP handlers or tracing.' >&2
             exit 1
           fi
           if git grep -n -E '(^|[^[:alnum:]_])(info|debug|trace)[[:space:]]*!' -- exposed/src \
-            ':!exposed/src/lib/inbound/http/tracing.rs' ':!exposed/src/bin/main.rs' \
+            ':!exposed/src/lib/inbound/http/tracing.rs' \
             ':!exposed/src/lib/inbound/http/server.rs'; then
             echo 'Request-handling code must propagate failures to its logging owner.' >&2
             exit 1

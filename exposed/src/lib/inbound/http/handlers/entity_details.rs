@@ -361,8 +361,17 @@ pub async fn member_details<E: EntitySearchService, D: EntityDetailsService>(
 ) -> Result<ApiSuccess<MemberDetailsResponse>, ApiError> {
     let id = id
         .parse::<MemberId>()
+        .inspect_err(|error| {
+            tracing::error!(?error, "invalid member ID");
+        })
         .map_err(|error| ApiError::UnprocessibleEntity(error.to_string()))?;
-    let details = state.entity_details_service.member(id).await?;
+    let details = state
+        .entity_details_service
+        .member(id)
+        .await
+        .inspect_err(|error| {
+            tracing::error!(?error, "member details failed");
+        })?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }
 
@@ -372,7 +381,16 @@ pub async fn funder_details<E: EntitySearchService, D: EntityDetailsService>(
 ) -> Result<ApiSuccess<FunderDetailsResponse>, ApiError> {
     let id = id
         .parse::<FunderId>()
+        .inspect_err(|error| {
+            tracing::error!(?error, "invalid funder ID");
+        })
         .map_err(|_| ApiError::UnprocessibleEntity("Invalid funder ID".into()))?;
-    let details = state.entity_details_service.funder(id).await?;
+    let details = state
+        .entity_details_service
+        .funder(id)
+        .await
+        .inspect_err(|error| {
+            tracing::error!(?error, "funder details failed");
+        })?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }
