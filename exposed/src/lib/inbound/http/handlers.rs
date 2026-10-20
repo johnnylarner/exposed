@@ -83,7 +83,7 @@ impl From<EntitySearchError> for ApiError {
             EntitySearchError::InvalidTerm(_)
             | EntitySearchError::InvalidStrictness(_)
             | EntitySearchError::TooFewEntries => Self::UnprocessibleEntity(value.to_string()),
-            EntitySearchError::UnexpectedError(_) => Self::InternalServerError,
+            EntitySearchError::UnexpectedError(_) => Self::InternalServerError(value.into()),
         }
     }
 }

@@ -1,0 +1,44 @@
+name: Rust checks
+
+on:
+  pull_request:
+    paths:
+      - exposed/**
+      - Cargo.toml
+      - Cargo.lock
+      - clippy.toml
+      - .sqlx/**
+      - .github/workflows/rust.yml
+
+permissions:
+  contents: read
+
+jobs:
+  clippy:
+    runs-on: ubuntu-24.04
+    env:
+      SQLX_OFFLINE: 'true'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Install Clippy
+        run: |
+          rustup toolchain install stable --profile minimal --component clippy
+          rustup default stable
+      # Clippy also sees event! expanded by ordinary info!, so check explicit
+      # generic event macros in source while Clippy checks error!/warn! paths.
+      - name: Check generic event macro ownership
+        run: |
+          if git grep -n -E '(tracing::event|log::log)[[:space:]]*!' -- exposed/src \
+            ':!exposed/src/lib/inbound/http/tracing.rs' ':!exposed/src/bin/main.rs'; then
+            echo 'Generic event macros belong to HTTP tracing or terminal server reporting.' >&2
+            exit 1
+          fi
+          if git grep -n -E '(tracing::(info|debug|trace)|log::(info|debug|trace))[[:space:]]*!' -- exposed/src \
+            ':!exposed/src/lib/inbound/http/tracing.rs' ':!exposed/src/bin/main.rs' \
+            ':!exposed/src/lib/inbound/http/server.rs'; then
+            echo 'Request-handling code must propagate failures to its logging owner.' >&2
+            exit 1
+          fi
+      - name: Check Rust and error-emission ownership
+        run: cargo clippy --locked --workspace --lib --bins -- -D warnings

@@ -41,6 +41,36 @@ The production `binary` image runs this probe every 30 seconds. The development
 Compose service runs the compiled debug binary and allows 120 seconds for its
 initial compilation before counting failures.
 
+## HTTP logging
+
+`exposed server` loads `.env`, then installs a JSON tracing subscriber on stderr.
+`RUST_LOG` defaults to `warn,exposed=info` only when absent. Invalid explicit
+filters fail startup. For request diagnostics, use `RUST_LOG=exposed=debug`.
+The reusable `serve_exposed` function and router use the host's subscriber.
+`run_server` owns process setup and cannot install a subscriber twice.
+
+Each returned response produces one `http.request.completed` event. Successful
+requests use INFO, client errors WARN, and server errors ERROR. Successful
+`/healthz` requests use DEBUG. Events contain `http.request.method`, the matched
+`http.route` template, integer `http.response.status_code`, and numeric
+`duration_ms`. Unmatched requests omit `http.route`. Duration ends when the
+response is available, before any streaming body is delivered.
+
+Failure events include `error.type` and private server-side `error.message`
+diagnostics. Unexpected service errors retain their source chain; HTTP 500 bodies
+remain `internal server error`. Request instrumentation does not record raw URLs,
+queries, headers, bodies, or server configuration. Error sources can contain
+private database diagnostics, so logs need the same access controls as other
+server diagnostics. Panics, cancelled requests, and streaming-body failures are
+outside this response-completion policy. Subscriber filters can suppress events.
+
+Clippy rejects direct error and warning macros. CI restricts explicit generic
+event macros to the HTTP tracing and executable server-command owner files.
+It also rejects direct info, debug, and trace event macros outside these owners
+and the server startup module.
+These checks guard first-party macro use; they do not prove behavior of arbitrary
+logging wrappers.
+
 ## Development hooks
 
 Enable the repository's pre-commit hook after cloning:

@@ -30,6 +30,8 @@ tempfile = "3.27.0"
 bigdecimal = "0.4.10"
 anyhow = "1.0.104"
 axum = "0.8.9"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 chrono = { version = "=0.4.41", features = ["serde"] }
 time = "0.3.47"
 clap = { version = "4.6.7", features = ["derive", "string"] }
@@ -52,5 +54,6 @@ polars = { version = "=0.53.0", default-features = false, features = ["lazy", "s
 weldrs = { version = "=0.2.2", features = ["simd"] }
 
 [dev-dependencies]
+tower = { version = "0.5.3", features = ["util"] }
 jsonschema = { version = "0.46", default-features = false }
 sqlx = { version = "0.9.0", features = ["postgres", "runtime-tokio", "migrate", "macros"] }

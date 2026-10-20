@@ -12,3 +12,4 @@ rust-version = "1.94.0"
 [workspace.lints.clippy]
 cargo = { level = "deny", priority = -1 }
 multiple_crate_versions = "allow"
+disallowed_macros = "deny"
