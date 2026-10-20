@@ -32,7 +32,13 @@
     <EntityDetails {model} />
   {/if}
   <footer class="app-footer">
-    <span>Contains Parliamentary information.</span><a
+    <span>Contains Parliamentary information.</span>
+    <a
+      href="/methodology"
+      aria-current={model.kind === "methodology" ? "page" : undefined}
+      >Methodology</a
+    >
+    <a
       href="https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/"
       target="_blank"
       rel="noreferrer">Open Parliament Licence</a
