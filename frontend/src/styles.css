@@ -1,7 +1,7 @@
 :root {
   font-family: "Manrope Variable", sans-serif;
-  color: #f0edf3;
-  background: #000;
+  color: var(--text);
+  background: var(--background);
   color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -11,7 +11,66 @@
   --muted: #ada6b4;
   --accent: #b67be5;
   --line: #28232e;
+  --background: #000;
+  --line-subtle: #1c1920;
+  --input-border: #80648e;
+  --focus-glow: #a863d61c;
+  --placeholder: #9c929f;
+  --control-border: #453c4a;
+  --hover-surface: #2a2130;
+  --accent-border: #483159;
+  --accent-surface: #25182f;
+  --accent-text: #d3b1ef;
+  --highlight: #cc9bf1;
+  --raised-surface: #19141f;
+  --shadow: #0008;
+  --quiet-surface: #151019;
+  --quiet-border: #302137;
+  --button-border: #75508f;
+  --button-text: #ebd4fc;
+  --button-surface: #301b41;
+  --button-hover: #432355;
+  --on-accent: #160b1f;
+  --accent-hover: #cc9bf1;
+  --skeleton: #1c1622;
+  --funder-accent: #64cfb5;
+  --chart-track: #ece8e1;
 }
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --background: #e9e4ed;
+    --surface: #f2edf5;
+    --text: #2d2036;
+    --muted: #65586e;
+    --accent: #74399a;
+    --line: #c8bccf;
+    --line-subtle: #d0c5d7;
+    --input-border: #93809e;
+    --focus-glow: #74399a24;
+    --placeholder: #73637e;
+    --control-border: #a597af;
+    --hover-surface: #dbcee5;
+    --accent-border: #b69bc7;
+    --accent-surface: #e0d2e9;
+    --accent-text: #5e2c80;
+    --highlight: #6b2c91;
+    --raised-surface: #f2edf5;
+    --shadow: #2d20362b;
+    --quiet-surface: #e2d9e8;
+    --quiet-border: #c8b6d3;
+    --button-border: #83519f;
+    --button-text: #572673;
+    --button-surface: #ddcbe8;
+    --button-hover: #cfb5df;
+    --on-accent: #f8f0fc;
+    --accent-hover: #602a83;
+    --skeleton: #d2c5dc;
+    --funder-accent: #246c5b;
+    --chart-track: #d2c5dc;
+  }
+}
+
 * {
   box-sizing: border-box;
 }
@@ -34,7 +93,9 @@ a {
   color: inherit;
 }
 button:focus-visible,
-a:focus-visible {
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 5px;
 }
@@ -78,7 +139,7 @@ a:focus-visible {
   justify-content: space-between;
   align-items: center;
   padding: 32px 0;
-  border-bottom: 1px solid #1c1920;
+  border-bottom: 1px solid var(--line-subtle);
 }
 .wordmark {
   display: inline-flex;
@@ -121,7 +182,7 @@ h1 {
   gap: 16px;
   padding: 0 22px;
   min-height: 74px;
-  border: 1px solid #493553;
+  border: 1px solid var(--input-border);
   border-radius: 10px;
   background: var(--surface);
   transition:
@@ -130,7 +191,7 @@ h1 {
 }
 .search-field:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px #a863d61c;
+  box-shadow: 0 0 0 3px var(--focus-glow);
 }
 .search-icon {
   display: flex;
@@ -155,7 +216,7 @@ h1 {
   display: none;
 }
 .search-field input::placeholder {
-  color: #9c929f;
+  color: var(--placeholder);
   font-weight: 400;
 }
 .search-shortcut {
@@ -164,7 +225,7 @@ h1 {
   font: inherit;
   font-size: 14px;
   color: var(--muted);
-  border: 1px solid #453c4a;
+  border: 1px solid var(--control-border);
   border-radius: 5px;
   min-width: 26px;
   padding: 2px 7px;
@@ -184,7 +245,7 @@ h1 {
 }
 .clear-button:hover {
   color: var(--text);
-  background: #2a2130;
+  background: var(--hover-surface);
 }
 .search-help {
   color: var(--muted);
@@ -240,9 +301,9 @@ h1 {
   height: 36px;
   padding: 0;
   color: var(--accent);
-  border: 1px solid #483159;
+  border: 1px solid var(--accent-border);
   border-radius: 8px;
-  background: #25182f;
+  background: var(--accent-surface);
 }
 .entity-name {
   font-size: 17px;
@@ -257,10 +318,10 @@ h1 {
   gap: 6px;
   max-width: 210px;
   padding: 4px 8px;
-  border: 1px solid #483159;
+  border: 1px solid var(--accent-border);
   border-radius: 6px;
-  background: #25182f;
-  color: #d3b1ef;
+  background: var(--accent-surface);
+  color: var(--accent-text);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -274,7 +335,7 @@ h1 {
 }
 mark {
   background: none;
-  color: #cc9bf1;
+  color: var(--highlight);
   font-weight: 650;
 }
 /* Shape distinguishes roles; shared colour gives both equal emphasis. */
@@ -297,12 +358,12 @@ mark {
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 5px;
-  background: #19141f;
+  background: var(--raised-surface);
   color: var(--text);
   font-size: 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;
-  box-shadow: 0 4px 16px #0008;
+  box-shadow: 0 4px 16px var(--shadow);
 }
 .entity-legend {
   display: flex;
@@ -338,11 +399,11 @@ mark {
 .state-icon {
   display: grid;
   place-items: center;
-  color: #9e83b5;
+  color: var(--muted);
   width: 52px;
   height: 52px;
-  background: #151019;
-  border: 1px solid #302137;
+  background: var(--quiet-surface);
+  border: 1px solid var(--quiet-border);
   border-radius: 14px;
   margin-bottom: 20px;
 }
@@ -378,15 +439,15 @@ mark {
 }
 .examples button {
   padding: 6px 12px;
-  border: 1px solid #403149;
-  background: #151019;
-  color: #d2b0ed;
+  border: 1px solid var(--quiet-border);
+  background: var(--quiet-surface);
+  color: var(--accent-text);
   border-radius: 5px;
   font-size: 12px;
 }
 .examples button:hover {
-  background: #25182f;
-  border-color: #785192;
+  background: var(--accent-surface);
+  border-color: var(--accent);
 }
 .retry-button {
   display: inline-flex;
@@ -395,17 +456,17 @@ mark {
   margin-top: 24px;
   padding: 10px 16px;
   font-size: 13px;
-  border: 1px solid #75508f;
+  border: 1px solid var(--button-border);
   border-radius: 6px;
-  color: #ebd4fc;
-  background: #301b41;
+  color: var(--button-text);
+  background: var(--button-surface);
 }
 .retry-button:hover {
-  background: #432355;
+  background: var(--button-hover);
 }
 .text-button {
   margin-top: 22px;
-  color: #cc9bf1;
+  color: var(--highlight);
   font-size: 13px;
   padding: 4px 0;
   border: 0;
@@ -416,7 +477,7 @@ mark {
 .loading-indicator {
   width: 14px;
   height: 14px;
-  border: 2px solid #33203f;
+  border: 2px solid var(--accent-border);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 900ms linear infinite;
@@ -433,13 +494,13 @@ mark {
   height: 36px;
   border-radius: 8px;
   flex: none;
-  background: #151119;
+  background: var(--quiet-surface);
 }
 .skeleton-name {
   max-width: 350px;
   height: 13px;
   border-radius: 3px;
-  background: #1c1622;
+  background: var(--skeleton);
 }
 .app-footer {
   display: flex;
@@ -447,9 +508,9 @@ mark {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  border-top: 1px solid #1c1920;
+  border-top: 1px solid var(--line-subtle);
   padding: 24px 0;
-  color: #9d93a5;
+  color: var(--muted);
   font-size: 11px;
   line-height: 1.7;
 }
@@ -457,7 +518,7 @@ mark {
   text-decoration: none;
 }
 .app-footer a:hover {
-  color: #dfc7f0;
+  color: var(--accent-text);
   text-decoration: underline;
   text-underline-offset: 4px;
 }
@@ -558,7 +619,7 @@ mark {
   margin-top: 40px;
 }
 .funder-page {
-  --accent: #64cfb5;
+  --accent: var(--funder-accent);
 }
 .back-link {
   display: inline-block;
@@ -673,7 +734,7 @@ mark {
   gap: 24px;
   padding: 14px 18px;
   background: var(--surface);
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--line);
 }
 .funding-source {
   min-width: 0;
@@ -683,11 +744,8 @@ mark {
 }
 .funding-source a,
 .summary-columns a {
-  text-decoration-color: #695476;
+  text-decoration-color: var(--accent);
   text-underline-offset: 4px;
-}
-.funder-page .summary-columns a {
-  text-decoration-color: #437c6e;
 }
 .funding-source span,
 .funding-value span {
@@ -957,13 +1015,24 @@ mark {
   font-size: 0.9rem;
 }
 .history-filters input {
-  color-scheme: dark;
+  color-scheme: inherit;
   background: var(--surface);
   color: var(--text);
-  border: 1px solid var(--line);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   font: inherit;
   padding: 10px 12px;
+}
+.history-filters button,
+.history-pagination button {
+  background: var(--button-surface);
+  color: var(--button-text);
+  border: 1px solid var(--button-border);
+  border-radius: 6px;
+}
+.history-filters button:hover:not(:disabled),
+.history-pagination button:hover:not(:disabled) {
+  background: var(--button-hover);
 }
 .history-filters button {
   padding: 11px 16px;
@@ -1232,7 +1301,7 @@ button:disabled {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
-  box-shadow: 0 4px 16px #0002;
+  box-shadow: 0 4px 16px var(--shadow);
   overflow-wrap: anywhere;
 }
 .party-tooltip span,

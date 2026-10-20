@@ -84,7 +84,7 @@
                 cx="100"
                 cy="100"
                 r="90"
-                fill="#ece8e1"
+                fill="var(--chart-track)"
               />{/if}
             {#each slices as slice, index}
               {#if slice.share > 0}

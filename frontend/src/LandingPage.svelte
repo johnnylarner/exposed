@@ -56,10 +56,10 @@
   .primary {
     background: var(--accent);
     border-color: var(--accent);
-    color: #160b1f;
+    color: var(--on-accent);
   }
   .primary:hover {
-    background: #cc9bf1;
+    background: var(--accent-hover);
   }
   @media (max-width: 480px) {
     .landing-page {
