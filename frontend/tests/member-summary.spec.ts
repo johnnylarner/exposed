@@ -271,3 +271,76 @@ test("funding timeline includes every category with exact UTC months and missing
     registrationTimeline([declaration(null, [entry("99", "EUR")])]),
   ).toEqual({ months: [], undated: false });
 });
+
+test("earnings totals use inclusive UTC boundary and all historical earnings", () => {
+  const fixture = details([
+    declaration("2024-07-08T23:59:59.999Z", [entry("1")]),
+    declaration("2024-07-09T00:00:00Z", [entry("2")]),
+    declaration("2024-07-08T23:00:00-01:00", [entry("3")]),
+    declaration("2024-07-09T00:30:00+01:00", [entry("4")]),
+    declaration(null, [entry("5"), entry(null)]),
+    declaration("2025-01-01Z", [entry("100", "EUR"), entry("9", null)]),
+    declaration("2020-01-01Z", [entry("900")], "Gifts"),
+  ]);
+  fixture.summary.firstRegisteredAt = "2020-01-01T00:00:00Z";
+  const summary = summarizeMember(fixture);
+  expect(summary.earningsTotals).toEqual({
+    currentTerm: { declarationCount: 3, amount: "5", incomplete: true },
+    historical: { declarationCount: 6, amount: "15", incomplete: true },
+  });
+  expect(summary.firstRegisteredAt).toBe("2020-01-01T00:00:00Z");
+});
+
+test("earnings totals preserve precision, absent amounts and real zero", () => {
+  expect(summarizeMember(details([])).earningsTotals).toEqual({
+    currentTerm: { declarationCount: 0, amount: null, incomplete: false },
+    historical: { declarationCount: 0, amount: null, incomplete: false },
+  });
+  const summary = summarizeMember(
+    details([
+      declaration("2025-01-01Z", [
+        entry("9007199254740993.000000001"),
+        entry("-9007199254740993"),
+        entry(null),
+      ]),
+      declaration(null, [entry("-0.000000001")]),
+    ]),
+  );
+  expect(summary.earningsTotals).toEqual({
+    currentTerm: {
+      declarationCount: 1,
+      amount: "0.000000001",
+      incomplete: true,
+    },
+    historical: {
+      declarationCount: 2,
+      amount: "0.000000000",
+      incomplete: true,
+    },
+  });
+  expect(
+    summarizeMember(
+      details([declaration("2025-01-01Z", [entry(null), entry("2", "EUR")])]),
+    ).earningsTotals.currentTerm,
+  ).toEqual({ declarationCount: 1, amount: null, incomplete: true });
+});
+
+test("undated and earlier unknown earnings affect only historical completeness", () => {
+  expect(
+    summarizeMember(
+      details([
+        declaration("2024-07-08T23:59:59Z", [entry(null)]),
+        declaration(null, [entry("8", " ")]),
+        declaration("2025-01-01Z", [entry("0"), entry(null, "EUR")]),
+      ]),
+    ).earningsTotals,
+  ).toEqual({
+    currentTerm: { declarationCount: 1, amount: "0", incomplete: false },
+    historical: { declarationCount: 3, amount: "0", incomplete: true },
+  });
+  expect(
+    summarizeMember(
+      details([declaration("2025-01-01Z", [entry("100", "EUR")])]),
+    ).earningsTotals.currentTerm,
+  ).toEqual({ declarationCount: 1, amount: null, incomplete: false });
+});

@@ -1,25 +1,10 @@
+import { sumAmounts } from "./sum-amounts";
 import type { MemberDeclaration } from "./entity-details";
 
 export interface RegistrationMonth {
   start: string;
   amount: string | null;
   incomplete: boolean;
-}
-
-function sum(values: string[]): string | null {
-  if (!values.length) return null;
-  const scale = Math.max(
-    ...values.map((value) => value.split(".")[1]?.length ?? 0),
-  );
-  const total = values.reduce((total, value) => {
-    const [whole, fraction = ""] = value.replace(/^-/, "").split(".");
-    const coefficient = BigInt(whole + fraction.padEnd(scale, "0"));
-    return total + (value.startsWith("-") ? -coefficient : coefficient);
-  }, 0n);
-  const digits = (total < 0n ? -total : total)
-    .toString()
-    .padStart(scale + 1, "0");
-  return `${total < 0n ? "-" : ""}${scale ? `${digits.slice(0, -scale)}.${digits.slice(-scale)}` : digits}`;
 }
 
 export function registrationTimeline(declarations: MemberDeclaration[]) {
@@ -60,7 +45,7 @@ export function registrationTimeline(declarations: MemberDeclaration[]) {
       const bucket = buckets.get(start);
       months.push({
         start,
-        amount: bucket ? sum(bucket.amounts) : "0",
+        amount: bucket ? sumAmounts(bucket.amounts) : "0",
         incomplete: bucket?.incomplete ?? false,
       });
       date.setUTCMonth(date.getUTCMonth() + 1);
