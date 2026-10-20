@@ -33,7 +33,7 @@
     <EntityDetails {model} />
   {/if}
   <footer class="app-footer">
-    <span>Contains Parliamentary information.</span>
+    <span>Version {PUBLIC_APP_VERSION}</span>
     <a
       href="/methodology"
       aria-current={model.kind === "methodology" ? "page" : undefined}
@@ -44,6 +44,5 @@
       target="_blank"
       rel="noreferrer">Open Parliament Licence</a
     >
-    <span>Version {PUBLIC_APP_VERSION}</span>
   </footer>
 </div>
