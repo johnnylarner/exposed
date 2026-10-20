@@ -9,8 +9,6 @@ use axum::{
 use tracing::{Instrument, Level};
 use tracing_subscriber::{EnvFilter, util::SubscriberInitExt};
 
-use super::error::ResponseFailure;
-
 pub(super) fn init_subscriber() -> Result<(), super::server::SubscriberInitializationError> {
     let directives = match std::env::var("RUST_LOG") {
         Ok(value) => value,
@@ -72,23 +70,13 @@ fn complete(
     health: bool,
 ) {
     let status = response.status();
-    let diagnostic = response
-        .extensions()
-        .get::<ResponseFailure>()
-        .map(ResponseFailure::diagnostic);
-    let category = response
-        .extensions()
-        .get::<ResponseFailure>()
-        .map(ResponseFailure::category)
-        .or_else(|| {
-            if status.is_server_error() {
-                Some("http.server_error")
-            } else if status.is_client_error() {
-                Some("http.client_error")
-            } else {
-                None
-            }
-        });
+    let category = if status.is_server_error() {
+        Some("http.server_error")
+    } else if status.is_client_error() {
+        Some("http.client_error")
+    } else {
+        None
+    };
     let route = route.map(MatchedPath::as_str);
     macro_rules! emit {
         ($level:ident) => {
@@ -100,7 +88,6 @@ fn complete(
                 http.response.status_code = u64::from(status.as_u16()),
                 duration_ms = latency.as_secs_f64() * 1000.0,
                 error.type = category,
-                error.message = diagnostic,
             )
         };
     }
@@ -267,7 +254,7 @@ mod tests {
                 422,
                 "WARN",
                 Some("/search"),
-                Some("request.validation"),
+                Some("http.client_error"),
             ),
             (
                 Method::GET,
@@ -275,7 +262,7 @@ mod tests {
                 404,
                 "WARN",
                 Some("/members/{id}"),
-                Some("entity.not_found"),
+                Some("http.client_error"),
             ),
             (
                 Method::GET,
@@ -307,7 +294,7 @@ mod tests {
                 500,
                 "ERROR",
                 Some("/search"),
-                Some("entity_search.unexpected"),
+                Some("http.server_error"),
             ),
             (
                 Method::GET,
@@ -315,18 +302,12 @@ mod tests {
                 500,
                 "ERROR",
                 Some("/funders/{id}"),
-                Some("entity_details.database"),
+                Some("http.server_error"),
             ),
         ] {
             let (response, events) = request(app(), method.clone(), uri, "exposed=debug").await;
             assert_eq!(response.status().as_u16(), status, "{uri}");
             if status == 500 {
-                assert!(
-                    events[0]["fields"]["error.message"]
-                        .as_str()
-                        .unwrap()
-                        .contains("database")
-                );
                 assert_eq!(
                     to_bytes(response.into_body(), 1024).await.unwrap(),
                     "internal server error"
@@ -348,17 +329,17 @@ mod tests {
     async fn expected_errors_preserve_exact_response_bodies() {
         for (error, status, body) in [
             (
-                ApiError::Search(EntitySearchError::InvalidTerm(1)),
+                ApiError::from(EntitySearchError::InvalidTerm(1)),
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "unable to process malformed request: term must be at last three characters long; received 1",
             ),
             (
-                ApiError::Search(EntitySearchError::InvalidStrictness(2.0)),
+                ApiError::from(EntitySearchError::InvalidStrictness(2.0)),
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "unable to process malformed request: strictness must be between 0 and 1; get 2",
             ),
             (
-                ApiError::Search(EntitySearchError::TooFewEntries),
+                ApiError::from(EntitySearchError::TooFewEntries),
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "unable to process malformed request: at least one entry must be expected to return",
             ),
@@ -368,7 +349,7 @@ mod tests {
                 "unable to process malformed request: Invalid funder ID",
             ),
             (
-                ApiError::Details(EntityDetailsError::NotFound),
+                ApiError::from(EntityDetailsError::NotFound),
                 StatusCode::NOT_FOUND,
                 "entity not found",
             ),
@@ -411,30 +392,6 @@ mod tests {
         assert_eq!(events[0]["fields"]["http.request.method"], "GET");
         assert_eq!(events[0]["fields"]["http.route"], "/healthz");
         assert_eq!(events[0]["fields"]["error.type"], "http.server_error");
-    }
-
-    #[tokio::test]
-    async fn wrapped_causes_are_retained_and_logged_once() {
-        let response = ApiError::Details(EntityDetailsError::Unexpected(
-            EntityDetailsRepoError::DatabaseError("upstream response timed out".into()),
-        ))
-        .into_response();
-        let diagnostic =
-            "entity details failed: entity details read failed: upstream response timed out";
-        let failure = response.extensions().get::<ResponseFailure>().unwrap();
-        assert_eq!(failure.diagnostic(), diagnostic);
-        let response = Arc::new(Mutex::new(Some(response)));
-        let router = instrument(Router::new().route(
-            "/wrapped",
-            get(move || {
-                let response = response.clone();
-                async move { response.lock().unwrap().take().unwrap() }
-            }),
-        ));
-        let (_, events) = request(router, Method::GET, "/wrapped", "exposed=debug").await;
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0]["fields"]["error.type"], "entity_details.database");
-        assert_eq!(events[0]["fields"]["error.message"], diagnostic);
     }
 
     #[tokio::test]

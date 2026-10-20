@@ -56,13 +56,14 @@ requests use INFO, client errors WARN, and server errors ERROR. Successful
 `duration_ms`. Unmatched requests omit `http.route`. Duration ends when the
 response is available, before any streaming body is delivered.
 
-Failure events include `error.type` and private server-side `error.message`
-diagnostics. Unexpected service errors retain their source chain; HTTP 500 bodies
-remain `internal server error`. Request instrumentation does not record raw URLs,
-queries, headers, bodies, or server configuration. Error sources can contain
-private database diagnostics, so logs need the same access controls as other
-server diagnostics. Panics, cancelled requests, and streaming-body failures are
-outside this response-completion policy. Subscriber filters can suppress events.
+Failure events include `error.type` with a status-based classification of
+`http.client_error` or `http.server_error`. HTTP completion logs do not retain
+service error sources. HTTP 500 bodies remain `internal server error`.
+Standalone server startup failures still include source diagnostics.
+Request instrumentation does not record raw URLs, queries, headers, bodies, or
+server configuration. Panics, cancelled requests, and streaming-body failures
+are outside this response-completion policy. Subscriber filters can suppress
+events.
 
 CI restricts explicit error, warning, and generic event macros to the HTTP
 tracing and executable server-command owner files.

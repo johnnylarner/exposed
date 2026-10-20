@@ -77,6 +77,17 @@ impl From<&Entity> for SearchEntity {
     }
 }
 
+impl From<EntitySearchError> for ApiError {
+    fn from(value: EntitySearchError) -> Self {
+        match value {
+            EntitySearchError::InvalidTerm(_)
+            | EntitySearchError::InvalidStrictness(_)
+            | EntitySearchError::TooFewEntries => Self::UnprocessibleEntity(value.to_string()),
+            EntitySearchError::UnexpectedError(_) => Self::InternalServerError,
+        }
+    }
+}
+
 pub async fn search_entities<E: EntitySearchService, D: EntityDetailsService>(
     State(state): State<AppState<E, D>>,
     Query(query): Query<SearchEntitiesHttpRequest>,
