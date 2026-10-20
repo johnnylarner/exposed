@@ -1272,15 +1272,17 @@ button:disabled {
   grid-column: 1 / -1;
   min-width: 0;
 }
-.member-earnings-totals .partial-note {
+.earnings-values h2 {
+  margin: 0 0 8px;
+  color: var(--muted);
   font-size: 0.875rem;
+  font-weight: 500;
   line-height: 1.5;
 }
 .earnings-values {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
   gap: 24px;
-  margin-bottom: 16px;
 }
 .earnings-values .member-value {
   text-align: left;
@@ -1295,6 +1297,7 @@ button:disabled {
   max-width: 100%;
 }
 .earnings-values .member-total.unavailable {
+  white-space: normal;
   font-size: 1.25rem;
   font-weight: 500;
   color: var(--muted);

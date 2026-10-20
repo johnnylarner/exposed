@@ -12,6 +12,7 @@ export const CURRENT_PARLIAMENT_START = "2024-07-09T00:00:00Z";
 function earningsTotal(declarations: MemberDeclaration[]) {
   const entries = declarations.flatMap((declaration) => declaration.entries);
   return {
+    declarationCount: declarations.length,
     amount: sumAmounts(
       entries.flatMap((entry) =>
         entry.currency === "GBP" && entry.amount !== null ? [entry.amount] : [],

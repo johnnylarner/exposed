@@ -1,10 +1,6 @@
 <script lang="ts">
   import { page } from "$app/state";
-  import {
-    CURRENT_PARLIAMENT_START,
-    summarizeMember,
-    formatPounds,
-  } from "./lib/member-summary";
+  import { summarizeMember, formatPounds } from "./lib/member-summary";
   import Icon from "./lib/Icon.svelte";
   import { memberHref, type MemberProfile } from "./lib/entity-details";
   let {
@@ -42,8 +38,12 @@
     <div class="member-earnings-totals">
       <div class="earnings-values">
         <div class="member-value">
-          <span>Earnings this parliamentary term</span>
-          {#if summary.earningsTotals.currentTerm.amount === null}
+          <h2>Earnings this parliamentary term</h2>
+          {#if summary.earningsTotals.currentTerm.declarationCount === 0}
+            <p class="member-total unavailable">
+              No declaration data available
+            </p>
+          {:else if summary.earningsTotals.currentTerm.amount === null}
             <p class="member-total unavailable">{formatPounds(null)}</p>
           {:else}
             <!-- svelte-ignore a11y_no_noninteractive_tabindex (Keyboard users need to scroll wide amounts without losing digits.) -->
@@ -52,22 +52,25 @@
               role="region"
               tabindex="0"
               aria-label="Earnings this parliamentary term in GBP"
+              title={summary.earningsTotals.currentTerm.incomplete
+                ? "Known GBP amounts only. Some amounts unavailable."
+                : undefined}
             >
               {formatPounds(summary.earningsTotals.currentTerm.amount)}
             </div>
           {/if}
-          <p class="partial-note">
-            Since {dateLabel(CURRENT_PARLIAMENT_START)}
-          </p>
-          {#if summary.earningsTotals.currentTerm.incomplete}<p
-              class="partial-note"
-            >
-              Some amounts unavailable
-            </p>{/if}
         </div>
         <div class="member-value">
-          <span>Historical earnings</span>
-          {#if summary.earningsTotals.historical.amount === null}
+          <h2>
+            Historical earnings{summary.firstRegisteredAt
+              ? ` since ${dateLabel(summary.firstRegisteredAt)}`
+              : ""}
+          </h2>
+          {#if summary.earningsTotals.historical.declarationCount === 0}
+            <p class="member-total unavailable">
+              No declaration data available
+            </p>
+          {:else if summary.earningsTotals.historical.amount === null}
             <p class="member-total unavailable">{formatPounds(null)}</p>
           {:else}
             <!-- svelte-ignore a11y_no_noninteractive_tabindex (Keyboard users need to scroll wide amounts without losing digits.) -->
@@ -76,31 +79,15 @@
               role="region"
               tabindex="0"
               aria-label="Historical earnings in GBP"
+              title={summary.earningsTotals.historical.incomplete
+                ? "Known GBP amounts only. Some amounts unavailable."
+                : undefined}
             >
               {formatPounds(summary.earningsTotals.historical.amount)}
             </div>
           {/if}
-          <p class="partial-note">
-            {summary.firstRegisteredAt
-              ? `Earliest stored declaration across all categories: ${dateLabel(summary.firstRegisteredAt)}.`
-              : "No dated declarations stored."}
-          </p>
-          <p class="partial-note">All stored earnings, including this term</p>
-          {#if summary.earningsTotals.historical.incomplete}<p
-              class="partial-note"
-            >
-              Some amounts unavailable
-            </p>{/if}
         </div>
       </div>
-      <p class="partial-note">
-        Known GBP amounts, based on registration date. Other currencies
-        excluded.
-      </p>
-      {#if summary.undated}<p class="partial-note">
-          Earnings without a registration date are included in historical
-          earnings and excluded from this term.
-        </p>{/if}
     </div>
   {/if}
   <nav class="member-tabs" aria-label="Member views">
