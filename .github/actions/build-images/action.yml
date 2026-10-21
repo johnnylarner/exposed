@@ -10,6 +10,9 @@ inputs:
   source-sha:
     description: Resolved source commit for OCI labels
     required: true
+  version:
+    description: Release version displayed in the frontend footer
+    default: ''
   image:
     description: GHCR repository
     required: true
@@ -71,6 +74,8 @@ runs:
         context: ${{ inputs.context }}
         file: ${{ inputs.context }}/docker/Dockerfile
         target: frontend-server
+        build-args: |
+          PUBLIC_APP_VERSION=${{ inputs.version }}
         platforms: linux/${{ inputs.architecture }}
         provenance: mode=max
         labels: |
