@@ -40,9 +40,9 @@ test("landing and methodology navigate without backend requests", async ({
   await expect(page).toHaveTitle("Methodology · Exposed");
   await expect(
     page.getByRole("link", {
-      name: "official Register of Members' Financial Interests",
+      name: "Members API",
     }),
-  ).toHaveAttribute("href", /parliament.uk/u);
+  ).toHaveAttribute("href", "https://members-api.parliament.uk/index.html");
   await page.goto("/methodology");
   await page.keyboard.press("Tab");
   await page.keyboard.press("Enter");
