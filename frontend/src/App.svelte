@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { PUBLIC_APP_VERSION } from "$app/env/public";
   import LandingPage from "./LandingPage.svelte";
   import MethodologyPage from "./MethodologyPage.svelte";
   import { pagePresentation } from "./lib/page";
@@ -32,7 +33,7 @@
     <EntityDetails {model} />
   {/if}
   <footer class="app-footer">
-    <span>Contains Parliamentary information.</span>
+    <span>Version {PUBLIC_APP_VERSION}</span>
     <a
       href="/methodology"
       aria-current={model.kind === "methodology" ? "page" : undefined}
