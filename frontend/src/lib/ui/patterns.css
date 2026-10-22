@@ -4,7 +4,7 @@
   gap: 16px;
   padding: 0 22px;
   min-height: 74px;
-  border: 1px solid #493553;
+  border: 1px solid var(--action-border);
   border-radius: 10px;
   background: var(--surface);
   transition:
@@ -12,8 +12,8 @@
     box-shadow 120ms ease;
 }
 .search-field:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px #a863d61c;
+  border-color: var(--focus-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus-color) 12%, transparent);
 }
 .search-icon {
   display: flex;
@@ -32,7 +32,7 @@
   font-size: 18px;
   font-weight: 500;
   line-height: 1.6;
-  caret-color: var(--accent);
+  caret-color: var(--action);
 }
 .search-field input::-webkit-search-cancel-button {
   display: none;
@@ -47,7 +47,7 @@
   font: inherit;
   font-size: 14px;
   color: var(--muted);
-  border: 1px solid #453c4a;
+  border: 1px solid var(--action-border);
   border-radius: 5px;
   min-width: 26px;
   padding: 2px 7px;
@@ -67,7 +67,7 @@
 }
 .clear-button:hover {
   color: var(--text);
-  background: #2a2130;
+  background: var(--action-hover);
 }
 .search-help {
   color: var(--muted);
@@ -379,7 +379,7 @@
 }
 .member-tabs a[aria-current="page"] {
   color: var(--text);
-  border-color: var(--accent);
+  border-color: var(--action);
 }
 .member-total {
   white-space: nowrap;
@@ -606,7 +606,7 @@
   color: var(--muted);
 }
 .member-total:focus-visible {
-  outline: var(--focus-width) solid var(--accent);
+  outline: var(--focus-width) solid var(--focus-color);
   outline-offset: var(--focus-offset);
 }
 .ui-data-table {
@@ -688,7 +688,7 @@
   padding-top: 3px;
 }
 .funding-source a {
-  text-decoration-color: #695476;
+  text-decoration-color: var(--action-border);
   text-underline-offset: 4px;
 }
 
@@ -792,7 +792,7 @@ mark {
 button:focus-visible,
 a:focus-visible,
 summary:focus-visible {
-  outline: var(--focus-width) solid var(--accent);
+  outline: var(--focus-width) solid var(--focus-color);
   outline-offset: calc(var(--focus-offset) + 1px);
 }
 

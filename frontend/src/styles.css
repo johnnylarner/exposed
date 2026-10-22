@@ -1,6 +1,6 @@
 ::selection {
-  color: #fff;
-  background: #5c277f;
+  color: var(--action-ink);
+  background: var(--action);
 }
 
 .skip-link {
@@ -111,7 +111,7 @@ h1 {
   text-decoration: none;
 }
 .app-footer a:hover {
-  color: #dfc7f0;
+  color: var(--action);
   text-decoration: underline;
   text-underline-offset: 4px;
 }

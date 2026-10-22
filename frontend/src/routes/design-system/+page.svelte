@@ -59,6 +59,8 @@
     { name: "Surface", token: "--surface" },
     { name: "Text", token: "--text" },
     { name: "Muted text", token: "--muted" },
+    { name: "Actions", token: "--action" },
+    { name: "Focus", token: "--focus-color" },
     { name: "Members", token: "--accent-member" },
     { name: "Funders", token: "--accent-funder" },
   ];
@@ -136,7 +138,7 @@
       <div class="foundation-notes">
         <p>
           Spacing follows a 4px base, with 8, 12, 16, 24 and 32px steps.
-          Controls share a 6px radius and a visible accent focus ring.
+          Controls share a 6px radius and a visible neutral focus ring.
         </p>
         <p>
           Color supports meaning. Labels, shapes and written feedback must carry
@@ -172,23 +174,28 @@
       <h2 id="actions-heading">Actions</h2>
       <p>
         Buttons change the current view. Links take you to another page. Both
-        retain their native keyboard behavior.
+        retain their native keyboard behavior. Actions and focus stay neutral in
+        both member and funder contexts.
       </p>
-      <div class="action-examples">
+      <div class="action-examples" aria-label="Member actions">
         <ButtonLink href="/search" variant="primary"
           >Search MPs and funders</ButtonLink
         ><ButtonLink href="/methodology">Read methodology</ButtonLink><Button
-          disabled>Unavailable action</Button
+          variant="quiet">Quiet action</Button
+        ><Button variant="subtle">Subtle action</Button><Button disabled
+          >Unavailable action</Button
         >
       </div>
       <div class="funder-example">
         <span>Funder context</span>
-        <div class="action-examples">
+        <div class="action-examples" aria-label="Funder actions">
           <ButtonLink href="/search" variant="primary">Find a funder</ButtonLink
           ><Button
             variant="quiet"
             onclick={() => (status = "Funder example selected.")}
             >Show funder context</Button
+          ><Button>Secondary funder action</Button><Button variant="subtle"
+            >Subtle funder action</Button
           >
         </div>
       </div>
@@ -632,7 +639,7 @@
     cursor: pointer;
   }
   :global(.code-example summary:focus-visible) {
-    outline: var(--focus-width) solid var(--accent);
+    outline: var(--focus-width) solid var(--focus-color);
     outline-offset: var(--focus-offset);
   }
   pre {
