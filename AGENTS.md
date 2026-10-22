@@ -28,9 +28,29 @@ The goal of this project is to make declaration data easy to search, browse and 
   than synchronizing the copies. Trace changes through producers, serialization,
   consumers, and persistence together.
 
+## Financial totals contract
+
+- The backend member summary owns mandatory declared GBP totals across all
+  categories, including unknown category IDs. Frontends display those fields
+  without recalculation or fallback sums.
+- Current-term totals include records registered on or after
+  `2024-07-09T00:00:00Z`. Historical totals include all records; undated records
+  belong only to historical totals.
+- Preserve exact decimal amounts and currencies. Do not convert currencies or
+  pass amounts through JavaScript `Number`. Missing GBP amounts and unknown
+  currencies make totals incomplete; known foreign currencies are excluded from
+  GBP amounts without making totals incomplete.
+- Preserve declaration counts and distinguish null amounts from zero. Label
+  these as declared amounts, not earnings: declarations can include rates and
+  benefits rather than money earned.
+- Financial semantic changes require explicit user authorization and a description
+  of their effects on included records/categories, currency, registration dates,
+  missing values, precision, and labels. UI changes and refactoring must preserve
+  these rules.
+
 ## Frontend coding policy
 
-- The frontend is largely in a prototype stage so changes can be made freely without much guidance.
+- Frontend presentation is largely a prototype. UI edits must preserve the financial contract above.
 - Every PR that changes the UI must include desktop screenshots in its
   description. Capture the affected views from the running application on
   the PR branch after completing the changes.

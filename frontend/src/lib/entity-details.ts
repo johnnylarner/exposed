@@ -56,10 +56,23 @@ export interface MemberDeclaration {
   entries: FundingEntry[];
 }
 
+export interface DeclaredGbpPeriodTotal {
+  amount: string | null;
+  declarationCount: number;
+  incomplete: boolean;
+}
+
+export interface DeclaredGbpTotals {
+  currentTermStart: string;
+  currentTerm: DeclaredGbpPeriodTotal;
+  historical: DeclaredGbpPeriodTotal;
+}
+
 export interface MemberDetails {
   member: MemberProfile;
   declarations: MemberDeclaration[];
   summary: {
+    declaredTotals: DeclaredGbpTotals;
     currencies: (Total & {
       currency: string;
       categories: (Total & { categoryId: number; categoryName: string })[];
