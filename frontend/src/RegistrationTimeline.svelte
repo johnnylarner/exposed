@@ -1,4 +1,6 @@
 <script lang="ts">
+  import type { ChartBar } from "./lib/ui";
+  import { BarChart } from "./lib/ui";
   import { categoryBars } from "./lib/entity-details";
   import { formatPounds } from "./lib/member-summary";
   import type { RegistrationMonth } from "./lib/registration-timeline";
@@ -11,6 +13,7 @@
     undated: boolean;
     context: "earnings" | "funding";
   } = $props();
+
   const copy = $derived(
     {
       earnings: {
@@ -58,60 +61,43 @@
       timeZone: "UTC",
     }).format(new Date(start));
   }
+  const chartBars = $derived<ChartBar[]>(
+    months.map((month, index) => ({
+      x: (index * 560) / months.length + 1,
+      y: bars[index].negative
+        ? baseline
+        : baseline - (bars[index].width / extent) * 314,
+      width: Math.max(1, 560 / months.length - 2),
+      height: (bars[index].width / extent) * 314,
+      negative: bars[index].negative,
+      title: `${monthLabel(month.start)}: ${formatPounds(month.amount)}${month.incomplete ? " (some amounts unavailable)" : ""}`,
+      tick: tick(index)
+        ? {
+            x: (index * 540) / Math.max(1, months.length - 1) + 10,
+            label: monthLabel(month.start),
+            anchor:
+              index === 0
+                ? "start"
+                : index === months.length - 1
+                  ? "end"
+                  : "middle",
+          }
+        : undefined,
+    })),
+  );
 </script>
 
 <section class="member-earnings" aria-labelledby={`${context}-heading`}>
-  <h2 id={`${context}-heading`}>{copy.heading}</h2>
+  <h2 class="section-title" id={`${context}-heading`}>{copy.heading}</h2>
   {#if months.length}
-    <svg
-      class="earnings-chart"
-      viewBox="0 0 560 360"
-      role="img"
-      aria-labelledby={`${context}-title ${context}-description`}
-    >
-      <title id={`${context}-title`}>{copy.title}</title><desc
-        id={`${context}-description`}
-        >Known amounts by UTC registration month. Each bar shows its exact
-        amount in its tooltip.</desc
-      >
-      <line
-        x1="0"
-        x2="560"
-        y1={baseline}
-        y2={baseline}
-        class="chart-baseline"
-      />
-      {#each months as month, index}{@const bar = bars[index]}{@const height =
-          (bar.width / extent) * 314}
-        <rect
-          x={(index * 560) / months.length + 1}
-          y={bar.negative ? baseline : baseline - height}
-          width={Math.max(1, 560 / months.length - 2)}
-          {height}
-          class="earnings-bar"
-          class:negative={bar.negative}
-          ><title
-            >{monthLabel(month.start)}: {formatPounds(
-              month.amount,
-            )}{month.incomplete ? " (some amounts unavailable)" : ""}</title
-          ></rect
-        >
-        {#if tick(index)}<text
-            x={(index * 540) / Math.max(1, months.length - 1) + 10}
-            y="354"
-            text-anchor={index === 0
-              ? "start"
-              : index === months.length - 1
-                ? "end"
-                : "middle"}
-            class="chart-axis">{monthLabel(month.start)}</text
-          >{/if}{/each}
-      <text
-        x="0"
-        y={negative ? 335 : Math.min(335, baseline + 16)}
-        class="chart-axis">{negative ? formatPounds(minimum) : "£0"}</text
-      >
-    </svg>
+    <BarChart
+      title={copy.title}
+      description="Known amounts by UTC registration month. Each bar shows its exact amount in its tooltip."
+      {baseline}
+      minimum={negative ? formatPounds(minimum) : "£0"}
+      minimumY={negative ? 335 : Math.min(335, baseline + 16)}
+      bars={chartBars}
+    />
     {#if months.some((month) => month.incomplete)}<p class="partial-note">
         Some monthly amounts are unavailable.
       </p>{/if}

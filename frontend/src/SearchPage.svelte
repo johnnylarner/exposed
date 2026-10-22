@@ -1,5 +1,15 @@
 <script lang="ts">
-  import Icon from "./lib/Icon.svelte";
+  import {
+    Icon,
+    SearchField,
+    Spinner,
+    SkeletonRows,
+    ResultRow,
+    HighlightedText,
+    MessageState,
+    Button,
+    Badge,
+  } from "./lib/ui";
   import EntityIndicator from "./lib/EntityIndicator.svelte";
   import {
     entityHref,
@@ -34,7 +44,7 @@
   });
   let composing = $state(false);
   let attempt = $state(0);
-  let input: HTMLInputElement;
+  let input = $state<HTMLInputElement>();
   let pending = $state(false);
   const term = $derived(query.trim());
   const charactersNeeded = $derived(
@@ -105,7 +115,7 @@
 
   function clearSearch() {
     updateQuery("");
-    input.focus();
+    input?.focus();
   }
 
   function retrySearch() {
@@ -128,7 +138,7 @@
         : event.ctrlKey && !event.metaKey)
     ) {
       event.preventDefault();
-      input.focus();
+      input?.focus();
       return;
     }
     const target = event.target;
@@ -144,7 +154,7 @@
       !event.altKey
     ) {
       event.preventDefault();
-      input.focus();
+      input?.focus();
     }
     if (event.key === "Escape" && target === input && !event.isComposing)
       clearSearch();
@@ -176,48 +186,31 @@
       }
     }}
   >
-    <label class="visually-hidden" for="entity-search"
-      >Search MPs and funders</label
+    <SearchField
+      id="entity-search"
+      label="Search MPs and funders"
+      bind:input
+      value={query}
+      shortcut={searchFocusShortcut.hint}
+      onclear={clearSearch}
+      oninput={(event) => updateQuery(event.currentTarget.value)}
+      oncompositionstart={() => (composing = true)}
+      oncompositionend={() => (composing = false)}
+      placeholder="Enter an MP or funder’s name"
+      autocomplete="off"
+      spellcheck="false"
+      >{#snippet help()}
+        {#if term && charactersNeeded}
+          Type {charactersNeeded} more {charactersNeeded === 1
+            ? "character"
+            : "characters"} to search.
+        {:else if !term}
+          Search by name. Results appear as you type.
+        {:else}
+          MPs and funders, ordered by the closest name match.
+        {/if}
+      {/snippet}</SearchField
     >
-    <div class="search-field">
-      <span class="search-icon"><Icon name="search" size={24} /></span>
-      <input
-        id="entity-search"
-        type="search"
-        bind:this={input}
-        value={query}
-        oninput={(event) => updateQuery(event.currentTarget.value)}
-        oncompositionstart={() => (composing = true)}
-        oncompositionend={() => (composing = false)}
-        placeholder="Enter an MP or funder’s name"
-        autocomplete="off"
-        spellcheck="false"
-        aria-describedby="search-help"
-      />
-      {#if query}
-        <button
-          class="clear-button"
-          type="button"
-          aria-label="Clear search"
-          onclick={clearSearch}><Icon name="close" size={18} /></button
-        >
-      {:else}
-        <kbd class="search-shortcut" aria-hidden="true"
-          >{searchFocusShortcut.hint}</kbd
-        >
-      {/if}
-    </div>
-    <p class="search-help" id="search-help">
-      {#if term && charactersNeeded}
-        Type {charactersNeeded} more {charactersNeeded === 1
-          ? "character"
-          : "characters"} to search.
-      {:else if !term}
-        Search by name. Results appear as you type.
-      {:else}
-        MPs and funders, ordered by the closest name match.
-      {/if}
-    </p>
   </form>
 
   <p
@@ -234,61 +227,46 @@
     aria-busy={searchState.status === "loading"}
   >
     {#if searchState.status === "idle"}
-      <div class="starting-state">
-        <div class="start-symbol" aria-hidden="true">
-          <Icon name="search" size={27} />
-        </div>
-        <h2>Start with a name</h2>
+      <MessageState title="Start with a name" icon="search">
         <p>Look up an MP, a company, or an individual funder.</p>
         <div class="examples">
-          <span>Try searching</span>{#each ["John", "HSBC"] as example}<button
-              type="button"
+          <span>Try searching</span>{#each ["John", "HSBC"] as example}<Button
+              variant="subtle"
+              size="compact"
               onclick={() => {
                 updateQuery(example);
-                input.focus();
-              }}>{example}</button
+                input?.focus();
+              }}>{example}</Button
             >{/each}
         </div>
-      </div>
+      </MessageState>
     {:else if searchState.status === "loading"}
       <div class="results-heading">
         <h2>Searching</h2>
-        <span class="loading-indicator" aria-hidden="true"></span>
+        <Spinner />
       </div>
-      <div class="loading-rows" aria-hidden="true">
-        {#each [60, 44, 72, 53] as width}<div class="loading-row">
-            <span class="skeleton-icon"></span><span
-              class="skeleton-name"
-              style:width={`${width}%`}
-            ></span>
-          </div>{/each}
-      </div>
+      <SkeletonRows />
     {:else if searchState.status === "error"}
-      <div class="message-state" role="alert">
-        <span class="state-icon"><Icon name="retry" size={24} /></span>
-        <h2>Search couldn’t load</h2>
+      <MessageState title="Search couldn’t load" icon="retry" role="alert">
         <p>{searchState.message}</p>
-        <button
-          class="retry-button"
-          type="button"
-          onclick={retrySearch}
-          ><Icon name="retry" size={16} />Try again</button
+        <Button onclick={retrySearch}
+          ><Icon name="retry" size={16} />Try again</Button
         >
-      </div>
+      </MessageState>
     {:else if searchState.entities.length === 0}
-      <div class="message-state">
-        <span class="state-icon"><Icon name="search" size={24} /></span>
-        <h2>No matches for “{searchState.term}”</h2>
+      <MessageState
+        title={`No matches for “${searchState.term}”`}
+        icon="search"
+      >
         <p>Try a surname, a shorter company name, or a different spelling.</p>
-        <button
-          class="text-button"
-          type="button"
+        <Button
+          variant="quiet"
           onclick={() => {
-            input.focus();
-            input.select();
-          }}>Edit your search</button
+            input?.focus();
+            input?.select();
+          }}>Edit your search</Button
         >
-      </div>
+      </MessageState>
     {:else}
       <div class="results-heading">
         <h2>
@@ -298,12 +276,14 @@
         <span>Best matches first</span>
       </div>
       <div class="entity-legend" aria-label="Entity icon key">
-        <span><Icon name="parliament" size={16} />MP</span>
-        <span><Icon name="coin" size={16} />Funder</span>
+        <Badge variant="legend"><Icon name="parliament" size={16} />MP</Badge>
+        <Badge variant="legend" class="funder-accent"
+          ><Icon name="coin" size={16} />Funder</Badge
+        >
       </div>
       <ul class="results-list">
         {#each searchState.entities as entity, index}
-          <li class="entity-row">
+          <ResultRow class={entity.kind === "Funder" ? "funder-accent" : ""}>
             <EntityIndicator {entity} />
             <div class="entity-text">
               <a
@@ -321,22 +301,25 @@
                   posthog.capture("search_result_selected", selection);
                   posthogLogger.info("search result selected", selection);
                 }}
-                >{#each highlightName(entity.name, searchState.term) as part}{#if part.matched}<mark
-                      >{part.text}</mark
-                    >{:else}{part.text}{/if}{/each}</a
+                ><HighlightedText
+                  parts={highlightName(entity.name, searchState.term)}
+                /></a
               >
               {#if entity.matchSource.kind === "alias"}
                 <span class="entity-alias" id={`matched-alias-${entity.id}`}
-                  >Matched alias: {#each highlightName(entity.matchSource.name, searchState.term) as part}{#if part.matched}<mark
-                        >{part.text}</mark
-                      >{:else}{part.text}{/if}{/each}</span
+                  >Matched alias: <HighlightedText
+                    parts={highlightName(
+                      entity.matchSource.name,
+                      searchState.term,
+                    )}
+                  /></span
                 >
               {/if}
             </div>
             {#if entity.kind === "Funder"}
               <EntityIndicator {entity} detail="kind" />
             {/if}
-          </li>
+          </ResultRow>
         {/each}
       </ul>
       {#if atLimit(searchState.entities)}<p class="results-note">
@@ -346,3 +329,9 @@
     {/if}
   </section>
 </main>
+
+<style>
+  :global(.funder-accent) {
+    --accent: var(--accent-funder);
+  }
+</style>

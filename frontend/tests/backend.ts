@@ -66,11 +66,16 @@ export class Backend {
 }
 export const test = base.extend<
   { backend: Backend },
-  { analytics: boolean; application: { url: string; backend: Backend } }
+  {
+    analytics: boolean;
+    development: boolean;
+    application: { url: string; backend: Backend };
+  }
 >({
   analytics: [false, { option: true, scope: "worker" }],
+  development: [false, { option: true, scope: "worker" }],
   application: [
-    async ({ analytics }, use, workerInfo) => {
+    async ({ analytics, development }, use, workerInfo) => {
       const backend = new Backend();
       const server = createServer((req, res) => {
         void backend.respond(`http://127.0.0.1/api${req.url}`, res);
@@ -81,19 +86,32 @@ export const test = base.extend<
       if (!address || typeof address === "string")
         throw new Error("No backend port");
       const port = 4300 + workerInfo.workerIndex;
-      const child = spawn(process.execPath, ["build"], {
-        env: {
-          ...process.env,
-          PUBLIC_POSTHOG_PROJECT_TOKEN: analytics
-            ? "phc_test_search_tracking"
-            : "",
-          PUBLIC_POSTHOG_HOST: analytics ? "https://posthog.test" : "",
-          PORT: String(port),
-          HOST: "127.0.0.1",
-          EXPOSED_API_ORIGIN: `http://127.0.0.1:${address.port}`,
+      const child = spawn(
+        process.execPath,
+        development
+          ? [
+              "node_modules/vite/bin/vite.js",
+              "--host",
+              "127.0.0.1",
+              "--port",
+              String(port),
+              "--strictPort",
+            ]
+          : ["build"],
+        {
+          env: {
+            ...process.env,
+            PUBLIC_POSTHOG_PROJECT_TOKEN: analytics
+              ? "phc_test_search_tracking"
+              : "",
+            PUBLIC_POSTHOG_HOST: analytics ? "https://posthog.test" : "",
+            PORT: String(port),
+            HOST: "127.0.0.1",
+            EXPOSED_API_ORIGIN: `http://127.0.0.1:${address.port}`,
+          },
+          stdio: "pipe",
         },
-        stdio: "pipe",
-      });
+      );
       const url = `http://127.0.0.1:${port}`;
       try {
         await expect

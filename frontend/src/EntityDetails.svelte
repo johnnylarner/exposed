@@ -1,9 +1,9 @@
 <script lang="ts">
+  import { Icon, MessageState, Spinner, Button, ButtonLink } from "./lib/ui";
   import { summarizeMember } from "./lib/member-summary";
   import MemberIdentity from "./MemberIdentity.svelte";
   import MemberSummary from "./MemberSummary.svelte";
   import MemberHistory from "./MemberHistory.svelte";
-  import Icon from "./lib/Icon.svelte";
   import FunderIdentity from "./FunderIdentity.svelte";
   import FunderSummary from "./FunderSummary.svelte";
   import FunderHistory from "./FunderHistory.svelte";
@@ -35,29 +35,36 @@
   class:funder-page={route.kind === "funder"}
   aria-busy={detailState.kind === "loading"}
 >
-  <a class="back-link" href={backHref}>Back to search</a>
+  <ButtonLink variant="quiet" size="inline" class="back-link" href={backHref}
+    >Back to search</ButtonLink
+  >
   {#if detailState.kind === "loading"}
-    <div class="detail-message" role="status">
-      <span class="loading-indicator" aria-hidden="true"></span>
-      <h1>Loading details</h1>
-    </div>
+    <MessageState
+      title="Loading details"
+      level={1}
+      variant="detail"
+      role="status"><Spinner /></MessageState
+    >
   {:else if detailState.kind === "not-found"}
-    <div class="detail-message">
-      <h1>Entity not found</h1>
+    <MessageState title="Entity not found" level={1} variant="detail">
       <p>
         This MP or funder is not in the stored register. Search for another
         name.
       </p>
-      <a class="text-button" href={backHref}>Search MPs and funders</a>
-    </div>
-  {:else if detailState.kind === "error"}
-    <div class="detail-message" role="alert">
-      <h1>Details couldn’t load</h1>
-      <p>{detailState.message}</p>
-      <button class="retry-button" onclick={retry}
-        ><Icon name="retry" size={16} />Try again</button
+      <ButtonLink variant="quiet" href={backHref}
+        >Search MPs and funders</ButtonLink
       >
-    </div>
+    </MessageState>
+  {:else if detailState.kind === "error"}
+    <MessageState
+      title="Details couldn’t load"
+      level={1}
+      variant="detail"
+      role="alert"
+    >
+      <p>{detailState.message}</p>
+      <Button onclick={retry}><Icon name="retry" size={16} />Try again</Button>
+    </MessageState>
   {:else if detailState.kind === "member"}
     {@const details = detailState.details}
     {@const summary = summarizeMember(details)}

@@ -1,5 +1,104 @@
 import { expect, test } from "./backend";
 
+test("search uses funder teal and member purple for results and legend", async ({
+  backend,
+  page,
+}) => {
+  await backend.route("**/api/search?*", (route) =>
+    route.fulfill({
+      json: {
+        entities: [
+          {
+            id: "10000000-0000-0000-0000-000000000001",
+            name: "Example Foundation",
+            kind: "Funder",
+            funder_kind: "Company",
+            match_source: { kind: "name" },
+          },
+          {
+            id: "1",
+            name: "Example Member",
+            kind: "MP",
+            funder_kind: null,
+            match_source: { kind: "name" },
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/search?q=Example");
+  const funder = page.locator(".entity-row").nth(0);
+  const member = page.locator(".entity-row").nth(1);
+  for (const [row, accent, legend] of [
+    [funder, "rgb(100, 207, 181)", "Funder"],
+    [member, "rgb(182, 123, 229)", "MP"],
+  ] as const) {
+    await expect(row.locator(".entity-icon")).toHaveCSS("color", accent);
+    await expect(
+      page.locator(".legend-item").filter({ hasText: legend }).locator("svg"),
+    ).toHaveCSS("color", accent);
+    await row.locator(".entity-icon").focus();
+    await expect(row.locator(".entity-icon")).toHaveCSS(
+      "outline-color",
+      accent,
+    );
+    await page.keyboard.press("Tab");
+    await expect(row.locator(".entity-name")).toBeFocused();
+    await expect(row.locator(".entity-name")).toHaveCSS(
+      "outline-style",
+      "solid",
+    );
+    await expect(row.locator(".entity-name")).toHaveCSS(
+      "outline-color",
+      accent,
+    );
+  }
+  await expect(funder.locator(".entity-kind svg")).toHaveCSS(
+    "color",
+    "rgb(100, 207, 181)",
+  );
+  for (const [row, accent] of [
+    [funder, "#64cfb5"],
+    [member, "#b67be5"],
+  ] as const) {
+    for (const [selector, property, expected] of [
+      [
+        ".entity-icon",
+        "background-color",
+        `color-mix(in srgb, ${accent} 20%, black)`,
+      ],
+      [
+        ".entity-icon",
+        "border-top-color",
+        `color-mix(in srgb, ${accent} 40%, black)`,
+      ],
+      [
+        ".entity-kind",
+        "background-color",
+        `color-mix(in srgb, ${accent} 20%, black)`,
+      ],
+      [
+        ".entity-kind",
+        "border-top-color",
+        `color-mix(in srgb, ${accent} 40%, black)`,
+      ],
+      [".entity-kind", "color", `color-mix(in srgb, ${accent}, white 40%)`],
+      ["mark", "color", `color-mix(in srgb, ${accent}, white 25%)`],
+    ]) {
+      if (row === member && selector === ".entity-kind") continue;
+      const color = await page.evaluate((expected) => {
+        const probe = document.createElement("span");
+        probe.style.color = expected;
+        document.body.append(probe);
+        const color = getComputedStyle(probe).color;
+        probe.remove();
+        return color;
+      }, expected);
+      await expect(row.locator(selector)).toHaveCSS(property, color);
+    }
+  }
+});
+
 test("live search preserves API ranking, spelling, duplicates and entity context", async ({
   backend,
   page,

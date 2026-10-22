@@ -51,6 +51,55 @@ The goal of this project is to make declaration data easy to search, browse and 
 ## Frontend coding policy
 
 - Frontend presentation is largely a prototype. UI edits must preserve the financial contract above.
+
+### Client and server
+
+- Use Node.js 24+. From `frontend`, run `npm ci` and `npm run dev` for local
+  development. Production uses `npm run build` followed by `node build`.
+- Render initial page data through SvelteKit server loads. Keep Rust API access
+  and response parsing in `frontend/src/lib/server` and `+page.server.ts`.
+- Keep `EXPOSED_API_ORIGIN` on the server. Browser navigation and data requests
+  go through the same-origin SvelteKit application, not directly to the Rust API.
+- Pass typed, serializable page models to components. Keep browser APIs and SDK
+  initialization in client hooks, event handlers, or `onMount` so SSR stays safe.
+- Declare public configuration in `frontend/src/env.ts`. Use `dev` from
+  `$app/env` for development-only behavior, including the design-system route.
+
+### PostHog
+
+- Initialize PostHog in `frontend/src/hooks.client.ts`, only outside development
+  and when both public PostHog configuration values are present.
+- Capture events in feature handlers, once per executed action. Preserve event
+  names and property shapes for existing actions. Keep analytics out of shared UI
+  components.
+- Record metadata such as query length, entity type, and result position rather
+  than raw search text or response payloads.
+- Use `posthogLogger` for frontend diagnostic logs. Keep client error capture in
+  the existing hook instead of adding duplicate exception reports.
+
+### Design system
+
+- Read the [component reference](frontend/src/lib/ui/README.md) and
+  [composition recipes](frontend/src/lib/ui/COMPOSITION.md) before adding UI.
+  The interactive reference is `/design-system` in development only.
+- Import components and types from `frontend/src/lib/ui/index.ts` through the
+  appropriate relative path. Load `frontend/src/lib/ui/styles.css` once in the
+  root layout.
+- Reuse components and typed variants. Use tokens for colors, spacing, and
+  focus. Purple identifies MPs, teal identifies funders, and utility icons use
+  the muted neutral color.
+- Keep page arrangement, URLs, async work, and financial formatting in features.
+  Shared UI accepts presentation models. Scope feature CSS to page arrangement
+  and caller-authored content rather than component internals.
+- Extend reusable patterns in `frontend/src/lib/ui`. Export public additions
+  from the barrel, document their contracts, and add a gallery example. Cover
+  changed behavior in `frontend/tests/design-system.spec.ts` or feature tests.
+
+### UI verification
+
+- Run `npm run check`, `npm run build`, and the affected Playwright tests from
+  `frontend`. Gallery tests use a development server. Production tests use the
+  built application.
 - Every PR that changes the UI must include desktop screenshots in its
   description. Capture the affected views from the running application on
   the PR branch after completing the changes.
@@ -58,7 +107,6 @@ The goal of this project is to make declaration data easy to search, browse and 
   `gh pr edit --attach`. Use a GitHub CLI version that supports this flag. Never
   commit PR screenshots to the repository. Verify that the attachments render
   in the PR description before marking the PR ready for review.
-
 
 ## Ingest coding policy
 

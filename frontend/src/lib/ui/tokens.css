@@ -1,0 +1,25 @@
+:root {
+  --font-body: "Manrope Variable", sans-serif;
+  --canvas: #000;
+  --surface: #111;
+  --text: #f0edf3;
+  --muted: #ada6b4;
+  --accent-member: #b67be5;
+  --accent-funder: #64cfb5;
+  --accent: var(--accent-member);
+  --line: #28232e;
+  --warning: #f0c17d;
+  --action-ink: #160b1f;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --radius-control: 6px;
+  --text-small: 0.75rem;
+  --text-body: 0.875rem;
+  --text-heading: 1.375rem;
+  --focus-width: 2px;
+  --focus-offset: 4px;
+}

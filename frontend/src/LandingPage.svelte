@@ -1,3 +1,7 @@
+<script lang="ts">
+  import { ButtonLink } from "./lib/ui";
+</script>
+
 <main id="landing" class="landing-page" tabindex="-1">
   <div class="landing-content">
     <h1>
@@ -5,8 +9,10 @@
       organisations behind them.
     </h1>
     <nav aria-label="Explore Exposed">
-      <a class="primary" href="/search">Search MPs and funders</a>
-      <a href="/methodology">Methodology</a>
+      <ButtonLink variant="primary" size="large" href="/search"
+        >Search MPs and funders</ButtonLink
+      >
+      <ButtonLink size="large" href="/methodology">Methodology</ButtonLink>
     </nav>
   </div>
 </main>
@@ -37,29 +43,6 @@
     flex-wrap: wrap;
     gap: 16px;
     margin-top: 40px;
-  }
-  a {
-    min-height: 48px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 22px;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  a:hover {
-    border-color: var(--accent);
-  }
-  .primary {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: #160b1f;
-  }
-  .primary:hover {
-    background: #cc9bf1;
   }
   @media (max-width: 480px) {
     .landing-page {
