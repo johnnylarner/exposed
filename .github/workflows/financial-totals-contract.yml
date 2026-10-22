@@ -1,0 +1,82 @@
+name: Financial totals contract
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  financial-totals-contract:
+    name: Financial totals contract
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: exposed_contract
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/exposed_contract
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      PLAYWRIGHT_BROWSERS_PATH: '0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          fetch-depth: 0
+      - name: Materialize target-branch financial baseline
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture=contracts/declared-totals-v1/fixture.sql
+          expected=contracts/declared-totals-v1/expected.json
+          has_fixture=false
+          has_expected=false
+          git cat-file -e "$BASE_SHA:$fixture" 2>/dev/null && has_fixture=true
+          git cat-file -e "$BASE_SHA:$expected" 2>/dev/null && has_expected=true
+          if "$has_fixture" && "$has_expected"; then
+            if ! git diff --exit-code "$BASE_SHA" HEAD -- "$fixture" "$expected"; then
+              echo 'Frozen v1 baseline changed. Semantic migrations require a new reviewed contract version.' >&2
+              exit 1
+            fi
+            git show "$BASE_SHA:$fixture" > "$fixture"
+            git show "$BASE_SHA:$expected" > "$expected"
+            echo "Using frozen financial baseline from target commit $BASE_SHA"
+          elif ! "$has_fixture" && ! "$has_expected" &&
+               ! git cat-file -e "$BASE_SHA:.github/workflows/financial-totals-contract.yml" 2>/dev/null &&
+               ! git cat-file -e "$BASE_SHA:scripts/check-declared-totals-contract.sh" 2>/dev/null; then
+            echo 'BOOTSTRAP: target has neither baseline nor financial guard. Reviewing proposed v1 baseline in this PR.'
+            test -s "$fixture"
+            test -s "$expected"
+          else
+            echo 'Missing or partial frozen financial baseline on target branch.' >&2
+            exit 1
+          fi
+      - name: Install Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prepare schema for SQLx compile checks
+        run: SQLX_OFFLINE=true cargo run --locked -p exposed --bin exposed -- migrate run --source db/migrations
+      - name: Install frontend dependencies and Chromium
+        run: |
+          npm --prefix frontend ci
+          cd frontend
+          npx playwright install --with-deps chromium
+      - name: Verify fixed backend and rendered financial contract
+        run: scripts/check-declared-totals-contract.sh

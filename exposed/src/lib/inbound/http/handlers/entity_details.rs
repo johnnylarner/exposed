@@ -168,7 +168,34 @@ impl From<MemberCurrencyTotal> for MemberCurrencyResponse {
     }
 }
 #[derive(Serialize)]
+struct DeclaredGbpPeriodResponse {
+    amount: Option<String>,
+    declaration_count: usize,
+    incomplete: bool,
+}
+impl From<crate::domain::models::entity_details::DeclaredGbpPeriodTotal>
+    for DeclaredGbpPeriodResponse
+{
+    fn from(value: crate::domain::models::entity_details::DeclaredGbpPeriodTotal) -> Self {
+        Self {
+            amount: value
+                .amount
+                .map(|amount| amount.normalized().to_plain_string()),
+            declaration_count: value.declaration_count,
+            incomplete: value.incomplete,
+        }
+    }
+}
+#[derive(Serialize)]
+struct DeclaredGbpTotalsResponse {
+    current_term_start: DateTime<Utc>,
+    current_term: DeclaredGbpPeriodResponse,
+    historical: DeclaredGbpPeriodResponse,
+}
+
+#[derive(Serialize)]
 pub struct MemberSummaryResponse {
+    declared_totals: DeclaredGbpTotalsResponse,
     currencies: Vec<MemberCurrencyResponse>,
     entry_count: usize,
     unknown_currency_count: usize,
@@ -179,6 +206,11 @@ pub struct MemberSummaryResponse {
 impl From<MemberSummary> for MemberSummaryResponse {
     fn from(value: MemberSummary) -> Self {
         Self {
+            declared_totals: DeclaredGbpTotalsResponse {
+                current_term_start: value.declared_totals.current_term_start,
+                current_term: value.declared_totals.current_term.into(),
+                historical: value.declared_totals.historical.into(),
+            },
             currencies: value.currencies.into_iter().map(Into::into).collect(),
             entry_count: value.entry_count,
             unknown_currency_count: value.unknown_currency_count,

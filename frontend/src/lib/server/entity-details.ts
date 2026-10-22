@@ -95,6 +95,25 @@ function declaration(value: unknown): MemberDeclaration {
     }),
   };
 }
+function declaredPeriod(value: unknown) {
+  const row = record(value);
+  if (typeof row.incomplete !== "boolean") return malformed();
+  return {
+    amount: decimal(row.amount),
+    declarationCount: count(row.declaration_count),
+    incomplete: row.incomplete,
+  };
+}
+function declaredTotals(value: unknown) {
+  const row = record(value);
+  const start = timestamp(row.current_term_start);
+  if (start === null) return malformed();
+  return {
+    currentTermStart: start,
+    currentTerm: declaredPeriod(row.current_term),
+    historical: declaredPeriod(row.historical),
+  };
+}
 function readMember(value: unknown): MemberDetails {
   const row = record(value);
   const summary = record(row.summary);
@@ -102,6 +121,7 @@ function readMember(value: unknown): MemberDetails {
     member: memberProfile(row.member),
     declarations: list(row.declarations).map(declaration),
     summary: {
+      declaredTotals: declaredTotals(summary.declared_totals),
       entryCount: count(summary.entry_count),
       unknownCurrencyCount: count(summary.unknown_currency_count),
       firstRegisteredAt: timestamp(summary.first_registered_at),

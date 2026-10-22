@@ -33,6 +33,15 @@ function details(declarations: MemberDeclaration[]): MemberDetails {
     },
     declarations,
     summary: {
+      declaredTotals: {
+        currentTermStart: "2024-07-09T00:00:00Z",
+        currentTerm: {
+          amount: "225.45",
+          declarationCount: 7,
+          incomplete: true,
+        },
+        historical: { amount: "333", declarationCount: 9, incomplete: true },
+      },
       currencies: [
         {
           currency: "EUR",
@@ -272,99 +281,47 @@ test("funding timeline includes every category with exact UTC months and missing
   ).toEqual({ months: [], undated: false });
 });
 
-test("declared totals use inclusive UTC boundary and all historical categories", () => {
+test("declared headlines pass backend authority through despite contradictory declarations", () => {
+  for (const declarations of [
+    [],
+    [declaration(null, [entry("99999999999999999999")], "Gifts")],
+  ]) {
+    const fixture = details(declarations);
+    const summary = summarizeMember(fixture);
+    expect(summary.declaredTotals).toBe(fixture.summary.declaredTotals);
+    expect(summary.declaredTotals.currentTerm.amount).toBe("225.45");
+    expect(summary.declaredTotals.historical.amount).toBe("333");
+  }
+});
+
+test("headline null, zero, counts and coverage pass through without inference", () => {
+  const fixture = details([declaration("2025-01-01Z", [entry("100")])]);
+  fixture.summary.declaredTotals = {
+    currentTermStart: "2024-07-09T00:00:00Z",
+    currentTerm: { amount: null, declarationCount: 0, incomplete: false },
+    historical: { amount: "0", declarationCount: 8, incomplete: true },
+  };
+  expect(summarizeMember(fixture).declaredTotals).toBe(
+    fixture.summary.declaredTotals,
+  );
+});
+
+test("backend headlines stay independent of the earnings timeline", () => {
   const fixture = details([
-    declaration("2024-07-08T23:59:59.999Z", [entry("1")]),
-    declaration("2024-07-09T00:00:00Z", [entry("2")]),
-    declaration("2024-07-08T23:00:00-01:00", [entry("3")]),
-    declaration("2024-07-09T00:30:00+01:00", [entry("4")]),
-    declaration(null, [entry("5"), entry(null)]),
-    declaration("2025-01-01Z", [entry("100", "EUR"), entry("9", null)]),
-    declaration("2020-01-01Z", [entry("900")], "Gifts"),
+    declaration("2025-01-01T00:00:00Z", [entry("10.25")]),
+    declaration("2025-01-02T00:00:00Z", [entry("20.50")], "Gifts"),
   ]);
-  fixture.summary.firstRegisteredAt = "2020-01-01T00:00:00Z";
   const summary = summarizeMember(fixture);
-  expect(summary.declaredTotals).toEqual({
-    currentTerm: { declarationCount: 3, amount: "5", incomplete: true },
-    historical: { declarationCount: 7, amount: "915", incomplete: true },
-  });
-  expect(summary.firstRegisteredAt).toBe("2020-01-01T00:00:00Z");
-});
-
-test("declared totals preserve precision, absent amounts and real zero", () => {
-  expect(summarizeMember(details([])).declaredTotals).toEqual({
-    currentTerm: { declarationCount: 0, amount: null, incomplete: false },
-    historical: { declarationCount: 0, amount: null, incomplete: false },
-  });
-  const summary = summarizeMember(
-    details([
-      declaration("2025-01-01Z", [
-        entry("9007199254740993.000000001"),
-        entry("-9007199254740993"),
-        entry(null),
-      ]),
-      declaration(null, [entry("-0.000000001")]),
-    ]),
-  );
-  expect(summary.declaredTotals).toEqual({
-    currentTerm: {
-      declarationCount: 1,
-      amount: "0.000000001",
-      incomplete: true,
-    },
-    historical: {
-      declarationCount: 2,
-      amount: "0.000000000",
-      incomplete: true,
-    },
-  });
-  expect(
-    summarizeMember(
-      details([declaration("2025-01-01Z", [entry(null), entry("2", "EUR")])]),
-    ).declaredTotals.currentTerm,
-  ).toEqual({ declarationCount: 1, amount: null, incomplete: true });
-});
-
-test("undated and earlier unknown declarations affect only historical completeness", () => {
-  expect(
-    summarizeMember(
-      details([
-        declaration("2024-07-08T23:59:59Z", [entry(null)]),
-        declaration(null, [entry("8", " ")]),
-        declaration("2025-01-01Z", [entry("0"), entry(null, "EUR")]),
-      ]),
-    ).declaredTotals,
-  ).toEqual({
-    currentTerm: { declarationCount: 1, amount: "0", incomplete: false },
-    historical: { declarationCount: 3, amount: "0", incomplete: true },
-  });
-  expect(
-    summarizeMember(
-      details([declaration("2025-01-01Z", [entry("100", "EUR")])]),
-    ).declaredTotals.currentTerm,
-  ).toEqual({ declarationCount: 1, amount: null, incomplete: false });
-});
-
-test("headline totals include gifts and travel while the timeline retains only earnings", () => {
-  const summary = summarizeMember(
-    details([
-      declaration("2025-01-01T00:00:00Z", [entry("10.25")]),
-      declaration("2025-01-02T00:00:00Z", [entry("20.50")], "Gifts"),
-      declaration(
-        "2025-02-01T00:00:00Z",
-        [entry("30.75")],
-        "Visits outside the UK",
-      ),
-      declaration("2024-07-08T23:59:59Z", [entry("40")], "Gifts"),
-      declaration(null, [entry("50")], "Visits outside the UK"),
-    ]),
-  );
-  expect(summary.declaredTotals).toEqual({
-    currentTerm: { declarationCount: 3, amount: "61.50", incomplete: false },
-    historical: { declarationCount: 5, amount: "151.50", incomplete: false },
-  });
+  expect(summary.declaredTotals).toBe(fixture.summary.declaredTotals);
   expect(summary.earnings).toEqual([
     { start: "2025-01-01", amount: "10.25", incomplete: false },
   ]);
-  expect(summary.undated).toBe(false);
+});
+
+test("summary preserves backend period metadata without a local boundary", () => {
+  const fixture = details([declaration("2025-01-01Z", [entry("99")])]);
+  fixture.summary.declaredTotals.currentTermStart = "2040-01-01T00:00:00Z";
+  expect(summarizeMember(fixture).declaredTotals).toBe(
+    fixture.summary.declaredTotals,
+  );
 });

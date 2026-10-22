@@ -43,9 +43,40 @@ const memberHistoryFixture = {
     },
   ],
 };
+function declaredTotals(
+  currentTerm: {
+    amount: string | null;
+    declaration_count: number;
+    incomplete: boolean;
+  },
+  historical = currentTerm,
+) {
+  return {
+    current_term_start: "2024-07-09T00:00:00Z",
+    current_term: currentTerm,
+    historical,
+  };
+}
+const emptyDeclaredTotals = declaredTotals({
+  amount: null,
+  declaration_count: 0,
+  incomplete: false,
+});
 const memberDetails = {
   ...memberHistoryFixture,
   summary: {
+    declared_totals: declaredTotals(
+      {
+        amount: "18014398509481986.246913578",
+        declaration_count: 1,
+        incomplete: true,
+      },
+      {
+        amount: "18014398509481986.246913578",
+        declaration_count: 2,
+        incomplete: true,
+      },
+    ),
     entry_count: 3,
     unknown_currency_count: 1,
     first_registered_at: "2026-01-21T00:00:00Z",
@@ -644,6 +675,7 @@ test("empty details and unknown currency only details remain distinct from error
         declarations: [],
         summary: {
           ...memberDetails.summary,
+          declared_totals: emptyDeclaredTotals,
           currencies: [],
           entry_count: 0,
           unknown_currency_count: 0,
@@ -1579,6 +1611,10 @@ test("member declared amounts include gifts and travel with registration coverag
         ...memberDetails,
         summary: {
           ...memberDetails.summary,
+          declared_totals: declaredTotals(
+            { amount: "275", declaration_count: 2, incomplete: false },
+            { amount: "425", declaration_count: 5, incomplete: false },
+          ),
           first_registered_at: "2020-01-01T00:00:00Z",
         },
         declarations: [
@@ -1699,6 +1735,7 @@ test("empty member declarations show no declaration data and retain period headi
         declarations: [],
         summary: {
           ...memberDetails.summary,
+          declared_totals: emptyDeclaredTotals,
           currencies: [],
           first_registered_at: null,
           last_registered_at: null,
@@ -1730,6 +1767,14 @@ test("declared amounts keep precise figures readable on narrow screens and missi
     route.fulfill({
       json: {
         ...memberDetails,
+        summary: {
+          ...memberDetails.summary,
+          declared_totals: declaredTotals({
+            amount,
+            declaration_count: 1,
+            incomplete: amount === null,
+          }),
+        },
         declarations: [
           {
             ...memberDetails.declarations[0],
@@ -1837,6 +1882,15 @@ test("declared amounts distinguish an empty term, historical zero and unknown am
     route.fulfill({
       json: {
         ...memberDetails,
+        summary: {
+          ...memberDetails.summary,
+          declared_totals: declaredTotals(
+            registeredAt === "2023-01-01T00:00:00Z"
+              ? { amount: null, declaration_count: 0, incomplete: false }
+              : { amount, declaration_count: 1, incomplete },
+            { amount, declaration_count: 1, incomplete },
+          ),
+        },
         declarations: [
           {
             ...memberDetails.declarations[0],

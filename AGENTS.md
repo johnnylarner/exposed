@@ -28,9 +28,20 @@ The goal of this project is to make declaration data easy to search, browse and 
   than synchronizing the copies. Trace changes through producers, serialization,
   consumers, and persistence together.
 
+## Financial totals contract
+
+- The backend member summary owns declared GBP totals across **all categories**.
+  Frontends display its mandatory fields without recalculation or fallback sums.
+- Changes to financial meaning require an explicit user request and a PR description
+  of effects on included records/categories, currency, registration dates, missing
+  values, precision, and labels. UI edits must preserve that meaning.
+- Run `scripts/check-declared-totals-contract.sh` for changes to these totals or
+  their consumers. Never fix a failure by changing the frozen v1 expectations or
+  refreshing them from live data. See `contracts/declared-totals-v1/README.md`.
+
 ## Frontend coding policy
 
-- The frontend is largely in a prototype stage so changes can be made freely without much guidance.
+- Frontend presentation is largely a prototype. UI edits must preserve the financial contract above.
 - Every PR that changes the UI must include desktop screenshots in its
   description. Capture the affected views from the running application on
   the PR branch after completing the changes.

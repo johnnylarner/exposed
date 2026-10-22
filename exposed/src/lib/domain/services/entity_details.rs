@@ -6,9 +6,10 @@ pub use interface::EntityDetailsService;
 pub use crate::domain::models::entity_details::EntityDetailsError;
 use crate::domain::{
     models::entity_details::{
-        CategoryTotal, CurrencyBreakdown, DeclarationCategory, FunderDetails, FunderDetailsRequest,
-        FunderFunding, MemberCurrencyTotal, MemberDetails, MemberDetailsRequest, MemberHistory,
-        MemberSummary, PartyTotal, RecipientAllocation,
+        CategoryTotal, CurrencyBreakdown, DeclarationCategory, DeclaredGbpPeriodTotal,
+        DeclaredGbpTotals, FunderDetails, FunderDetailsRequest, FunderFunding, MemberCurrencyTotal,
+        MemberDeclaration, MemberDetails, MemberDetailsRequest, MemberHistory, MemberSummary,
+        PartyTotal, RecipientAllocation,
     },
     repositories::entity_details::EntityDetailsRepo,
 };
@@ -62,52 +63,39 @@ fn add_known(total: &mut Option<bigdecimal::BigDecimal>, amount: Option<&bigdeci
     }
 }
 
-fn summarize_member(history: MemberHistory) -> MemberDetails {
-    let mut currencies: BTreeMap<String, MemberCurrencyTotal> = BTreeMap::new();
-    let mut categories: BTreeMap<(String, DeclarationCategory, String), CategoryTotal> =
-        BTreeMap::new();
-    let mut summary = MemberSummary {
-        currencies: Vec::new(),
-        entry_count: 0,
-        unknown_currency_count: 0,
-        first_registered_at: None,
-        last_registered_at: None,
-        undated_declaration_count: 0,
-    };
-    for declaration in &history.declarations {
-        if let Some(date) = declaration.registered_at {
-            summary.first_registered_at = Some(
-                summary
-                    .first_registered_at
-                    .map_or(date, |first| first.min(date)),
-            );
-            summary.last_registered_at = Some(
-                summary
-                    .last_registered_at
-                    .map_or(date, |last| last.max(date)),
-            );
-        } else {
-            summary.undated_declaration_count += 1;
-        }
+#[derive(Default)]
+struct PeriodAggregate {
+    currencies: BTreeMap<String, MemberCurrencyTotal>,
+    categories: BTreeMap<(String, DeclarationCategory, String), CategoryTotal>,
+    declaration_count: usize,
+    entry_count: usize,
+    unknown_currency_count: usize,
+}
+
+impl PeriodAggregate {
+    fn observe(&mut self, declaration: &MemberDeclaration) {
+        self.declaration_count += 1;
         for entry in &declaration.entries {
-            summary.entry_count += 1;
+            self.entry_count += 1;
             let Some(currency) = &entry.currency else {
-                summary.unknown_currency_count += 1;
+                self.unknown_currency_count += 1;
                 continue;
             };
-            let group = currencies
-                .entry(currency.clone())
-                .or_insert_with(|| MemberCurrencyTotal {
-                    currency: currency.clone(),
-                    amount: None,
-                    entry_count: 0,
-                    unknown_amount_count: 0,
-                    categories: Vec::new(),
-                });
+            let group =
+                self.currencies
+                    .entry(currency.clone())
+                    .or_insert_with(|| MemberCurrencyTotal {
+                        currency: currency.clone(),
+                        amount: None,
+                        entry_count: 0,
+                        unknown_amount_count: 0,
+                        categories: Vec::new(),
+                    });
             add_known(&mut group.amount, entry.amount.as_ref());
             group.entry_count += 1;
             group.unknown_amount_count += usize::from(entry.amount.is_none());
-            let category = categories
+            let category = self
+                .categories
                 .entry((
                     currency.clone(),
                     declaration.category,
@@ -125,12 +113,81 @@ fn summarize_member(history: MemberHistory) -> MemberDetails {
             category.unknown_amount_count += usize::from(entry.amount.is_none());
         }
     }
-    for ((currency, _, _), category) in categories {
-        if let Some(group) = currencies.get_mut(&currency) {
-            group.categories.push(category);
+
+    fn gbp_total(&self) -> DeclaredGbpPeriodTotal {
+        let gbp = self.currencies.get("GBP");
+        DeclaredGbpPeriodTotal {
+            amount: gbp.and_then(|group| group.amount.clone()),
+            declaration_count: self.declaration_count,
+            incomplete: self.unknown_currency_count > 0
+                || gbp.is_some_and(|group| group.unknown_amount_count > 0),
         }
     }
-    summary.currencies = currencies.into_values().collect();
+
+    fn finish(mut self) -> Vec<MemberCurrencyTotal> {
+        for ((currency, _, _), category) in self.categories {
+            if let Some(group) = self.currencies.get_mut(&currency) {
+                group.categories.push(category);
+            }
+        }
+        self.currencies.into_values().collect()
+    }
+}
+
+struct CurrentParliamentStart(chrono::DateTime<chrono::Utc>);
+impl CurrentParliamentStart {
+    fn new() -> Self {
+        use chrono::TimeZone;
+        Self(
+            chrono::Utc
+                .with_ymd_and_hms(2024, 7, 9, 0, 0, 0)
+                .single()
+                .expect("valid parliament start"),
+        )
+    }
+    fn includes(&self, declaration: &MemberDeclaration) -> bool {
+        declaration.registered_at.is_some_and(|date| date >= self.0)
+    }
+}
+
+fn summarize_member(history: MemberHistory) -> MemberDetails {
+    let boundary = CurrentParliamentStart::new();
+    let mut historical = PeriodAggregate::default();
+    let mut current_term = PeriodAggregate::default();
+    let mut first_registered_at = None;
+    let mut last_registered_at = None;
+    let mut undated_declaration_count = 0;
+    for declaration in &history.declarations {
+        historical.observe(declaration);
+        if boundary.includes(declaration) {
+            current_term.observe(declaration);
+        }
+        if let Some(date) = declaration.registered_at {
+            first_registered_at = Some(
+                first_registered_at
+                    .map_or(date, |first: chrono::DateTime<chrono::Utc>| first.min(date)),
+            );
+            last_registered_at = Some(
+                last_registered_at
+                    .map_or(date, |last: chrono::DateTime<chrono::Utc>| last.max(date)),
+            );
+        } else {
+            undated_declaration_count += 1;
+        }
+    }
+    let summary = MemberSummary {
+        declared_totals: DeclaredGbpTotals {
+            current_term_start: boundary.0,
+            historical: historical.gbp_total(),
+            current_term: current_term.gbp_total(),
+        },
+        entry_count: historical.entry_count,
+        unknown_currency_count: historical.unknown_currency_count,
+        currencies: historical.finish(),
+        first_registered_at,
+        last_registered_at,
+        undated_declaration_count,
+    };
     MemberDetails {
         member: history.member,
         declarations: history.declarations,

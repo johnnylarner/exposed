@@ -588,3 +588,54 @@ async fn connected_funding_preserves_entries_requested_id_and_link_evidence(pool
         Some("00123456")
     );
 }
+
+#[sqlx::test(
+    migrations = "../db/migrations",
+    fixtures("../../../../../contracts/declared-totals-v1/fixture.sql")
+)]
+async fn declared_totals_v1_http_contract(pool: PgPool) {
+    use crate::{
+        domain::services::entity_search,
+        inbound::http::{routes::routes, state::AppState},
+    };
+    use std::sync::Arc;
+    let db = ExposedDatabase::from(pool);
+    let state = AppState {
+        entity_search_service: Arc::new(entity_search::Service::new(db.clone(), db.clone())),
+        entity_details_service: Arc::new(Service::new(db)),
+    };
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, routes().with_state(state))
+            .await
+            .unwrap();
+    });
+    let expected: serde_json::Value = serde_json::from_str(include_str!(
+        "../../../../../contracts/declared-totals-v1/expected.json"
+    ))
+    .unwrap();
+    let client = reqwest::Client::new();
+    for (id, contract) in expected.as_object().unwrap() {
+        let response = client
+            .get(format!("{origin}/members/{id}"))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(response.status(), reqwest::StatusCode::OK);
+        let bytes = response.bytes().await.unwrap();
+        let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        assert_eq!(
+            body["summary"]["declared_totals"], contract["declared_totals"],
+            "member {id}"
+        );
+        if let Some(directory) = std::env::var_os("EXPOSED_CONTRACT_OUTPUT_DIR") {
+            std::fs::write(
+                std::path::Path::new(&directory).join(format!("{id}.json")),
+                bytes,
+            )
+            .unwrap();
+        }
+    }
+    server.abort();
+}
