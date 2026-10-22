@@ -17,7 +17,7 @@
 }
 .search-icon {
   display: flex;
-  color: var(--accent);
+  color: var(--muted);
   flex: none;
 }
 .search-field input {
@@ -160,11 +160,11 @@
 .state-icon {
   display: grid;
   place-items: center;
-  color: #9e83b5;
+  color: var(--muted);
   width: 52px;
   height: 52px;
-  background: #151019;
-  border: 1px solid #302137;
+  background: var(--surface);
+  border: 1px solid var(--line);
   border-radius: 14px;
   margin-bottom: 20px;
 }
@@ -186,8 +186,8 @@
 .loading-indicator {
   width: 14px;
   height: 14px;
-  border: 2px solid #33203f;
-  border-top-color: var(--accent);
+  border: 2px solid var(--line);
+  border-top-color: var(--muted);
   border-radius: 50%;
   animation: spin 900ms linear infinite;
 }
