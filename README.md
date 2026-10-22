@@ -213,10 +213,10 @@ Browser requests never call the Rust API directly.
 
 `npm run build` produces an adapter-node server in `frontend/build`. Run it with
 `EXPOSED_API_ORIGIN=http://127.0.0.1:6999 node build` from `frontend`.
-Set `HOST` and `PORT` for the listening address. The release Docker target
-`frontend-server` runs only the Node frontend on port 8080. Deploy the Rust server
-separately and set the frontend's private `EXPOSED_API_ORIGIN` to its reachable
-origin. The frontend image does not require `DATABASE_URL`.
+Set `HOST` and `PORT` for the listening address. The `frontend-server` target in
+`docker/Dockerfile.frontend` runs only the Node frontend on port 8080. Deploy the
+Rust server separately and set the frontend's private `EXPOSED_API_ORIGIN` to its
+reachable origin. The frontend image does not require `DATABASE_URL`.
 
 Search URLs preserve only the query, for example `/?q=John`. Search strictness is
 application configuration, set to `0.8` in
