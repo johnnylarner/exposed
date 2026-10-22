@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { dev } from "$app/env";
   import { PUBLIC_APP_VERSION } from "$app/env/public";
   import type { Snippet } from "svelte";
   let {
@@ -29,11 +30,13 @@
       aria-current={current === "methodology" ? "page" : undefined}
       >Methodology</a
     >
-    <a
-      href="/design-system"
-      aria-current={current === "design-system" ? "page" : undefined}
-      >Design system</a
-    >
+    {#if dev}
+      <a
+        href="/design-system"
+        aria-current={current === "design-system" ? "page" : undefined}
+        >Design system</a
+      >
+    {/if}
     <a
       href="https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/"
       target="_blank"

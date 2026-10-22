@@ -138,3 +138,29 @@ test("unrelated root parameters retain landing and unknown routes remain not fou
     page.getByRole("heading", { name: "Entity not found" }),
   ).toBeVisible();
 });
+
+test("production hides the design system route and footer link", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("contentinfo").getByRole("link", { name: "Design system" }),
+  ).toHaveCount(0);
+  await page.evaluate(() => {
+    const link = document.createElement("a");
+    link.href = "/design-system";
+    link.textContent = "Open development reference";
+    document.body.append(link);
+  });
+  await page.getByRole("link", { name: "Open development reference" }).click();
+  await expect(page).toHaveURL(/\/design-system$/u);
+  await expect(
+    page.getByRole("heading", { name: "Design system", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: "404", exact: true }),
+  ).toBeVisible();
+  const response = await page.goto("/design-system");
+  expect(response?.status()).toBe(404);
+  await expect(page.locator("#design-system")).toHaveCount(0);
+});

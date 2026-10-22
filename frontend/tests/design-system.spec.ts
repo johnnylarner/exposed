@@ -1,9 +1,11 @@
 import { expect, test } from "./backend";
 
+test.use({ development: true });
+
 test("disclosures accept initial open state and native keyboard toggling", async ({
   page,
 }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const disclosure = page.getByRole("region", {
     name: "Recorded names example",
   });
@@ -24,7 +26,7 @@ test("reference has shared navigation and needs no declarations API", async ({
     requests.push(route.request().url());
     await route.fulfill({ status: 500 });
   });
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   await expect(page).toHaveTitle("Design system · Exposed");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Design system",
@@ -44,7 +46,7 @@ test("reference has shared navigation and needs no declarations API", async ({
 test("fields retain associations and recover from reversed dates", async ({
   page,
 }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const query = page.getByRole("searchbox", { name: "Member or funder" });
   await expect(query).toHaveAccessibleDescription(
     "This example stays on this page and does not search parliamentary records. Try a name, such as Jane Smith.",
@@ -78,7 +80,7 @@ test("fields retain associations and recover from reversed dates", async ({
 });
 
 test("funder actions inherit their focus color", async ({ page }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const action = page.getByRole("link", { name: "Find a funder" });
   await action.focus();
   expect(
@@ -89,7 +91,7 @@ test("funder actions inherit their focus color", async ({ page }) => {
 test("fields preserve their initial value through native form reset", async ({
   page,
 }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const name = page.getByRole("textbox", { name: "Funder name", exact: true });
   await expect(name).toHaveValue("Example Foundation");
   await name.fill("Another funder");
@@ -99,7 +101,7 @@ test("fields preserve their initial value through native form reset", async ({
 
 test("reference fits a 320px viewport", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   for (const summary of await page.locator("summary").all())
     await summary.click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
@@ -110,7 +112,7 @@ test("reference fits a 320px viewport", async ({ page }) => {
 test("shared search preserves labels and disables composite clear actions", async ({
   page,
 }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const search = page.getByRole("searchbox", {
     name: "Example live search",
     exact: true,
@@ -145,7 +147,7 @@ test("shared search preserves labels and disables composite clear actions", asyn
 test("shared pagination and view links retain native navigation", async ({
   page,
 }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const pages = page.getByRole("navigation", { name: "Example pages" });
   await expect(pages.getByRole("button", { name: "Previous" })).toBeDisabled();
   await pages.getByRole("button", { name: "Next" }).click();
@@ -164,7 +166,7 @@ test("shared pagination and view links retain native navigation", async ({
 test("repeated chart and indicator instances have distinct associations", async ({
   page,
 }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const charts = page.locator(".chart-example svg.earnings-chart");
   await expect(charts).toHaveCount(2);
   const associations = await charts.evaluateAll((elements) =>
@@ -209,7 +211,7 @@ test("standalone metrics keep exact values keyboard scrollable", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const label = page.getByRole("heading", {
     name: "Known declared value",
     exact: true,
@@ -244,7 +246,7 @@ test("standalone metrics keep exact values keyboard scrollable", async ({
 test("appearance survives additive classes and independent heading ranks", async ({
   page,
 }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const result = page.getByText("Additive result badge", { exact: true });
   await expect(result).toHaveCSS("display", "inline-flex");
   await expect(result).toHaveCSS("border-top-width", "1px");
@@ -292,7 +294,7 @@ test("appearance survives additive classes and independent heading ranks", async
 test("native text tables and standalone rows need no feature ancestors", async ({
   page,
 }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   const table = page.getByRole("table", { name: "Three text columns" });
   for (const cell of await table.locator("th, td").all())
     await expect(cell).toHaveCSS("text-align", "left");
@@ -313,7 +315,7 @@ test("native text tables and standalone rows need no feature ancestors", async (
 test("focus tokens propagate to native and component controls", async ({
   page,
 }) => {
-  await page.goto("/design-system");
+  await page.goto("/design-system", { waitUntil: "networkidle" });
   await page.locator("#design-system").evaluate((element) => {
     element.style.setProperty("--focus-width", "3px");
     element.style.setProperty("--focus-offset", "7px");

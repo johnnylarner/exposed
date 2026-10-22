@@ -1,6 +1,6 @@
 # Exposed UI
 
-Import components and public types from the `src/lib/ui/index.ts` barrel (for example `./lib/ui` from `src/Example.svelte`). Load `../lib/ui/styles.css` once in `src/routes/+layout.svelte`. It includes tokens, actions, patterns, focus rings, hidden captions, highlighted text and animation prerequisites. Field and Notice keep scoped styles. `/design-system` is the interactive reference and requires no declarations API.
+Import components and public types from the `src/lib/ui/index.ts` barrel (for example `./lib/ui` from `src/Example.svelte`). Load `../lib/ui/styles.css` once in `src/routes/+layout.svelte`. It includes tokens, actions, patterns, focus rings, hidden captions, highlighted text and animation prerequisites. Field and Notice keep scoped styles. `/design-system` is the interactive reference in development only and requires no declarations API. Production returns 404 and hides its footer link.
 
 Features own amounts, availability, chart geometry, URLs, analytics and async work. UI accepts formatted strings and presentation models. Pages own grids and section spacing. Use the [composition recipes](COMPOSITION.md) for native rows, declarations and identities.
 
