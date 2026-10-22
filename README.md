@@ -213,7 +213,7 @@ app and disconnect other clients from `exposed`. Run from the repository root:
 
 ```sh
 docker compose stop exposed
-./scripts/refresh-search-regression-db.sh
+./.agents/skills/verify/scripts/refresh-search-regression-db.sh
 docker compose start exposed
 ```
 
