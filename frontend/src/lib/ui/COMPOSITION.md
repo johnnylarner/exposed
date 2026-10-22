@@ -2,7 +2,7 @@
 
 Each example is a complete Svelte component placed at `src/Example.svelte`. Load `../lib/ui/styles.css` once in `src/routes/+layout.svelte`. These examples use static presentation data; production features supply real URLs and formatted values.
 
-Actions and focus remain neon yellow in every entity context. Override `--accent` only for entity meaning, such as funder badges, highlights and charts.
+Actions and focus remain neutral in every entity context. Override `--accent` only for entity meaning, such as funder badges, highlights and charts.
 
 ## Search result
 

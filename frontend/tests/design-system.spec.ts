@@ -79,7 +79,7 @@ test("fields retain associations and recover from reversed dates", async ({
   await expect(page.getByRole("status")).toHaveText("No filters applied.");
 });
 
-test("actions remain neon yellow across member and funder contexts", async ({
+test("actions remain neutral across member and funder contexts", async ({
   page,
 }) => {
   await page.goto("/design-system", { waitUntil: "networkidle" });
@@ -90,19 +90,19 @@ test("actions remain neon yellow across member and funder contexts", async ({
     await expect(actions).toHaveCount(4);
     for (const action of await actions.all()) {
       await action.focus();
-      await expect(action).toHaveCSS("outline-color", "rgb(234, 255, 0)");
+      await expect(action).toHaveCSS("outline-color", "rgb(240, 240, 237)");
       const variant = await action.getAttribute("data-variant");
       if (variant === "primary") {
         await expect(action).toHaveCSS(
           "background-color",
-          "rgb(234, 255, 0)",
+          "rgb(240, 240, 237)",
         );
         await expect(action).toHaveCSS("color", "rgb(17, 17, 17)");
       }
       if (variant === "quiet" || variant === "subtle")
-        await expect(action).toHaveCSS("color", "rgb(234, 255, 0)");
+        await expect(action).toHaveCSS("color", "rgb(240, 240, 237)");
       await action.hover();
-      await expect(action).toHaveCSS("border-top-color", "rgb(234, 255, 0)");
+      await expect(action).toHaveCSS("border-top-color", "rgb(240, 240, 237)");
       if (variant === "subtle")
         await expect(action).toHaveCSS("background-color", "rgb(40, 40, 40)");
     }
@@ -368,7 +368,7 @@ test("focus tokens propagate to native and component controls", async ({
     ],
   ] as const) {
     await control.focus();
-    await expect(control).toHaveCSS("outline-color", "rgb(234, 255, 0)");
+    await expect(control).toHaveCSS("outline-color", "rgb(240, 240, 237)");
     await expect(control).toHaveCSS("outline-width", "3px");
     await expect(control).toHaveCSS("outline-offset", offset);
   }
