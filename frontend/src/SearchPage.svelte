@@ -70,6 +70,9 @@
       async () => {
         const url = new URL(window.location.href);
         url.searchParams.set("q", currentTerm);
+        const queryLength = [...currentTerm].length;
+        posthog.capture("search_submitted", { query_length: queryLength });
+        posthogLogger.info("search submitted", { query_length: queryLength });
         pending = true;
         try {
           await goto(url, { replace: true, reset: false, refreshAll: true });
@@ -169,9 +172,6 @@
     onsubmit={(event) => {
       event.preventDefault();
       if (!composing && !charactersNeeded) {
-        const queryLength = [...term].length;
-        posthog.capture("search_submitted", { query_length: queryLength });
-        posthogLogger.info("search submitted", { query_length: queryLength });
         attempt += 1;
       }
     }}
