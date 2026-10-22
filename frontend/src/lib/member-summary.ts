@@ -9,7 +9,7 @@ import {
 // https://api.parliament.uk/regnal-years/parliament-periods/59
 export const CURRENT_PARLIAMENT_START = "2024-07-09T00:00:00Z";
 
-function earningsTotal(declarations: MemberDeclaration[]) {
+function declaredTotal(declarations: MemberDeclaration[]) {
   const entries = declarations.flatMap((declaration) => declaration.entries);
   return {
     declarationCount: declarations.length,
@@ -47,23 +47,24 @@ export function summarizeMember(details: MemberDetails) {
   const pounds = details.summary.currencies.find(
     (group) => group.currency === "GBP",
   );
-  const declarations = details.declarations.filter((declaration) =>
+  const earningsDeclarations = details.declarations.filter((declaration) =>
     isEarnings(declaration.categoryName),
   );
-  const { months: earnings, undated } = registrationTimeline(declarations);
+  const { months: earnings, undated } =
+    registrationTimeline(earningsDeclarations);
   return {
     total: pounds?.amount ?? null,
     firstRegisteredAt: details.summary.firstRegisteredAt,
-    earningsTotals: {
-      currentTerm: earningsTotal(
-        declarations.filter(
+    declaredTotals: {
+      currentTerm: declaredTotal(
+        details.declarations.filter(
           (declaration) =>
             declaration.registeredAt !== null &&
             Date.parse(declaration.registeredAt) >=
               Date.parse(CURRENT_PARLIAMENT_START),
         ),
       ),
-      historical: earningsTotal(declarations),
+      historical: declaredTotal(details.declarations),
     },
     categories: pounds?.categories ?? [],
     earnings,

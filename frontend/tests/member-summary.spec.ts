@@ -272,7 +272,7 @@ test("funding timeline includes every category with exact UTC months and missing
   ).toEqual({ months: [], undated: false });
 });
 
-test("earnings totals use inclusive UTC boundary and all historical earnings", () => {
+test("declared totals use inclusive UTC boundary and all historical categories", () => {
   const fixture = details([
     declaration("2024-07-08T23:59:59.999Z", [entry("1")]),
     declaration("2024-07-09T00:00:00Z", [entry("2")]),
@@ -284,15 +284,15 @@ test("earnings totals use inclusive UTC boundary and all historical earnings", (
   ]);
   fixture.summary.firstRegisteredAt = "2020-01-01T00:00:00Z";
   const summary = summarizeMember(fixture);
-  expect(summary.earningsTotals).toEqual({
+  expect(summary.declaredTotals).toEqual({
     currentTerm: { declarationCount: 3, amount: "5", incomplete: true },
-    historical: { declarationCount: 6, amount: "15", incomplete: true },
+    historical: { declarationCount: 7, amount: "915", incomplete: true },
   });
   expect(summary.firstRegisteredAt).toBe("2020-01-01T00:00:00Z");
 });
 
-test("earnings totals preserve precision, absent amounts and real zero", () => {
-  expect(summarizeMember(details([])).earningsTotals).toEqual({
+test("declared totals preserve precision, absent amounts and real zero", () => {
+  expect(summarizeMember(details([])).declaredTotals).toEqual({
     currentTerm: { declarationCount: 0, amount: null, incomplete: false },
     historical: { declarationCount: 0, amount: null, incomplete: false },
   });
@@ -306,7 +306,7 @@ test("earnings totals preserve precision, absent amounts and real zero", () => {
       declaration(null, [entry("-0.000000001")]),
     ]),
   );
-  expect(summary.earningsTotals).toEqual({
+  expect(summary.declaredTotals).toEqual({
     currentTerm: {
       declarationCount: 1,
       amount: "0.000000001",
@@ -321,11 +321,11 @@ test("earnings totals preserve precision, absent amounts and real zero", () => {
   expect(
     summarizeMember(
       details([declaration("2025-01-01Z", [entry(null), entry("2", "EUR")])]),
-    ).earningsTotals.currentTerm,
+    ).declaredTotals.currentTerm,
   ).toEqual({ declarationCount: 1, amount: null, incomplete: true });
 });
 
-test("undated and earlier unknown earnings affect only historical completeness", () => {
+test("undated and earlier unknown declarations affect only historical completeness", () => {
   expect(
     summarizeMember(
       details([
@@ -333,7 +333,7 @@ test("undated and earlier unknown earnings affect only historical completeness",
         declaration(null, [entry("8", " ")]),
         declaration("2025-01-01Z", [entry("0"), entry(null, "EUR")]),
       ]),
-    ).earningsTotals,
+    ).declaredTotals,
   ).toEqual({
     currentTerm: { declarationCount: 1, amount: "0", incomplete: false },
     historical: { declarationCount: 3, amount: "0", incomplete: true },
@@ -341,22 +341,25 @@ test("undated and earlier unknown earnings affect only historical completeness",
   expect(
     summarizeMember(
       details([declaration("2025-01-01Z", [entry("100", "EUR")])]),
-    ).earningsTotals.currentTerm,
+    ).declaredTotals.currentTerm,
   ).toEqual({ declarationCount: 1, amount: null, incomplete: false });
 });
-
 
 test("headline totals include gifts and travel while the timeline retains only earnings", () => {
   const summary = summarizeMember(
     details([
       declaration("2025-01-01T00:00:00Z", [entry("10.25")]),
       declaration("2025-01-02T00:00:00Z", [entry("20.50")], "Gifts"),
-      declaration("2025-02-01T00:00:00Z", [entry("30.75")], "Visits outside the UK"),
+      declaration(
+        "2025-02-01T00:00:00Z",
+        [entry("30.75")],
+        "Visits outside the UK",
+      ),
       declaration("2024-07-08T23:59:59Z", [entry("40")], "Gifts"),
       declaration(null, [entry("50")], "Visits outside the UK"),
     ]),
   );
-  expect(summary.earningsTotals).toEqual({
+  expect(summary.declaredTotals).toEqual({
     currentTerm: { declarationCount: 3, amount: "61.50", incomplete: false },
     historical: { declarationCount: 5, amount: "151.50", incomplete: false },
   });

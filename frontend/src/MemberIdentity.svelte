@@ -39,12 +39,12 @@
     <div class="member-earnings-totals">
       <div class="earnings-values">
         <div class="member-value">
-          <h2>Earnings this parliamentary term</h2>
-          {#if summary.earningsTotals.currentTerm.declarationCount === 0}
+          <h2>Declared amounts this parliamentary term</h2>
+          {#if summary.declaredTotals.currentTerm.declarationCount === 0}
             <p class="member-total unavailable">
               No declaration data available
             </p>
-          {:else if summary.earningsTotals.currentTerm.amount === null}
+          {:else if summary.declaredTotals.currentTerm.amount === null}
             <p class="member-total unavailable">{formatPounds(null)}</p>
           {:else}
             <!-- svelte-ignore a11y_no_noninteractive_tabindex (Keyboard users need to scroll wide amounts without losing digits.) -->
@@ -52,26 +52,26 @@
               class="member-total"
               role="region"
               tabindex="0"
-              aria-label="Earnings this parliamentary term in GBP"
-              title={summary.earningsTotals.currentTerm.incomplete
+              aria-label="Declared amounts this parliamentary term in GBP"
+              title={summary.declaredTotals.currentTerm.incomplete
                 ? "Known GBP amounts only. Some amounts unavailable."
                 : undefined}
             >
-              {formatPounds(summary.earningsTotals.currentTerm.amount)}
+              {formatPounds(summary.declaredTotals.currentTerm.amount)}
             </div>
           {/if}
         </div>
         <div class="member-value">
           <h2>
-            Historical earnings{summary.firstRegisteredAt
+            Historical declared amounts{summary.firstRegisteredAt
               ? ` since ${dateLabel(summary.firstRegisteredAt)}`
               : ""}
           </h2>
-          {#if summary.earningsTotals.historical.declarationCount === 0}
+          {#if summary.declaredTotals.historical.declarationCount === 0}
             <p class="member-total unavailable">
               No declaration data available
             </p>
-          {:else if summary.earningsTotals.historical.amount === null}
+          {:else if summary.declaredTotals.historical.amount === null}
             <p class="member-total unavailable">{formatPounds(null)}</p>
           {:else}
             <!-- svelte-ignore a11y_no_noninteractive_tabindex (Keyboard users need to scroll wide amounts without losing digits.) -->
@@ -79,12 +79,12 @@
               class="member-total"
               role="region"
               tabindex="0"
-              aria-label="Historical earnings in GBP"
-              title={summary.earningsTotals.historical.incomplete
+              aria-label="Historical declared amounts in GBP"
+              title={summary.declaredTotals.historical.incomplete
                 ? "Known GBP amounts only. Some amounts unavailable."
                 : undefined}
             >
-              {formatPounds(summary.earningsTotals.historical.amount)}
+              {formatPounds(summary.declaredTotals.historical.amount)}
             </div>
           {/if}
         </div>

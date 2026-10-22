@@ -940,7 +940,7 @@ for (const negative of [false, true]) {
   });
 }
 
-test("member summary retains signed category bars alongside unavailable earnings", async ({
+test("member summary retains signed category bars alongside all-category totals", async ({
   backend,
   page,
   context,
@@ -948,8 +948,8 @@ test("member summary retains signed category bars alongside unavailable earnings
   await mockDetails(backend);
   await page.goto("/members/1");
   await expect(page.locator(".member-total")).toHaveText([
-    "No declaration data available",
-    "No declaration data available",
+    "£18,014,398,509,481,986.246913578",
+    "£18,014,398,509,481,986.246913578",
   ]);
   await expect(page.locator(".signed-bar .negative")).toHaveCount(1);
   await expect(
@@ -963,7 +963,7 @@ test("member summary retains signed category bars alongside unavailable earnings
     ),
   ).toHaveCount(0);
   await expect(page.locator(".member-identity")).toContainText(
-    "Earnings this parliamentary term",
+    "Declared amounts this parliamentary term",
   );
   const total = await page.locator(".member-total").first().boundingBox();
   const tabs = await page.locator(".member-tabs").boundingBox();
@@ -1568,7 +1568,7 @@ test("initial HTML renders search and detail views while browser traffic stays i
   );
 });
 
-test("member earnings distinguish this term and history with registration coverage", async ({
+test("member declared amounts include gifts and travel with registration coverage", async ({
   backend,
   page,
 }) => {
@@ -1597,7 +1597,7 @@ test("member earnings distinguish this term and history with registration covera
           },
           {
             ...memberDetails.declarations[0],
-            category_name: "Employment",
+            category_name: "Gifts",
             registered_at: "2023-01-01T00:00:00Z",
             entries: [
               {
@@ -1610,11 +1610,24 @@ test("member earnings distinguish this term and history with registration covera
           },
           {
             ...memberDetails.declarations[0],
-            category_name: "Employment",
+            category_name: "Visits outside the UK",
             registered_at: null,
             entries: [
               {
                 amount: "50",
+                currency: "GBP",
+                funder: null,
+                payment_type: null,
+              },
+            ],
+          },
+          {
+            ...memberDetails.declarations[0],
+            category_name: "Visits outside the UK",
+            registered_at: "2025-01-01T00:00:00Z",
+            entries: [
+              {
+                amount: "75",
                 currency: "GBP",
                 funder: null,
                 payment_type: null,
@@ -1633,12 +1646,27 @@ test("member earnings distinguish this term and history with registration covera
   );
   await page.goto("/members/1");
   await expect(page.locator(".member-total")).toHaveText([
-    "£200.00",
-    "£350.00",
+    "£275.00",
+    "£425.00",
+  ]);
+  await expect(
+    page.getByRole("region", {
+      name: "Declared amounts this parliamentary term in GBP",
+      exact: true,
+    }),
+  ).toHaveText("£275.00");
+  await expect(
+    page.getByRole("region", {
+      name: "Historical declared amounts in GBP",
+      exact: true,
+    }),
+  ).toHaveText("£425.00");
+  await expect(page.locator(".earnings-chart rect title")).toHaveText([
+    "Jul 2024: £200.00",
   ]);
   await expect(page.locator(".member-earnings-totals h2")).toHaveText([
-    "Earnings this parliamentary term",
-    "Historical earnings since 1 January 2020",
+    "Declared amounts this parliamentary term",
+    "Historical declared amounts since 1 January 2020",
   ]);
   await expect(
     page.locator(".member-earnings-totals .partial-note"),
@@ -1659,7 +1687,7 @@ test("member earnings distinguish this term and history with registration covera
     });
 });
 
-test("empty member earnings show no declaration data and retain period headings", async ({
+test("empty member declarations show no declaration data and retain period headings", async ({
   backend,
   page,
 }) => {
@@ -1687,12 +1715,12 @@ test("empty member earnings show no declaration data and retain period headings"
     "No declaration data available",
   ]);
   await expect(page.locator(".member-earnings-totals h2")).toHaveText([
-    "Earnings this parliamentary term",
-    "Historical earnings",
+    "Declared amounts this parliamentary term",
+    "Historical declared amounts",
   ]);
 });
 
-test("earnings keep precise figures readable on narrow screens and missing amounts neutral", async ({
+test("declared amounts keep precise figures readable on narrow screens and missing amounts neutral", async ({
   backend,
   page,
 }) => {
@@ -1767,7 +1795,7 @@ test("earnings keep precise figures readable on narrow screens and missing amoun
   amount = "90071992547409939007199254740993.123456789";
   await page.reload();
   const figure = page.getByRole("region", {
-    name: "Historical earnings in GBP",
+    name: "Historical declared amounts in GBP",
     exact: true,
   });
   await expect(figure).toHaveText(
@@ -1797,7 +1825,7 @@ test("earnings keep precise figures readable on narrow screens and missing amoun
   ).toBe(true);
 });
 
-test("earnings distinguish an empty term, historical zero and unknown amounts", async ({
+test("declared amounts distinguish an empty term, historical zero and unknown amounts", async ({
   backend,
   page,
 }) => {
