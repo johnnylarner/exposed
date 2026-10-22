@@ -61,6 +61,8 @@ Failure events include `error.type` with a status-based classification of
 `http.client_error` or `http.server_error`. Each `ApiError::from` conversion emits
 one ERROR diagnostic with the full typed error in the `error` Debug field
 before mapping it to an HTTP error. This retains nested service sources.
+Detail request models parse IDs and wrap field errors in the detail operation
+error. HTTP handlers convert that error once, preserving its source in the diagnostic.
 Framework rejections and unmatched routes produce only the access event.
 HTTP 500 bodies remain `internal server error`. Startup failures propagate to
 `main` and use its standard error output on stderr.

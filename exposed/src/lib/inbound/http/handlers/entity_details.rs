@@ -1,14 +1,10 @@
 use crate::{
     domain::{
-        models::{
-            entity_details::{
-                CategoryTotal, CurrencyBreakdown, DeclaredFunding, FunderDeclaration,
-                FunderDetails, FunderProfile, FunderReference, MemberCurrencyTotal,
-                MemberDeclaration, MemberDetails, MemberProfile, MemberSummary, PartyTotal,
-                RecipientAllocation,
-            },
-            funder::FunderId,
-            parliament_member::{MemberId, MemberIdError},
+        models::entity_details::{
+            CategoryTotal, CurrencyBreakdown, DeclaredFunding, FunderDeclaration, FunderDetails,
+            FunderDetailsRequest, FunderProfile, FunderReference, MemberCurrencyTotal,
+            MemberDeclaration, MemberDetails, MemberDetailsRequest, MemberProfile, MemberSummary,
+            PartyTotal, RecipientAllocation,
         },
         services::{
             entity_details::{EntityDetailsError, EntityDetailsService},
@@ -28,23 +24,12 @@ impl From<EntityDetailsError> for ApiError {
     fn from(error: EntityDetailsError) -> Self {
         tracing::error!(?error, "entity details failed");
         match error {
+            EntityDetailsError::InvalidMemberId(_) | EntityDetailsError::InvalidFunderId(_) => {
+                Self::UnprocessibleEntity(error.to_string())
+            }
             EntityDetailsError::NotFound => Self::NotFound,
             EntityDetailsError::Unexpected(_) => Self::InternalServerError,
         }
-    }
-}
-
-impl From<MemberIdError> for ApiError {
-    fn from(error: MemberIdError) -> Self {
-        tracing::error!(?error, "invalid member ID");
-        Self::UnprocessibleEntity(error.to_string())
-    }
-}
-
-impl From<uuid::Error> for ApiError {
-    fn from(error: uuid::Error) -> Self {
-        tracing::error!(?error, "invalid funder ID");
-        Self::UnprocessibleEntity("Invalid funder ID".into())
     }
 }
 
@@ -374,8 +359,8 @@ pub async fn member_details<E: EntitySearchService, D: EntityDetailsService>(
     State(state): State<AppState<E, D>>,
     Path(id): Path<String>,
 ) -> Result<ApiSuccess<MemberDetailsResponse>, ApiError> {
-    let id = id.parse::<MemberId>()?;
-    let details = state.entity_details_service.member(id).await?;
+    let request = id.parse::<MemberDetailsRequest>()?;
+    let details = state.entity_details_service.member(request).await?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }
 
@@ -383,7 +368,7 @@ pub async fn funder_details<E: EntitySearchService, D: EntityDetailsService>(
     State(state): State<AppState<E, D>>,
     Path(id): Path<String>,
 ) -> Result<ApiSuccess<FunderDetailsResponse>, ApiError> {
-    let id = id.parse::<FunderId>()?;
-    let details = state.entity_details_service.funder(id).await?;
+    let request = id.parse::<FunderDetailsRequest>()?;
+    let details = state.entity_details_service.funder(request).await?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }

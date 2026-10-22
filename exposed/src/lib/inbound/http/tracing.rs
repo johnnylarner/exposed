@@ -119,10 +119,10 @@ mod tests {
     use crate::{
         domain::{
             models::{
-                entity_details::{FunderDetails, MemberDetails},
+                entity_details::{
+                    FunderDetails, FunderDetailsRequest, MemberDetails, MemberDetailsRequest,
+                },
                 entity_search::{Entity, EntitySearchError, EntitySearchRequest},
-                funder::FunderId,
-                parliament_member::MemberId,
             },
             repositories::entity_details::EntityDetailsRepoError,
             services::{
@@ -149,16 +149,22 @@ mod tests {
     #[derive(Clone)]
     struct Details;
     impl EntityDetailsService for Details {
-        async fn member(&self, id: MemberId) -> Result<MemberDetails, EntityDetailsError> {
+        async fn member(
+            &self,
+            request: MemberDetailsRequest,
+        ) -> Result<MemberDetails, EntityDetailsError> {
             tokio::task::yield_now().await;
-            if id.value() == 2 {
+            if request.id().value() == 2 {
                 return Err(
                     EntityDetailsRepoError::DatabaseError("member database failed".into()).into(),
                 );
             }
             Err(EntityDetailsError::NotFound)
         }
-        async fn funder(&self, _: FunderId) -> Result<FunderDetails, EntityDetailsError> {
+        async fn funder(
+            &self,
+            _: FunderDetailsRequest,
+        ) -> Result<FunderDetails, EntityDetailsError> {
             tokio::task::yield_now().await;
             Err(EntityDetailsRepoError::DatabaseError("database details failed".into()).into())
         }
@@ -350,9 +356,9 @@ mod tests {
                 "/search?term=Alice&max_entries=1&strictness=2",
                 "InvalidStrictness(2.0)",
             ),
-            ("/members/invalid", "MemberIdError"),
-            ("/members/0", "MemberIdError"),
-            ("/funders/invalid", "Error"),
+            ("/members/invalid", "InvalidMemberId(MemberIdError)"),
+            ("/members/0", "InvalidMemberId(MemberIdError)"),
+            ("/funders/invalid", "InvalidFunderId(Error"),
             ("/members/1", "NotFound"),
             (
                 "/members/2",
@@ -394,9 +400,21 @@ mod tests {
                 "unable to process malformed request: at least one entry must be expected to return",
             ),
             (
-                ApiError::UnprocessibleEntity("Invalid funder ID".into()),
+                ApiError::from("invalid".parse::<FunderDetailsRequest>().unwrap_err()),
                 StatusCode::UNPROCESSABLE_ENTITY,
                 "unable to process malformed request: Invalid funder ID",
+            ),
+            (
+                ApiError::from("0".parse::<MemberDetailsRequest>().unwrap_err()),
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "unable to process malformed request: Invalid MP ID",
+            ),
+            (
+                ApiError::from(EntityDetailsError::Unexpected(
+                    EntityDetailsRepoError::DatabaseError("private details".into()),
+                )),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "internal server error",
             ),
             (
                 ApiError::from(EntityDetailsError::NotFound),
