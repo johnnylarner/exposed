@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button, Field, Notice } from "./lib/ui";
+  import { SectionHeading, Pagination, Button, Field, Notice } from "./lib/ui";
   import FunderDeclarations from "./FunderDeclarations.svelte";
   import { type FunderDetails } from "./lib/entity-details";
   let { details }: { details: FunderDetails } = $props();
@@ -37,13 +37,12 @@
 </script>
 
 <section aria-labelledby="history-heading">
-  <div class="detail-section-heading">
-    <h2 id="history-heading">Funding history</h2>
+  <SectionHeading id="history-heading" title="Funding history">
     <p>
       All {details.declarations.length} stored funding declarations, most recent registration
       first.
     </p>
-  </div>
+  </SectionHeading>
   <div class="history-filters">
     <Field
       label="Registered from"
@@ -81,14 +80,11 @@
       )} of {filtered.length} declarations
     </p>
     <FunderDeclarations declarations={visible} />
-    <nav class="history-pagination" aria-label="Declaration pages">
-      <Button variant="quiet" disabled={page === 1} onclick={() => (page -= 1)}
-        >Previous</Button
-      ><span>Page {page} of {pageCount}</span><Button
-        variant="quiet"
-        disabled={page === pageCount}
-        onclick={() => (page += 1)}>Next</Button
-      >
-    </nav>
+    <Pagination
+      {page}
+      {pageCount}
+      onprevious={() => (page -= 1)}
+      onnext={() => (page += 1)}
+    />
   {/if}
 </section>

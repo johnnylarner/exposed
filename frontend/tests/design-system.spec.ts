@@ -1,5 +1,20 @@
 import { expect, test } from "./backend";
 
+test("disclosures accept initial open state and native keyboard toggling", async ({
+  page,
+}) => {
+  await page.goto("/design-system");
+  const disclosure = page.getByRole("region", {
+    name: "Recorded names example",
+  });
+  await expect(disclosure).toHaveAttribute("open", "");
+  await disclosure.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(disclosure).not.toHaveAttribute("open");
+  await page.keyboard.press("Space");
+  await expect(disclosure).toHaveAttribute("open", "");
+});
+
 test("reference has shared navigation and needs no declarations API", async ({
   page,
   backend,
@@ -11,6 +26,9 @@ test("reference has shared navigation and needs no declarations API", async ({
   });
   await page.goto("/design-system");
   await expect(page).toHaveTitle("Design system · Exposed");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Design system",
+  );
   await expect(page.getByRole("link", { name: "Exposed home" })).toBeVisible();
   await expect(
     page.getByRole("contentinfo").getByRole("link", { name: "Design system" }),
@@ -84,6 +102,140 @@ test("reference fits a 320px viewport", async ({ page }) => {
   await page.goto("/design-system");
   for (const summary of await page.locator("summary").all())
     await summary.click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
+    320,
+  );
+});
+
+test("shared search preserves labels and disables composite clear actions", async ({
+  page,
+}) => {
+  await page.goto("/design-system");
+  const search = page.getByRole("searchbox", {
+    name: "Example live search",
+    exact: true,
+  });
+  await expect(search).toHaveAccessibleDescription(
+    "Clear or edit this local example. No records are requested.",
+  );
+  await search.fill("Edited example");
+  await page
+    .locator(".search-field")
+    .filter({ has: search })
+    .getByRole("button", { name: "Clear search" })
+    .click();
+  await expect(search).toHaveValue("");
+  for (const name of ["Disabled search", "Read only search"]) {
+    const field = page.getByRole("searchbox", { name, exact: true });
+    await expect(
+      page
+        .locator(".search-field")
+        .filter({ has: field })
+        .getByRole("button", { name: "Clear search" }),
+    ).toBeDisabled();
+  }
+  await expect(
+    page.getByRole("searchbox", { name: "Disabled search", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("searchbox", { name: "Read only search", exact: true }),
+  ).toHaveAttribute("readonly", "");
+});
+
+test("shared pagination and view links retain native navigation", async ({
+  page,
+}) => {
+  await page.goto("/design-system");
+  const pages = page.getByRole("navigation", { name: "Example pages" });
+  await expect(pages.getByRole("button", { name: "Previous" })).toBeDisabled();
+  await pages.getByRole("button", { name: "Next" }).click();
+  await expect(pages).toContainText("Page 2 of 2");
+  await expect(pages.getByRole("button", { name: "Next" })).toBeDisabled();
+  await pages.getByRole("button", { name: "Previous" }).click();
+  await expect(pages).toContainText("Page 1 of 2");
+  const links = page.getByRole("navigation", { name: "Example views" });
+  await expect(
+    links.getByRole("link", { name: "Summary", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await links.getByRole("link", { name: "Declaration history" }).click();
+  await expect(page).toHaveURL(/#data-patterns$/u);
+});
+
+test("repeated chart and indicator instances have distinct associations", async ({
+  page,
+}) => {
+  await page.goto("/design-system");
+  const charts = page.locator(".chart-example svg.earnings-chart");
+  await expect(charts).toHaveCount(2);
+  const associations = await charts.evaluateAll((elements) =>
+    elements.map((element) =>
+      element.getAttribute("aria-labelledby")!.split(" "),
+    ),
+  );
+  expect(new Set(associations.flat()).size).toBe(4);
+  for (const ids of associations)
+    for (const id of ids)
+      await expect(page.locator(`[id="${id}"]`)).toHaveCount(1);
+  const tooltipIds: string[] = [];
+  for (const chart of await page.locator(".chart-example").all()) {
+    const entry = chart.locator(".funder-party-legend li");
+    await entry.scrollIntoViewIfNeeded();
+    await page.keyboard.press("Escape");
+    await entry.dispatchEvent("pointerenter", { pointerType: "mouse" });
+    const tooltip = page.getByRole("tooltip");
+    await expect(tooltip).toHaveText(
+      "Example party £90,071,992,547,409,993.123456789 2 entries, 1 amount unavailable",
+    );
+    tooltipIds.push((await tooltip.getAttribute("id"))!);
+    await page.keyboard.press("Escape");
+    await expect(tooltip).toHaveCount(0);
+  }
+  expect(new Set(tooltipIds).size).toBe(2);
+  const indicatorIds: string[] = [];
+  for (const label of ["Example MP", "Example funder"]) {
+    const indicator = page.getByRole("button", { name: label, exact: true });
+    await indicator.focus();
+    const id = await indicator.getAttribute("aria-describedby");
+    expect(id).toBeTruthy();
+    indicatorIds.push(id!);
+    await expect(page.locator(`[id="${id}"]`)).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(indicator).not.toHaveAttribute("aria-describedby");
+  }
+  expect(new Set(indicatorIds).size).toBe(2);
+});
+
+test("standalone metrics keep exact values keyboard scrollable", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 568 });
+  await page.goto("/design-system");
+  const label = page.getByRole("heading", {
+    name: "Known declared value",
+    exact: true,
+  });
+  expect(
+    await label.evaluate((element) => getComputedStyle(element).fontSize),
+  ).toBe("12.8px");
+  expect(
+    await label.evaluate((element) => getComputedStyle(element).fontWeight),
+  ).toBe("500");
+  const total = page.getByRole("region", {
+    name: "Known declared value",
+    exact: true,
+  });
+  await expect(total).toHaveText("£90,071,992,547,409,993.123456789");
+  await total.focus();
+  await expect(total).toBeFocused();
+  expect(
+    await total.evaluate(
+      (element) => element.scrollWidth > element.clientWidth,
+    ),
+  ).toBe(true);
+  await page.keyboard.press("End");
+  await expect(
+    page.getByText("Amount unavailable", { exact: true }),
+  ).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(
     320,
   );

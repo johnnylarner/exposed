@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SignedBarList, ButtonLink, SectionHeading } from "./lib/ui";
   import { page } from "$app/state";
   import MemberDeclarations from "./MemberDeclarations.svelte";
   import RegistrationTimeline from "./RegistrationTimeline.svelte";
@@ -23,26 +24,18 @@
   <section class="member-breakdown" aria-labelledby="breakdown-heading">
     <h2 id="breakdown-heading">Declared value by category</h2>
     {#if summary.categories.length}
-      <ul class="category-list" style:--baseline={`${baseline}%`}>
-        {#each summary.categories as category, index}
-          <li>
-            <div class="category-label">
-              <span>{category.categoryName}</span><span class="amount"
-                >{formatPounds(category.amount)}</span
-              >
-            </div>
-            <div class="signed-bar" aria-hidden="true">
-              <span
-                class:negative={bars[index].negative}
-                style:width={`${bars[index].width}%`}
-              ></span>
-            </div>
-            {#if category.unknownAmountCount}<p class="partial-note">
-                Some amounts unavailable
-              </p>{/if}
-          </li>
-        {/each}
-      </ul>
+      <SignedBarList
+        {baseline}
+        bars={summary.categories.map((category, index) => ({
+          label: category.categoryName,
+          value: formatPounds(category.amount),
+          width: bars[index].width,
+          negative: bars[index].negative,
+          note: category.unknownAmountCount
+            ? "Some amounts unavailable"
+            : undefined,
+        }))}
+      />
     {:else}<p class="empty-details">No known declared values available.</p>{/if}
   </section>
   <RegistrationTimeline
@@ -52,17 +45,18 @@
   />
 </div>
 <section aria-labelledby="recent-declarations-heading">
-  <div class="detail-section-heading">
-    <h2 id="recent-declarations-heading">Recent declarations</h2>
-  </div>
+  <SectionHeading id="recent-declarations-heading" title="Recent declarations"
+  ></SectionHeading>
   {#if details.declarations.length}<MemberDeclarations
       declarations={details.declarations.slice(0, 5)}
     />{:else}<p class="empty-details">
       No declarations are stored for this MP.
     </p>{/if}
-  <a
-    class="text-button history-link"
+  <ButtonLink
+    variant="quiet"
+    size="inline"
+    class="history-link"
     href={memberHref(details.member.id, "history", page.url.searchParams)}
-    >View declaration history</a
+    >View declaration history</ButtonLink
   >
 </section>

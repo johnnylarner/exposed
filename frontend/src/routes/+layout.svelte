@@ -2,6 +2,7 @@
   import "@fontsource-variable/manrope";
   import "../lib/ui/tokens.css";
   import "../styles.css";
+  import "../lib/ui/patterns.css";
   let { children } = $props();
 </script>
 

@@ -1,7 +1,59 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import AppShell from "../../AppShell.svelte";
-  import { Button, ButtonLink, Field, Notice } from "../../lib/ui";
+  import {
+    Icon,
+    Badge,
+    IconIndicator,
+    SearchField,
+    ViewLinks,
+    ViewLink,
+    Pagination,
+    Spinner,
+    SkeletonRows,
+    MessageState,
+    SectionHeading,
+    ResultRow,
+    HighlightedText,
+    DeclarationList,
+    DeclarationCard,
+    ValueRow,
+    IdentityHeader,
+    Metric,
+    DataTable,
+    SignedBarList,
+    BarChart,
+    PieChart,
+    Disclosure,
+    Button,
+    ButtonLink,
+    Field,
+    Notice,
+  } from "../../lib/ui";
+  let exampleSearch = $state("Example name");
+  let examplePage = $state(1);
+  const chartSlices = [
+    {
+      label: "Example party",
+      value: "£90,071,992,547,409,993.123456789",
+      detail: "2 entries, 1 amount unavailable",
+      share: 1,
+      path: "",
+      color: "var(--accent)",
+    },
+  ];
+  import type { ChartBar } from "../../lib/ui/chart-types";
+  const chartBars: ChartBar[] = [
+    {
+      x: 20,
+      y: 40,
+      width: 180,
+      height: 200,
+      negative: false,
+      title: "Jan 2026: £12,345.67",
+      tick: { x: 20, label: "Jan 2026", anchor: "start" },
+    },
+  ];
   const swatches = [
     { name: "Canvas", token: "--canvas" },
     { name: "Surface", token: "--surface" },
@@ -63,7 +115,9 @@
       <nav aria-label="Design system sections">
         <a href="#foundations">Foundations</a><a href="#type">Typography</a><a
           href="#actions">Actions</a
-        ><a href="#fields">Fields</a><a href="#feedback">Feedback</a>
+        ><a href="#fields">Fields</a><a href="#feedback">Feedback</a><a
+          href="#patterns">Patterns</a
+        ><a href="#data-patterns">Data</a>
       </nav>
     </header>
     <section id="foundations" aria-labelledby="foundations-heading">
@@ -124,7 +178,7 @@
         <ButtonLink href="/search" variant="primary"
           >Search MPs and funders</ButtonLink
         ><ButtonLink href="/methodology">Read methodology</ButtonLink><Button
-          disabled>Previous</Button
+          disabled>Unavailable action</Button
         >
       </div>
       <div class="funder-example">
@@ -138,12 +192,11 @@
           >
         </div>
       </div>
-      <details>
-        <summary>Using actions</summary>
+      <Disclosure summary="Using actions" class="code-example">
         <pre><code
             >{'<Button onclick={clearDates} disabled={!from && !to}>Clear dates</Button>\n<ButtonLink href="/search" variant="primary">Search MPs and funders</ButtonLink>'}</code
           ></pre>
-      </details>
+      </Disclosure>
     </section>
     <section id="fields" aria-labelledby="fields-heading">
       <h2 id="fields-heading">Fields</h2>
@@ -203,12 +256,11 @@
         />
         <div><Button type="reset">Restore name</Button></div>
       </form>
-      <details>
-        <summary>Using fields</summary>
+      <Disclosure summary="Using fields" class="code-example">
         <pre><code
             >{'<Field label="Registered to" type="date" bind:value={to}\n  hint="Both dates are included." error={dateError} />'}</code
           ></pre>
-      </details>
+      </Disclosure>
     </section>
     <section id="feedback" aria-labelledby="feedback-heading">
       <h2 id="feedback-heading">Feedback</h2>
@@ -226,12 +278,183 @@
           >No declarations match these dates. Clear or change the dates.</Notice
         >
       </div>
-      <details>
-        <summary>Using notices</summary>
+      <Disclosure summary="Using notices" class="code-example">
         <pre><code
             >{'<Notice role="status" tone="accent">Filters applied.</Notice>\n<Notice role="alert" tone="warning">Check the date range.</Notice>'}</code
           ></pre>
-      </details>
+      </Disclosure>
+    </section>
+
+    <section id="patterns" aria-labelledby="patterns-heading">
+      <SectionHeading id="patterns-heading" title="Shared patterns"
+        ><p>
+          Native navigation, search, exact values and data presentation used by
+          the application.
+        </p></SectionHeading
+      >
+      <div class="pattern-stack">
+        <ViewLinks label="Example views"
+          ><ViewLink href="#patterns" aria-current="page">Summary</ViewLink
+          ><ViewLink href="#data-patterns">Declaration history</ViewLink
+          ></ViewLinks
+        >
+        <div class="entity-legend">
+          <Badge><Icon name="parliament" size={16} />MP</Badge><Badge
+            ><Icon name="coin" size={16} />Funder</Badge
+          ><IconIndicator icon="parliament" label="Example MP" /><IconIndicator
+            icon="coin"
+            label="Example funder"
+          />
+        </div>
+        <SearchField
+          label="Example live search"
+          value={exampleSearch}
+          oninput={(event) => (exampleSearch = event.currentTarget.value)}
+          onclear={() => (exampleSearch = "")}
+          shortcut="Ctrl K"
+          >{#snippet help()}Clear or edit this local example. No records are
+            requested.{/snippet}</SearchField
+        >
+        <SearchField
+          label="Disabled search"
+          value="Cannot clear"
+          disabled
+          onclear={() => (exampleSearch = "unexpected")}
+          >{#snippet help()}Disabled controls cannot change values.{/snippet}</SearchField
+        >
+        <SearchField
+          label="Read only search"
+          value="Cannot edit"
+          readonly
+          onclear={() => (exampleSearch = "unexpected")}
+          >{#snippet help()}Read only search preserves its value.{/snippet}</SearchField
+        >
+        <Pagination
+          page={examplePage}
+          pageCount={2}
+          label="Example pages"
+          onprevious={() => (examplePage -= 1)}
+          onnext={() => (examplePage += 1)}
+        />
+        <MessageState title="Start with a name" icon="search"
+          ><p>Choose an MP or funder to explore.</p></MessageState
+        >
+        <MessageState title="No matches" icon="search"
+          ><p>Try a different spelling.</p></MessageState
+        >
+        <MessageState title="Could not load" icon="retry"
+          ><p>This is an example error.</p>
+          {#snippet actions()}<Button
+              onclick={() => (status = "Example retry requested.")}
+              >Retry example</Button
+            >{/snippet}</MessageState
+        >
+        <MessageState title="Loading example"
+          ><Spinner /><SkeletonRows widths={[60, 44]} /></MessageState
+        >
+        <ul class="results-list">
+          <ResultRow
+            ><IconIndicator icon="coin" label="Example result" />
+            <div class="entity-text">
+              <a class="entity-name" href="#data-patterns"
+                ><HighlightedText
+                  parts={[
+                    { text: "Example ", matched: true },
+                    { text: "Foundation <literal text>", matched: false },
+                  ]}
+                /></a
+              ><span class="entity-alias">Matched alias: Example Trust</span>
+            </div>
+            <Badge>Organisation</Badge></ResultRow
+          >
+        </ul>
+      </div>
+    </section>
+    <section id="data-patterns" aria-labelledby="data-patterns-heading">
+      <SectionHeading id="data-patterns-heading" title="Identity and data" />
+      <IdentityHeader name="Example member with a long recorded name" level={3}
+        >{#snippet kind()}<Badge class="profile-type"
+            ><Icon name="parliament" />MP</Badge
+          >{/snippet}{#snippet metadata()}Example party<span>Current MP</span
+          >{/snippet}{#snippet values()}<Metric
+            level={3}
+            label="Known declared value"
+            value="£90,071,992,547,409,993.123456789"
+          /><Metric
+            level={3}
+            label="Unavailable value"
+            value="Amount unavailable"
+            available={false}
+          />{/snippet}</IdentityHeader
+      >
+      <DeclarationList
+        ><DeclarationCard
+          >{#snippet heading()}<h3>Employment</h3>
+            <a class="declaration-reference" href="#data-patterns"
+              >Declaration 123</a
+            >{/snippet}{#snippet registered()}<time datetime="2026-01-01"
+              >1 January 2026</time
+            >{/snippet}
+          <ul class="funding-list">
+            <ValueRow
+              >{#snippet source()}<span>Example Foundation</span><span
+                  class="payment-type">Donation</span
+                >{/snippet}{#snippet value()}<span class="amount"
+                  >£12,345.6789</span
+                >{/snippet}</ValueRow
+            >
+          </ul></DeclarationCard
+        ></DeclarationList
+      >
+      <DataTable caption="Example recorded values"
+        >{#snippet head()}<tr
+            ><th scope="col">Source</th><th scope="col">Known value</th></tr
+          >{/snippet}<tr
+          ><th scope="row"><a href="#patterns">Example Foundation</a></th><td
+            >£12,345.6789</td
+          ></tr
+        ></DataTable
+      >
+      <SignedBarList
+        baseline={25}
+        bars={[
+          {
+            label: "Employment",
+            value: "£12,345.67",
+            width: 75,
+            negative: false,
+          },
+          {
+            label: "Adjustment",
+            value: "-£1,000",
+            width: 25,
+            negative: true,
+            note: "Some amounts unavailable",
+          },
+        ]}
+      />
+      {#each ["member", "funder"] as tone}<div
+          class:funder-page={tone === "funder"}
+          class="chart-example"
+        >
+          <BarChart
+            title={`${tone} monthly example`}
+            description="Precalculated geometry with exact formatted values."
+            bars={chartBars}
+            baseline={240}
+            minimum="£0"
+            minimumY={265}
+          />
+          <div class="funder-party-chart">
+            <PieChart label={`${tone} party example`} slices={chartSlices} />
+          </div>
+        </div>{/each}
+      <Disclosure summary="Recorded names example" open
+        ><ul>
+          <li>Example Foundation</li>
+          <li>Example Trust</li>
+        </ul></Disclosure
+      >
     </section>
   </main></AppShell
 >
@@ -348,15 +571,15 @@
     margin-bottom: 12px;
     font-size: var(--text-body);
   }
-  details {
+  :global(.code-example) {
     margin-top: 28px;
     font-size: var(--text-body);
   }
-  summary {
+  :global(.code-example summary) {
     color: var(--muted);
     cursor: pointer;
   }
-  summary:focus-visible {
+  :global(.code-example summary:focus-visible) {
     outline: var(--focus-width) solid var(--accent);
     outline-offset: var(--focus-offset);
   }
@@ -419,5 +642,20 @@
     .swatches {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+  }
+
+  .pattern-stack {
+    display: grid;
+    gap: 24px;
+  }
+  .chart-example {
+    min-width: 0;
+    margin-block: 24px;
+  }
+  .chart-example :global(.earnings-chart) {
+    max-width: 560px;
+  }
+  .chart-example :global(.funder-party-chart) {
+    max-width: 560px;
   }
 </style>

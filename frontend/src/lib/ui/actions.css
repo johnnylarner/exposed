@@ -46,3 +46,24 @@
   opacity: 0.4;
   cursor: default;
 }
+
+.ui-action[data-size="compact"] {
+  min-height: 32px;
+  padding: 6px 12px;
+  font-size: 12px;
+}
+.ui-action[data-size="inline"] {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+}
+.ui-action[data-variant="subtle"] {
+  border-color: #403149;
+  background: #151019;
+  color: #d2b0ed;
+  border-radius: 5px;
+}
+.ui-action[data-variant="subtle"]:hover:not(:disabled) {
+  background: #25182f;
+  border-color: #785192;
+}

@@ -1,19 +1,10 @@
 <script lang="ts">
+  import type { IconName } from "./icon-types";
   let {
     name,
     size = 20,
   }: {
-    name:
-      | "search"
-      | "close"
-      | "parliament"
-      | "coin"
-      | "retry"
-      | "person"
-      | "building"
-      | "group"
-      | "question"
-      | "tag";
+    name: IconName;
     size?: number;
   } = $props();
 </script>
