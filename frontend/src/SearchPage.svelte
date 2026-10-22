@@ -277,11 +277,13 @@
       </div>
       <div class="entity-legend" aria-label="Entity icon key">
         <Badge variant="legend"><Icon name="parliament" size={16} />MP</Badge>
-        <Badge variant="legend"><Icon name="coin" size={16} />Funder</Badge>
+        <Badge variant="legend" class="funder-accent"
+          ><Icon name="coin" size={16} />Funder</Badge
+        >
       </div>
       <ul class="results-list">
         {#each searchState.entities as entity, index}
-          <ResultRow>
+          <ResultRow class={entity.kind === "Funder" ? "funder-accent" : ""}>
             <EntityIndicator {entity} />
             <div class="entity-text">
               <a
@@ -327,3 +329,9 @@
     {/if}
   </section>
 </main>
+
+<style>
+  :global(.funder-accent) {
+    --accent: var(--accent-funder);
+  }
+</style>

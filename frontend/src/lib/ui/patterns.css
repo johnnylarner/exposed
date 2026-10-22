@@ -98,9 +98,9 @@
   height: 36px;
   padding: 0;
   color: var(--accent);
-  border: 1px solid #483159;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, black);
   border-radius: 8px;
-  background: #25182f;
+  background: color-mix(in srgb, var(--accent) 20%, black);
 }
 .entity-kind {
   display: inline-flex;
@@ -109,10 +109,10 @@
   gap: 6px;
   max-width: 210px;
   padding: 4px 8px;
-  border: 1px solid #483159;
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, black);
   border-radius: 6px;
-  background: #25182f;
-  color: #d3b1ef;
+  background: color-mix(in srgb, var(--accent) 20%, black);
+  color: color-mix(in srgb, var(--accent), white 40%);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -757,7 +757,7 @@
 }
 mark {
   background: none;
-  color: #cc9bf1;
+  color: color-mix(in srgb, var(--accent), white 25%);
   font-weight: 650;
 }
 .amount {

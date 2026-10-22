@@ -300,7 +300,8 @@
         >
         <div class="entity-legend">
           <Badge variant="legend"><Icon name="parliament" size={16} />MP</Badge
-          ><Badge variant="legend"><Icon name="coin" size={16} />Funder</Badge
+          ><Badge variant="legend" class="result-palette-example"
+            ><Icon name="coin" size={16} />Funder</Badge
           ><IconIndicator icon="parliament" label="Example MP" /><IconIndicator
             icon="coin"
             label="Example funder"
@@ -353,7 +354,7 @@
           ><Spinner /><SkeletonRows widths={[60, 44]} /></MessageState
         >
         <ul class="results-list">
-          <ResultRow
+          <ResultRow class="result-palette-example"
             ><IconIndicator icon="coin" label="Example result" />
             <div class="entity-text">
               <a class="entity-name" href="#data-patterns"
@@ -606,6 +607,9 @@
     gap: 12px;
     flex-wrap: wrap;
     align-items: center;
+  }
+  :global(.result-palette-example) {
+    --accent: var(--accent-funder);
   }
   .funder-example {
     --accent: var(--accent-funder);
