@@ -4,6 +4,7 @@
   import { funderHref, type FunderDetails } from "./lib/entity-details";
   import { funderKindLabel } from "./lib/search";
   import Icon from "./lib/Icon.svelte";
+  import posthog from "posthog-js";
   let {
     details,
     view,
@@ -36,11 +37,21 @@
   <nav class="member-tabs" aria-label="Funder views">
     <a
       href={funderHref(details.funder.id, "summary", page.url.searchParams)}
-      aria-current={view === "summary" ? "page" : undefined}>Summary</a
+      aria-current={view === "summary" ? "page" : undefined}
+      onclick={() =>
+        posthog.capture("entity_view_selected", {
+          entity_type: "funder",
+          selected_view: "summary",
+        })}>Summary</a
     >
     <a
       href={funderHref(details.funder.id, "history", page.url.searchParams)}
-      aria-current={view === "history" ? "page" : undefined}>Funding history</a
+      aria-current={view === "history" ? "page" : undefined}
+      onclick={() =>
+        posthog.capture("entity_view_selected", {
+          entity_type: "funder",
+          selected_view: "history",
+        })}>Funding history</a
     >
   </nav>
 </header>
