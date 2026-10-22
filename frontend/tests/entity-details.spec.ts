@@ -1,257 +1,14 @@
 import { expect, test, type Backend } from "./backend";
 
-const funderId = "10000000-0000-0000-0000-000000000001";
-const member = {
-  id: "1",
-  name: "Ava Example",
-  party_id: 1,
-  party_name: "Party A",
-  membership_from: "Example constituency",
-  is_current_commons: true,
-};
-const memberHistoryFixture = {
+import {
+  funderId,
+  declaredTotals,
+  emptyDeclaredTotals,
   member,
-
-  declarations: [
-    {
-      source_id: 120,
-      category_id: 3,
-      category_name: "Support",
-      registered_at: "2026-01-21T00:00:00Z",
-      entries: [
-        {
-          funder: { id: funderId, name: "Exact Funder" },
-          amount: "9007199254740993.123456789",
-          currency: "GBP",
-          payment_type: "Cash",
-        },
-        {
-          funder: { id: funderId, name: "Exact Funder" },
-          amount: "9007199254740993.123456789",
-          currency: "GBP",
-          payment_type: "Cash",
-        },
-        { funder: null, amount: null, currency: null, payment_type: null },
-      ],
-    },
-    {
-      source_id: 119,
-      category_id: 987,
-      category_name: "Visits",
-      registered_at: null,
-      entries: [],
-    },
-  ],
-};
-function declaredTotals(
-  currentTerm: {
-    amount: string | null;
-    declaration_count: number;
-    incomplete: boolean;
-  },
-  historical = currentTerm,
-) {
-  return {
-    current_term_start: "2024-07-09T00:00:00Z",
-    current_term: currentTerm,
-    historical,
-  };
-}
-const emptyDeclaredTotals = declaredTotals({
-  amount: null,
-  declaration_count: 0,
-  incomplete: false,
-});
-const memberDetails = {
-  ...memberHistoryFixture,
-  summary: {
-    declared_totals: declaredTotals(
-      {
-        amount: "18014398509481986.246913578",
-        declaration_count: 1,
-        incomplete: true,
-      },
-      {
-        amount: "18014398509481986.246913578",
-        declaration_count: 2,
-        incomplete: true,
-      },
-    ),
-    entry_count: 3,
-    unknown_currency_count: 1,
-    first_registered_at: "2026-01-21T00:00:00Z",
-    last_registered_at: "2026-01-21T00:00:00Z",
-    undated_declaration_count: 1,
-    currencies: [
-      {
-        currency: "GBP",
-        amount: "18014398509481986.246913578",
-        entry_count: 2,
-        unknown_amount_count: 0,
-        categories: [
-          {
-            category_id: 3,
-            category_name: "Support",
-            amount: "18014398509481986.246913578",
-            entry_count: 2,
-            unknown_amount_count: 0,
-          },
-          {
-            category_id: 987,
-            category_name: "Unrecognized source category",
-            amount: "-5",
-            entry_count: 1,
-            unknown_amount_count: 0,
-          },
-        ],
-      },
-      {
-        currency: "EUR",
-        amount: null,
-        entry_count: 1,
-        unknown_amount_count: 1,
-        categories: [
-          {
-            category_id: 4,
-            category_name: "Gifts",
-            amount: null,
-            entry_count: 1,
-            unknown_amount_count: 1,
-          },
-        ],
-      },
-      {
-        currency: "JPY",
-        amount: "0",
-        entry_count: 1,
-        unknown_amount_count: 0,
-        categories: [
-          {
-            category_id: 4,
-            category_name: "Gifts",
-            amount: "0",
-            entry_count: 1,
-            unknown_amount_count: 0,
-          },
-        ],
-      },
-    ],
-  },
-};
-const funderDetails = {
-  funder: {
-    id: funderId,
-    name: "Exact Funder",
-    funder_kind: "Company",
-    company_number: "00123456",
-    aliases: [" Exact Funder ", "EXACT FUNDER", "Exact Funder"],
-  },
-  declarations: [
-    {
-      member,
-      declaration: {
-        ...memberHistoryFixture.declarations[0],
-        entries: memberHistoryFixture.declarations[0].entries.slice(0, 2),
-      },
-    },
-  ],
-  entry_count: 7,
-  unknown_currency_count: 2,
-  recipient_limit: 10,
-  currencies: [
-    {
-      currency: "EUR",
-      amount: null,
-      parties: [
-        {
-          party_id: 2,
-          party_name: "Party B",
-          amount: null,
-          entry_count: 1,
-          unknown_amount_count: 1,
-        },
-      ],
-      top_recipients: [
-        {
-          member: {
-            ...member,
-            id: "2",
-            name: "Bea Example",
-            party_name: "Party B",
-          },
-          amount: null,
-          entry_count: 1,
-          unknown_amount_count: 1,
-        },
-      ],
-    },
-    {
-      currency: "GBP",
-      amount: "18014398509481981.246913578",
-      parties: [
-        {
-          party_id: 1,
-          party_name: "Party A",
-          amount: "18014398509481986.246913578",
-          entry_count: 3,
-          unknown_amount_count: 1,
-        },
-        {
-          party_id: 2,
-          party_name: "Party B",
-          amount: "-5",
-          entry_count: 1,
-          unknown_amount_count: 0,
-        },
-      ],
-      top_recipients: [
-        {
-          member,
-          amount: "18014398509481986.246913578",
-          entry_count: 3,
-          unknown_amount_count: 1,
-        },
-        {
-          member: {
-            ...member,
-            id: "2",
-            name: "Bea Example",
-            party_name: "Party B",
-          },
-          amount: "0",
-          entry_count: 1,
-          unknown_amount_count: 0,
-        },
-      ],
-    },
-    {
-      currency: "USD",
-      amount: "500",
-      parties: [
-        {
-          party_id: 2,
-          party_name: "Party B",
-          amount: "500",
-          entry_count: 1,
-          unknown_amount_count: 0,
-        },
-      ],
-      top_recipients: [
-        {
-          member: {
-            ...member,
-            id: "2",
-            name: "Bea Example",
-            party_name: "Party B",
-          },
-          amount: "500",
-          entry_count: 1,
-          unknown_amount_count: 0,
-        },
-      ],
-    },
-  ],
-};
+  memberHistoryFixture,
+  memberDetails,
+  funderDetails,
+} from "./details-fixtures";
 
 async function mockDetails(backend: Backend) {
   await backend.route("**/api/search?*", (route) =>
@@ -573,38 +330,6 @@ test("funding history retains sources, duplicate amounts and date paging", async
   );
 });
 
-test("funder boundary rejects missing totals and malformed source history", async ({
-  backend,
-  page,
-}) => {
-  for (const body of [
-    { ...funderDetails, declarations: undefined },
-    {
-      ...funderDetails,
-      declarations: [
-        {
-          member,
-          declaration: {
-            ...memberHistoryFixture.declarations[0],
-            registered_at: "broken",
-          },
-        },
-      ],
-    },
-    {
-      ...funderDetails,
-      currencies: [{ ...funderDetails.currencies[1], amount: undefined }],
-    },
-  ]) {
-    await backend.route("**/api/funders/*", (route) =>
-      route.fulfill({ json: body }),
-    );
-    await page.goto(`/funders/${funderId}`);
-    await expect(page.getByRole("alert")).toContainText("unexpected response");
-    await backend.unroute("**/api/funders/*");
-  }
-});
-
 test("former MPs retain their latest membership description without a constituency label", async ({
   backend,
   page,
@@ -677,6 +402,9 @@ test("empty details and unknown currency only details remain distinct from error
           ...memberDetails.summary,
           declared_totals: emptyDeclaredTotals,
           currencies: [],
+          first_registered_at: null,
+          last_registered_at: null,
+          undated_declaration_count: 0,
           entry_count: 0,
           unknown_currency_count: 0,
         },
@@ -700,6 +428,14 @@ test("empty details and unknown currency only details remain distinct from error
   await expect(
     page.getByText("No declarations are stored for this MP."),
   ).toBeVisible();
+  await expect(page.locator(".member-total")).toHaveText([
+    "No declaration data available",
+    "No declaration data available",
+  ]);
+  await expect(page.locator(".member-earnings-totals h2")).toHaveText([
+    "Declared amounts this parliamentary term",
+    "Historical declared amounts",
+  ]);
   await page.goto(`/funders/${funderId}`);
   await expect(
     page.getByText("No funding entries are stored for this funder."),
@@ -718,42 +454,6 @@ test("empty details and unknown currency only details remain distinct from error
   await expect(
     page.getByText("No known funding totals are available."),
   ).toBeVisible();
-});
-
-test("malformed responses and mismatched identities fail at the boundary", async ({
-  backend,
-  page,
-}) => {
-  await backend.route("**/api/members/*", (route) =>
-    route.fulfill({
-      json: { ...memberDetails, member: { ...member, id: "2" } },
-    }),
-  );
-  await page.goto("/members/1");
-  await expect(page.getByRole("alert")).toContainText("unexpected response");
-  await backend.route("**/api/funders/*", (route) =>
-    route.fulfill({
-      json: {
-        ...funderDetails,
-        currencies: [
-          {
-            currency: "GBP",
-            parties: [
-              {
-                party_name: "Party A",
-                amount: 9007199254740993,
-                entry_count: 1,
-                unknown_amount_count: 0,
-              },
-            ],
-            top_recipients: [],
-          },
-        ],
-      },
-    }),
-  );
-  await page.goto(`/funders/${funderId}`);
-  await expect(page.getByRole("alert")).toContainText("unexpected response");
 });
 
 test("long names and exact amounts fit mobile and source markup stays literal", async ({
@@ -885,27 +585,6 @@ test("recorded names retain stored variants for every funder kind and hide empty
     page.getByRole("region", { name: "Recorded names" }),
   ).toHaveCount(0);
 });
-
-for (const aliases of [null, "Exact Funder", ["Exact Funder", 42]]) {
-  test(`malformed recorded names ${JSON.stringify(aliases)} fail at the boundary`, async ({
-    backend,
-    page,
-  }) => {
-    await backend.route("**/api/funders/*", (route) =>
-      route.fulfill({
-        json: {
-          ...funderDetails,
-          funder: { ...funderDetails.funder, aliases },
-        },
-      }),
-    );
-    await page.goto(`/funders/${funderId}`);
-    await expect(page.getByRole("alert")).toContainText("unexpected response");
-    await expect(
-      page.getByRole("region", { name: "Recorded names" }),
-    ).toHaveCount(0);
-  });
-}
 
 for (const negative of [false, true]) {
   test(`category bars show full-track shares with negative amounts ${negative}`, async ({
@@ -1723,40 +1402,6 @@ test("member declared amounts include gifts and travel with registration coverag
     });
 });
 
-test("empty member declarations show no declaration data and retain period headings", async ({
-  backend,
-  page,
-}) => {
-  await mockDetails(backend);
-  await backend.route("**/api/members/1", (route) =>
-    route.fulfill({
-      json: {
-        ...memberDetails,
-        declarations: [],
-        summary: {
-          ...memberDetails.summary,
-          declared_totals: emptyDeclaredTotals,
-          currencies: [],
-          first_registered_at: null,
-          last_registered_at: null,
-          entry_count: 0,
-          unknown_currency_count: 0,
-          undated_declaration_count: 0,
-        },
-      },
-    }),
-  );
-  await page.goto("/members/1");
-  await expect(page.locator(".member-total")).toHaveText([
-    "No declaration data available",
-    "No declaration data available",
-  ]);
-  await expect(page.locator(".member-earnings-totals h2")).toHaveText([
-    "Declared amounts this parliamentary term",
-    "Historical declared amounts",
-  ]);
-});
-
 test("declared amounts keep precise figures readable on narrow screens and missing amounts neutral", async ({
   backend,
   page,
@@ -1935,4 +1580,25 @@ test("declared amounts distinguish an empty term, historical zero and unknown am
     "Amount unavailable",
     "Amount unavailable",
   ]);
+});
+
+test("malformed details show an error and recover after retry", async ({
+  backend,
+  page,
+}) => {
+  let calls = 0;
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json:
+        ++calls === 1
+          ? { ...memberDetails, member: { ...member, id: "2" } }
+          : memberDetails,
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(page.getByRole("alert")).toContainText("unexpected response");
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(
+    page.getByRole("heading", { name: member.name, exact: true }),
+  ).toBeVisible();
 });

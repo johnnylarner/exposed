@@ -17,7 +17,7 @@ The public API exposes the profile and aliases through `/funders/{UUID}`.
 
 Preconditions: launch the snapshot API using the verify skill.
 
-- Run `./scripts/check-search-regression.py "$base_url" "$evidence_dir/http"` once for the whole map.
+- Run `./.agents/skills/verify/scripts/check-search-regression.py "$base_url" "$evidence_dir/http"` once for the whole map.
 - Require `PASS unite-recorded-names` and `PASS hsbc-recorded-names`.
 - Compare each response's `funder` object with the independent JSON expectation. Canonical names, funder kinds, company numbers, and the exact alias arrays must remain unchanged.
 
