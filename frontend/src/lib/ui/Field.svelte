@@ -69,7 +69,6 @@
     background: var(--surface);
     color: var(--text);
     font: inherit;
-    color-scheme: dark;
   }
   input:focus-visible {
     outline: var(--focus-width) solid var(--accent);

@@ -4,7 +4,7 @@
   gap: 16px;
   padding: 0 22px;
   min-height: 74px;
-  border: 1px solid #493553;
+  border: 1px solid var(--search-border);
   border-radius: 10px;
   background: var(--surface);
   transition:
@@ -13,7 +13,7 @@
 }
 .search-field:focus-within {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px #a863d61c;
+  box-shadow: 0 0 0 3px var(--focus-halo);
 }
 .search-icon {
   display: flex;
@@ -38,7 +38,7 @@
   display: none;
 }
 .search-field input::placeholder {
-  color: #9c929f;
+  color: var(--placeholder);
   font-weight: 400;
 }
 .search-shortcut {
@@ -47,7 +47,7 @@
   font: inherit;
   font-size: 14px;
   color: var(--muted);
-  border: 1px solid #453c4a;
+  border: 1px solid var(--shortcut-border);
   border-radius: 5px;
   min-width: 26px;
   padding: 2px 7px;
@@ -67,7 +67,7 @@
 }
 .clear-button:hover {
   color: var(--text);
-  background: #2a2130;
+  background: var(--control-hover);
 }
 .search-help {
   color: var(--muted);
@@ -98,9 +98,18 @@
   height: 36px;
   padding: 0;
   color: var(--accent);
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, black);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--accent) var(--accent-border-share),
+      var(--accent-base)
+    );
   border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 20%, black);
+  background: color-mix(
+    in srgb,
+    var(--accent) var(--accent-fill-share),
+    var(--accent-base)
+  );
 }
 .entity-kind {
   display: inline-flex;
@@ -109,10 +118,23 @@
   gap: 6px;
   max-width: 210px;
   padding: 4px 8px;
-  border: 1px solid color-mix(in srgb, var(--accent) 40%, black);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--accent) var(--accent-border-share),
+      var(--accent-base)
+    );
   border-radius: 6px;
-  background: color-mix(in srgb, var(--accent) 20%, black);
-  color: color-mix(in srgb, var(--accent), white 40%);
+  background: color-mix(
+    in srgb,
+    var(--accent) var(--accent-fill-share),
+    var(--accent-base)
+  );
+  color: color-mix(
+    in srgb,
+    var(--accent) var(--accent-text-share),
+    var(--accent-ink-mix)
+  );
   font-size: 12px;
   line-height: 1.5;
 }
@@ -143,12 +165,12 @@
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: 5px;
-  background: #19141f;
+  background: var(--tooltip-surface);
   color: var(--text);
   font-size: 12px;
   line-height: 1.5;
   overflow-wrap: anywhere;
-  box-shadow: 0 4px 16px #0008;
+  box-shadow: 0 4px 16px var(--tooltip-shadow);
 }
 .message-state {
   display: flex;
@@ -203,13 +225,13 @@
   height: 36px;
   border-radius: 8px;
   flex: none;
-  background: #151119;
+  background: var(--skeleton-icon);
 }
 .skeleton-name {
   max-width: 350px;
   height: 13px;
   border-radius: 3px;
-  background: #1c1622;
+  background: var(--skeleton-name);
 }
 @media (max-width: 700px) {
   .search-field {
@@ -289,7 +311,7 @@
   gap: 24px;
   padding: 14px 18px;
   background: var(--surface);
-  border-bottom: 1px solid #222;
+  border-bottom: 1px solid var(--value-divider);
 }
 .funding-source {
   min-width: 0;
@@ -580,7 +602,7 @@
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--line);
-  box-shadow: 0 4px 16px #0002;
+  box-shadow: 0 4px 16px var(--chart-shadow);
   overflow-wrap: anywhere;
 }
 .party-tooltip span,
@@ -688,7 +710,7 @@
   padding-top: 3px;
 }
 .funding-source a {
-  text-decoration-color: #695476;
+  text-decoration-color: var(--link-decoration);
   text-underline-offset: 4px;
 }
 
@@ -757,7 +779,11 @@
 }
 mark {
   background: none;
-  color: color-mix(in srgb, var(--accent), white 25%);
+  color: color-mix(
+    in srgb,
+    var(--accent) var(--highlight-share),
+    var(--accent-ink-mix)
+  );
   font-weight: 650;
 }
 .amount {

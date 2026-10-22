@@ -120,7 +120,7 @@
     text-align: right;
   }
   .recipient-name a {
-    text-decoration-color: #437c6e;
+    text-decoration-color: var(--funder-link-decoration);
     text-underline-offset: 4px;
   }
 </style>

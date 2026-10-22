@@ -36,7 +36,7 @@
   border-color: var(--accent);
 }
 .ui-action[data-variant="primary"]:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--accent), white 15%);
+  background: color-mix(in srgb, var(--accent), var(--primary-hover-mix) 15%);
 }
 .ui-action:focus-visible {
   outline: var(--focus-width) solid var(--accent);
@@ -58,12 +58,12 @@
   border: 0;
 }
 .ui-action[data-variant="subtle"] {
-  border-color: #403149;
-  background: #151019;
-  color: #d2b0ed;
+  border-color: var(--subtle-border);
+  background: var(--subtle-fill);
+  color: var(--subtle-text);
   border-radius: 5px;
 }
 .ui-action[data-variant="subtle"]:hover:not(:disabled) {
-  background: #25182f;
-  border-color: #785192;
+  background: var(--subtle-hover);
+  border-color: var(--subtle-hover-border);
 }

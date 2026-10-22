@@ -26,6 +26,7 @@ test("search uses funder teal and member purple for results and legend", async (
       },
     }),
   );
+  await page.emulateMedia({ colorScheme: "dark" });
   await page.goto("/search?q=Example");
   const funder = page.locator(".entity-row").nth(0);
   const member = page.locator(".entity-row").nth(1);

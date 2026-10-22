@@ -1,6 +1,6 @@
 ::selection {
-  color: #fff;
-  background: #5c277f;
+  color: var(--selection-ink);
+  background: var(--selection-fill);
 }
 
 .skip-link {
@@ -28,7 +28,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 32px 0;
-  border-bottom: 1px solid #1c1920;
+  border-bottom: 1px solid var(--shell-divider);
 }
 .wordmark {
   display: inline-flex;
@@ -101,9 +101,9 @@ h1 {
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  border-top: 1px solid #1c1920;
+  border-top: 1px solid var(--shell-divider);
   padding: 24px 0;
-  color: #9d93a5;
+  color: var(--footer-text);
   font-size: 11px;
   line-height: 1.7;
 }
@@ -111,7 +111,7 @@ h1 {
   text-decoration: none;
 }
 .app-footer a:hover {
-  color: #dfc7f0;
+  color: var(--footer-hover);
   text-decoration: underline;
   text-underline-offset: 4px;
 }

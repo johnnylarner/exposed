@@ -1,6 +1,6 @@
 import { expect, test } from "./backend";
 
-test.use({ development: true });
+test.use({ development: true, colorScheme: "dark" });
 
 test("disclosures accept initial open state and native keyboard toggling", async ({
   page,

@@ -1,4 +1,5 @@
 :root {
+  color-scheme: dark;
   --font-body: "Manrope Variable", sans-serif;
   --canvas: #000;
   --surface: #111;
@@ -10,6 +11,37 @@
   --line: #28232e;
   --warning: #f0c17d;
   --action-ink: #160b1f;
+  --search-border: #493553;
+  --focus-halo: #a863d61c;
+  --placeholder: #9c929f;
+  --shortcut-border: #453c4a;
+  --control-hover: #2a2130;
+  --tooltip-surface: #19141f;
+  --tooltip-shadow: #0008;
+  --skeleton-icon: #151119;
+  --skeleton-name: #1c1622;
+  --value-divider: #222;
+  --link-decoration: #695476;
+  --chart-shadow: #0002;
+  --shell-divider: #1c1920;
+  --footer-text: #9d93a5;
+  --footer-hover: #dfc7f0;
+  --selection-ink: #fff;
+  --selection-fill: #5c277f;
+  --subtle-border: #403149;
+  --subtle-fill: #151019;
+  --subtle-text: #d2b0ed;
+  --subtle-hover: #25182f;
+  --subtle-hover-border: #785192;
+  --funder-link-decoration: #437c6e;
+  --chart-remainder: #ece8e1;
+  --accent-base: #000;
+  --accent-ink-mix: #fff;
+  --accent-border-share: 40%;
+  --accent-fill-share: 20%;
+  --accent-text-share: 60%;
+  --highlight-share: 75%;
+  --primary-hover-mix: #fff;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -22,4 +54,50 @@
   --text-heading: 1.375rem;
   --focus-width: 2px;
   --focus-offset: 4px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: light;
+    --canvas: #e9e4ed;
+    --surface: #f8f5fa;
+    --text: #291e31;
+    --muted: #695b73;
+    --accent-member: #70359b;
+    --accent-funder: #096c58;
+    --line: #94819f;
+    --warning: #865112;
+    --action-ink: #fff;
+    --accent-base: #f8f5fa;
+    --accent-ink-mix: #291e31;
+    --accent-border-share: 55%;
+    --accent-fill-share: 10%;
+    --accent-text-share: 85%;
+    --highlight-share: 85%;
+    --primary-hover-mix: #000;
+    --search-border: #887991;
+    --focus-halo: #70359b24;
+    --placeholder: #6d6075;
+    --shortcut-border: #a69aaa;
+    --control-hover: #ddd3e5;
+    --tooltip-surface: #f8f4fb;
+    --tooltip-shadow: #27163326;
+    --skeleton-icon: #d9cfdf;
+    --skeleton-name: #c9bbd3;
+    --value-divider: #c5b8cf;
+    --link-decoration: #88639f;
+    --chart-shadow: #27163326;
+    --shell-divider: #c9bdd1;
+    --footer-text: #6d5f77;
+    --footer-hover: #633183;
+    --selection-ink: #fff;
+    --selection-fill: #5c277f;
+    --subtle-border: #a18bab;
+    --subtle-fill: #e2d6eb;
+    --subtle-text: #633183;
+    --subtle-hover: #d6c3e4;
+    --subtle-hover-border: #785192;
+    --funder-link-decoration: #377766;
+    --chart-remainder: #c4b7ce;
+  }
 }

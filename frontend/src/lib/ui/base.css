@@ -2,7 +2,6 @@
   font-family: var(--font-body);
   color: var(--text);
   background: var(--canvas);
-  color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;

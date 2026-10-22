@@ -64,13 +64,19 @@
   ];
   let colors = $state<Record<string, string>>({});
   onMount(() => {
-    const styles = getComputedStyle(document.documentElement);
-    colors = Object.fromEntries(
-      swatches.map(({ token }) => [
-        token,
-        styles.getPropertyValue(token).trim(),
-      ]),
-    );
+    const updateColors = () => {
+      const styles = getComputedStyle(document.documentElement);
+      colors = Object.fromEntries(
+        swatches.map(({ token }) => [
+          token,
+          styles.getPropertyValue(token).trim(),
+        ]),
+      );
+    };
+    const preference = matchMedia("(prefers-color-scheme: light)");
+    updateColors();
+    preference.addEventListener("change", updateColors);
+    return () => preference.removeEventListener("change", updateColors);
   });
   let query = $state("");
   let from = $state("");
@@ -123,7 +129,7 @@
     <section id="foundations" aria-labelledby="foundations-heading">
       <h2 id="foundations-heading">Foundations</h2>
       <p>
-        Black keeps the focus on declarations. Purple connects member views;
+        The canvas follows your system preference. Purple connects member views;
         teal connects funder views.
       </p>
       <div class="swatches">
