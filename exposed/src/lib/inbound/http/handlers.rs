@@ -79,6 +79,7 @@ impl From<&Entity> for SearchEntity {
 
 impl From<EntitySearchError> for ApiError {
     fn from(value: EntitySearchError) -> Self {
+        tracing::error!(error = ?value, "entity search failed");
         match value {
             EntitySearchError::InvalidTerm(_)
             | EntitySearchError::InvalidStrictness(_)

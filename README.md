@@ -41,6 +41,43 @@ The production `binary` image runs this probe every 30 seconds. The development
 Compose service runs the compiled debug binary and allows 120 seconds for its
 initial compilation before counting failures.
 
+## HTTP logging
+
+`exposed server` loads `.env`, then installs a JSON tracing subscriber on stderr.
+`RUST_LOG` defaults to `warn,exposed=info` only when absent. Invalid explicit
+filters fail startup. To include successful health checks, use
+`RUST_LOG=exposed=debug`.
+The reusable `serve_exposed` function and router use the host's subscriber.
+`run_server` owns process setup and cannot install a subscriber twice.
+
+Each returned response produces one `http.request.completed` event. Successful
+requests and error responses use INFO. Successful
+`/healthz` requests use DEBUG. Events contain `http.request.method`, the matched
+`http.route` template, integer `http.response.status_code`, and numeric
+`duration_ms`. Unmatched requests omit `http.route`. Duration ends when the
+response is available, before any streaming body is delivered.
+
+Failure events include `error.type` with a status-based classification of
+`http.client_error` or `http.server_error`. Each `ApiError::from` conversion emits
+one ERROR diagnostic with the full typed error in the `error` Debug field
+before mapping it to an HTTP error. This retains nested service sources.
+Detail request models parse IDs and wrap field errors in the detail operation
+error. HTTP handlers convert that error once, preserving its source in the diagnostic.
+Framework rejections and unmatched routes produce only the access event.
+HTTP 500 bodies remain `internal server error`. Startup failures propagate to
+`main` and use its standard error output on stderr.
+Request instrumentation does not record raw URLs, queries, headers, bodies, or
+server configuration. Panics, cancelled requests, and streaming-body failures
+are outside this response-completion policy. Subscriber filters can suppress
+events.
+
+CI restricts explicit error, warning, and generic event macros to the HTTP
+handlers and tracing modules.
+It also rejects direct info, debug, and trace event macros outside the tracing
+and server startup modules.
+These checks guard first-party macro use; they do not prove behavior of arbitrary
+logging wrappers.
+
 ## Development hooks
 
 Enable the repository's pre-commit hook after cloning:
