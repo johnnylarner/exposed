@@ -66,10 +66,11 @@ export class Backend {
 }
 export const test = base.extend<
   { backend: Backend },
-  { application: { url: string; backend: Backend } }
+  { analytics: boolean; application: { url: string; backend: Backend } }
 >({
+  analytics: [false, { option: true, scope: "worker" }],
   application: [
-    async ({}, use, workerInfo) => {
+    async ({ analytics }, use, workerInfo) => {
       const backend = new Backend();
       const server = createServer((req, res) => {
         void backend.respond(`http://127.0.0.1/api${req.url}`, res);
@@ -83,6 +84,10 @@ export const test = base.extend<
       const child = spawn(process.execPath, ["build"], {
         env: {
           ...process.env,
+          PUBLIC_POSTHOG_PROJECT_TOKEN: analytics
+            ? "phc_test_search_tracking"
+            : "",
+          PUBLIC_POSTHOG_HOST: analytics ? "https://posthog.test" : "",
           PORT: String(port),
           HOST: "127.0.0.1",
           EXPOSED_API_ORIGIN: `http://127.0.0.1:${address.port}`,
@@ -113,6 +118,12 @@ export const test = base.extend<
     },
     { scope: "worker" },
   ],
+  page: async ({ page }, use) => {
+    await page.route("https://posthog.test/**", (route) =>
+      route.fulfill({ json: {} }),
+    );
+    await use(page);
+  },
   baseURL: async ({ application }, use) => {
     await use(application.url);
   },
