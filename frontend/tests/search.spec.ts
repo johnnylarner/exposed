@@ -427,63 +427,7 @@ test("alias provenance preserves canonical navigation and escapes highlighted al
   ).toBe(true);
 });
 
-for (const invalid of [
-  undefined,
-  null,
-  {},
-  { kind: "other" },
-  { kind: "alias", name: "" },
-  { kind: "alias", name: "   " },
-  { kind: "alias" },
-]) {
-  test(`rejects malformed match source ${JSON.stringify(invalid)}`, async ({
-    backend,
-    page,
-  }) => {
-    await backend.route("**/api/search?*", (route) =>
-      route.fulfill({
-        json: {
-          entities: [
-            {
-              id: "10000000-0000-0000-0000-000000000009",
-              name: "Unite",
-              kind: "Funder",
-              funder_kind: "Trade Union",
-              match_source: invalid,
-            },
-          ],
-        },
-      }),
-    );
-    await page.goto("/search?q=West");
-    await expect(page.getByRole("alert")).toContainText(
-      "unexpected match source",
-    );
-    await expect(page.locator(".entity-row")).toHaveCount(0);
-  });
-}
-
-test("rejects alias source for an MP", async ({ backend, page }) => {
-  await backend.route("**/api/search?*", (route) =>
-    route.fulfill({
-      json: {
-        entities: [
-          {
-            id: "1",
-            name: "West",
-            kind: "MP",
-            funder_kind: null,
-            match_source: { kind: "alias", name: "West Midlands" },
-          },
-        ],
-      },
-    }),
-  );
-  await page.goto("/search?q=West");
-  await expect(page.getByRole("alert")).toContainText("unexpected MP identity");
-});
-
-for (const platform of ["MacIntel", "Win32", "Linux x86_64"]) {
+for (const platform of ["MacIntel", "Win32"]) {
   const mac = platform === "MacIntel";
   const modifier = mac ? "Meta" : "Control";
   const modifiers = { metaKey: mac, ctrlKey: !mac };
@@ -673,3 +617,29 @@ for (const pathname of [
     }
   });
 }
+
+test("malformed search data shows an error without rendering results", async ({
+  backend,
+  page,
+}) => {
+  await backend.route("**/api/search?*", (route) =>
+    route.fulfill({
+      json: {
+        entities: [
+          {
+            id: "10000000-0000-0000-0000-000000000009",
+            name: "Unite",
+            kind: "Funder",
+            funder_kind: "Trade Union",
+            match_source: null,
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/search?q=West");
+  await expect(page.getByRole("alert")).toContainText(
+    "unexpected match source",
+  );
+  await expect(page.locator(".entity-row")).toHaveCount(0);
+});

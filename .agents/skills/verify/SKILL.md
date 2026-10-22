@@ -25,7 +25,7 @@ docker compose exec -T postgres psql -X -U exposed -d exposed_search_regression 
 ```
 
 If the database is absent, report the missing prerequisite. The existing
-`scripts/refresh-search-regression-db.sh` replaces the snapshot and requires
+[snapshot refresh helper](scripts/refresh-search-regression-db.sh) replaces the snapshot and requires
 stopping source clients. Never refresh it as part of a regression run.
 
 Build and start the current worktree's API with a read-only database connection:
@@ -61,14 +61,14 @@ If startup fails, capture the log and clean up this run's process before retryin
 
 ## Drive
 
-Run the executable [HTTP check](../../../scripts/check-search-regression.py):
+Run the executable [HTTP check](scripts/check-search-regression.py):
 
 ```sh
-./scripts/check-search-regression.py "$base_url" "$evidence_dir/http"
+./.agents/skills/verify/scripts/check-search-regression.py "$base_url" "$evidence_dir/http"
 ```
 
 Require five `PASS` lines and exit code 0. Cases and accepted results live in
-`scripts/search-regression.json`. Keep the exact entity order, names,
+[scripts/search-regression.json](scripts/search-regression.json). Keep the exact entity order, names,
 match provenance, and recorded alias lists. The script has no baseline-update
 mode. Investigate a diff before changing expectations.
 
@@ -135,7 +135,11 @@ retain the startup log and report the missing response evidence.
 
 ## Helpers
 
-`scripts/check-search-regression.py BASE_URL NEW_EVIDENCE_DIRECTORY` needs only
+`./.agents/skills/verify/scripts/check-search-regression.py BASE_URL NEW_EVIDENCE_DIRECTORY` needs only
 Python's standard library. `--cases PATH` selects a different case file for a
 temporary failure probe. It sends GET requests and never writes the database or
 accepted baseline. Its evidence directory must not already exist.
+
+`./.agents/skills/verify/scripts/refresh-search-regression-db.sh --help` describes
+the snapshot replacement procedure. Run it without `--help` only when deliberately
+refreshing the snapshot after stopping source clients, never during verification.

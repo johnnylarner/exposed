@@ -14,7 +14,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "npm run build && PLAYWRIGHT_BROWSERS_PATH=0 playwright test",
-    "prepare": "svelte-kit sync"
+    "prepare": "svelte-kit sync",
+    "test:unit": "playwright test --project=unit",
+    "test:browser": "npm run build && PLAYWRIGHT_BROWSERS_PATH=0 playwright test --project=browser"
   },
   "dependencies": {
     "@fontsource-variable/manrope": "^5.3.0",
