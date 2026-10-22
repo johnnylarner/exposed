@@ -72,6 +72,7 @@ async fn search_retains_canonical_identity_and_alias_provenance(
 }
 
 #[sqlx::test(migrations = "../db/migrations")]
+#[ignore = "requires live Parliament members API access and an isolated PostgreSQL test database"]
 async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result<()> {
     let ingestion_key = IngestionKey::default();
     let tmp = TempDir::new().unwrap();
@@ -141,6 +142,7 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
 }
 
 #[sqlx::test(migrations = "../db/migrations")]
+#[ignore = "requires live Parliament interests API access and an isolated PostgreSQL test database"]
 async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Result<()> {
     sqlx::query!(
         "INSERT INTO exposed.members
@@ -235,6 +237,7 @@ fn database_commands_require_environment_url() -> anyhow::Result<()> {
             .args(args)
             .arg("--config")
             .arg(&config)
+            .args(["--ingestion-key", "00000000-0000-4000-8000-000000000001"])
             .output()?;
 
         assert!(!output.status.success());

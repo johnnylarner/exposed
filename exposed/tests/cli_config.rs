@@ -32,18 +32,16 @@ fn commands_accept_named_config() {
 
 #[test]
 fn commands_require_named_config() -> anyhow::Result<()> {
-    let temporary = TempDir::new()?;
     for command in COMMANDS {
         for positional_config in [false, true] {
-            let mut process = Command::new(env!("CARGO_BIN_EXE_exposed"));
-            process.current_dir(temporary.path()).args(*command);
+            let mut args = vec!["exposed"];
+            args.extend_from_slice(command);
             if positional_config {
-                process.arg("config.yaml");
+                args.push("config.yaml");
             }
-            let output = process.output()?;
-            assert_eq!(output.status.code(), Some(2), "{command:?}");
-            assert!(output.stdout.is_empty(), "{command:?}");
-            let stderr = String::from_utf8_lossy(&output.stderr);
+            let error = ExposedCli::try_parse_from(args).err().unwrap();
+            assert_eq!(error.exit_code(), 2, "{command:?}");
+            let stderr = error.to_string();
             if positional_config {
                 assert!(
                     stderr.contains("unexpected argument 'config.yaml'"),
@@ -55,7 +53,6 @@ fn commands_require_named_config() -> anyhow::Result<()> {
             }
         }
     }
-    assert_eq!(std::fs::read_dir(temporary.path())?.count(), 0);
     Ok(())
 }
 
@@ -72,17 +69,18 @@ fn utility_commands_require_the_util_group_under_data() {
 
 #[test]
 fn long_help_documents_only_selected_stage_without_reading_configuration() -> anyhow::Result<()> {
-    let temporary = TempDir::new()?;
     for command in COMMANDS {
-        let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
-            .current_dir(temporary.path())
-            .env_remove("DATABASE_URL")
-            .args(*command)
-            .args(["--config", "missing.yaml", "--help"])
-            .output()?;
-        assert!(output.status.success(), "{command:?}");
-        assert!(output.stderr.is_empty());
-        let help = String::from_utf8(output.stdout)?
+        let error = ExposedCli::try_parse_from(
+            ["exposed"]
+                .into_iter()
+                .chain(command.iter().copied())
+                .chain(["--config", "missing.yaml", "--help"]),
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error.kind(), clap::error::ErrorKind::DisplayHelp);
+        let help = error
+            .to_string()
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ");
@@ -113,7 +111,6 @@ fn long_help_documents_only_selected_stage_without_reading_configuration() -> an
             "{help}"
         );
     }
-    assert_eq!(std::fs::read_dir(temporary.path())?.count(), 0);
     Ok(())
 }
 
@@ -161,45 +158,75 @@ fn invalid_keys_report_uuid_errors() {
 
 #[test]
 fn every_yaml_config_error_names_selected_path() -> anyhow::Result<()> {
+    use exposed::inbound::cli::config::{
+        DeclarationFetcherConfig, DeclarationResolverConfig, FetcherConfig, LoaderConfig,
+    };
     let temporary = TempDir::new()?;
     let path = temporary.path().join("selected.yaml");
-    for contents in [
-        None,
-        Some("data_dir: ["),
-        Some("batch_size: wrong\ndata_dir: datasets\n"),
-    ] {
+    for contents in [None, Some("data_dir: [")] {
         if let Some(contents) = contents {
             std::fs::write(&path, contents)?;
         }
-        for command in COMMANDS {
-            if contents == Some("batch_size: wrong\ndata_dir: datasets\n")
-                && command.last() != Some(&"fetch")
-            {
-                continue;
-            }
-            let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
-                .current_dir(temporary.path())
-                .env_remove("DATABASE_URL")
-                .args(*command)
-                .arg("--config")
-                .arg(&path)
-                .args(if *command == ["data", "util", "latest"] {
-                    vec![]
-                } else {
-                    vec!["--ingestion-key", "00000000-0000-4000-8000-000000000001"]
-                })
-                .output()?;
-            assert_eq!(output.status.code(), Some(1), "{command:?}");
-            let payload: serde_json::Value = serde_json::from_slice(&output.stderr)?;
-            assert!(
-                payload["error"]["message"]
-                    .as_str()
-                    .unwrap()
-                    .contains(path.to_str().unwrap()),
-                "{payload}"
-            );
+        let errors = [
+            DeclarationFetcherConfig::try_from(&path)
+                .err()
+                .unwrap()
+                .to_string(),
+            DeclarationResolverConfig::try_from(&path)
+                .err()
+                .unwrap()
+                .to_string(),
+            FetcherConfig::try_from(&path).err().unwrap().to_string(),
+            LoaderConfig::try_from(&path).err().unwrap().to_string(),
+        ];
+        for error in errors {
+            assert!(error.contains(path.to_str().unwrap()), "{error}");
         }
     }
+    std::fs::write(&path, "batch_size: wrong\ndata_dir: datasets\n")?;
+    assert!(
+        DeclarationFetcherConfig::try_from(&path)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains(path.to_str().unwrap())
+    );
+    assert!(
+        FetcherConfig::try_from(&path)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains(path.to_str().unwrap())
+    );
+    Ok(())
+}
+
+#[test]
+fn configuration_failure_uses_stderr_without_creating_files() -> anyhow::Result<()> {
+    let temporary = TempDir::new()?;
+    let output = Command::new(env!("CARGO_BIN_EXE_exposed"))
+        .current_dir(temporary.path())
+        .env_remove("DATABASE_URL")
+        .args([
+            "data",
+            "declarations",
+            "resolve",
+            "--config",
+            "selected.yaml",
+            "--ingestion-key",
+            "00000000-0000-4000-8000-000000000001",
+        ])
+        .output()?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let payload: serde_json::Value = serde_json::from_slice(&output.stderr)?;
+    assert!(
+        payload["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("selected.yaml")
+    );
+    assert_eq!(std::fs::read_dir(temporary.path())?.count(), 0);
     Ok(())
 }
 

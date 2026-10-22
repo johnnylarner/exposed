@@ -306,14 +306,29 @@ For frontend checks, install dependencies and the browser once, then run:
 ```sh
 npm --prefix frontend ci
 cd frontend && PLAYWRIGHT_BROWSERS_PATH=0 npx playwright install chromium && cd ..
-make frontend-check
+npm --prefix frontend run check
+npm --prefix frontend run test:unit
+npm --prefix frontend run test:browser
 ```
+
+`npm --prefix frontend test` builds and runs both suites. The unit command runs
+summary and public loader adapter tests without building or launching a browser.
 
 Browser tests use a controlled API to check ranking, request cancellation,
 empty/error recovery, text escaping and narrow layouts. For manual verification,
 try an MP's name, `HSBC`, a misspelling, clearing a pending query, and stopping
 the API to check retry behavior. See the
 [search design brief](docs/design/entity-search.md) for the agreed scope.
+
+Live Parliament checks are opt-in. They require network access to the Parliament
+members and interests APIs and a PostgreSQL role with permission to create test
+databases. Set `DATABASE_URL` to an isolated database with the current migrations
+applied for SQLx compile-time checks, then run from the repository root:
+
+```sh
+cargo test -p exposed --test integration parliament_api_parses_all_sitting_members -- --ignored --exact
+cargo test -p exposed --test integration declaration_fetch_preserves_member_funding -- --ignored --exact
+```
 
 ## Resolve declaration funders
 
