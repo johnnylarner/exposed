@@ -208,9 +208,33 @@ pub struct MemberCurrencyTotal {
     pub categories: Vec<CategoryTotal>,
 }
 
+/// Declared GBP amounts and coverage for one registration period.
+#[derive(Clone, Debug)]
+pub struct DeclaredGbpPeriodTotal {
+    /// Exact known GBP sum; absence differs from zero.
+    pub amount: Option<BigDecimal>,
+    /// All declarations, including those without entries.
+    pub declaration_count: usize,
+    /// Unknown currency or a GBP entry without an amount.
+    pub incomplete: bool,
+}
+
+/// Backend-owned declared GBP headlines across all categories.
+#[derive(Clone, Debug)]
+pub struct DeclaredGbpTotals {
+    /// Inclusive registration boundary; undated records are historical only.
+    pub current_term_start: DateTime<Utc>,
+    /// Current parliament declarations.
+    pub current_term: DeclaredGbpPeriodTotal,
+    /// Complete stored history.
+    pub historical: DeclaredGbpPeriodTotal,
+}
+
 /// Coverage and exact totals across complete stored history.
 #[derive(Clone, Debug)]
 pub struct MemberSummary {
+    /// Authoritative declared GBP headlines.
+    pub declared_totals: DeclaredGbpTotals,
     /// Separate currencies without conversion.
     pub currencies: Vec<MemberCurrencyTotal>,
     /// All funding occurrences.

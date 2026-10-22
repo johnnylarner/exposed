@@ -1,0 +1,107 @@
+{
+  "7001": {
+    "declared_totals": {
+      "current_term_start": "2024-07-09T00:00:00Z",
+      "current_term": {
+        "amount": "225.45",
+        "declaration_count": 7,
+        "incomplete": true
+      },
+      "historical": {
+        "amount": "333",
+        "declaration_count": 9,
+        "incomplete": true
+      }
+    }
+  },
+  "7002": {
+    "declared_totals": {
+      "current_term_start": "2024-07-09T00:00:00Z",
+      "current_term": {
+        "amount": "0",
+        "declaration_count": 1,
+        "incomplete": false
+      },
+      "historical": {
+        "amount": "0",
+        "declaration_count": 1,
+        "incomplete": false
+      }
+    }
+  },
+  "7003": {
+    "declared_totals": {
+      "current_term_start": "2024-07-09T00:00:00Z",
+      "current_term": {
+        "amount": null,
+        "declaration_count": 0,
+        "incomplete": false
+      },
+      "historical": {
+        "amount": null,
+        "declaration_count": 0,
+        "incomplete": false
+      }
+    }
+  },
+  "7004": {
+    "declared_totals": {
+      "current_term_start": "2024-07-09T00:00:00Z",
+      "current_term": {
+        "amount": null,
+        "declaration_count": 1,
+        "incomplete": false
+      },
+      "historical": {
+        "amount": null,
+        "declaration_count": 1,
+        "incomplete": false
+      }
+    }
+  },
+  "7005": {
+    "declared_totals": {
+      "current_term_start": "2024-07-09T00:00:00Z",
+      "current_term": {
+        "amount": null,
+        "declaration_count": 1,
+        "incomplete": true
+      },
+      "historical": {
+        "amount": null,
+        "declaration_count": 1,
+        "incomplete": true
+      }
+    }
+  },
+  "7006": {
+    "declared_totals": {
+      "current_term_start": "2024-07-09T00:00:00Z",
+      "current_term": {
+        "amount": null,
+        "declaration_count": 0,
+        "incomplete": false
+      },
+      "historical": {
+        "amount": null,
+        "declaration_count": 1,
+        "incomplete": false
+      }
+    }
+  },
+  "7007": {
+    "declared_totals": {
+      "current_term_start": "2024-07-09T00:00:00Z",
+      "current_term": {
+        "amount": "0",
+        "declaration_count": 1,
+        "incomplete": false
+      },
+      "historical": {
+        "amount": "0",
+        "declaration_count": 3,
+        "incomplete": true
+      }
+    }
+  }
+}

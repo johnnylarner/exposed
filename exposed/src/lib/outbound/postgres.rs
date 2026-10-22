@@ -49,7 +49,7 @@ mod test_scaffolding {
 
     #[sqlx::test(migrations = "../db/migrations")]
     async fn migrations_work(pool: PgPool) -> sqlx::Result<()> {
-        let res = sqlx::query!("SELECT name FROM members")
+        let res = sqlx::query!("SELECT name FROM exposed.members")
             .fetch_all(&pool)
             .await;
         assert!(res.is_ok());
@@ -64,22 +64,22 @@ mod test_scaffolding {
         )
     )]
     async fn fixtures_work(pool: PgPool) -> sqlx::Result<()> {
-        let res = sqlx::query!("SELECT name FROM members")
+        let res = sqlx::query!("SELECT name FROM exposed.members")
             .fetch_all(&pool)
             .await?;
         assert_eq!(res.len(), 2);
 
-        let res = sqlx::query!("SELECT * FROM declarations")
+        let res = sqlx::query!("SELECT * FROM exposed.declarations")
             .fetch_all(&pool)
             .await?;
         assert_eq!(res.len(), 2);
 
-        let res = sqlx::query!("SELECT * FROM funders")
+        let res = sqlx::query!("SELECT * FROM exposed.funders")
             .fetch_all(&pool)
             .await?;
         assert_eq!(res.len(), 2);
 
-        let res = sqlx::query!("SELECT * FROM funding_entries")
+        let res = sqlx::query!("SELECT * FROM exposed.funding_entries")
             .fetch_all(&pool)
             .await?;
         assert_eq!(res.len(), 2);
