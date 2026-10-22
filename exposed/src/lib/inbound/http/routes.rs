@@ -7,9 +7,10 @@ use crate::{
 
 /// Routes for the exposed application
 pub fn routes<E: EntitySearchService, D: EntityDetailsService>() -> Router<AppState<E, D>> {
-    Router::new()
+    let router = Router::new()
         .route("/healthz", get(|| async { StatusCode::NO_CONTENT }))
         .route("/search", get(handlers::search_entities))
         .route("/members/{id}", get(handlers::member_details))
-        .route("/funders/{id}", get(handlers::funder_details))
+        .route("/funders/{id}", get(handlers::funder_details));
+    super::tracing::instrument(router)
 }

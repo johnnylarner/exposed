@@ -3,33 +3,18 @@
 mod interface;
 pub use interface::EntityDetailsService;
 
+pub use crate::domain::models::entity_details::EntityDetailsError;
 use crate::domain::{
-    models::{
-        entity_details::{
-            CategoryTotal, CurrencyBreakdown, DeclarationCategory, FunderDetails, FunderFunding,
-            MemberCurrencyTotal, MemberDetails, MemberHistory, MemberSummary, PartyTotal,
-            RecipientAllocation,
-        },
-        funder::FunderId,
-        parliament_member::MemberId,
+    models::entity_details::{
+        CategoryTotal, CurrencyBreakdown, DeclarationCategory, FunderDetails, FunderDetailsRequest,
+        FunderFunding, MemberCurrencyTotal, MemberDetails, MemberDetailsRequest, MemberHistory,
+        MemberSummary, PartyTotal, RecipientAllocation,
     },
-    repositories::entity_details::{EntityDetailsRepo, EntityDetailsRepoError},
+    repositories::entity_details::EntityDetailsRepo,
 };
 use std::{cmp::Ordering, collections::BTreeMap};
-use thiserror::Error;
 
 const TOP_RECIPIENTS: usize = 10;
-
-/// Entity detail lookup failure.
-#[derive(Debug, Error)]
-pub enum EntityDetailsError {
-    /// No stored identity matches the request.
-    #[error("entity not found")]
-    NotFound,
-    /// Private database diagnostics.
-    #[error(transparent)]
-    Unexpected(#[from] EntityDetailsRepoError),
-}
 
 /// Detail service owns summary rules and presentation limits.
 #[derive(Clone)]
@@ -46,16 +31,22 @@ impl<R> Service<R> {
 }
 
 impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
-    async fn member(&self, id: MemberId) -> Result<MemberDetails, EntityDetailsError> {
+    async fn member(
+        &self,
+        request: MemberDetailsRequest,
+    ) -> Result<MemberDetails, EntityDetailsError> {
         self.repo
-            .member(id)
+            .member(request.id())
             .await?
             .map(summarize_member)
             .ok_or(EntityDetailsError::NotFound)
     }
-    async fn funder(&self, id: FunderId) -> Result<FunderDetails, EntityDetailsError> {
+    async fn funder(
+        &self,
+        request: FunderDetailsRequest,
+    ) -> Result<FunderDetails, EntityDetailsError> {
         self.repo
-            .funder_funding(id)
+            .funder_funding(request.id())
             .await?
             .map(summarize_funder)
             .ok_or(EntityDetailsError::NotFound)

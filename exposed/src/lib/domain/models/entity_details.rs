@@ -1,12 +1,84 @@
 //! Stored profiles, declaration occurrences, and exact currency summaries.
 
+use std::str::FromStr;
+
 use bigdecimal::BigDecimal;
+use thiserror::Error;
+
+use crate::domain::repositories::entity_details::EntityDetailsRepoError;
 use chrono::{DateTime, Utc};
 
 use super::{
     funder::{Funder, FunderId},
-    parliament_member::MemberId,
+    parliament_member::{MemberId, MemberIdError},
 };
+
+/// Entity detail lookup failure.
+#[derive(Debug, Error)]
+pub enum EntityDetailsError {
+    /// Member identity could not be parsed.
+    #[error("Invalid MP ID")]
+    InvalidMemberId(#[source] MemberIdError),
+    /// Funder identity could not be parsed.
+    #[error("Invalid funder ID")]
+    InvalidFunderId(#[source] uuid::Error),
+    /// No stored identity matches the request.
+    #[error("entity not found")]
+    NotFound,
+    /// Private database diagnostics.
+    #[error(transparent)]
+    Unexpected(#[from] EntityDetailsRepoError),
+}
+
+/// Parsed member detail lookup.
+#[derive(Clone, Copy, Debug)]
+pub struct MemberDetailsRequest {
+    id: MemberId,
+}
+
+impl MemberDetailsRequest {
+    /// Parliament identity to look up.
+    #[must_use]
+    pub const fn id(self) -> MemberId {
+        self.id
+    }
+}
+
+impl FromStr for MemberDetailsRequest {
+    type Err = EntityDetailsError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        value
+            .parse()
+            .map(|id| Self { id })
+            .map_err(EntityDetailsError::InvalidMemberId)
+    }
+}
+
+/// Parsed funder detail lookup.
+#[derive(Clone, Copy, Debug)]
+pub struct FunderDetailsRequest {
+    id: FunderId,
+}
+
+impl FunderDetailsRequest {
+    /// Persistent funder identity to look up.
+    #[must_use]
+    pub const fn id(self) -> FunderId {
+        self.id
+    }
+}
+
+impl FromStr for FunderDetailsRequest {
+    type Err = EntityDetailsError;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        value
+            .parse()
+            .map(|id| Self { id })
+            .map_err(EntityDetailsError::InvalidFunderId)
+    }
+}
 
 /// Latest stored member profile, not membership at the time of a payment.
 #[derive(Clone, Debug)]
@@ -287,4 +359,51 @@ pub struct FunderDetails {
     pub unknown_currency_count: i64,
     /// Maximum recipients per currency.
     pub recipient_limit: usize,
+}
+
+#[cfg(test)]
+mod tests {
+    use std::error::Error;
+
+    use super::*;
+
+    #[test]
+    fn member_requests_preserve_identifier_bounds() {
+        for (value, expected) in [("1", 1), ("2147483647", i32::MAX as u32)] {
+            assert_eq!(
+                value.parse::<MemberDetailsRequest>().unwrap().id().value(),
+                expected
+            );
+        }
+        for value in ["", "0", "-1", "invalid", "2147483648", "4294967296"] {
+            let error = value.parse::<MemberDetailsRequest>().unwrap_err();
+            assert!(matches!(error, EntityDetailsError::InvalidMemberId(_)));
+            assert_eq!(error.to_string(), "Invalid MP ID");
+            assert!(error.source().unwrap().is::<MemberIdError>());
+        }
+    }
+
+    #[test]
+    fn funder_requests_preserve_uuid_identity_and_parse_source() {
+        for value in [
+            "00000000-0000-0000-0000-000000000000",
+            "ffffffff-ffff-ffff-ffff-ffffffffffff",
+        ] {
+            assert_eq!(
+                value.parse::<FunderDetailsRequest>().unwrap().id(),
+                value.parse::<FunderId>().unwrap()
+            );
+        }
+        for value in ["", "invalid", "00000000-0000-0000-0000-00000000000"] {
+            let error = value.parse::<FunderDetailsRequest>().unwrap_err();
+            assert!(matches!(error, EntityDetailsError::InvalidFunderId(_)));
+            assert_eq!(error.to_string(), "Invalid funder ID");
+            let source = error
+                .source()
+                .unwrap()
+                .downcast_ref::<uuid::Error>()
+                .unwrap();
+            assert_eq!(source, &value.parse::<FunderId>().unwrap_err());
+        }
+    }
 }
