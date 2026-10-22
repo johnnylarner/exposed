@@ -22,9 +22,12 @@
 
 <div class="member-summary-top">
   <section class="member-breakdown" aria-labelledby="breakdown-heading">
-    <h2 id="breakdown-heading">Declared value by category</h2>
+    <h2 class="section-title" id="breakdown-heading">
+      Declared value by category
+    </h2>
     {#if summary.categories.length}
       <SignedBarList
+        variant="compact"
         {baseline}
         bars={summary.categories.map((category, index) => ({
           label: category.categoryName,

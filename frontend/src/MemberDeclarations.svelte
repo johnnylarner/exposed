@@ -13,7 +13,7 @@
 
 <DeclarationList>
   {#each declarations as declaration}
-    <DeclarationCard>
+    <DeclarationCard variant="compact">
       {#snippet heading()}
         <h3>{declaration.categoryName}</h3>
         <a

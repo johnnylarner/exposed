@@ -42,7 +42,7 @@
       color: "var(--accent)",
     },
   ];
-  import type { ChartBar } from "../../lib/ui/chart-types";
+  import type { ChartBar } from "../../lib/ui";
   const chartBars: ChartBar[] = [
     {
       x: 20,
@@ -192,7 +192,7 @@
           >
         </div>
       </div>
-      <Disclosure summary="Using actions" class="code-example">
+      <Disclosure summary="Using actions" variant="plain" class="code-example">
         <pre><code
             >{'<Button onclick={clearDates} disabled={!from && !to}>Clear dates</Button>\n<ButtonLink href="/search" variant="primary">Search MPs and funders</ButtonLink>'}</code
           ></pre>
@@ -256,7 +256,7 @@
         />
         <div><Button type="reset">Restore name</Button></div>
       </form>
-      <Disclosure summary="Using fields" class="code-example">
+      <Disclosure summary="Using fields" variant="plain" class="code-example">
         <pre><code
             >{'<Field label="Registered to" type="date" bind:value={to}\n  hint="Both dates are included." error={dateError} />'}</code
           ></pre>
@@ -278,7 +278,7 @@
           >No declarations match these dates. Clear or change the dates.</Notice
         >
       </div>
-      <Disclosure summary="Using notices" class="code-example">
+      <Disclosure summary="Using notices" variant="plain" class="code-example">
         <pre><code
             >{'<Notice role="status" tone="accent">Filters applied.</Notice>\n<Notice role="alert" tone="warning">Check the date range.</Notice>'}</code
           ></pre>
@@ -299,8 +299,8 @@
           ></ViewLinks
         >
         <div class="entity-legend">
-          <Badge><Icon name="parliament" size={16} />MP</Badge><Badge
-            ><Icon name="coin" size={16} />Funder</Badge
+          <Badge variant="legend"><Icon name="parliament" size={16} />MP</Badge
+          ><Badge variant="legend"><Icon name="coin" size={16} />Funder</Badge
           ><IconIndicator icon="parliament" label="Example MP" /><IconIndicator
             icon="coin"
             label="Example funder"
@@ -373,7 +373,7 @@
     <section id="data-patterns" aria-labelledby="data-patterns-heading">
       <SectionHeading id="data-patterns-heading" title="Identity and data" />
       <IdentityHeader name="Example member with a long recorded name" level={3}
-        >{#snippet kind()}<Badge class="profile-type"
+        >{#snippet kind()}<Badge variant="profile"
             ><Icon name="parliament" />MP</Badge
           >{/snippet}{#snippet metadata()}Example party<span>Current MP</span
           >{/snippet}{#snippet values()}<Metric
@@ -455,6 +455,54 @@
           <li>Example Trust</li>
         </ul></Disclosure
       >
+    </section>
+
+    <section aria-labelledby="ownership-heading">
+      <SectionHeading
+        id="ownership-heading"
+        title="Portable compositions"
+        level={3}
+      />
+      <Badge class="custom-badge">Additive result badge</Badge>
+      <Badge variant="profile" class="custom-profile">Profile badge</Badge>
+      <Badge variant="legend" class="custom-legend">Legend badge</Badge>
+      <MessageState
+        title="Centered semantic heading"
+        level={2}
+        class="custom-state"
+        ><p>Centered appearance at level two.</p></MessageState
+      >
+      <MessageState title="Detail semantic heading" level={2} variant="detail"
+        ><p>Detail appearance at level two.</p></MessageState
+      >
+      <Disclosure
+        summary="Plain additive disclosure"
+        variant="plain"
+        class="custom-disclosure"><p>Native disclosure content.</p></Disclosure
+      >
+      <Button class={["custom-action", { "active-example": true }]}
+        >Array class action</Button
+      >
+      <ButtonLink href="#ownership-heading" class={{ "custom-link": true }}
+        >Object class link</ButtonLink
+      >
+      <Field label="Class array field" class={["custom-field"]} />
+      <Notice class={{ "custom-notice": true }}>Object class notice</Notice>
+      <DataTable caption="Three text columns">
+        {#snippet head()}<tr
+            ><th scope="col">First</th><th scope="col">Second</th><th
+              scope="col">Third</th
+            ></tr
+          >{/snippet}
+        <tr><th scope="row">Alpha</th><td>Beta</td><td>Gamma</td></tr>
+      </DataTable>
+      <ul aria-label="Standalone values">
+        <ValueRow>
+          {#snippet source()}Standalone source
+            <ul><li>Nested native item</li></ul>{/snippet}
+          {#snippet value()}<span class="amount">£123.45</span>{/snippet}
+        </ValueRow>
+      </ul>
     </section>
   </main></AppShell
 >

@@ -42,11 +42,11 @@
     <MessageState
       title="Loading details"
       level={1}
-      class="detail-message"
+      variant="detail"
       role="status"><Spinner /></MessageState
     >
   {:else if detailState.kind === "not-found"}
-    <MessageState title="Entity not found" level={1} class="detail-message">
+    <MessageState title="Entity not found" level={1} variant="detail">
       <p>
         This MP or funder is not in the stored register. Search for another
         name.
@@ -59,7 +59,7 @@
     <MessageState
       title="Details couldn’t load"
       level={1}
-      class="detail-message"
+      variant="detail"
       role="alert"
     >
       <p>{detailState.message}</p>

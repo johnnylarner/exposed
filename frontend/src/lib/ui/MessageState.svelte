@@ -6,16 +6,16 @@
     title,
     level = 2,
     icon,
-    iconClass = "state-icon",
+    variant = "centered",
     role,
     children,
     actions,
-    class: className = "message-state",
+    class: className = "",
   }: {
     title: string;
     level?: 1 | 2;
     icon?: IconName;
-    iconClass?: string;
+    variant?: "centered" | "detail";
     role?: "alert" | "status";
     children?: Snippet;
     actions?: Snippet;
@@ -23,8 +23,16 @@
   } = $props();
 </script>
 
-<div class={className} {role}>
-  {#if icon}<span class={iconClass}><Icon name={icon} size={24} /></span
-    >{/if}<svelte:element this={`h${level}`}>{title}</svelte:element
+<div
+  class={[
+    "ui-message-state",
+    variant === "centered" ? "message-state" : "detail-message",
+    className,
+  ]}
+  {role}
+>
+  {#if icon}<span class="state-icon"><Icon name={icon} size={24} /></span
+    >{/if}<svelte:element this={`h${level}`} class="message-title"
+    >{title}</svelte:element
   >{#if children}{@render children()}{/if}{#if actions}{@render actions()}{/if}
 </div>

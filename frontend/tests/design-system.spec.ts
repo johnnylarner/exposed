@@ -240,3 +240,112 @@ test("standalone metrics keep exact values keyboard scrollable", async ({
     320,
   );
 });
+
+test("appearance survives additive classes and independent heading ranks", async ({
+  page,
+}) => {
+  await page.goto("/design-system");
+  const result = page.getByText("Additive result badge", { exact: true });
+  await expect(result).toHaveCSS("display", "inline-flex");
+  await expect(result).toHaveCSS("border-top-width", "1px");
+  await expect(page.getByText("Profile badge", { exact: true })).toHaveCSS(
+    "font-size",
+    "15px",
+  );
+  await expect(page.getByText("Legend badge", { exact: true })).toHaveCSS(
+    "gap",
+    "6px",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Centered semantic heading", level: 2 }),
+  ).toHaveCSS("font-size", "16px");
+  await expect(
+    page.getByRole("heading", { name: "Detail semantic heading", level: 2 }),
+  ).toHaveCSS("font-size", "38px");
+  await expect(
+    page.getByRole("heading", { name: "Portable compositions", level: 3 }),
+  ).toHaveCSS("font-size", "22px");
+  await expect(page.locator(".custom-state")).toHaveCSS("text-align", "center");
+  await expect(page.locator(".custom-action.active-example")).toHaveCSS(
+    "display",
+    "inline-flex",
+  );
+  await expect(page.locator(".custom-link")).toHaveCSS(
+    "display",
+    "inline-flex",
+  );
+  await expect(page.locator(".custom-field")).toHaveCSS("display", "grid");
+  await expect(page.locator(".custom-notice")).toHaveCSS(
+    "border-left-width",
+    "2px",
+  );
+  const disclosure = page.getByRole("region", {
+    name: "Plain additive disclosure",
+  });
+  await disclosure.locator("summary").click();
+  await expect(
+    disclosure.getByText("Native disclosure content."),
+  ).toBeVisible();
+  await expect(disclosure).toHaveCSS("margin-bottom", "0px");
+});
+
+test("native text tables and standalone rows need no feature ancestors", async ({
+  page,
+}) => {
+  await page.goto("/design-system");
+  const table = page.getByRole("table", { name: "Three text columns" });
+  for (const cell of await table.locator("th, td").all())
+    await expect(cell).toHaveCSS("text-align", "left");
+  const widths = await table
+    .locator("thead th")
+    .evaluateAll((cells) =>
+      cells.map((cell) => cell.getBoundingClientRect().width),
+    );
+  expect(Math.max(...widths) - Math.min(...widths)).toBeLessThan(1);
+  const list = page.getByRole("list", { name: "Standalone values" });
+  await expect(list.locator(":scope > li")).toHaveCSS("display", "flex");
+  await expect(list.getByText("Nested native item", { exact: true })).toHaveCSS(
+    "display",
+    "list-item",
+  );
+});
+
+test("focus tokens propagate to native and component controls", async ({
+  page,
+}) => {
+  await page.goto("/design-system");
+  await page.locator("#design-system").evaluate((element) => {
+    element.style.setProperty("--focus-width", "3px");
+    element.style.setProperty("--focus-offset", "7px");
+  });
+  for (const [control, offset] of [
+    [page.getByRole("link", { name: "Object class link" }), "7px"],
+    [
+      page
+        .getByRole("navigation", { name: "Example views" })
+        .getByRole("link", { name: "Summary", exact: true }),
+      "8px",
+    ],
+    [
+      page
+        .locator(".search-field")
+        .filter({
+          has: page.getByRole("searchbox", {
+            name: "Example live search",
+            exact: true,
+          }),
+        })
+        .getByRole("button", { name: "Clear search" }),
+      "8px",
+    ],
+    [page.getByRole("button", { name: "Example MP", exact: true }), "8px"],
+    [
+      page.getByRole("region", { name: "Known declared value", exact: true }),
+      "7px",
+    ],
+  ] as const) {
+    await control.focus();
+    await expect(control).toHaveCSS("outline-width", "3px");
+    await expect(control).toHaveCSS("outline-offset", offset);
+  }
+});

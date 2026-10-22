@@ -1,8 +1,7 @@
 <script lang="ts">
   import "@fontsource-variable/manrope";
-  import "../lib/ui/tokens.css";
+  import "../lib/ui/styles.css";
   import "../styles.css";
-  import "../lib/ui/patterns.css";
   let { children } = $props();
 </script>
 

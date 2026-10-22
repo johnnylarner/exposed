@@ -34,7 +34,7 @@
   );
 </script>
 
-<div class={`ui-field ${className}`}>
+<div class={["ui-field", className]}>
   <label for={id}>{label}</label>
   <input
     {...attributes}

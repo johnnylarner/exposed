@@ -23,7 +23,7 @@
 </script>
 
 <IdentityHeader name={details.funder.name}
-  >{#snippet kind()}<Badge class="profile-type"
+  >{#snippet kind()}<Badge variant="profile"
       ><Icon name="coin" size={20} />Funder</Badge
     >{/snippet}{#snippet metadata()}
     {funderKindLabel(details.funder.funderKind)}<span

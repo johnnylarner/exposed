@@ -4,13 +4,15 @@
   let {
     summary,
     children,
-    class: className = "recorded-names",
+    class: className = "",
+    variant = "names",
     label = summary,
     open = $bindable(false),
     role = "region",
     "aria-label": ariaLabel = label,
     ...attributes
   }: Omit<HTMLDetailsAttributes, "children"> & {
+    variant?: "names" | "plain";
     summary: string;
     children: Snippet;
     label?: string;
@@ -19,7 +21,7 @@
 
 <details
   {...attributes}
-  class={className}
+  class={["ui-disclosure", variant === "names" && "recorded-names", className]}
   bind:open
   {role}
   aria-label={ariaLabel}

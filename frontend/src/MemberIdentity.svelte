@@ -31,7 +31,7 @@
 </script>
 
 <IdentityHeader name={member.name}
-  >{#snippet kind()}<Badge class="profile-type"
+  >{#snippet kind()}<Badge variant="profile"
       ><Icon name="parliament" size={20} />MP</Badge
     >{/snippet}{#snippet metadata()}
     {member.partyName || "Party unavailable"}<span
@@ -42,6 +42,7 @@
       <div class="member-earnings-totals">
         <div class="earnings-values">
           {#each [{ label: "Declared amounts this parliamentary term", regionLabel: "Declared amounts this parliamentary term in GBP", total: summary.declaredTotals.currentTerm }, { regionLabel: "Historical declared amounts in GBP", label: `Historical declared amounts${summary.firstRegisteredAt ? ` since ${dateLabel(summary.firstRegisteredAt)}` : ""}`, total: summary.declaredTotals.historical }] as metric}<Metric
+              variant="expanded"
               regionLabel={metric.regionLabel}
               label={metric.label}
               value={metric.total.declarationCount === 0

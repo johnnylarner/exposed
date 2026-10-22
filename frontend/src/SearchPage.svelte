@@ -227,12 +227,7 @@
     aria-busy={searchState.status === "loading"}
   >
     {#if searchState.status === "idle"}
-      <MessageState
-        class="starting-state"
-        title="Start with a name"
-        icon="search"
-        iconClass="start-symbol"
-      >
+      <MessageState title="Start with a name" icon="search">
         <p>Look up an MP, a company, or an individual funder.</p>
         <div class="examples">
           <span>Try searching</span>{#each ["John", "HSBC"] as example}<Button
@@ -281,9 +276,8 @@
         <span>Best matches first</span>
       </div>
       <div class="entity-legend" aria-label="Entity icon key">
-        <Badge class="legend-item"><Icon name="parliament" size={16} />MP</Badge
-        >
-        <Badge class="legend-item"><Icon name="coin" size={16} />Funder</Badge>
+        <Badge variant="legend"><Icon name="parliament" size={16} />MP</Badge>
+        <Badge variant="legend"><Icon name="coin" size={16} />Funder</Badge>
       </div>
       <ul class="results-list">
         {#each searchState.entities as entity, index}

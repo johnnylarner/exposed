@@ -1,5 +1,6 @@
 <script lang="ts">
   let {
+    variant = "default",
     label,
     regionLabel = label,
     value,
@@ -7,6 +8,7 @@
     description,
     level = 2,
   }: {
+    variant?: "default" | "expanded";
     label: string;
     regionLabel?: string;
     value: string;
@@ -16,7 +18,7 @@
   } = $props();
 </script>
 
-<div class="member-value">
+<div class="member-value" data-variant={variant}>
   <svelte:element this={`h${level}`} class="ui-metric-label"
     >{label}</svelte:element
   >

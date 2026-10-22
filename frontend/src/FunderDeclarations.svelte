@@ -62,3 +62,9 @@
     </DeclarationCard>
   {/each}
 </DeclarationList>
+
+<style>
+  a.declaration-reference {
+    color: inherit;
+  }
+</style>

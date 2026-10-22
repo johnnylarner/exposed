@@ -10,7 +10,7 @@
   } = $props();
 </script>
 
-<div {...attributes} class={`ui-notice ${className}`} data-tone={tone}>
+<div {...attributes} class={["ui-notice", className]} data-tone={tone}>
   {@render children?.()}
 </div>
 

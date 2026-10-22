@@ -3,6 +3,6 @@
   let { children, label }: { children: Snippet; label?: string } = $props();
 </script>
 
-<ol class="declarations-list member-declarations" aria-label={label}>
+<ol class="declarations-list" aria-label={label}>
   {@render children()}
 </ol>

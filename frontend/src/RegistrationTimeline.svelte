@@ -88,7 +88,7 @@
 </script>
 
 <section class="member-earnings" aria-labelledby={`${context}-heading`}>
-  <h2 id={`${context}-heading`}>{copy.heading}</h2>
+  <h2 class="section-title" id={`${context}-heading`}>{copy.heading}</h2>
   {#if months.length}
     <BarChart
       title={copy.title}

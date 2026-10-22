@@ -14,6 +14,7 @@
 </script>
 
 <div class="detail-section-heading">
-  <svelte:element this={`h${level}`} {id}>{title}</svelte:element
+  <svelte:element this={`h${level}`} {id} class="section-title"
+    >{title}</svelte:element
   >{#if children}{@render children()}{/if}
 </div>

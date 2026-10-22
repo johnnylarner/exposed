@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { HTMLAnchorAttributes } from "svelte/elements";
   import type { ActionVariant, ActionSize } from "./types";
-  import "./actions.css";
   let {
     children,
     href,
@@ -19,7 +18,7 @@
 <a
   {...attributes}
   {href}
-  class={`ui-action ${className}`}
+  class={["ui-action", className]}
   data-variant={variant}
   data-size={size}>{@render children?.()}</a
 >

@@ -1,9 +1,21 @@
 <script lang="ts">
   import type { SignedBar } from "./chart-types";
-  let { bars, baseline }: { bars: SignedBar[]; baseline: number } = $props();
+  let {
+    bars,
+    baseline,
+    variant = "default",
+  }: {
+    bars: SignedBar[];
+    baseline: number;
+    variant?: "default" | "compact";
+  } = $props();
 </script>
 
-<ul class="category-list" style:--baseline={`${baseline}%`}>
+<ul
+  class="category-list"
+  data-variant={variant}
+  style:--baseline={`${baseline}%`}
+>
   {#each bars as bar}<li>
       <div class="category-label">
         <span>{bar.label}</span><span class="amount">{bar.value}</span>

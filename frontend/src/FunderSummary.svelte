@@ -66,13 +66,16 @@
     {#if !recipients.length}<p class="empty-details">
         No recipients are available.
       </p>{:else}
-      <div class="summary-columns funder-recipients">
+      <div class="funder-recipients">
         <DataTable caption="Top recipients of declared funding"
           >{#snippet head()}<tr
-              ><th scope="col">MP</th><th scope="col">Known total</th></tr
+              ><th class="recipient-name" scope="col">MP</th><th
+                class="recipient-total"
+                scope="col">Known total</th
+              ></tr
             >{/snippet}
           {#each recipients as recipient}<tr
-              ><th scope="row"
+              ><th class="recipient-name" scope="row"
                 ><a
                   href={memberHref(
                     recipient.member.id,
@@ -82,7 +85,7 @@
                 ><span class="entry-count"
                   >{recipient.member.partyName || "Party unavailable"}</span
                 ></th
-              ><td
+              ><td class="recipient-total"
                 ><span class="amount">{formatPounds(recipient.amount)}</span
                 >{#if recipient.unknownAmountCount > 0}<span
                     class="partial-note"
@@ -98,9 +101,26 @@
 </div>
 {#if details.funder.aliases.length > 0}<Disclosure
     summary="Recorded names"
-    class="recorded-names funder-recorded-names"
+    class="funder-recorded-names"
   >
     <ul>
       {#each details.funder.aliases as alias}<li>{alias}</li>{/each}
     </ul>
   </Disclosure>{/if}
+
+<style>
+  th.recipient-name {
+    width: 54%;
+  }
+  th[scope="col"] {
+    padding-right: 16px;
+  }
+  th.recipient-total,
+  td.recipient-total {
+    text-align: right;
+  }
+  .recipient-name a {
+    text-decoration-color: #437c6e;
+    text-underline-offset: 4px;
+  }
+</style>

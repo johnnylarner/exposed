@@ -1,81 +1,35 @@
 # Exposed UI
 
-The live reference at `/design-system` runs without the declarations API.
-Import `Button`, `ButtonLink`, `Field` and `Notice` from `$lib/ui`. The root layout loads `tokens.css`. Actions share `actions.css`.
+Import components and public types from the `src/lib/ui/index.ts` barrel (for example `./lib/ui` from `src/Example.svelte`). Load `../lib/ui/styles.css` once in `src/routes/+layout.svelte`. It includes tokens, actions, patterns, focus rings, hidden captions, highlighted text and animation prerequisites. Field and Notice keep scoped styles. `/design-system` is the interactive reference and requires no declarations API.
 
-```svelte
-<Button onclick={clearDates} disabled={!from && !to}>Clear dates</Button>
-<ButtonLink href="/search" variant="primary">Search MPs and funders</ButtonLink>
-<Field
-  label="Registered from"
-  type="date"
-  bind:value={from}
-  hint="Both dates are included."
-/>
-<Notice role="alert" tone="warning">Check the date range.</Notice>
-```
+Features own amounts, availability, chart geometry, URLs, analytics and async work. UI accepts formatted strings and presentation models. Pages own grids and section spacing. Use the [composition recipes](COMPOSITION.md) for native rows, declarations and identities.
 
-Subtle compact actions are used for suggested searches. Inline size preserves text action placement for back and history links.
+| Component                              | Contract                                                                                                                                                                                                                             |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Button, ButtonLink                     | `variant` primary/secondary/quiet/subtle; `size` regular/large/compact/inline. Native attributes and handlers pass through. Button defaults to `type="button"`; links require `href`.                                                |
+| Field                                  | Required visible `label`; `type` text/search/date; bindable string `value`; `defaultValue` supports native reset. `hint` and `error` join caller `aria-describedby`. Native attributes reach the input; `class` reaches the wrapper. |
+| SearchField                            | Required `label`, `help` snippet and `onclear`; bindable string `value` and native `input` reference; optional `shortcut`. Native attributes including `class` reach the input. Caller owns query behavior and focus restoration.    |
+| Notice                                 | `tone` neutral/accent/warning. Native div attributes pass through. Caller chooses announcement `role`.                                                                                                                               |
+| Badge                                  | `variant` result (default), profile or legend. `class` adds a root hook without replacing appearance.                                                                                                                                |
+| MessageState                           | Required `title`; `variant` centered (default) or detail; `level` 1/2 changes semantics independently of appearance. Optional `icon`, `children`, `actions`, `role`, additive root `class`.                                          |
+| SectionHeading                         | Required `id`, `title`; optional `level` 1/2/3 and trailing children. Heading presentation stays independent of rank.                                                                                                                |
+| Disclosure                             | Required `summary`, children; `variant` names (default) or plain. Native details attributes, additive root `class`, bindable `open`.                                                                                                 |
+| Metric                                 | Required `label`, formatted `value`; optional `regionLabel`, `available`, `description`, `level` 2/3. `variant` default or expanded. Available values remain keyboard-scrollable regions; unavailable text remains ordinary text.    |
+| DeclarationCard                        | Required `heading`, `registered`, children snippets. `variant` default or compact changes padding.                                                                                                                                   |
+| ValueRow                               | Required `source` and `value` snippets. Owns its `li` layout, including outside `.funding-list`; nested lists retain native layout.                                                                                                  |
+| DataTable                              | Required text `caption`, `head` snippet and body children. Callers supply native rows, cells, scope and column-specific classes. No numeric alignment or column widths are assumed.                                                  |
+| IdentityHeader                         | Required `name`, `kind`, `metadata`; optional `values`, `navigation`, `level` 1/2/3.                                                                                                                                                 |
+| ResultRow, DeclarationList             | Native `li` and `ol` wrappers; children and optional accessible `label`. ResultRow callers supply their own anchor.                                                                                                                  |
+| SignedBarList                          | `bars: SignedBar[]`, `baseline`; `variant` default or compact. Values are formatted strings; widths and signs come from features.                                                                                                    |
+| BarChart, PieChart                     | Typed `ChartBar[]` geometry and `PieSlice[]` presentation data. Features calculate shares, signs and totals. See [RegistrationTimeline](../../RegistrationTimeline.svelte) and [FunderSummary](../../FunderSummary.svelte).          |
+| ViewLinks, ViewLink, Pagination        | Native navigation. Callers own destinations/current page; Pagination owns bound availability.                                                                                                                                        |
+| Icon, IconIndicator                    | Canonical `IconName`; Icon is decorative. IconIndicator owns focus, pointer and Escape hints.                                                                                                                                        |
+| HighlightedText, Spinner, SkeletonRows | Literal text highlights and decorative progress.                                                                                                                                                                                     |
 
-Buttons default to `type="button"`. Set submit or reset for form actions. Links require href. Both forward native attributes and handlers and accept class, variant (primary, secondary, quiet, subtle) and size (regular, large, compact, inline).
+Classes on native-attribute components accept Svelte class arrays and objects. Where a structural component exposes `class`, it adds a root hook. No class replacement API is supported. Use finite variants for existing appearances; caller-authored snippet classes own feature text and arrangements. The recipes show those classes explicitly.
 
-Field supports bindable string values for text, search and date inputs. A visible label is required. Generated IDs remain stable through hydration. Pass an explicit ID for external references. Hint and error IDs merge with caller aria-describedby. Errors set aria-invalid. Native attributes go to the input; class goes to the wrapper.
+Tokens in [tokens.css](tokens.css) own colors, spacing, type and focus. Override `--accent` on a container for another palette, such as `var(--accent-funder)`. `--focus-width` and `--focus-offset` apply at the root or on a container. Native links, buttons and summaries add one pixel to the offset. Do not import internal stylesheets individually.
 
-Set `defaultValue` to a string for an initial value that native form reset restores. A supplied `value` takes precedence on the initial render.
+The [barrel](index.ts) is the public inventory. The gallery covers native disclosure/input behavior, precise metric overflow, repeated association IDs and pointer tooltip lifecycle. Financial parsing and availability decisions belong in feature adapters, never in UI components.
 
-Notice forwards native div attributes. Callers choose the role for announcements. Neutral gives context, accent gives updates, and warning gives recovery instructions. Tone alone does not announce content.
-
-Tokens own foundational colors, type, spacing, radius and focus. Set --accent to var(--accent-funder) on a containing view for teal controls. Keep domain calculations, filtering, URLs, analytics and asynchronous effects in callers. Pages own layout. Formatted chart values and geometry come from feature adapters. Add components when repeated behavior needs one owner and remove obsolete caller styles during migration.
-
-## Pattern inventory
-
-Every component below has a live specimen at `/design-system`.
-
-| Pattern                                        | Component             | Production caller                                   |
-| ---------------------------------------------- | --------------------- | --------------------------------------------------- |
-| Native actions                                 | Button, ButtonLink    | SearchPage, EntityDetails, histories, MemberSummary |
-| Labeled native fields                          | Field                 | MemberHistory, FunderHistory                        |
-| Search input, clear action, help and shortcut  | SearchField           | SearchPage                                          |
-| Icons and finite icon vocabulary               | Icon, IconName        | SearchPage, EntityDetails, identities               |
-| Inline type and role labels                    | Badge                 | EntityIndicator, MemberIdentity, FunderIdentity     |
-| Focus, hover and Escape icon hints             | IconIndicator         | EntityIndicator                                     |
-| Active native anchor navigation                | ViewLinks, ViewLink   | MemberIdentity, FunderIdentity                      |
-| Bounded previous and next actions              | Pagination            | MemberHistory, FunderHistory                        |
-| Decorative progress                            | Spinner, SkeletonRows | SearchPage, EntityDetails                           |
-| Start, empty, error and loading content        | MessageState          | SearchPage, EntityDetails                           |
-| Heading and context                            | SectionHeading        | Histories, MemberSummary, FunderSummary             |
-| Responsive search rows                         | ResultRow             | SearchPage                                          |
-| Literal highlighted text segments              | HighlightedText       | SearchPage names and matched aliases                |
-| Ordered declarations                           | DeclarationList       | MemberDeclarations, FunderDeclarations              |
-| Declaration heading, date and content          | DeclarationCard       | MemberDeclarations, FunderDeclarations              |
-| Funding source and exact value columns         | ValueRow              | MemberDeclarations, FunderDeclarations              |
-| Identity title, metadata, values and views     | IdentityHeader        | MemberIdentity, FunderIdentity                      |
-| Exact scrollable totals and unavailable values | Metric                | MemberIdentity, FunderIdentity                      |
-| Native caption, column headings and body       | DataTable             | FunderSummary                                       |
-| Signed horizontal bars                         | SignedBarList         | MemberSummary                                       |
-| Monthly SVG bars, titles and ticks             | BarChart              | RegistrationTimeline                                |
-| Pie slices, legend and persistent tooltip      | PieChart              | FunderSummary                                       |
-| Native disclosure                              | Disclosure            | FunderSummary recorded names                        |
-| Coverage and date-range messages               | Notice                | FunderSummary, MemberHistory, FunderHistory         |
-
-## Content and interaction contracts
-
-Import components and their public types from `$lib/ui`. `patterns.css` owns shared presentation and is loaded once by the root layout. `actions.css` owns Button and ButtonLink styles. Field and Notice retain their scoped styles. Do not copy these selectors into feature files.
-
-SearchField accepts a bindable string `value`, a string `defaultValue`, a bindable native `input` reference, a label, a help snippet, an optional shortcut and an `onclear` handler. Native input attributes and events reach the input. The generated help ID merges with caller `aria-describedby`. Disabled and read only fields also disable their clear button. The feature owns query updates, IME state, debounce, keyboard shortcuts, navigation and analytics. SearchPage keeps its focus behavior through the input reference.
-
-MessageState takes a title, heading level 1 or 2, optional icon, content and action snippets. The caller explicitly selects an announcement role. Spinner and SkeletonRows are decorative. SectionHeading requires a stable caller ID and supports heading levels 1 through 3. ViewLink forwards native anchor attributes, including `aria-current`; callers own destinations and analytics. Pagination owns button availability while the caller owns the current page and filtered data.
-
-IdentityHeader accepts `name`, `kind` and `metadata` snippets with optional `values` and `navigation`. DeclarationCard accepts `heading`, `registered` and content snippets. ValueRow accepts `source` and `value` snippets. DeclarationList and ValueRow preserve native ordered-list and nested unordered-list semantics. DataTable requires a plain-text caption, a `head` snippet containing native header rows, and body rows as children. Callers supply actual `th`, `td`, links, `scope` attributes and exact text.
-
-Metric takes an already formatted value and an explicit availability flag. Available values are labeled regions that keyboard users can scroll without truncating digits. `regionLabel` can differ from the visible heading. Unavailable text stays ordinary text. Callers decide availability, wording and precision.
-
-Charts accept presentation models only. `SignedBar` contains a label, exact formatted value, numeric width, sign and optional note. `ChartBar` contains SVG geometry, a formatted exact title and optional positioned tick. `PieSlice` contains a computed share, SVG path, color, label, exact formatted value and detail text. Financial parsing, aggregation, sign classification, share calculations, month labeling and coverage messages stay in feature adapters. UI components never parse amounts or derive financial availability from strings.
-
-BarChart and IconIndicator generate per-instance association IDs. PieChart generates its tooltip ID and owns pointer persistence, delayed dismissal, Escape suppression until pointer movement, touch exclusion, scroll and resize dismissal, and timer cleanup. The gallery renders repeated instances to exercise these associations. HighlightedText renders text nodes and mark elements, never HTML.
-
-Disclosure forwards native details attributes and supports bindable `open`. The summary remains a native keyboard control.
-
-## Remaining composition
-
-AppShell owns the application header, footer, skip link and native brand and content anchors. Landing hero, methodology article, search introduction, detail page sections and summary panel arrangement remain page layouts. Root `styles.css` owns global typography, page layout and documented shared text treatments such as `.amount`, `.entry-count`, `.partial-note`, `.filter-context` and `.empty-details`. Those classes carry formatting and context without requiring a component for each span. Reusable controls, rows, charts, navigation, identity and declaration presentation belong to `lib/ui`.
+UI-owned snippet classes are `.results-list` (list reset and divider), `.entity-text` (shrinkable content), `.entity-name` (result anchor typography and hover), `.entity-alias` (secondary result text), `.funding-list` (nested list reset and spacing), `.declaration-reference`, `.payment-type`, `.currency-label`, `.empty-entry` (declaration context), `.amount` (exact value typography), and `.entry-count`/`.partial-note` (secondary chart/table text). These work with the single UI stylesheet import. Feature grids and custom table columns stay in callers.
