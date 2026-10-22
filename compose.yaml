@@ -8,6 +8,8 @@ services:
     environment:
       EXPOSED_API_ORIGIN: http://exposed:6999
       EXPOSED_WATCH_POLL: "true"
+      PUBLIC_POSTHOG_PROJECT_TOKEN: ${PUBLIC_POSTHOG_PROJECT_TOKEN:-}
+      PUBLIC_POSTHOG_HOST: ${PUBLIC_POSTHOG_HOST:-}
     ports:
       - "127.0.0.1:5173:5173"
     volumes:

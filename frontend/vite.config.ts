@@ -8,6 +8,9 @@ export default defineConfig({
       adapter: adapter(),
       extensions: [".svelte", ".md"],
       preprocess: mdsvex({ extensions: [".md"], smartypants: false }),
+      paths: {
+        relative: false,
+      },
     }),
   ],
   server: {

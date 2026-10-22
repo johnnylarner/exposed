@@ -3,6 +3,7 @@
   import { summarizeMember, formatPounds } from "./lib/member-summary";
   import Icon from "./lib/Icon.svelte";
   import { memberHref, type MemberProfile } from "./lib/entity-details";
+  import posthog from "posthog-js";
   let {
     member,
     view,
@@ -93,11 +94,21 @@
   <nav class="member-tabs" aria-label="Member views">
     <a
       href={memberHref(member.id, "summary", page.url.searchParams)}
-      aria-current={view === "summary" ? "page" : undefined}>Summary</a
+      aria-current={view === "summary" ? "page" : undefined}
+      onclick={() =>
+        posthog.capture("entity_view_selected", {
+          entity_type: "member",
+          selected_view: "summary",
+        })}>Summary</a
     >
     <a
       href={memberHref(member.id, "history", page.url.searchParams)}
       aria-current={view === "history" ? "page" : undefined}
+      onclick={() =>
+        posthog.capture("entity_view_selected", {
+          entity_type: "member",
+          selected_view: "history",
+        })}
       >Declaration history</a
     >
   </nav>

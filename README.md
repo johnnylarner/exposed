@@ -198,11 +198,34 @@ and database from that worktree. This serves the frontend from the worktree.
 
 ### Frontend development and checks
 
+For Docker Compose, configure PostHog in the repository root `.env`. Copy
+`.env.example` if the file does not exist, or add its `PUBLIC_POSTHOG_*` entries
+to your existing `.env`. Replace the token placeholder with your PostHog project
+token and set `PUBLIC_POSTHOG_HOST` to your project's ingestion host. The example
+uses the EU host, `https://eu.i.posthog.com`.
+
+Compose passes these values to the frontend container. They take precedence over
+`frontend/.env`, including when the root values are empty. After changing the
+root `.env`, recreate the frontend from the repository root:
+
+```sh
+docker compose up -d --no-deps frontend
+```
+
+Both values are public browser configuration. Development raises a client error
+if either value is missing.
+
 To run the frontend on the host instead of Docker, use Node.js **24+**:
 
 ```sh
 cd frontend
+test -f .env || cp .env.example .env
 npm ci
+```
+
+Set the same PostHog values in `frontend/.env`, then start the development server:
+
+```sh
 npm run dev
 ```
 
