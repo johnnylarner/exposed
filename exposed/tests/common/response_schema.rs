@@ -1,7 +1,11 @@
 #![allow(dead_code)]
 
 use serde_json::Value;
-use std::process::Command;
+use std::{
+    collections::HashMap,
+    process::Command,
+    sync::{Mutex, OnceLock},
+};
 
 pub fn help(command: &[&str]) -> String {
     inspect(command, "--help")
@@ -23,16 +27,16 @@ fn inspect(command: &[&str], flag: &str) -> String {
 }
 
 pub fn schema(command: &[&str], label: &str) -> Value {
-    let text = inspect(
-        command,
-        if command.first() == Some(&"migrate") {
-            "--help"
-        } else {
-            "--schema"
-        },
-    );
+    static DOCUMENTS: OnceLock<Mutex<HashMap<Vec<String>, Value>>> = OnceLock::new();
+    let mut documents = DOCUMENTS.get_or_init(Default::default).lock().unwrap();
+    let key = command
+        .iter()
+        .map(|part| (*part).to_owned())
+        .collect::<Vec<_>>();
     if command.first() != Some(&"migrate") {
-        let document: Value = serde_json::from_str(&text).expect("schema inspection is JSON");
+        let document = documents.entry(key).or_insert_with(|| {
+            serde_json::from_str(&inspect(command, "--schema")).expect("schema inspection is JSON")
+        });
         return document[if label.starts_with("Failure") {
             "failure"
         } else {
@@ -40,6 +44,7 @@ pub fn schema(command: &[&str], label: &str) -> Value {
         }]
         .clone();
     }
+    let text = inspect(command, "--help");
     let tail = text
         .split_once(label)
         .expect("schema section exists")
