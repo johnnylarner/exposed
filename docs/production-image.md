@@ -13,15 +13,15 @@ layers so the CI GitHub Actions cache includes compiled dependencies. The defaul
 build parallelism is two jobs. Set `--build-arg CARGO_BUILD_JOBS=4` to change it.
 
 The `binary`, `migrate`, and `data` targets share the release binary and Debian
-runtime. The independent `frontend-server` target contains Node and the SvelteKit
-build. The default target is `binary`, which runs `exposed server` on port 6999
-as UID and GID 10001.
-Build the other targets with `--target frontend-server`, `--target migrate`, or
-`--target data`. Use distinct local tags for each target.
+runtime in `docker/Dockerfile`. Its default target is `binary`, which runs
+`exposed server` on port 6999 as UID and GID 10001. Build the other backend targets
+with `--target migrate` or `--target data`. The independent
+`docker/Dockerfile.frontend` contains Node and the SvelteKit build. Its default
+target is `frontend-server`. Use distinct local tags for each target.
 
 ```sh
 docker buildx build --load -f docker/Dockerfile --target migrate -t exposed:migrate .
-docker buildx build --load -f docker/Dockerfile --target frontend-server -t exposed:frontend-server .
+docker buildx build --load -f docker/Dockerfile.frontend --target frontend-server -t exposed:frontend-server .
 docker buildx build --load -f docker/Dockerfile --target data -t exposed:data .
 export DATABASE_URL='postgresql://user:password@database:5432/exposed'
 docker run --rm --env DATABASE_URL exposed:migrate
