@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { SectionHeading, Pagination, Button, Field, Notice } from "./lib/ui";
   import FunderDeclarations from "./FunderDeclarations.svelte";
   import { type FunderDetails } from "./lib/entity-details";
   let { details }: { details: FunderDetails } = $props();
@@ -36,28 +37,27 @@
 </script>
 
 <section aria-labelledby="history-heading">
-  <div class="detail-section-heading">
-    <h2 id="history-heading">Funding history</h2>
+  <SectionHeading id="history-heading" title="Funding history">
     <p>
       All {details.declarations.length} stored funding declarations, most recent registration
       first.
     </p>
-  </div>
+  </SectionHeading>
   <div class="history-filters">
-    <label
-      >Registered from<input
-        type="date"
-        bind:value={from}
-        onchange={resetPage}
-      /></label
-    ><label
-      >Registered to<input
-        type="date"
-        bind:value={to}
-        onchange={resetPage}
-      /></label
-    ><button class="text-button" onclick={clearDates} disabled={!from && !to}
-      >Clear dates</button
+    <Field
+      label="Registered from"
+      type="date"
+      bind:value={from}
+      onchange={resetPage}
+    />
+    <Field
+      label="Registered to"
+      type="date"
+      bind:value={to}
+      onchange={resetPage}
+    />
+    <Button variant="quiet" onclick={clearDates} disabled={!from && !to}
+      >Clear dates</Button
     >
   </div>
   <p class="filter-context">
@@ -65,9 +65,9 @@
       Declarations without a registration date are excluded.{:else}
       Declarations without a registration date appear last.{/if}
   </p>
-  {#if reversed}<p class="coverage-note" role="alert">
+  {#if reversed}<Notice tone="warning" role="alert">
       The start date must be on or before the end date.
-    </p>
+    </Notice>
   {:else if filtered.length === 0}<p class="empty-details">
       {details.declarations.length === 0
         ? "No funding history is stored for this funder."
@@ -80,16 +80,11 @@
       )} of {filtered.length} declarations
     </p>
     <FunderDeclarations declarations={visible} />
-    <nav class="history-pagination" aria-label="Declaration pages">
-      <button
-        class="text-button"
-        disabled={page === 1}
-        onclick={() => (page -= 1)}>Previous</button
-      ><span>Page {page} of {pageCount}</span><button
-        class="text-button"
-        disabled={page === pageCount}
-        onclick={() => (page += 1)}>Next</button
-      >
-    </nav>
+    <Pagination
+      {page}
+      {pageCount}
+      onprevious={() => (page -= 1)}
+      onnext={() => (page += 1)}
+    />
   {/if}
 </section>
