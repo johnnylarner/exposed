@@ -23,7 +23,7 @@ HELP
 fi
 
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 1; }
-repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../../.." && pwd)
 
 echo "Refreshing exposed_search_regression from exposed."
 echo "Stop the app and disconnect clients from exposed before running."
