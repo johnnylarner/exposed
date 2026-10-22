@@ -30,6 +30,7 @@ export function init() {
 
   posthog.init(projectToken, {
     api_host: host,
+    capture_pageleave: true,
     logs: {
       serviceName: "exposed-frontend",
       environment: dev ? "development" : "production",
