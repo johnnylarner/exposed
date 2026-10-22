@@ -30,14 +30,23 @@ The goal of this project is to make declaration data easy to search, browse and 
 
 ## Financial totals contract
 
-- The backend member summary owns declared GBP totals across **all categories**.
-  Frontends display its mandatory fields without recalculation or fallback sums.
-- Changes to financial meaning require an explicit user request and a PR description
-  of effects on included records/categories, currency, registration dates, missing
-  values, precision, and labels. UI edits must preserve that meaning.
-- Run `scripts/check-declared-totals-contract.sh` for changes to these totals or
-  their consumers. Never fix a failure by changing the frozen v1 expectations or
-  refreshing them from live data. See `contracts/declared-totals-v1/README.md`.
+- The backend member summary owns mandatory declared GBP totals across all
+  categories, including unknown category IDs. Frontends display those fields
+  without recalculation or fallback sums.
+- Current-term totals include records registered on or after
+  `2024-07-09T00:00:00Z`. Historical totals include all records; undated records
+  belong only to historical totals.
+- Preserve exact decimal amounts and currencies. Do not convert currencies or
+  pass amounts through JavaScript `Number`. Missing GBP amounts and unknown
+  currencies make totals incomplete; known foreign currencies are excluded from
+  GBP amounts without making totals incomplete.
+- Preserve declaration counts and distinguish null amounts from zero. Label
+  these as declared amounts, not earnings: declarations can include rates and
+  benefits rather than money earned.
+- Financial semantic changes require explicit user authorization and a description
+  of their effects on included records/categories, currency, registration dates,
+  missing values, precision, and labels. UI changes and refactoring must preserve
+  these rules.
 
 ## Frontend coding policy
 

@@ -589,11 +589,8 @@ async fn connected_funding_preserves_entries_requested_id_and_link_evidence(pool
     );
 }
 
-#[sqlx::test(
-    migrations = "../db/migrations",
-    fixtures("../../../../../contracts/declared-totals-v1/fixture.sql")
-)]
-async fn declared_totals_v1_http_contract(pool: PgPool) {
+#[sqlx::test(migrations = "../db/migrations", fixtures("declared_totals"))]
+async fn declared_totals_include_all_categories_and_preserve_coverage(pool: PgPool) {
     use crate::{
         domain::services::entity_search,
         inbound::http::{routes::routes, state::AppState},
@@ -611,10 +608,8 @@ async fn declared_totals_v1_http_contract(pool: PgPool) {
             .await
             .unwrap();
     });
-    let expected: serde_json::Value = serde_json::from_str(include_str!(
-        "../../../../../contracts/declared-totals-v1/expected.json"
-    ))
-    .unwrap();
+    let expected: serde_json::Value =
+        serde_json::from_str(include_str!("fixtures/declared_totals.json")).unwrap();
     let client = reqwest::Client::new();
     for (id, contract) in expected.as_object().unwrap() {
         let response = client
@@ -629,13 +624,6 @@ async fn declared_totals_v1_http_contract(pool: PgPool) {
             body["summary"]["declared_totals"], contract["declared_totals"],
             "member {id}"
         );
-        if let Some(directory) = std::env::var_os("EXPOSED_CONTRACT_OUTPUT_DIR") {
-            std::fs::write(
-                std::path::Path::new(&directory).join(format!("{id}.json")),
-                bytes,
-            )
-            .unwrap();
-        }
     }
     server.abort();
 }

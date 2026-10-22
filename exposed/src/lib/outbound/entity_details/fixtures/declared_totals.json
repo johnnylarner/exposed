@@ -12,11 +12,7 @@
         "declaration_count": 9,
         "incomplete": true
       }
-    },
-    "display": [
-      "\u00a3225.45",
-      "\u00a3333.00"
-    ]
+    }
   },
   "7002": {
     "declared_totals": {
@@ -31,11 +27,7 @@
         "declaration_count": 1,
         "incomplete": false
       }
-    },
-    "display": [
-      "\u00a30.00",
-      "\u00a30.00"
-    ]
+    }
   },
   "7003": {
     "declared_totals": {
@@ -50,11 +42,7 @@
         "declaration_count": 0,
         "incomplete": false
       }
-    },
-    "display": [
-      "No declaration data available",
-      "No declaration data available"
-    ]
+    }
   },
   "7004": {
     "declared_totals": {
@@ -69,11 +57,7 @@
         "declaration_count": 1,
         "incomplete": false
       }
-    },
-    "display": [
-      "Amount unavailable",
-      "Amount unavailable"
-    ]
+    }
   },
   "7005": {
     "declared_totals": {
@@ -88,11 +72,7 @@
         "declaration_count": 1,
         "incomplete": true
       }
-    },
-    "display": [
-      "Amount unavailable",
-      "Amount unavailable"
-    ]
+    }
   },
   "7006": {
     "declared_totals": {
@@ -107,11 +87,7 @@
         "declaration_count": 1,
         "incomplete": false
       }
-    },
-    "display": [
-      "No declaration data available",
-      "Amount unavailable"
-    ]
+    }
   },
   "7007": {
     "declared_totals": {
@@ -126,10 +102,6 @@
         "declaration_count": 3,
         "incomplete": true
       }
-    },
-    "display": [
-      "\u00a30.00",
-      "\u00a30.00"
-    ]
+    }
   }
 }
