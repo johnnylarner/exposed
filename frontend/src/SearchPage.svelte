@@ -11,6 +11,8 @@
   import { onMount, untrack } from "svelte";
   import { page } from "$app/state";
   import { goto, afterNavigate } from "$app/navigation";
+  import posthog from "posthog-js";
+  import { posthogLogger } from "./lib/posthog-logger";
   import type { PageModel, SearchResult } from "./lib/page";
   let { model }: { model: Extract<PageModel, { kind: "search" }> } = $props();
   type SearchState = SearchResult | { status: "loading"; term: string };
@@ -103,6 +105,13 @@
     input.focus();
   }
 
+  function retrySearch() {
+    posthogLogger.warn("search retry requested", {
+      query_length: [...term].length,
+    });
+    attempt += 1;
+  }
+
   function shortcut(event: KeyboardEvent) {
     if (
       event.key.toLowerCase() === "k" &&
@@ -159,7 +168,12 @@
     role="search"
     onsubmit={(event) => {
       event.preventDefault();
-      if (!composing && !charactersNeeded) attempt += 1;
+      if (!composing && !charactersNeeded) {
+        const queryLength = [...term].length;
+        posthog.capture("search_submitted", { query_length: queryLength });
+        posthogLogger.info("search submitted", { query_length: queryLength });
+        attempt += 1;
+      }
     }}
   >
     <label class="visually-hidden" for="entity-search"
@@ -257,7 +271,7 @@
         <button
           class="retry-button"
           type="button"
-          onclick={() => (attempt += 1)}
+          onclick={retrySearch}
           ><Icon name="retry" size={16} />Try again</button
         >
       </div>
@@ -288,7 +302,7 @@
         <span><Icon name="coin" size={16} />Funder</span>
       </div>
       <ul class="results-list">
-        {#each searchState.entities as entity}
+        {#each searchState.entities as entity, index}
           <li class="entity-row">
             <EntityIndicator {entity} />
             <div class="entity-text">
@@ -298,6 +312,15 @@
                 aria-describedby={entity.matchSource.kind === "alias"
                   ? `matched-alias-${entity.id}`
                   : undefined}
+                onclick={() => {
+                  const selection = {
+                    entity_type: entity.kind,
+                    match_source: entity.matchSource.kind,
+                    result_position: index + 1,
+                  };
+                  posthog.capture("search_result_selected", selection);
+                  posthogLogger.info("search result selected", selection);
+                }}
                 >{#each highlightName(entity.name, searchState.term) as part}{#if part.matched}<mark
                       >{part.text}</mark
                     >{:else}{part.text}{/if}{/each}</a
