@@ -125,8 +125,8 @@
     <section id="foundations" aria-labelledby="foundations-heading">
       <h2 id="foundations-heading">Foundations</h2>
       <p>
-        Black keeps the focus on declarations. Purple connects member views;
-        teal connects funder views.
+        Black keeps the focus on declarations. Neon yellow identifies actions
+        and focus; purple identifies MPs and teal identifies funders.
       </p>
       <div class="swatches">
         {#each swatches as swatch}<div class="swatch">
@@ -138,7 +138,7 @@
       <div class="foundation-notes">
         <p>
           Spacing follows a 4px base, with 8, 12, 16, 24 and 32px steps.
-          Controls share a 6px radius and a visible neutral focus ring.
+          Controls share a 6px radius and a visible neon yellow focus ring.
         </p>
         <p>
           Color supports meaning. Labels, shapes and written feedback must carry
@@ -174,8 +174,8 @@
       <h2 id="actions-heading">Actions</h2>
       <p>
         Buttons change the current view. Links take you to another page. Both
-        retain their native keyboard behavior. Actions and focus stay neutral in
-        both member and funder contexts.
+        retain their native keyboard behavior. Actions and focus stay neon
+        yellow in both member and funder contexts.
       </p>
       <div class="action-examples" aria-label="Member actions">
         <ButtonLink href="/search" variant="primary"

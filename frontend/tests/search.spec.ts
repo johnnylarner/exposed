@@ -1,6 +1,6 @@
 import { expect, test } from "./backend";
 
-test("search uses funder teal and member purple for results and legend", async ({
+test("search uses yellow focus independently of teal funders and purple MPs", async ({
   backend,
   page,
 }) => {
@@ -29,10 +29,10 @@ test("search uses funder teal and member purple for results and legend", async (
   await page.goto("/search?q=Example");
   const search = page.getByRole("searchbox");
   await search.focus();
-  await expect(search).toHaveCSS("caret-color", "rgb(240, 240, 237)");
+  await expect(search).toHaveCSS("caret-color", "rgb(234, 255, 0)");
   await expect(page.locator(".search-field")).toHaveCSS(
     "border-top-color",
-    "rgb(240, 240, 237)",
+    "rgb(234, 255, 0)",
   );
   const clear = page.getByRole("button", { name: "Clear search" });
   await clear.hover();
@@ -50,7 +50,7 @@ test("search uses funder teal and member purple for results and legend", async (
     await row.locator(".entity-icon").focus();
     await expect(row.locator(".entity-icon")).toHaveCSS(
       "outline-color",
-      "rgb(240, 240, 237)",
+      "rgb(234, 255, 0)",
     );
     await page.keyboard.press("Tab");
     await expect(row.locator(".entity-name")).toBeFocused();
@@ -60,7 +60,7 @@ test("search uses funder teal and member purple for results and legend", async (
     );
     await expect(row.locator(".entity-name")).toHaveCSS(
       "outline-color",
-      "rgb(240, 240, 237)",
+      "rgb(234, 255, 0)",
     );
   }
   await expect(funder.locator(".entity-kind svg")).toHaveCSS(
