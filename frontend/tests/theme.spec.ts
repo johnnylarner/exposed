@@ -164,7 +164,7 @@ test.describe("component palettes", () => {
       await page.emulateMedia({ colorScheme });
       await expect(page.locator("html")).toHaveCSS("color-scheme", colorScheme);
       await expect(canvas).toContainText(
-        colorScheme === "light" ? "#e9e4ed" : "#000",
+        colorScheme === "light" ? "#f5f5f4" : "#000",
       );
       const date = page.getByLabel("Registered from", { exact: true });
       await expect(date).toHaveCSS("color-scheme", colorScheme);

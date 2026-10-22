@@ -12,7 +12,7 @@ for (const colorScheme of ["light", "dark"] as const) {
     const page = await context.newPage();
     await page.goto(`${baseURL}/`);
     const expected =
-      colorScheme === "light" ? "rgb(233, 228, 237)" : "rgb(0, 0, 0)";
+      colorScheme === "light" ? "rgb(245, 245, 244)" : "rgb(0, 0, 0)";
     await expect(page.locator("html")).toHaveCSS("background-color", expected);
     await expect(page.locator("html")).toHaveCSS("color-scheme", colorScheme);
     await expect(
@@ -21,7 +21,7 @@ for (const colorScheme of ["light", "dark"] as const) {
       ),
     ).toHaveAttribute(
       "content",
-      colorScheme === "light" ? "#e9e4ed" : "#000000",
+      colorScheme === "light" ? "#f5f5f4" : "#000000",
     );
     let blockedStylesheets = 0;
     const initial = await context.newPage();
