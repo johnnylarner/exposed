@@ -1,16 +1,11 @@
 :root {
-  font-family: "Manrope Variable", sans-serif;
-  color: #f0edf3;
-  background: #000;
+  font-family: var(--font-body);
+  color: var(--text);
+  background: var(--canvas);
   color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
-  --surface: #111;
-  --text: #f0edf3;
-  --muted: #ada6b4;
-  --accent: #b67be5;
-  --line: #28232e;
 }
 * {
   box-sizing: border-box;
@@ -558,7 +553,7 @@ mark {
   margin-top: 40px;
 }
 .funder-page {
-  --accent: #64cfb5;
+  --accent: var(--accent-funder);
 }
 .back-link {
   display: inline-block;
@@ -951,37 +946,12 @@ mark {
   align-items: end;
   margin: 24px 0 12px;
 }
-.history-filters label {
-  display: grid;
-  gap: 8px;
-  font-size: 0.9rem;
-}
-.history-filters input {
-  color-scheme: dark;
-  background: var(--surface);
-  color: var(--text);
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  font: inherit;
-  padding: 10px 12px;
-}
-.history-filters button {
-  padding: 11px 16px;
-}
 .history-pagination {
   display: flex;
   justify-content: space-between;
   gap: 16px;
   align-items: center;
   margin-top: 28px;
-}
-.history-pagination button {
-  min-width: 90px;
-  padding: 10px 16px;
-}
-button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }
 @media (max-width: 600px) {
   .member-identity-title {
@@ -1013,13 +983,9 @@ button:disabled {
   .history-filters {
     gap: 12px;
   }
-  .history-filters label {
+  .history-filters > .ui-field {
     flex: 1;
     min-width: 130px;
-  }
-  .history-filters input {
-    width: 100%;
-    min-width: 0;
   }
 }
 .member-declarations .declaration-heading h3 {

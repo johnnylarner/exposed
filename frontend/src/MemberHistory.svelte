@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { Button, Field, Notice } from "./lib/ui";
   import MemberDeclarations from "./MemberDeclarations.svelte";
   import { type MemberDetails } from "./lib/entity-details";
   let { details }: { details: MemberDetails } = $props();
@@ -44,20 +45,20 @@
     </p>
   </div>
   <div class="history-filters">
-    <label
-      >Registered from<input
-        type="date"
-        bind:value={from}
-        onchange={resetPage}
-      /></label
-    ><label
-      >Registered to<input
-        type="date"
-        bind:value={to}
-        onchange={resetPage}
-      /></label
-    ><button class="text-button" onclick={clearDates} disabled={!from && !to}
-      >Clear dates</button
+    <Field
+      label="Registered from"
+      type="date"
+      bind:value={from}
+      onchange={resetPage}
+    />
+    <Field
+      label="Registered to"
+      type="date"
+      bind:value={to}
+      onchange={resetPage}
+    />
+    <Button variant="quiet" onclick={clearDates} disabled={!from && !to}
+      >Clear dates</Button
     >
   </div>
   <p class="filter-context">
@@ -65,9 +66,9 @@
       Declarations without a registration date are excluded.{:else}
       Declarations without a registration date appear last.{/if}
   </p>
-  {#if reversed}<p class="coverage-note" role="alert">
+  {#if reversed}<Notice tone="warning" role="alert">
       The start date must be on or before the end date.
-    </p>
+    </Notice>
   {:else if filtered.length === 0}<p class="empty-details">
       {details.declarations.length === 0
         ? "No declarations are stored for this MP."
@@ -81,14 +82,12 @@
     </p>
     <MemberDeclarations declarations={visible} />
     <nav class="history-pagination" aria-label="Declaration pages">
-      <button
-        class="text-button"
-        disabled={page === 1}
-        onclick={() => (page -= 1)}>Previous</button
-      ><span>Page {page} of {pageCount}</span><button
-        class="text-button"
+      <Button variant="quiet" disabled={page === 1} onclick={() => (page -= 1)}
+        >Previous</Button
+      ><span>Page {page} of {pageCount}</span><Button
+        variant="quiet"
         disabled={page === pageCount}
-        onclick={() => (page += 1)}>Next</button
+        onclick={() => (page += 1)}>Next</Button
       >
     </nav>
   {/if}
