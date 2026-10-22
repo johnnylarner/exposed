@@ -1,42 +1,12 @@
-# Canonical search and alias matches
+# Search
 
-Searching a recorded name or alias returns the canonical funder once, with the
-name that supplied the winning match recorded in `match_source`.
+The [manifest](../live-cases.json) selects `unite`, `west mid`, `hsbc`,
+`john mcdonnell`, `jahn`, `bbc`, `gb news`, and `premier league`.
+The public search loader owns strictness 0.8 and the limit of ten per entity type.
+Compare entity order and multiplicity, MP Parliament IDs, names, kinds,
+funder context and name/alias match provenance. Organisation UUIDs are local to
+each installation and remain in raw evidence only.
 
-## Sub-features
-
-- `unite` returns Unite the Union once, alongside broader matches at strictness 0.8.
-- `west mid` returns Unite through `UNITE The Union (West Midlands)` at strictness 0.8, ahead of the other accepted West Midlands matches.
-- `hsbc` returns one HSBC UK Bank plc entity at strictness 0.8.
-- `jahn` and `jahn mcdonnell` recover John McDonnell through people-search fallback when no primary people match.
-
-## How to get to it (user POV)
-
-Enter a term in the landing-page search box. Set the similarity slider to the
-regression default of 0.8. The browser sends the same `/search` request checked here.
-The public API also accepts GET requests with `term`, `strictness`, and
-`max_entries` query parameters.
-
-## Driving it with HTTP
-
-Preconditions: launch the snapshot API using the verify skill.
-
-- Run `./.agents/skills/verify/scripts/check-search-regression.py "$base_url" "$evidence_dir/http"`.
-- Require `PASS unite`, `PASS west-mid`, and `PASS hsbc`.
-- Inspect their `.request.txt`, `.response.json`, and `.diff.txt` artifacts. Each entity array must match the baseline after omitting IDs, including order, names, kinds, and match provenance.
-
-Run the opt-in people-search HTTP regression against the same read-only snapshot:
-
-```sh
-SEARCH_REGRESSION_DATABASE_URL="$DATABASE_URL" cargo test --package exposed --test integration loaded_data_people_search_regression -- --ignored
-```
-
-Require the test to pass. It checks that John McDonnell remains first for correct
-spelling and appears within the normal result limit for both misspelled queries.
-
-## Gotchas
-
-- The frontend and regression searches default to strictness 0.8.
-- All cases use the frontend's current limit of ten results per entity type.
-- A frozen database tests search deduplication by persisted ID, not upstream observation resolution.
-- This HTTP check does not prove slider behavior or rendering in the browser.
+Run [the complete workflow](../SKILL.md). Selected searches must return nonempty successful results;
+error states, empty results and missing result fields cannot match. Every selected detail identity
+must independently resolve exactly once in each environment.

@@ -403,3 +403,18 @@ Contains Parliamentary information licensed under the
 
 See [Build and run the production image](docs/production-image.md) for standalone
 Docker builds, database setup, SQLx metadata updates, and main-branch releases.
+
+## Compare the worktree with live production
+
+Build an isolated snapshot-backed Compose project and compare selected public
+searches and MP/organisation totals with live production:
+
+```sh
+npm ci --prefix .agents/skills/verify
+npm test --prefix .agents/skills/verify
+./.agents/skills/verify/scripts/run-snapshot-comparison.sh
+```
+
+See [verification prerequisites, evidence and cleanup](.agents/skills/verify/SKILL.md).
+Observed differences fail even when caused by snapshot age; the command retains
+raw evidence and removes its own disposable containers/volumes.
