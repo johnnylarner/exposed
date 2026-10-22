@@ -344,3 +344,24 @@ test("undated and earlier unknown earnings affect only historical completeness",
     ).earningsTotals.currentTerm,
   ).toEqual({ declarationCount: 1, amount: null, incomplete: false });
 });
+
+
+test("headline totals include gifts and travel while the timeline retains only earnings", () => {
+  const summary = summarizeMember(
+    details([
+      declaration("2025-01-01T00:00:00Z", [entry("10.25")]),
+      declaration("2025-01-02T00:00:00Z", [entry("20.50")], "Gifts"),
+      declaration("2025-02-01T00:00:00Z", [entry("30.75")], "Visits outside the UK"),
+      declaration("2024-07-08T23:59:59Z", [entry("40")], "Gifts"),
+      declaration(null, [entry("50")], "Visits outside the UK"),
+    ]),
+  );
+  expect(summary.earningsTotals).toEqual({
+    currentTerm: { declarationCount: 3, amount: "61.50", incomplete: false },
+    historical: { declarationCount: 5, amount: "151.50", incomplete: false },
+  });
+  expect(summary.earnings).toEqual([
+    { start: "2025-01-01", amount: "10.25", incomplete: false },
+  ]);
+  expect(summary.undated).toBe(false);
+});
