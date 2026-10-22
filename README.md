@@ -84,10 +84,12 @@ Enable the repository's pre-commit hook after cloning:
 
 ```sh
 git config core.hooksPath .githooks
+npm ci --prefix frontend
 ```
 
-The hook runs `cargo clippy --workspace --all-targets --all-features -- -D warnings`
-and blocks the commit if Clippy fails. It checks the working tree, including
+The hook runs `npm --prefix frontend run check` for Svelte and TypeScript checks,
+then `cargo clippy --workspace --all-targets --all-features -- -D warnings`.
+It blocks the commit if either check fails. It checks the working tree, including
 unstaged changes. Configure `DATABASE_URL` in the root `.env` or environment and
 apply the [database migrations](db/README.md) before committing. SQLx needs the
 database to check queries in test targets.
