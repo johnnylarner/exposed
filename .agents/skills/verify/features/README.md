@@ -19,9 +19,11 @@ The test expects one result per search, the documented source and funding entry
 counts, recorded names, and both kinds of direct link evidence.
 
 The baseline was captured from the accepted development data on 12 October 2026.
-IDs are arbitrary and do not affect comparisons. Group member IDs are replaced
-with stable labels, and direct links use those same labels. Refreshing the snapshot can
-change names. Review those data changes
-separately from search-code changes before editing the accepted JSON.
+Search entity IDs are omitted from comparisons. However, equal-score funder
+matches sort by UUID, so changed IDs can change result order and the ten-result
+cutoff. Group member IDs are replaced with stable labels, and direct links use
+those same labels. Refreshing the snapshot can change names, identities, and
+ordering. Review those data changes separately from search-code changes before
+editing the accepted JSON.
 The map covers HTTP behavior. Browser interactions and ingestion resolution
 are outside this focused regression check.
