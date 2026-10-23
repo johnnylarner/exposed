@@ -219,9 +219,35 @@ pub struct DeclaredGbpPeriodTotal {
     pub incomplete: bool,
 }
 
+/// UTC calendar year selected for a summary.
+#[derive(Clone, Copy, Debug)]
+pub struct CalendarYear(i32);
+impl CalendarYear {
+    /// Selects the UTC year containing this instant.
+    #[must_use]
+    pub fn containing(instant: DateTime<Utc>) -> Self {
+        use chrono::Datelike;
+        Self(instant.year())
+    }
+    /// Calendar year number.
+    #[must_use]
+    pub const fn value(self) -> i32 {
+        self.0
+    }
+    /// Tests a known UTC registration against this calendar year.
+    #[must_use]
+    pub fn includes(self, registered_at: Option<DateTime<Utc>>) -> bool {
+        registered_at.is_some_and(|date| Self::containing(date).0 == self.0)
+    }
+}
+
 /// Backend-owned declared GBP headlines across all categories.
 #[derive(Clone, Debug)]
 pub struct DeclaredGbpTotals {
+    /// Selected UTC calendar year.
+    pub calendar_year: CalendarYear,
+    /// Declarations registered in the selected year.
+    pub current_year: DeclaredGbpPeriodTotal,
     /// Inclusive registration boundary; undated records are historical only.
     pub current_term_start: DateTime<Utc>,
     /// Current parliament declarations.

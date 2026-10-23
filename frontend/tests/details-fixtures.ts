@@ -48,8 +48,12 @@ export function declaredTotals(
     incomplete: boolean;
   },
   historical = currentTerm,
+  currentYear = currentTerm,
+  calendarYear = 2026,
 ) {
   return {
+    calendar_year: calendarYear,
+    current_year: currentYear,
     current_term_start: "2024-07-09T00:00:00Z",
     current_term: currentTerm,
     historical,

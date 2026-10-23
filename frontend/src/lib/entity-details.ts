@@ -63,6 +63,8 @@ export interface DeclaredGbpPeriodTotal {
 }
 
 export interface DeclaredGbpTotals {
+  calendarYear: number;
+  currentYear: DeclaredGbpPeriodTotal;
   currentTermStart: string;
   currentTerm: DeclaredGbpPeriodTotal;
   historical: DeclaredGbpPeriodTotal;

@@ -608,10 +608,11 @@ async fn declared_totals_include_all_categories_and_preserve_coverage(pool: PgPo
             .await
             .unwrap();
     });
-    let expected: serde_json::Value =
+    let mut expected: serde_json::Value =
         serde_json::from_str(include_str!("fixtures/declared_totals.json")).unwrap();
     let client = reqwest::Client::new();
-    for (id, contract) in expected.as_object().unwrap() {
+    for (id, contract) in expected.as_object_mut().unwrap() {
+        let before = chrono::Datelike::year(&chrono::Utc::now());
         let response = client
             .get(format!("{origin}/members/{id}"))
             .send()
@@ -620,6 +621,25 @@ async fn declared_totals_include_all_categories_and_preserve_coverage(pool: PgPo
         assert_eq!(response.status(), reqwest::StatusCode::OK);
         let bytes = response.bytes().await.unwrap();
         let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let after = chrono::Datelike::year(&chrono::Utc::now());
+        let year = body["summary"]["declared_totals"]["calendar_year"]
+            .as_i64()
+            .unwrap();
+        assert!(year == i64::from(before) || year == i64::from(after));
+        let period = match (id.as_str(), year) {
+            ("7001", 2024) => (Some("300"), 2, false),
+            ("7001", 2025) => (Some("25.45"), 6, true),
+            ("7002" | "7007", 2025) => (Some("0"), 1, false),
+            ("7004", 2025) | ("7006", 2023) => (None, 1, false),
+            ("7005", 2025) | ("7007", 2024) => (None, 1, true),
+            _ => (None, 0, false),
+        };
+        contract["declared_totals"]["calendar_year"] = serde_json::json!(year);
+        contract["declared_totals"]["current_year"] = serde_json::json!({
+            "amount": period.0,
+            "declaration_count": period.1,
+            "incomplete": period.2,
+        });
         assert_eq!(
             body["summary"]["declared_totals"], contract["declared_totals"],
             "member {id}"

@@ -6,10 +6,10 @@ pub use interface::EntityDetailsService;
 pub use crate::domain::models::entity_details::EntityDetailsError;
 use crate::domain::{
     models::entity_details::{
-        CategoryTotal, CurrencyBreakdown, DeclarationCategory, DeclaredGbpPeriodTotal,
-        DeclaredGbpTotals, FunderDetails, FunderDetailsRequest, FunderFunding, MemberCurrencyTotal,
-        MemberDeclaration, MemberDetails, MemberDetailsRequest, MemberHistory, MemberSummary,
-        PartyTotal, RecipientAllocation,
+        CalendarYear, CategoryTotal, CurrencyBreakdown, DeclarationCategory,
+        DeclaredGbpPeriodTotal, DeclaredGbpTotals, FunderDetails, FunderDetailsRequest,
+        FunderFunding, MemberCurrencyTotal, MemberDeclaration, MemberDetails, MemberDetailsRequest,
+        MemberHistory, MemberSummary, PartyTotal, RecipientAllocation,
     },
     repositories::entity_details::EntityDetailsRepo,
 };
@@ -39,7 +39,7 @@ impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
         self.repo
             .member(request.id())
             .await?
-            .map(summarize_member)
+            .map(|history| summarize_member(history, CalendarYear::containing(chrono::Utc::now())))
             .ok_or(EntityDetailsError::NotFound)
     }
     async fn funder(
@@ -150,15 +150,19 @@ impl CurrentParliamentStart {
     }
 }
 
-fn summarize_member(history: MemberHistory) -> MemberDetails {
+fn summarize_member(history: MemberHistory, calendar_year: CalendarYear) -> MemberDetails {
     let boundary = CurrentParliamentStart::new();
     let mut historical = PeriodAggregate::default();
     let mut current_term = PeriodAggregate::default();
+    let mut current_year = PeriodAggregate::default();
     let mut first_registered_at = None;
     let mut last_registered_at = None;
     let mut undated_declaration_count = 0;
     for declaration in &history.declarations {
         historical.observe(declaration);
+        if calendar_year.includes(declaration.registered_at) {
+            current_year.observe(declaration);
+        }
         if boundary.includes(declaration) {
             current_term.observe(declaration);
         }
@@ -177,6 +181,8 @@ fn summarize_member(history: MemberHistory) -> MemberDetails {
     }
     let summary = MemberSummary {
         declared_totals: DeclaredGbpTotals {
+            calendar_year,
+            current_year: current_year.gbp_total(),
             current_term_start: boundary.0,
             historical: historical.gbp_total(),
             current_term: current_term.gbp_total(),
@@ -286,5 +292,154 @@ fn summarize_funder(funding: FunderFunding) -> FunderDetails {
         entry_count,
         unknown_currency_count,
         recipient_limit: TOP_RECIPIENTS,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::models::entity_details::{DeclaredFunding, MemberProfile};
+
+    fn declaration(
+        date: Option<&str>,
+        amount: Option<&str>,
+        currency: Option<&str>,
+    ) -> MemberDeclaration {
+        MemberDeclaration {
+            source_id: 1,
+            category: DeclarationCategory::Other(987),
+            category_name: "Unknown category".into(),
+            registered_at: date.map(|date| date.parse().unwrap()),
+            entries: vec![DeclaredFunding {
+                funder: None,
+                payment_type: None,
+                amount: amount.map(|amount| amount.parse().unwrap()),
+                currency: currency.map(str::to_owned),
+            }],
+        }
+    }
+
+    fn history(declarations: Vec<MemberDeclaration>) -> MemberHistory {
+        MemberHistory {
+            member: MemberProfile {
+                id: "1".parse().unwrap(),
+                name: "Example".into(),
+                party_id: 1,
+                party_name: "Party".into(),
+                membership_from: "Example".into(),
+                is_current_commons: true,
+            },
+            declarations,
+        }
+    }
+
+    #[test]
+    fn calendar_year_totals_use_utc_boundaries_and_preserve_coverage() {
+        let history = history(vec![
+            declaration(
+                Some("2024-12-31T23:59:59.999999Z"),
+                Some("100"),
+                Some("GBP"),
+            ),
+            declaration(
+                Some("2025-01-01T00:00:00Z"),
+                Some("9007199254740993.123456789"),
+                Some("GBP"),
+            ),
+            declaration(
+                Some("2025-12-31T23:59:59.999999Z"),
+                Some("-9007199254740993.023456789"),
+                Some("GBP"),
+            ),
+            declaration(Some("2025-02-01T00:00:00Z"), None, Some("EUR")),
+            declaration(Some("2026-01-01T00:00:00Z"), None, Some("GBP")),
+            declaration(None, Some("50"), None),
+        ]);
+        let year = CalendarYear::containing("2025-06-01T00:00:00Z".parse().unwrap());
+        let details = summarize_member(history.clone(), year);
+        let total = details.summary.declared_totals.current_year;
+        assert_eq!(total.amount, Some("0.1".parse().unwrap()));
+        assert_eq!(total.declaration_count, 3);
+        assert!(!total.incomplete);
+        assert_eq!(
+            details.summary.declared_totals.historical.declaration_count,
+            6
+        );
+        assert!(details.summary.declared_totals.historical.incomplete);
+        let mut missing = history.clone();
+        missing
+            .declarations
+            .push(declaration(Some("2025-07-01T00:00:00Z"), None, Some("GBP")));
+        assert!(
+            summarize_member(missing, year)
+                .summary
+                .declared_totals
+                .current_year
+                .incomplete
+        );
+        let mut unknown = history;
+        unknown
+            .declarations
+            .push(declaration(Some("2025-07-01T00:00:00Z"), Some("8"), None));
+        assert!(
+            summarize_member(unknown, year)
+                .summary
+                .declared_totals
+                .current_year
+                .incomplete
+        );
+    }
+
+    #[test]
+    fn calendar_year_totals_distinguish_empty_zero_and_unavailable() {
+        let year = CalendarYear::containing("2025-06-01T00:00:00Z".parse().unwrap());
+        let summarize = |declarations| {
+            summarize_member(history(declarations), year)
+                .summary
+                .declared_totals
+                .current_year
+        };
+        let empty = summarize(Vec::new());
+        assert_eq!(empty.amount, None);
+        assert_eq!(empty.declaration_count, 0);
+        assert!(!empty.incomplete);
+        let zero = summarize(vec![declaration(
+            Some("2025-01-01T00:00:00Z"),
+            Some("0"),
+            Some("GBP"),
+        )]);
+        assert_eq!(zero.amount, Some("0".parse().unwrap()));
+        assert_eq!(zero.declaration_count, 1);
+        assert!(!zero.incomplete);
+        let foreign = summarize(vec![declaration(
+            Some("2025-01-01T00:00:00Z"),
+            None,
+            Some("EUR"),
+        )]);
+        assert_eq!(foreign.amount, None);
+        assert_eq!(foreign.declaration_count, 1);
+        assert!(!foreign.incomplete);
+        let missing = summarize(vec![declaration(
+            Some("2025-01-01T00:00:00Z"),
+            None,
+            Some("GBP"),
+        )]);
+        assert_eq!(missing.amount, None);
+        assert_eq!(missing.declaration_count, 1);
+        assert!(missing.incomplete);
+        let mut no_entries = declaration(Some("2025-01-01T00:00:00Z"), None, None);
+        no_entries.entries.clear();
+        let no_entries = summarize(vec![no_entries]);
+        assert_eq!(no_entries.amount, None);
+        assert_eq!(no_entries.declaration_count, 1);
+        assert!(!no_entries.incomplete);
+        assert_eq!(year.value(), 2025);
+        assert_eq!(
+            CalendarYear::containing("2024-12-31T23:00:00-02:00".parse().unwrap()).value(),
+            2025
+        );
+        assert!(year.includes(Some("2024-12-31T23:00:00-02:00".parse().unwrap())));
+        assert!(!year.includes(None));
+        assert!(!year.includes(Some("2025-12-31T23:00:00-02:00".parse().unwrap())));
     }
 }
