@@ -33,9 +33,7 @@
 
 <div class="member-summary-top funder-summary-top">
   <section aria-labelledby="party-heading">
-    <SectionHeading id="party-heading" title="Funding by party">
-      <p>Grouped by recipients' latest recorded party.</p>
-    </SectionHeading>
+    <SectionHeading id="party-heading" title="Funding by party" />
     <div class="funder-party-chart">
       {#if slices.length === 0}<p class="empty-details funder-party-empty">
           {details.entryCount === 0
@@ -60,9 +58,7 @@
     {/if}
   </section>
   <section class="funder-recipient-panel" aria-labelledby="recipients-heading">
-    <SectionHeading id="recipients-heading" title="Top 5 recipients">
-      <p>MPs ranked by known declared value.</p>
-    </SectionHeading>
+    <SectionHeading id="recipients-heading" title="Top 5 recipients" />
     {#if !recipients.length}<p class="empty-details">
         No recipients are available.
       </p>{:else}
