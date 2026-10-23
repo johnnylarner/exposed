@@ -304,17 +304,6 @@ h1 {
   margin-top: 12px;
 }
 
-.member-earnings-totals {
-  grid-column: 1 / -1;
-  min-width: 0;
-}
-
-.earnings-values {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr));
-  gap: 24px;
-}
-
 .entity-legend {
   display: flex;
   align-items: center;

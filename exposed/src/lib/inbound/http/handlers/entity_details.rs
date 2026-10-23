@@ -188,6 +188,8 @@ impl From<crate::domain::models::entity_details::DeclaredGbpPeriodTotal>
 }
 #[derive(Serialize)]
 struct DeclaredGbpTotalsResponse {
+    calendar_year: i32,
+    current_year: DeclaredGbpPeriodResponse,
     current_term_start: DateTime<Utc>,
     current_term: DeclaredGbpPeriodResponse,
     historical: DeclaredGbpPeriodResponse,
@@ -207,6 +209,8 @@ impl From<MemberSummary> for MemberSummaryResponse {
     fn from(value: MemberSummary) -> Self {
         Self {
             declared_totals: DeclaredGbpTotalsResponse {
+                calendar_year: value.declared_totals.calendar_year.value(),
+                current_year: value.declared_totals.current_year.into(),
                 current_term_start: value.declared_totals.current_term_start,
                 current_term: value.declared_totals.current_term.into(),
                 historical: value.declared_totals.historical.into(),

@@ -109,6 +109,8 @@ function declaredTotals(value: unknown) {
   const start = timestamp(row.current_term_start);
   if (start === null) return malformed();
   return {
+    calendarYear: integer(row.calendar_year),
+    currentYear: declaredPeriod(row.current_year),
     currentTermStart: start,
     currentTerm: declaredPeriod(row.current_term),
     historical: declaredPeriod(row.historical),
