@@ -1759,6 +1759,13 @@ test("source table keeps all sources, coverage, native links and narrow exact am
     name: "Sources ranked by known declared GBP amounts",
   });
   await expect(table.getByRole("row")).toHaveCount(6);
+  const firstDeclaration = page.locator(".declarations-list > li").first();
+  await expect(firstDeclaration).toHaveCSS("border-top-width", "1px");
+  const declarationDivider = await firstDeclaration.evaluate(
+    (element) => getComputedStyle(element).borderTop,
+  );
+  for (const cell of await table.locator("tbody tr:first-child > *").all())
+    await expect(cell).toHaveCSS("border-top", declarationDivider);
   await expect(table.getByRole("columnheader").last()).toHaveText(
     "Declared GBP",
   );
