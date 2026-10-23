@@ -75,7 +75,7 @@
     />
     {#if route.kind === "member" && route.view === "history"}<MemberHistory
         {details}
-      />{:else}<MemberSummary {details} {summary} />{/if}
+      />{:else}<MemberSummary {summary} />{/if}
   {:else}
     {@const details = detailState.details}
     <FunderIdentity
