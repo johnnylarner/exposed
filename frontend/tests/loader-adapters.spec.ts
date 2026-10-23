@@ -81,6 +81,11 @@ const funderRoute = {
 } satisfies Parameters<typeof loadDetails>[0];
 for (const [name, body] of [
   ["missing declarations", { ...funderDetails, declarations: undefined }],
+  ["missing declared totals", { ...funderDetails, declared_totals: undefined }],
+  [
+    "missing first registration",
+    { ...funderDetails, first_registered_at: undefined },
+  ],
   [
     "invalid source timestamp",
     {
@@ -234,6 +239,20 @@ for (const [name, fields] of [
         },
       },
     };
+    expect(
+      await loadDetails(
+        funderRoute,
+        signal(),
+        reply({
+          ...funderDetails,
+          declared_totals: { ...funderDetails.declared_totals, ...fields },
+        }),
+        "http://api",
+      ),
+    ).toEqual({
+      kind: "error",
+      message: "Details returned an unexpected response. Try again.",
+    });
     expect(
       await loadDetails(route, signal(), reply(body), "http://api"),
     ).toEqual({

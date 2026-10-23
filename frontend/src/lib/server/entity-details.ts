@@ -160,6 +160,8 @@ function readFunder(value: unknown): FunderDetails {
   const row = record(value);
   const funder = record(row.funder);
   return {
+    declaredTotals: declaredTotals(row.declared_totals),
+    firstRegisteredAt: timestamp(row.first_registered_at),
     declarations: list(row.declarations).map((value) => {
       const source = record(value);
       return {

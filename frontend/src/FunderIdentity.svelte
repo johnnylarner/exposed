@@ -1,14 +1,7 @@
 <script lang="ts">
-  import {
-    Icon,
-    Metric,
-    IdentityHeader,
-    ViewLinks,
-    ViewLink,
-    Badge,
-  } from "./lib/ui";
+  import { Icon, IdentityHeader, ViewLinks, ViewLink, Badge } from "./lib/ui";
   import { page } from "$app/state";
-  import { formatPounds } from "./lib/member-summary";
+  import DeclaredTotals from "./DeclaredTotals.svelte";
   import { funderHref, type FunderDetails } from "./lib/entity-details";
   import { funderKindLabel } from "./lib/search";
   import posthog from "posthog-js";
@@ -16,10 +9,6 @@
     details,
     view,
   }: { details: FunderDetails; view: "summary" | "history" } = $props();
-  const total = $derived(
-    details.currencies.find((group) => group.currency === "GBP")?.amount ??
-      null,
-  );
 </script>
 
 <IdentityHeader name={details.funder.name}
@@ -33,10 +22,9 @@
         >Company number {details.funder.companyNumber}</span
       >{/if}
   {/snippet}{#snippet values()}
-    {#if view === "summary"}<Metric
-        label="Total funded"
-        value={formatPounds(total)}
-        available={total !== null}
+    {#if view === "summary"}<DeclaredTotals
+        totals={details.declaredTotals}
+        firstRegisteredAt={details.firstRegisteredAt}
       />{/if}
   {/snippet}{#snippet navigation()}<ViewLinks label="Funder views">
       <ViewLink

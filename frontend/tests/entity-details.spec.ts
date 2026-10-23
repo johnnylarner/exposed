@@ -202,9 +202,11 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
 }) => {
   await mockDetails(backend);
   await page.goto(`/funders/${funderId}?q=Example&strictness=0.42`);
-  await expect(page.locator(".member-total")).toHaveText(
+  await expect(page.locator(".declared-totals .member-total")).toHaveText([
     "£18,014,398,509,481,981.246913578",
-  );
+    "£18,014,398,509,481,981.246913578",
+    "£18,014,398,509,481,981.246913578",
+  ]);
   await expect(page.getByText("Company number 00123456")).toBeVisible();
   const controls = page.locator(".funder-party-legend li");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
@@ -414,6 +416,9 @@ test("empty details and unknown currency only details remain distinct from error
     route.fulfill({
       json: {
         ...funderDetails,
+        declared_totals: emptyDeclaredTotals,
+        first_registered_at: null,
+        declarations: [],
         currencies: [],
         entry_count: 0,
         unknown_currency_count: 0,
@@ -432,7 +437,7 @@ test("empty details and unknown currency only details remain distinct from error
     "No declarations recorded",
     "No declarations recorded",
   ]);
-  await expect(page.locator(".member-earnings-totals h2")).toHaveText([
+  await expect(page.locator(".declared-totals h2")).toHaveText([
     "Declared amounts this parliamentary term",
     "Historical declared amounts",
     "Declared amounts in 2026",
@@ -1380,14 +1385,12 @@ test("member declared amounts include gifts and travel with registration coverag
       name: "Sources ranked by known declared GBP amounts",
     }),
   ).toContainText("£425.00");
-  await expect(page.locator(".member-earnings-totals h2")).toHaveText([
+  await expect(page.locator(".declared-totals h2")).toHaveText([
     "Declared amounts this parliamentary term",
     "Historical declared amounts since 1 January 2020",
     "Declared amounts in 2031",
   ]);
-  await expect(
-    page.locator(".member-earnings-totals .partial-note"),
-  ).toHaveCount(0);
+  await expect(page.locator(".declared-totals .partial-note")).toHaveCount(0);
   if (process.env.EXPOSED_SCREENSHOT_DIR)
     await page.screenshot({
       path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-earnings-summary.png`,
@@ -1841,3 +1844,138 @@ test("member source table has an explicit empty state", async ({
     }),
   ).toHaveCount(0);
 });
+
+for (const entity of ["member", "funder"] as const) {
+  test(`${entity} headlines use authoritative periods in the same responsive row`, async ({
+    backend,
+    page,
+  }) => {
+    const totals = declaredTotals(
+      { amount: "0", declaration_count: 1, incomplete: false },
+      {
+        amount: "9007199254740993.123456789",
+        declaration_count: 4,
+        incomplete: true,
+      },
+      { amount: "-12.34", declaration_count: 2, incomplete: false },
+      2031,
+    );
+    const first = "2020-01-01T00:00:00Z";
+    const body =
+      entity === "member"
+        ? {
+            ...memberDetails,
+            summary: {
+              ...memberDetails.summary,
+              declared_totals: totals,
+              first_registered_at: first,
+            },
+          }
+        : {
+            ...funderDetails,
+            declared_totals: totals,
+            first_registered_at: first,
+          };
+    const path = entity === "member" ? "/members/1" : `/funders/${funderId}`;
+    await backend.route(`**/api${path}`, (route) =>
+      route.fulfill({ json: body }),
+    );
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(path);
+    const headlines = page.locator(".declared-totals");
+    await expect(headlines.locator("h2")).toHaveText([
+      "Declared amounts this parliamentary term",
+      "Historical declared amounts since 1 January 2020",
+      "Declared amounts in 2031",
+    ]);
+    await expect(headlines.locator(".member-total")).toHaveText([
+      "£0.00",
+      "£9,007,199,254,740,993.123456789",
+      "−£12.34",
+    ]);
+    await expect(
+      headlines.getByRole("region", {
+        name: "Historical declared amounts in GBP",
+      }),
+    ).toHaveAttribute(
+      "title",
+      "Known GBP amounts only. Some amounts unavailable.",
+    );
+    const boxes = await headlines
+      .locator(".member-value")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const rect = node.getBoundingClientRect();
+          return { top: rect.top, left: rect.left };
+        }),
+      );
+    expect(boxes[0].top).toBe(boxes[1].top);
+    expect(boxes[1].top).toBe(boxes[2].top);
+    expect(boxes[0].left).toBeLessThan(boxes[1].left);
+    if (process.env.EXPOSED_SCREENSHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.EXPOSED_SCREENSHOT_DIR}/${entity}-periods-desktop.png`,
+        fullPage: true,
+      });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const narrow = await headlines
+      .locator(".member-value")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => node.getBoundingClientRect().top),
+      );
+    expect(narrow[0]).toBeLessThan(narrow[1]);
+    expect(narrow[1]).toBeLessThan(narrow[2]);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
+    if (process.env.EXPOSED_SCREENSHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.EXPOSED_SCREENSHOT_DIR}/${entity}-periods-narrow.png`,
+        fullPage: true,
+      });
+  });
+}
+
+for (const period of [
+  {
+    name: "empty",
+    total: { amount: null, declaration_count: 0, incomplete: false },
+    expected: "No declarations recorded",
+  },
+  {
+    name: "unavailable",
+    total: { amount: null, declaration_count: 1, incomplete: true },
+    expected: "Amount unavailable",
+  },
+]) {
+  test(`funder headlines distinguish ${period.name} from zero`, async ({
+    backend,
+    page,
+  }) => {
+    await backend.route("**/api/funders/*", (route) =>
+      route.fulfill({
+        json: {
+          ...funderDetails,
+          declared_totals: declaredTotals(period.total),
+          first_registered_at: null,
+          declarations: [],
+          currencies: [],
+          entry_count: 0,
+          unknown_currency_count: 0,
+        },
+      }),
+    );
+    await page.goto(`/funders/${funderId}`);
+    await expect(page.locator(".declared-totals .member-total")).toHaveText([
+      period.expected,
+      period.expected,
+      period.expected,
+    ]);
+    await expect(page.locator(".declared-totals [role=region]")).toHaveCount(0);
+    if (period.name === "empty" && process.env.EXPOSED_SCREENSHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.EXPOSED_SCREENSHOT_DIR}/funder-empty-desktop.png`,
+        fullPage: true,
+      });
+  });
+}

@@ -99,6 +99,8 @@ export interface FunderDeclaration {
 }
 
 export interface FunderDetails {
+  declaredTotals: DeclaredGbpTotals;
+  firstRegisteredAt: string | null;
   declarations: FunderDeclaration[];
   funder: {
     id: string;

@@ -189,6 +189,7 @@ async fn exact_summaries_exclude_unknown_currencies_and_keep_local_coverage(pool
     assert_eq!(details.profile.aliases, ALIASES);
     assert_eq!(details.entry_count, 25);
     assert_eq!(details.unknown_currency_count, 5);
+    assert_funder_declared_totals(&details);
     assert_eq!(
         details
             .currencies
@@ -356,6 +357,7 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
     assert_eq!(response.status(), reqwest::StatusCode::OK);
     let body: serde_json::Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
     assert_eq!(body["funder"]["id"], FUNDER);
+    assert_funder_declared_contract(&body);
     assert_eq!(body["funder"]["aliases"], serde_json::json!(ALIASES));
     assert_eq!(body["funder"]["member_ids"], serde_json::json!([FUNDER]));
     assert_eq!(body["funder"]["alias_links"], serde_json::json!([]));
@@ -646,4 +648,52 @@ async fn declared_totals_include_all_categories_and_preserve_coverage(pool: PgPo
         );
     }
     server.abort();
+}
+
+fn assert_funder_declared_contract(body: &serde_json::Value) {
+    let totals = &body["declared_totals"];
+    assert_eq!(totals["current_term_start"], "2024-07-09T00:00:00Z");
+    assert_eq!(
+        totals["historical"],
+        serde_json::json!({
+            "amount": "18014398509481993.246913578", "declaration_count": 14, "incomplete": true,
+        })
+    );
+    assert_eq!(
+        totals["current_term"],
+        serde_json::json!({
+            "amount": "18014398509481986.246913578", "declaration_count": 1, "incomplete": true,
+        })
+    );
+    let year = totals["calendar_year"].as_i64().unwrap();
+    if year == 2026 {
+        assert_eq!(totals["current_year"], totals["current_term"]);
+    } else {
+        assert_eq!(
+            totals["current_year"],
+            serde_json::json!({
+                "amount": null, "declaration_count": 0, "incomplete": false,
+            })
+        );
+    }
+    assert_eq!(body["first_registered_at"], "2026-01-21T00:00:00Z");
+}
+
+fn assert_funder_declared_totals(details: &crate::domain::models::entity_details::FunderDetails) {
+    assert_eq!(
+        details.declared_totals.historical.amount,
+        Some("18014398509481993.246913578".parse().unwrap())
+    );
+    assert_eq!(details.declared_totals.historical.declaration_count, 14);
+    assert!(details.declared_totals.historical.incomplete);
+    assert_eq!(
+        details.declared_totals.current_term.amount,
+        Some("18014398509481986.246913578".parse().unwrap())
+    );
+    assert_eq!(details.declared_totals.current_term.declaration_count, 1);
+    assert!(details.declared_totals.current_term.incomplete);
+    assert_eq!(
+        details.first_registered_at,
+        Some("2026-01-21T00:00:00Z".parse().unwrap())
+    );
 }

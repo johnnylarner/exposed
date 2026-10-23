@@ -141,6 +141,12 @@ export const memberDetails = {
   },
 };
 export const funderDetails = {
+  declared_totals: declaredTotals({
+    amount: "18014398509481981.246913578",
+    declaration_count: 1,
+    incomplete: true,
+  }),
+  first_registered_at: "2026-01-21T00:00:00Z",
   funder: {
     id: funderId,
     name: "Exact Funder",
