@@ -64,7 +64,7 @@
       </p>{:else}
       <div class="funder-recipients">
         <DataTable caption="Top recipients of declared funding"
-          >{#snippet head()}<tr
+          >{#snippet head()}<tr class="visually-hidden"
               ><th class="recipient-name" scope="col">MP</th><th
                 class="recipient-total"
                 scope="col">Known total</th
