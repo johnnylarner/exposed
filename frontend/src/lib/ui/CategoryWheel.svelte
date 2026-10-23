@@ -62,9 +62,6 @@
         >
           <Icon name={option.icon} size={20} />
           <span>{option.label}</span>
-          <span class="selection-mark" aria-hidden="true"
-            >{selected === option.id ? "✓" : ""}</span
-          >
         </span>
       </button>
     {/each}
@@ -136,6 +133,7 @@
     position: absolute;
     transform: translate(-50%, -50%);
     width: 110px;
+    padding-bottom: calc(14px + var(--space-1));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -145,11 +143,6 @@
   button :global(svg) {
     color: var(--muted);
     flex: none;
-  }
-  .selection-mark {
-    height: 14px;
-    line-height: 14px;
-    font-weight: 700;
   }
   @media (prefers-reduced-motion: reduce) {
     path {

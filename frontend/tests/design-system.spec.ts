@@ -413,7 +413,7 @@ test("focus tokens propagate to native and component controls", async ({
   }
 });
 
-test("category wheel retains keyboard focus, selected marker and neutral focus", async ({
+test("category wheel retains keyboard focus and neutral focus without a tick", async ({
   page,
 }) => {
   await page.goto("/design-system", { waitUntil: "networkidle" });
@@ -425,7 +425,7 @@ test("category wheel retains keyboard focus, selected marker and neutral focus",
   await page.keyboard.press("Enter");
   await expect(company).toBeFocused();
   await expect(company).toHaveAttribute("aria-pressed", "true");
-  await expect(company).toContainText("✓");
+  await expect(selector).not.toContainText("✓");
   await expect(selector.getByRole("button", { name: "MPs" })).toHaveAttribute(
     "aria-pressed",
     "false",

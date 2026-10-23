@@ -33,7 +33,7 @@ test("rankings SSR includes exact top ten and category switching is immediate an
   await page.keyboard.press("Space");
   await expect(individuals).toBeFocused();
   await expect(individuals).toHaveAttribute("aria-pressed", "true");
-  await expect(individuals).toContainText("✓");
+  await expect(page.locator(".category-wheel")).not.toContainText("✓");
   await expect(
     page.getByRole("list", { name: "Individuals rankings" }),
   ).toContainText("£0.00");
