@@ -396,6 +396,13 @@
             available={false}
           />{/snippet}</IdentityHeader
       >
+      <Metric
+        variant="expanded"
+        align="end"
+        level={3}
+        label="Declared amounts"
+        value="£42,500.75"
+      />
       <DeclarationList
         ><DeclarationCard
           >{#snippet heading()}<h3>Employment</h3>

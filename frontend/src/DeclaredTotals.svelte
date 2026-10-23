@@ -21,8 +21,9 @@
 
 <div class="declared-totals">
   <div class="declared-values">
-    {#each [{ label: "Declared amounts this parliamentary term", regionLabel: "Declared amounts this parliamentary term in GBP", total: totals.currentTerm }, { regionLabel: "Historical declared amounts in GBP", label: `Historical declared amounts${firstRegisteredAt ? ` since ${dateLabel(firstRegisteredAt)}` : ""}`, total: totals.historical }, { label: `Declared amounts in ${totals.calendarYear}`, regionLabel: `Declared amounts in ${totals.calendarYear} in GBP`, total: totals.currentYear }] as metric}<Metric
+    {#each [{ label: "Declared amounts this parliamentary term", regionLabel: "Declared amounts this parliamentary term in GBP", total: totals.currentTerm }, { regionLabel: "Historical declared amounts in GBP", label: `Historical declared amounts${firstRegisteredAt ? ` since ${dateLabel(firstRegisteredAt)}` : ""}`, total: totals.historical }, { label: `Declared amounts in ${totals.calendarYear}`, regionLabel: `Declared amounts in ${totals.calendarYear} in GBP`, total: totals.currentYear }] as metric, index}<Metric
         variant="expanded"
+        align={index === 2 ? "end" : undefined}
         regionLabel={metric.regionLabel}
         label={metric.label}
         value={metric.total.declarationCount === 0

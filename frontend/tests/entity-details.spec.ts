@@ -1482,28 +1482,34 @@ test("declared amounts keep precise figures readable on narrow screens and missi
   ]);
   amount = "98765432.12345678901234567890123456789";
   await page.reload();
-  const figure = page.getByRole("region", {
-    name: "Historical declared amounts in GBP",
-    exact: true,
-  });
-  await expect(figure).toHaveText("£98,765,432.12345678901234567890123456789");
-  await figure.focus();
-  await page.keyboard.press("ArrowRight");
-  expect(
-    await figure.evaluate((element) => {
-      const range = document.createRange();
-      range.selectNodeContents(element);
-      return range.getClientRects().length;
+  for (const figure of [
+    page.getByRole("region", {
+      name: "Historical declared amounts in GBP",
+      exact: true,
     }),
-  ).toBe(1);
-  expect(
-    await figure.evaluate((element) =>
-      parseFloat(getComputedStyle(element).outlineWidth),
-    ),
-  ).toBeGreaterThanOrEqual(2);
-  await expect
-    .poll(() => figure.evaluate((element) => element.scrollLeft))
-    .toBeGreaterThan(0);
+    page.locator(".declared-totals .member-value").last().getByRole("region"),
+  ]) {
+    await expect(figure).toHaveText(
+      "£98,765,432.12345678901234567890123456789",
+    );
+    await figure.focus();
+    await page.keyboard.press("ArrowRight");
+    expect(
+      await figure.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getClientRects().length;
+      }),
+    ).toBe(1);
+    expect(
+      await figure.evaluate((element) =>
+        parseFloat(getComputedStyle(element).outlineWidth),
+      ),
+    ).toBeGreaterThanOrEqual(2);
+    await expect
+      .poll(() => figure.evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(0);
+  }
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -1901,6 +1907,26 @@ for (const entity of ["member", "funder"] as const) {
     expect(boxes[0].top).toBe(boxes[1].top);
     expect(boxes[1].top).toBe(boxes[2].top);
     expect(boxes[0].left).toBeLessThan(boxes[1].left);
+    const firstMetric = headlines.locator(".member-value").first();
+    const lastMetric = headlines.locator(".member-value").last();
+    await expect(firstMetric.locator("h2")).toHaveCSS("text-align", "left");
+    await expect(firstMetric.locator(".member-total")).toHaveCSS(
+      "text-align",
+      "left",
+    );
+    await expect(lastMetric.locator("h2")).toHaveCSS("text-align", "end");
+    await expect(lastMetric.locator(".member-total")).toHaveCSS(
+      "text-align",
+      "end",
+    );
+    const section = await page.locator(".member-summary-top").boundingBox();
+    const firstBox = await firstMetric.boundingBox();
+    const lastBox = await lastMetric.boundingBox();
+    expect(section).not.toBeNull();
+    expect(firstBox?.x).toBe(section?.x);
+    expect(lastBox && lastBox.x + lastBox.width).toBe(
+      section && section.x + section.width,
+    );
     if (process.env.EXPOSED_SCREENSHOT_DIR)
       await page.screenshot({
         path: `${process.env.EXPOSED_SCREENSHOT_DIR}/${entity}-periods-desktop.png`,
@@ -1914,6 +1940,11 @@ for (const entity of ["member", "funder"] as const) {
       );
     expect(narrow[0]).toBeLessThan(narrow[1]);
     expect(narrow[1]).toBeLessThan(narrow[2]);
+    await expect(lastMetric.locator("h2")).toHaveCSS("text-align", "end");
+    await expect(lastMetric.locator(".member-total")).toHaveCSS(
+      "text-align",
+      "end",
+    );
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBeLessThanOrEqual(390);
@@ -1961,6 +1992,12 @@ for (const period of [
       period.expected,
     ]);
     await expect(page.locator(".declared-totals [role=region]")).toHaveCount(0);
+    const lastMetric = page.locator(".declared-totals .member-value").last();
+    await expect(lastMetric.locator("h2")).toHaveCSS("text-align", "end");
+    await expect(lastMetric.locator(".member-total")).toHaveCSS(
+      "text-align",
+      "end",
+    );
     if (period.name === "empty" && process.env.EXPOSED_SCREENSHOT_DIR)
       await page.screenshot({
         path: `${process.env.EXPOSED_SCREENSHOT_DIR}/funder-empty-desktop.png`,

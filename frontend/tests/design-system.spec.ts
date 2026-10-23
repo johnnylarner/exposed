@@ -264,6 +264,27 @@ test("standalone metrics keep exact values keyboard scrollable", async ({
   );
 });
 
+test("metric alignment overrides preserve variant and responsive defaults", async ({
+  page,
+}) => {
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const expanded = page.locator('.member-value[data-variant="expanded"]');
+  const standard = page.getByRole("region", {
+    name: "Known declared value",
+    exact: true,
+  });
+  for (const width of [1280, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(standard).toHaveCSS(
+      "text-align",
+      width > 800 ? "right" : "left",
+    );
+    await expect(expanded.locator("h3")).toHaveCSS("text-align", "end");
+    await expect(expanded.getByRole("region")).toHaveCSS("text-align", "end");
+    await expect(expanded.getByRole("region")).toHaveText("£42,500.75");
+  }
+});
+
 test("appearance survives additive classes and independent heading ranks", async ({
   page,
 }) => {
