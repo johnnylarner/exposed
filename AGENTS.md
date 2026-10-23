@@ -52,6 +52,21 @@ The goal of this project is to make declaration data easy to search, browse and 
 
 - Frontend presentation is largely a prototype. UI edits must preserve the financial contract above.
 
+### UI copy scope
+
+- Add only the visible text needed for the requested interaction or data.
+  Do not add unrequested subtitles, helper paragraphs, explanatory labels,
+  badges, or repeated context to make a feature feel complete.
+- Reuse existing wording. Keep required control labels, accessible names,
+  error messages, and the financial wording required above.
+- Before committing UI changes, review each added visible string against the
+  request. Remove optional copy that the user did not request. A component
+  example is not permission to copy its explanatory text into a feature.
+
+| Rule | Enforcement |
+| --- | --- |
+| Omit unrequested visible UI copy. | Review added strings in the diff against the user's request. This is a judgment check; types and automated tests cannot determine whether copy was requested. |
+
 ### Client and server
 
 - Use Node.js 24+. From `frontend`, run `npm ci` and `npm run dev` for local
