@@ -8,14 +8,16 @@ name that supplied the winning match recorded in `match_source`.
 - `unite` returns Unite the Union once, alongside broader matches at strictness 0.8.
 - `west mid` returns Unite through `UNITE The Union (West Midlands)` at strictness 0.8, ahead of the other accepted West Midlands matches.
 - `hsbc` returns one HSBC UK Bank plc entity at strictness 0.8.
-- `jahn` and `jahn mcdonnell` recover John McDonnell through people-search fallback when no primary people match.
+- `jahn` and `jahn mcdonnell` recover John McDonnell through people-search fallback when there are neither primary MP matches nor qualifying individual funder matches.
 
 ## How to get to it (user POV)
 
-Enter a term in the landing-page search box. Set the similarity slider to the
-regression default of 0.8. The browser sends the same `/search` request checked here.
-The public API also accepts GET requests with `term`, `strictness`, and
-`max_entries` query parameters.
+Follow the landing page's search link to `/search` and enter a term. The frontend
+uses fixed strictness 0.8 and a limit of ten results per entity type. Browser
+navigation goes through SvelteKit server loads, which call the Rust API.
+The public Rust API accepts GET `/search` requests with `term`, `strictness`, and
+`max_entries` query parameters. Frontend URLs use `q` for the term and redirect
+legacy URLs to remove `strictness`.
 
 ## Driving it with HTTP
 
@@ -39,4 +41,7 @@ spelling and appears within the normal result limit for both misspelled queries.
 - The frontend and regression searches default to strictness 0.8.
 - All cases use the frontend's current limit of ten results per entity type.
 - A frozen database tests search deduplication by persisted ID, not upstream observation resolution.
-- This HTTP check does not prove slider behavior or rendering in the browser.
+- Equal-score funder matches sort by UUID. A snapshot refresh can change their
+  order and which results fit within the ten-result limit, even though IDs are
+  omitted from the JSON comparison.
+- This HTTP check does not prove browser interactions or rendering.
