@@ -107,7 +107,8 @@
     width: 55%;
   }
   .declared-amount {
-    font-size: var(--text-heading);
+    font-size: clamp(1.5rem, 5vw, 2.75rem);
+    font-weight: 650;
     color: var(--accent);
     font-variant-numeric: tabular-nums;
     overflow-x: auto;
@@ -119,7 +120,8 @@
     outline-offset: var(--focus-offset);
   }
   .declared-unavailable {
-    font-size: var(--text-body);
+    font-size: 1.25rem;
+    font-weight: 500;
     color: var(--muted);
   }
 </style>

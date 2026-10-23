@@ -1455,12 +1455,16 @@ test("declared amounts keep precise figures readable on narrow screens and missi
           return {
             lines: text.getClientRects().length,
             fontSize: parseFloat(getComputedStyle(element).fontSize),
+            fontWeight: getComputedStyle(element).fontWeight,
           };
         }),
       );
     for (const figure of figures) {
       expect(figure.lines).toBe(1);
-      expect(figure.fontSize).toBeGreaterThanOrEqual(14);
+      expect(figure.fontSize).toBeCloseTo(
+        Math.min(44, Math.max(24, width * 0.05)),
+      );
+      expect(figure.fontWeight).toBe("650");
     }
   }
   const knownStyle = await page
@@ -1479,9 +1483,11 @@ test("declared amounts keep precise figures readable on narrow screens and missi
     .evaluate((element) => ({
       color: getComputedStyle(element).color,
       fontSize: parseFloat(getComputedStyle(element).fontSize),
+      fontWeight: getComputedStyle(element).fontWeight,
     }));
   expect(missingStyle.color).not.toBe(knownStyle.color);
-  expect(missingStyle.fontSize).toBeLessThan(knownStyle.fontSize);
+  expect(missingStyle.fontSize).toBe(20);
+  expect(missingStyle.fontWeight).toBe("500");
   await expect(page.locator(".declared-value")).toHaveText([
     "Amount unavailable",
     "Amount unavailable",
