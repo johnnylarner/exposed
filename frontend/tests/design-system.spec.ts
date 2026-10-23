@@ -333,6 +333,24 @@ test("native text tables and standalone rows need no feature ancestors", async (
   );
 });
 
+for (const hiddenHeadings of [false, true]) {
+  test(`table body starts with a divider when headings are ${hiddenHeadings ? "visually hidden" : "visible"}`, async ({
+    page,
+  }) => {
+    await page.goto("/design-system", { waitUntil: "networkidle" });
+    const table = page.getByRole("table", { name: "Three text columns" });
+    if (hiddenHeadings)
+      await table.locator("thead tr").evaluate((row) => {
+        row.classList.add("visually-hidden");
+      });
+    await expect(table).toHaveCSS("border-collapse", "collapse");
+    for (const cell of await table.locator("tbody tr:first-child > *").all()) {
+      await expect(cell).toHaveCSS("border-top-width", "1px");
+      await expect(cell).toHaveCSS("border-top-style", "solid");
+    }
+  });
+}
+
 test("focus tokens propagate to native and component controls", async ({
   page,
 }) => {
