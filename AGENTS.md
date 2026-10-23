@@ -4,7 +4,14 @@ The goal of this project is to make declaration data easy to search, browse and 
 
 - `exposed/` contains the rust application and CLI code that powers the project.
 - `frontend/` contains a simple Svelte application
-- `ingest/` contains the legacy Python scripts used to bootstrap this project.
+
+## Worktree policy
+
+- For read-only tasks (investigating, reading, summarizing, or describing code),
+  work on the current branch without creating a worktree.
+- For tasks that require changing code or other files, use [`worktrunk`](https://worktrunk.dev):
+  - `wt switch --create <branch-name> --base main`
+- Never modify the primary checkout without explicit permission.
 
 ## Exposed coding policy
 
@@ -108,22 +115,6 @@ The goal of this project is to make declaration data easy to search, browse and 
   commit PR screenshots to the repository. Verify that the attachments render
   in the PR description before marking the PR ready for review.
 
-## Ingest coding policy
-
-- When porting code from this project, do not replicate the style. Use it as an end to end guide for functionality.
-
-## Worktree policy
-
-- For read-only tasks (investigating, reading, summarizing, or describing code),
-  work on the current branch without creating a worktree.
-- For tasks that require changing code or other files, work in a dedicated Git
-  worktree before making changes. If a read-only task expands to require changes,
-  switch to a dedicated worktree first.
-- For such changes, reuse this chat's dedicated worktree if one already exists.
-  Otherwise, create a sibling worktree with a unique branch and perform all
-  edits, installs, and checks there.
-- Never modify the primary checkout.
-- Report the worktree path and branch when starting work in a dedicated worktree.
 
 ## Git history
 
