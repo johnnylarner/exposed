@@ -23,3 +23,6 @@ mod declaration_loading;
 mod entity_details;
 
 mod funder_grouping;
+
+mod currency;
+mod rankings;

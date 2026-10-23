@@ -1,3 +1,4 @@
+use crate::domain::services::rankings::RankingsService;
 use crate::{
     domain::{
         models::entity_details::{
@@ -168,7 +169,7 @@ impl From<MemberCurrencyTotal> for MemberCurrencyResponse {
     }
 }
 #[derive(Serialize)]
-struct DeclaredGbpPeriodResponse {
+pub(super) struct DeclaredGbpPeriodResponse {
     amount: Option<String>,
     declaration_count: usize,
     incomplete: bool,
@@ -401,8 +402,8 @@ impl From<FunderDetails> for FunderDetailsResponse {
     }
 }
 
-pub async fn member_details<E: EntitySearchService, D: EntityDetailsService>(
-    State(state): State<AppState<E, D>>,
+pub async fn member_details<E: EntitySearchService, D: EntityDetailsService, R: RankingsService>(
+    State(state): State<AppState<E, D, R>>,
     Path(id): Path<String>,
 ) -> Result<ApiSuccess<MemberDetailsResponse>, ApiError> {
     let request = id.parse::<MemberDetailsRequest>()?;
@@ -410,8 +411,8 @@ pub async fn member_details<E: EntitySearchService, D: EntityDetailsService>(
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }
 
-pub async fn funder_details<E: EntitySearchService, D: EntityDetailsService>(
-    State(state): State<AppState<E, D>>,
+pub async fn funder_details<E: EntitySearchService, D: EntityDetailsService, R: RankingsService>(
+    State(state): State<AppState<E, D, R>>,
     Path(id): Path<String>,
 ) -> Result<ApiSuccess<FunderDetailsResponse>, ApiError> {
     let request = id.parse::<FunderDetailsRequest>()?;
