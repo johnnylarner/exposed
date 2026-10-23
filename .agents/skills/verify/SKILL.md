@@ -10,21 +10,20 @@ The default strictness for this regression check is `0.8` for every search.
 This check freezes search behavior over persisted identities. It does not rerun
 declaration resolution or verify frontend rendering.
 
-The five HTTP comparisons passed against the accepted development API. The
-snapshot launch, doctor, and cleanup procedure has not yet been executed because
-`exposed_search_regression` was absent. Treat that procedure as unverified until
-the snapshot is available and the full run succeeds.
-
 ## Launch
 
-Require Python 3, Cargo, and the existing Compose PostgreSQL service.
-Check that the snapshot exists without changing it:
+Require Python 3, Cargo, curl, and the existing Compose PostgreSQL service.
+Check the snapshot and its migration history without changing it:
 
 ```sh
 docker compose exec -T postgres psql -X -U exposed -d exposed_search_regression -c 'SELECT current_database()'
+docker compose exec -T postgres psql -X -U exposed -d exposed_search_regression -c 'SELECT version, success FROM public._sqlx_migrations ORDER BY version'
 ```
 
-If the database is absent, report the missing prerequisite. The existing
+Require all current `db/migrations/*.up.sql` versions to have succeeded, including
+the funder-group and preferred-name migrations. An older snapshot can pass
+`/healthz` while search fails with missing-table errors. If the snapshot or its
+required schema is absent, report the missing prerequisite. The existing
 [snapshot refresh helper](scripts/refresh-search-regression-db.sh) replaces the snapshot and requires
 stopping source clients. Never refresh it as part of a regression run.
 
@@ -32,32 +31,42 @@ Build and start the current worktree's API with a read-only database connection:
 
 ```sh
 export DATABASE_URL='postgresql://exposed:exposed_local_dev@127.0.0.1:55432/exposed_search_regression?sslmode=disable&options=-c%20default_transaction_read_only%3Don'
-cargo build --package exposed --bin exposed
 evidence_dir=$(mktemp -d /tmp/exposed-search-regression.XXXXXX)
-./target/debug/exposed server >"$evidence_dir/server.log" 2>&1 &
+cargo build --package exposed --bin exposed >"$evidence_dir/build.log" 2>&1
+```
+
+Require a successful build before starting the API. Inspect `build.log` on failure.
+The server requires port 6999. If another host process owns it, report the conflict
+and do not reuse or stop that process. Run only one snapshot API on this host at a time.
+
+```sh
+base_url='http://127.0.0.1:6999'
+RUST_LOG='warn,exposed=info' ./target/debug/exposed server >"$evidence_dir/server.log" 2>&1 &
 server_pid=$!
 ```
 
-Wait for `Listening on http://localhost:PORT` in `server.log` and a successful
-HTTP response. Use that printed port. The server chooses an available port when
-6999 is occupied. Do not reuse the already running development API.
-Separate runs have their own processes, ports, and evidence directories and
-share only the read-only snapshot. Do not run during a snapshot refresh.
+Wait for the JSON startup event with `fields.message` equal to
+`HTTP server listening` and `fields.address` equal to `0.0.0.0:6999` in `server.log`.
+Then run Doctor before any drive. Do not reuse the development API.
+Separate runs have their own processes and evidence directories and share only
+the read-only snapshot. Do not run during a snapshot refresh.
 
 ## Doctor
 
-Confirm the process is alive, its connection selects the snapshot, and its
-printed port answers a real request:
+Confirm the process is alive, its connection selects the snapshot, and both
+health and search answer successfully:
 
 ```sh
 kill -0 "$server_pid"
 docker compose exec -T postgres psql -X -U exposed -d exposed_search_regression -c "SELECT datname, application_name, client_addr FROM pg_stat_activity WHERE datname = 'exposed_search_regression'"
 cat "$evidence_dir/server.log"
-curl --fail --get "$base_url/search" --data-urlencode 'term=unite' --data-urlencode 'strictness=0.8' --data-urlencode 'max_entries=10'
+curl --fail --write-out '%{http_code}\n' "$base_url/healthz"
+curl --fail --get "$base_url/search" --data-urlencode 'term=unite' --data-urlencode 'strictness=0.8' --data-urlencode 'max_entries=10' --output "$evidence_dir/doctor.response.json" --write-out '%{http_code}\n'
 ```
 
-Set `base_url` to `http://127.0.0.1:PORT` using the startup log before the curl.
-If startup fails, capture the log and clean up this run's process before retrying.
+Require HTTP 204 for health and HTTP 200 for search. Do not drive after a failed
+doctor. After a failed drive, repeat Doctor before the next drive. If startup
+fails, capture the log and clean up this run's process before retrying.
 
 ## Drive
 
@@ -82,7 +91,8 @@ from `exposed_search_regression`. Apply the current migrations to the copy, then
 retry the latest declaration run already loaded into it using its unchanged raw,
 cleaned, and resolved artifacts. Follow the
 [stored funder groups deployment procedure](../../../db/README.md#deploy-stored-funder-groups)
-with `DATABASE_URL` set to the copy. Require `Run already loaded` before the test.
+with `DATABASE_URL` set to the copy. Require a successful load retry whose JSON
+response has `"outcome":"already_loaded"` before the test.
 Loading a new run can replace source data and invalidate the regression fixture.
 Do not change the source database or refresh the frozen search snapshot during
 verification.
@@ -108,10 +118,13 @@ prerequisite; the five-case search snapshot does not replace this check.
 
 ## Evidence
 
-Retain `server.log` and the `http` directory under the printed `evidence_dir`.
+Retain `build.log`, `server.log`, `doctor.response.json`, and the `http` directory
+under the printed `evidence_dir`.
 Each case stores the GET URL, complete HTTP response, expected selected field,
 and comparison diff. Search compares the entity array with IDs omitted. Funder detail compares the
 funder profile with its ID omitted, including its recorded name and aliases.
+Group member IDs and alias/family link endpoints are normalized to stable labels;
+membership and both evidence arrays are still compared.
 Detail URLs use IDs from the current search response, never frozen IDs.
 Funding totals are outside this check.
 
@@ -131,7 +144,8 @@ printf '%s\n' "$evidence_dir"
 
 Kill only the process started by this run. Keep the snapshot and evidence.
 Run cleanup after failed attempts too. If failure happened before HTTP capture,
-retain the startup log and report the missing response evidence.
+retain the startup log and report the missing response evidence. A build failure
+retains `build.log` and has no server process to stop.
 
 ## Helpers
 
