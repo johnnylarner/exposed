@@ -28,3 +28,10 @@ export { default as PieChart } from "./PieChart.svelte";
 export { default as BarChart } from "./BarChart.svelte";
 export { default as SignedBarList } from "./SignedBarList.svelte";
 export type { PieSlice, ChartBar, SignedBar } from "./chart-types";
+export { default as CategoryWheel } from "./CategoryWheel.svelte";
+export { default as RankingList } from "./RankingList.svelte";
+export type {
+  CategoryWheelOption,
+  RankingRow,
+  EntityAccent,
+} from "./ranking-types";

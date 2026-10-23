@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { searchEntities } from "../src/lib/server/search";
 import { loadDetails } from "../src/lib/server/entity-details";
+import { parseRankings, loadRankings } from "../src/lib/server/rankings";
+import { rankingRows } from "../src/lib/rankings";
+import { rankingFixture } from "./rankings-fixtures";
 import {
   funderId,
   funderDetails,
@@ -257,5 +260,69 @@ for (const [name, fields] of [
       kind: "error",
       message: "Details returned an unexpected response. Try again.",
     });
+  });
+}
+
+test("rankings parse all four boards without changing exact amounts or ordering", async () => {
+  const parsed = await loadRankings(
+    reply(rankingFixture),
+    signal(),
+    "http://api",
+  );
+  expect(parsed.members.map((row) => row.id)).toEqual(
+    rankingFixture.members.map((row) => row.id),
+  );
+  expect(parsed.members[0].total.amount).toBe("9007199254740993.123456789");
+  expect(rankingRows(parsed, "members")[0].amount).toBe(
+    "£9,007,199,254,740,993.123456789",
+  );
+  expect(rankingRows(parsed, "members")[0].width).toBe(100);
+  expect(rankingRows(parsed, "companies")[0].negative).toBe(true);
+  expect(rankingRows(parsed, "parties")[0].href).toBeUndefined();
+  expect(parsed.parties[0].total.amount).toBeNull();
+  expect(parsed.individuals[0].total.amount).toBe("0");
+});
+for (const value of [
+  { ...rankingFixture, companies: undefined },
+  {
+    ...rankingFixture,
+    members: [...rankingFixture.members, rankingFixture.members[0]],
+  },
+  { ...rankingFixture, current_term_start: "yesterday" },
+  { ...rankingFixture, members: [{ ...rankingFixture.members[0], id: "0" }] },
+  {
+    ...rankingFixture,
+    individuals: [{ ...rankingFixture.individuals[0], id: "x" }],
+  },
+  ...[0, "1e9", undefined, "NaN"].map((amount) => ({
+    ...rankingFixture,
+    parties: [
+      {
+        ...rankingFixture.parties[0],
+        total: { amount, declaration_count: 1, incomplete: false },
+      },
+    ],
+  })),
+  ...[-1, 1.5, undefined].map((declaration_count) => ({
+    ...rankingFixture,
+    companies: [
+      {
+        ...rankingFixture.companies[0],
+        total: { amount: "1", declaration_count, incomplete: false },
+      },
+    ],
+  })),
+  {
+    ...rankingFixture,
+    parties: [
+      {
+        ...rankingFixture.parties[0],
+        total: { amount: "1", declaration_count: 1 },
+      },
+    ],
+  },
+]) {
+  test(`rankings reject malformed complete snapshots ${JSON.stringify(value)}`, () => {
+    expect(() => parseRankings(value)).toThrow("unexpected response");
   });
 }

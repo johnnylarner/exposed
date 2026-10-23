@@ -412,3 +412,39 @@ test("focus tokens propagate to native and component controls", async ({
     await expect(control).toHaveCSS("outline-offset", offset);
   }
 });
+
+test("category wheel retains keyboard focus, selected marker and neutral focus", async ({
+  page,
+}) => {
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const selector = page.getByRole("group", {
+    name: "Example ranking category",
+  });
+  const company = selector.getByRole("button", { name: "Companies" });
+  await company.focus();
+  await page.keyboard.press("Enter");
+  await expect(company).toBeFocused();
+  await expect(company).toHaveAttribute("aria-pressed", "true");
+  await expect(company).toContainText("✓");
+  await expect(selector.getByRole("button", { name: "MPs" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await expect(company).toHaveCSS("outline-color", "rgb(240, 240, 237)");
+  await expect(selector.locator("path.focus-outline")).toHaveCSS(
+    "stroke",
+    "rgb(240, 240, 237)",
+  );
+  await expect(selector.locator("path.selected")).toHaveCSS(
+    "stroke",
+    "rgb(100, 207, 181)",
+  );
+  const list = page.getByRole("list", { name: "Example rankings" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(list).toContainText("£90,071,992,547,409,993.123456789");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(list.getByRole("listitem").first()).toHaveCSS(
+    "animation-name",
+    "none",
+  );
+});
