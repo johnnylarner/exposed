@@ -67,12 +67,10 @@ The declaration pipeline runs through `fetch`, `clean`, `resolve`, and `load`.
 Keeping these stages separate lets contributors reprocess captured data without
 fetching it again.
 
-## Work on Exposed
+## Further reading
 
-Use the [development and operations guide](docs/development.md) for local setup,
-CLI examples, data imports, health checks, logging, and verification commands.
-
-More detailed references explain the data and deployment:
+The CLI documents its commands through `exposed --help` and subcommand help.
+These references explain the data and deployment:
 
 - [Declaration cleaning](docs/declaration-cleaning.md) describes funding occurrences and funder observations.
 - [Funder resolution](docs/funder-resolution-design.md) explains the identity and evidence policy.
