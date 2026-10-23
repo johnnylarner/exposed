@@ -120,18 +120,17 @@ test("member summary shows recent declarations when none are donations", async (
   await expect(page.getByText("Declaration 119")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Employment" })).toBeVisible();
   await expect(
-    page.getByRole("img", { name: "Monthly registered earnings" }),
+    page.getByRole("heading", { name: "Declared amounts by source" }),
   ).toBeVisible();
   await expect(
-    page.getByText("View monthly amounts", { exact: true }),
-  ).toHaveCount(0);
-  await expect(page.locator(".earnings-chart rect title")).toContainText(
-    "£18,014,398,509,481,986.246913578",
-  );
+    page.getByRole("table", {
+      name: "Sources ranked by known declared GBP amounts",
+    }),
+  ).toContainText("£18,014,398,509,481,986.246913578");
   await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 780 });
   await expect(
-    page.getByRole("img", { name: "Monthly registered earnings" }),
+    page.getByRole("heading", { name: "Declared amounts by source" }),
   ).toBeVisible();
   expect(
     await page.evaluate(
@@ -1022,7 +1021,7 @@ test("party tooltips close on scroll and resize", async ({
   await expect(page.getByRole("tooltip")).toHaveCount(0);
 });
 
-test("member summary timeline merges same-month dates and retains negative monthly bars", async ({
+test("member source summary includes every dated entry", async ({
   backend,
   page,
 }) => {
@@ -1056,26 +1055,14 @@ test("member summary timeline merges same-month dates and retains negative month
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
   await page.goto("/members/1");
-  await expect(page.locator(".earnings-chart rect")).toHaveCount(3);
-  await expect(page.locator(".earnings-chart rect title")).toHaveText([
-    "Jan 2026: £11.00",
-    "Feb 2026: £0.00",
-    "Mar 2026: −£2.50",
-  ]);
-  await expect(page.locator(".earnings-chart rect.negative")).toHaveCount(1);
-  expect(
-    Number(
-      await page
-        .locator(".earnings-chart rect.negative")
-        .getAttribute("height"),
-    ),
-  ).toBeGreaterThan(0);
-  await expect(page.locator(".earnings-chart rect.negative")).toHaveAttribute(
-    "y",
-    (await page
-      .locator(".earnings-chart .chart-baseline")
-      .getAttribute("y1")) ?? "",
-  );
+  const table = page.getByRole("table", {
+    name: "Sources ranked by known declared GBP amounts",
+  });
+  await expect(table).toContainText("£8.50");
+  await expect(table).toContainText("3 entries");
+  await expect(
+    page.getByRole("img", { name: "Monthly registered earnings" }),
+  ).toHaveCount(0);
 });
 
 test("funder summary keeps bounded party controls and the five authoritative recipients", async ({
@@ -1388,9 +1375,11 @@ test("member declared amounts include gifts and travel with registration coverag
       exact: true,
     }),
   ).toHaveText("£17.25");
-  await expect(page.locator(".earnings-chart rect title")).toHaveText([
-    "Jul 2024: £200.00",
-  ]);
+  await expect(
+    page.getByRole("table", {
+      name: "Sources ranked by known declared GBP amounts",
+    }),
+  ).toContainText("£425.00");
   await expect(page.locator(".member-earnings-totals h2")).toHaveText([
     "Declared amounts this parliamentary term",
     "Historical declared amounts since 1 January 2020",
@@ -1667,4 +1656,156 @@ test("calendar-year empty state preserves populated term and historical totals",
       path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-calendar-year-empty.png`,
       fullPage: true,
     });
+});
+
+test("source table keeps all sources, coverage, native links and narrow exact amounts accessible", async ({
+  backend,
+  page,
+}) => {
+  await mockDetails(backend);
+  const huge = "9".repeat(100) + ".123456789";
+  const sources = [
+    {
+      funder: {
+        id: funderId,
+        name: "Example Research Foundation and International Policy Advisory Partnership",
+      },
+      amount: "18500.25",
+      currency: "GBP",
+      payment_type: null,
+    },
+    {
+      funder: {
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Community Trust",
+      },
+      amount: "12500.50",
+      currency: "GBP",
+      payment_type: null,
+    },
+    {
+      funder: {
+        id: "33333333-3333-4333-8333-333333333333",
+        name: "Public Speaking Association",
+      },
+      amount: "-25",
+      currency: "GBP",
+      payment_type: null,
+    },
+    {
+      funder: {
+        id: "44444444-4444-4444-8444-444444444444",
+        name: "Overseas Cultural Exchange",
+      },
+      amount: "200",
+      currency: "EUR",
+      payment_type: null,
+    },
+    { funder: null, amount: null, currency: "GBP", payment_type: null },
+    { funder: null, amount: "10", currency: "  ", payment_type: null },
+  ];
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        summary: {
+          ...memberDetails.summary,
+          declared_totals: declaredTotals(
+            { amount: null, declaration_count: 0, incomplete: false },
+            { amount: "30975.75", declaration_count: 1, incomplete: true },
+          ),
+          first_registered_at: null,
+          currencies: [
+            {
+              currency: "GBP",
+              amount: "30975.75",
+              entry_count: 4,
+              unknown_amount_count: 1,
+              categories: [
+                {
+                  category_id: 999,
+                  category_name: "Other",
+                  amount: "30975.75",
+                  entry_count: 4,
+                  unknown_amount_count: 1,
+                },
+              ],
+            },
+          ],
+        },
+        declarations: [
+          {
+            ...memberDetails.declarations[0],
+            category_id: 999,
+            category_name: "Other",
+            registered_at: null,
+            entries: sources,
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/members/1?q=Example");
+  const table = page.getByRole("table", {
+    name: "Sources ranked by known declared GBP amounts",
+  });
+  await expect(table.getByRole("row")).toHaveCount(6);
+  await expect(table).toContainText("1 foreign-currency entry excluded");
+  await expect(table).toContainText("1 GBP amount unavailable");
+  await expect(table).toContainText("1 entry with unknown currency excluded");
+  await expect(table).toContainText("−£25.00");
+  const link = table.getByRole("link").first();
+  await expect(link).toHaveAttribute("href", `/funders/${funderId}?q=Example`);
+  if (process.env.EXPOSED_SCREENSHOT_DIR)
+    await page.screenshot({
+      path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-sources-desktop.png`,
+      fullPage: true,
+    });
+  sources[0].amount = huge;
+  await page.reload();
+  await page.setViewportSize({ width: 360, height: 780 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  const amount = table.getByRole("region").first();
+  await amount.focus();
+  await expect(amount).toBeFocused();
+  await page.keyboard.press("ArrowRight");
+  await expect
+    .poll(() => amount.evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
+  expect(
+    await amount.evaluate(
+      (element) => element.scrollWidth > element.clientWidth,
+    ),
+  ).toBe(true);
+  if (process.env.EXPOSED_SCREENSHOT_DIR)
+    await page.screenshot({
+      path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-sources-mobile.png`,
+      fullPage: true,
+    });
+  await link.click();
+  await expect(page).toHaveURL(
+    new RegExp(`/funders/${funderId}\\?q=Example$`, "u"),
+  );
+});
+
+test("member source table has an explicit empty state", async ({
+  backend,
+  page,
+}) => {
+  await backend.route("**/api/members/1", (route) =>
+    route.fulfill({ json: { ...memberDetails, declarations: [] } }),
+  );
+  await page.goto("/members/1");
+  await expect(
+    page.getByText("No funding entries are stored for this MP."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("table", {
+      name: "Sources ranked by known declared GBP amounts",
+    }),
+  ).toHaveCount(0);
 });

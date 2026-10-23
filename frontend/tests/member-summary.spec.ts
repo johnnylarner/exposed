@@ -73,52 +73,109 @@ function details(declarations: MemberDeclaration[]): MemberDetails {
   };
 }
 
-test("summary preserves duplicate arbitrary precision values and server pounds total", () => {
-  const summary = summarizeMember(
-    details([
-      declaration("2026-01-05T00:00:00Z", [
-        entry("9007199254740993.123456789"),
-        entry("9007199254740993.123456789"),
-        entry("0.000000001"),
-      ]),
-      declaration("2026-01-31T23:59:59Z", [entry("-0.000000001")]),
+test("sources preserve exact amounts across categories, dates and currency coverage", () => {
+  const funder = { id: "a", name: "Same source" };
+  const sourced = (amount: string | null, currency: string | null = "GBP") => ({
+    ...entry(amount, currency),
+    funder,
+  });
+  const fixture = details([
+    declaration("2026-01-05Z", [
+      sourced("9007199254740993.123456789"),
+      sourced("9007199254740993.123456789"),
     ]),
-  );
+    declaration(
+      null,
+      [
+        sourced("0.000000001"),
+        sourced(null),
+        sourced("99", null),
+        sourced("100", "EUR"),
+      ],
+      "Unknown category",
+      999,
+    ),
+    declaration("1900-01-01Z", [
+      sourced("-0.000000001"),
+      entry("0"),
+      entry(null),
+    ]),
+  ]);
+  const summary = summarizeMember(fixture);
   expect(summary.total).toBe("123.45");
-  expect(summary.earnings).toEqual([
+  expect(summary.declaredTotals).toBe(fixture.summary.declaredTotals);
+  expect(summary.categories).toBe(fixture.summary.currencies[1].categories);
+  expect(summary.sources).toEqual([
     {
-      start: "2026-01-01",
+      funder,
       amount: "18014398509481986.246913578",
-      incomplete: false,
+      entryCount: 7,
+      missingGbpAmountCount: 1,
+      unknownCurrencyCount: 1,
+      foreignCurrencyCount: 1,
+    },
+    {
+      funder: null,
+      amount: "0",
+      entryCount: 2,
+      missingGbpAmountCount: 1,
+      unknownCurrencyCount: 0,
+      foreignCurrencyCount: 0,
     },
   ]);
-  expect(formatPounds(summary.earnings[0].amount)).toBe(
+  expect(formatPounds(summary.sources[0].amount)).toBe(
     "£18,014,398,509,481,986.246913578",
   );
   expect(formatPounds("-5")).toBe("−£5.00");
   expect(formatPounds(null)).toBe("Amount unavailable");
 });
 
-test("UTC registration months preserve negatives, zero, gaps and incomplete values", () => {
+test("sources rank signed exact values, then names and IDs, with null last", () => {
+  const values = [
+    ["d", "Same", "0", "GBP"],
+    ["c", "Same", "-0.00", "GBP"],
+    ["b", "Beta", "9007199254740993.000000002", "GBP"],
+    ["a", "Alpha", "9007199254740993.000000001", "GBP"],
+    ["e", "Negative", "-1", "GBP"],
+    ["f", "Foreign", "999999999999999999", "EUR"],
+    ["g", "Missing", null, "GBP"],
+    ["h", "Unknown", "100", null],
+    ["i", "Whitespace", "200", "  "],
+  ] satisfies [string, string, string | null, string | null][];
   const summary = summarizeMember(
     details([
-      declaration("2025-12-31T23:00:00-02:00", [entry("-2.5")]),
-      declaration("2025-12-01T00:30:00+02:00", [entry("0"), entry(null)]),
-      declaration("2025-12-20T00:00:00Z", [entry("-5")]),
-      declaration("2026-01-19T00:00:00Z", [entry("4"), entry("900", null)]),
-      declaration("2026-03-26T00:00:00Z", [entry(null)]),
-      declaration(null, [entry("88")]),
-      declaration("2027-01-01T00:00:00Z", [entry("77", "EUR")]),
+      declaration(
+        null,
+        values.map(([id, name, amount, currency]) => ({
+          ...entry(amount, currency),
+          funder: { id, name },
+        })),
+      ),
     ]),
   );
-  expect(summary.earnings).toEqual([
-    { start: "2025-11-01", amount: "0", incomplete: true },
-    { start: "2025-12-01", amount: "-5", incomplete: false },
-    { start: "2026-01-01", amount: "1.5", incomplete: true },
-    { start: "2026-02-01", amount: "0", incomplete: false },
-    { start: "2026-03-01", amount: null, incomplete: true },
+  expect(summary.sources.map(({ funder }) => funder?.id)).toEqual([
+    "b",
+    "a",
+    "c",
+    "d",
+    "e",
+    "f",
+    "g",
+    "h",
+    "i",
   ]);
-  expect(summary.undated).toBe(true);
+  expect(summary.sources.map(({ amount }) => amount)).toEqual([
+    "9007199254740993.000000002",
+    "9007199254740993.000000001",
+    "0.00",
+    "0",
+    "-1",
+    null,
+    null,
+    null,
+    null,
+  ]);
+  expect(summarizeMember(details([])).sources).toEqual([]);
 });
 
 test("month iteration includes leap February after a January 31 registration", () => {
@@ -136,37 +193,6 @@ test("month iteration includes leap February after a January 31 registration", (
     ],
     undated: false,
   });
-});
-
-test("earnings labels own classification across legacy IDs and current label variants", () => {
-  const summary = summarizeMember(
-    details([
-      declaration("2026-01-05Z", [entry("1")], "Employment and earnings", 12),
-      declaration(
-        "2026-01-05Z",
-        [entry("2")],
-        "Employment and earnings - Ad hoc payments",
-        99,
-      ),
-      declaration(
-        "2026-01-05Z",
-        [entry("3")],
-        "Employment and earnings - Ongoing paid employment",
-        2,
-      ),
-      declaration("2026-01-05Z", [entry("4")], "Employment", 1),
-      declaration("2026-01-05Z", [entry("100")], "Gifts", 1),
-    ]),
-  );
-  expect(summary.earnings[0].amount).toBe("10");
-  expect(summarizeMember(details([])).earnings).toEqual([]);
-  const undated = summarizeMember(details([declaration(null, [entry("3")])]));
-  expect(undated.earnings).toEqual([]);
-  expect(undated.undated).toBe(true);
-  expect(
-    summarizeMember(details([declaration("2026-01-05Z", [entry("0")])]))
-      .earnings[0].amount,
-  ).toBe("0");
 });
 
 test("category shares preserve decimal magnitudes without cancellation", () => {
@@ -314,18 +340,6 @@ test("headline null, zero, counts and coverage pass through without inference", 
   expect(summarizeMember(fixture).declaredTotals).toBe(
     fixture.summary.declaredTotals,
   );
-});
-
-test("backend headlines stay independent of the earnings timeline", () => {
-  const fixture = details([
-    declaration("2025-01-01T00:00:00Z", [entry("10.25")]),
-    declaration("2025-01-02T00:00:00Z", [entry("20.50")], "Gifts"),
-  ]);
-  const summary = summarizeMember(fixture);
-  expect(summary.declaredTotals).toBe(fixture.summary.declaredTotals);
-  expect(summary.earnings).toEqual([
-    { start: "2025-01-01", amount: "10.25", incomplete: false },
-  ]);
 });
 
 test("summary preserves backend period metadata without a local boundary", () => {

@@ -2,7 +2,7 @@
   import { SignedBarList, ButtonLink, SectionHeading } from "./lib/ui";
   import { page } from "$app/state";
   import MemberDeclarations from "./MemberDeclarations.svelte";
-  import RegistrationTimeline from "./RegistrationTimeline.svelte";
+  import MemberMoneySources from "./MemberMoneySources.svelte";
   import {
     categoryBars,
     memberHref,
@@ -41,11 +41,7 @@
       />
     {:else}<p class="empty-details">No known declared values available.</p>{/if}
   </section>
-  <RegistrationTimeline
-    context="earnings"
-    months={summary.earnings}
-    undated={summary.undated}
-  />
+  <MemberMoneySources sources={summary.sources} />
 </div>
 <section aria-labelledby="recent-declarations-heading">
   <SectionHeading id="recent-declarations-heading" title="Recent declarations"
