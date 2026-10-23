@@ -72,7 +72,7 @@
     color-scheme: dark;
   }
   input:focus-visible {
-    outline: var(--focus-width) solid var(--accent);
+    outline: var(--focus-width) solid var(--focus-color);
     outline-offset: var(--focus-offset);
   }
   input[aria-invalid="true"] {

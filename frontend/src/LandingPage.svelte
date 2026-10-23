@@ -5,8 +5,9 @@
 <main id="landing" class="landing-page" tabindex="-1">
   <div class="landing-content">
     <h1>
-      Explore UK MPs' declared financial interests and the people and
-      organisations behind them.
+      Explore <span class="member-text">MPs</span>' declared
+      <span class="funder-text">financial interests</span> and the people and organisations
+      behind them.
     </h1>
     <nav aria-label="Explore Exposed">
       <ButtonLink variant="primary" size="large" href="/search"
@@ -37,6 +38,12 @@
     font-weight: 550;
     text-wrap: balance;
     overflow-wrap: anywhere;
+  }
+  .member-text {
+    color: var(--accent-member);
+  }
+  .funder-text {
+    color: var(--accent-funder);
   }
   nav {
     display: flex;
