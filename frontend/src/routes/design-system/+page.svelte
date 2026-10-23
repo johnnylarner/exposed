@@ -125,8 +125,8 @@
     <section id="foundations" aria-labelledby="foundations-heading">
       <h2 id="foundations-heading">Foundations</h2>
       <p>
-        Black keeps the focus on declarations. Purple identifies the Exposed
-        wordmark and MPs; teal identifies funders and the landing page's
+        Black keeps the focus on declarations. The Exposed wordmark is white.
+        Purple identifies MPs; teal identifies funders and the landing page's
         financial interests phrase.
       </p>
       <div class="swatches">

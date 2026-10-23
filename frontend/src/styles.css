@@ -31,7 +31,7 @@
   border-bottom: 1px solid #1c1920;
 }
 .wordmark {
-  color: var(--accent-member);
+  color: var(--text);
   display: inline-flex;
   align-items: baseline;
   gap: 7px;
