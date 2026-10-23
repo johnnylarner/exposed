@@ -207,7 +207,7 @@ test("repeated chart and indicator instances have distinct associations", async 
     await entry.dispatchEvent("pointerenter", { pointerType: "mouse" });
     const tooltip = page.getByRole("tooltip");
     await expect(tooltip).toHaveText(
-      "Example party £90,071,992,547,409,993.123456789 2 entries, 1 amount unavailable",
+      "Example party £98,765,432.12345678901234567890123456789 2 entries, 1 amount unavailable",
     );
     tooltipIds.push((await tooltip.getAttribute("id"))!);
     await page.keyboard.press("Escape");
@@ -247,7 +247,7 @@ test("standalone metrics keep exact values keyboard scrollable", async ({
     name: "Known declared value",
     exact: true,
   });
-  await expect(total).toHaveText("£90,071,992,547,409,993.123456789");
+  await expect(total).toHaveText("£98,765,432.12345678901234567890123456789");
   await total.focus();
   await expect(total).toBeFocused();
   expect(

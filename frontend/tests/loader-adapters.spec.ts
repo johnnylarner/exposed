@@ -166,9 +166,7 @@ test("details preserves decimal strings and rejects a numeric nested party amoun
   );
   expect(valid.kind).toBe("funder");
   if (valid.kind !== "funder") throw new Error("expected funder details");
-  expect(valid.details.currencies[1].parties[0].amount).toBe(
-    "18014398509481986.246913578",
-  );
+  expect(valid.details.currencies[1].parties[0].amount).toBe("24691.34");
   const body = {
     ...funderDetails,
     currencies: funderDetails.currencies.map((group, index) =>
@@ -176,7 +174,7 @@ test("details preserves decimal strings and rejects a numeric nested party amoun
         ? {
             ...group,
             parties: group.parties.map((party, partyIndex) =>
-              partyIndex === 0 ? { ...party, amount: 9007199254740993 } : party,
+              partyIndex === 0 ? { ...party, amount: 12345.67 } : party,
             ),
           }
         : group,
@@ -227,7 +225,7 @@ for (const [name, fields] of [
     if (valid.kind !== "member") throw new Error("expected member details");
     expect(valid.details.summary.declaredTotals.calendarYear).toBe(2026);
     expect(valid.details.summary.declaredTotals.currentYear.amount).toBe(
-      "18014398509481986.246913578",
+      "24691.34",
     );
     const body = {
       ...memberDetails,

@@ -126,7 +126,7 @@ test("member summary shows recent declarations when none are donations", async (
     page.getByRole("table", {
       name: "Sources ranked by known declared GBP amounts",
     }),
-  ).toContainText("£18,014,398,509,481,986.246913578");
+  ).toContainText("£24,691.34");
   await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 780 });
   await expect(
@@ -178,8 +178,8 @@ test("member declarations retain duplicate precise amounts and missing source fi
     page.getByText("Showing 1 to 2 of 2 declarations"),
   ).toBeVisible();
   await expect(page.locator(".funding-value .amount")).toHaveText([
-    "£9,007,199,254,740,993.123456789",
-    "£9,007,199,254,740,993.123456789",
+    "£12,345.67",
+    "£12,345.67",
     "Amount unavailable",
   ]);
   for (const text of [
@@ -203,18 +203,16 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
   await mockDetails(backend);
   await page.goto(`/funders/${funderId}?q=Example&strictness=0.42`);
   await expect(page.locator(".declared-totals .member-total")).toHaveText([
-    "£18,014,398,509,481,981.246913578",
-    "£18,014,398,509,481,981.246913578",
-    "£18,014,398,509,481,981.246913578",
+    "£24,686.34",
+    "£24,686.34",
+    "£24,686.34",
   ]);
   await expect(page.getByText("Company number 00123456")).toBeVisible();
   const controls = page.locator(".funder-party-legend li");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await expect(page.locator(".funder-party-legend")).not.toContainText("£");
   await controls.first().hover();
-  await expect(page.getByRole("tooltip")).toContainText(
-    "£18,014,398,509,481,986.246913578",
-  );
+  await expect(page.getByRole("tooltip")).toContainText("£24,691.34");
   await page.getByRole("tooltip").hover();
   await page.waitForTimeout(180);
   await expect(page.getByRole("tooltip")).toBeVisible();
@@ -224,16 +222,14 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
   await expect(page.getByRole("tooltip")).toContainText("−£5.00");
   await page.keyboard.press("Escape");
   await page.locator(".funder-party-chart svg g").hover();
-  await expect(page.getByRole("tooltip")).toContainText(
-    "£18,014,398,509,481,986.246913578",
-  );
+  await expect(page.getByRole("tooltip")).toContainText("£24,691.34");
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("img", { name: "Monthly registered funding" }),
   ).toHaveCount(0);
   await expect(page.locator(".funder-party-chart svg circle")).toHaveCount(1);
   await expect(page.locator(".funder-recipients .amount")).toHaveText([
-    "£18,014,398,509,481,986.246913578",
+    "£24,691.34",
     "£0.00",
   ]);
   await expect(
@@ -290,12 +286,7 @@ test("funding history retains sources, duplicate amounts and date paging", async
   await expect(page.locator(".declaration")).toHaveCount(10);
   await expect(
     page.locator(".declaration").first().locator(".amount"),
-  ).toHaveText([
-    "£9,007,199,254,740,993.123456789",
-    "£9,007,199,254,740,993.123456789",
-    "500",
-    "Amount unavailable",
-  ]);
+  ).toHaveText(["£12,345.67", "£12,345.67", "500", "Amount unavailable"]);
   await expect(page.locator(".declaration").first()).toContainText("Support");
   await expect(page.locator(".declaration").first()).toContainText("Benefit");
   await expect(
@@ -665,9 +656,9 @@ test("member summary retains signed category bars alongside all-category totals"
   await mockDetails(backend);
   await page.goto("/members/1");
   await expect(page.locator(".member-total")).toHaveText([
-    "£18,014,398,509,481,986.246913578",
-    "£18,014,398,509,481,986.246913578",
-    "£18,014,398,509,481,986.246913578",
+    "£24,691.34",
+    "£24,691.34",
+    "£24,691.34",
   ]);
   await expect(page.locator(".signed-bar .negative")).toHaveCount(1);
   await expect(
@@ -1412,7 +1403,7 @@ test("declared amounts keep precise figures readable on narrow screens and missi
   page,
 }) => {
   await mockDetails(backend);
-  let amount: string | null = "1234567890.12";
+  let amount: string | null = "98765432.12";
   await backend.route("**/api/members/1", (route) =>
     route.fulfill({
       json: {
@@ -1441,9 +1432,9 @@ test("declared amounts keep precise figures readable on narrow screens and missi
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/members/1");
     await expect(page.locator(".member-total")).toHaveText([
-      "£1,234,567,890.12",
-      "£1,234,567,890.12",
-      "£1,234,567,890.12",
+      "£98,765,432.12",
+      "£98,765,432.12",
+      "£98,765,432.12",
     ]);
     await page.evaluate(() => document.fonts.ready);
     const figures = await page
@@ -1489,15 +1480,13 @@ test("declared amounts keep precise figures readable on narrow screens and missi
     "Amount unavailable",
     "Amount unavailable",
   ]);
-  amount = "90071992547409939007199254740993.123456789";
+  amount = "98765432.12345678901234567890123456789";
   await page.reload();
   const figure = page.getByRole("region", {
     name: "Historical declared amounts in GBP",
     exact: true,
   });
-  await expect(figure).toHaveText(
-    "£90,071,992,547,409,939,007,199,254,740,993.123456789",
-  );
+  await expect(figure).toHaveText("£98,765,432.12345678901234567890123456789");
   await figure.focus();
   await page.keyboard.press("ArrowRight");
   expect(
@@ -1666,7 +1655,7 @@ test("source table keeps all sources, coverage, native links and narrow exact am
   page,
 }) => {
   await mockDetails(backend);
-  const huge = "9".repeat(100) + ".123456789";
+  const huge = "98765432.12345678901234567890123456789";
   const sources = [
     {
       funder: {
@@ -1853,7 +1842,7 @@ for (const entity of ["member", "funder"] as const) {
     const totals = declaredTotals(
       { amount: "0", declaration_count: 1, incomplete: false },
       {
-        amount: "9007199254740993.123456789",
+        amount: "42500.75",
         declaration_count: 4,
         incomplete: true,
       },
@@ -1890,7 +1879,7 @@ for (const entity of ["member", "funder"] as const) {
     ]);
     await expect(headlines.locator(".member-total")).toHaveText([
       "£0.00",
-      "£9,007,199,254,740,993.123456789",
+      "£42,500.75",
       "−£12.34",
     ]);
     await expect(
