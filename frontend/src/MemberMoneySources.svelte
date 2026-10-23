@@ -15,7 +15,7 @@
   {#if sources.length}
     <DataTable caption="Sources ranked by known declared GBP amounts">
       {#snippet head()}
-        <tr
+        <tr class="visually-hidden"
           ><th scope="col" class="source-name">Source</th><th
             scope="col"
             class="source-value">Declared GBP</th
