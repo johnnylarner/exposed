@@ -34,6 +34,12 @@ function details(declarations: MemberDeclaration[]): MemberDetails {
     declarations,
     summary: {
       declaredTotals: {
+        calendarYear: 2031,
+        currentYear: {
+          amount: "12.34",
+          declarationCount: 2,
+          incomplete: false,
+        },
         currentTermStart: "2024-07-09T00:00:00Z",
         currentTerm: {
           amount: "225.45",
@@ -289,6 +295,8 @@ test("declared headlines pass backend authority through despite contradictory de
     const fixture = details(declarations);
     const summary = summarizeMember(fixture);
     expect(summary.declaredTotals).toBe(fixture.summary.declaredTotals);
+    expect(summary.declaredTotals.calendarYear).toBe(2031);
+    expect(summary.declaredTotals.currentYear.amount).toBe("12.34");
     expect(summary.declaredTotals.currentTerm.amount).toBe("225.45");
     expect(summary.declaredTotals.historical.amount).toBe("333");
   }
@@ -297,6 +305,8 @@ test("declared headlines pass backend authority through despite contradictory de
 test("headline null, zero, counts and coverage pass through without inference", () => {
   const fixture = details([declaration("2025-01-01Z", [entry("100")])]);
   fixture.summary.declaredTotals = {
+    calendarYear: 2031,
+    currentYear: { amount: null, declarationCount: 1, incomplete: true },
     currentTermStart: "2024-07-09T00:00:00Z",
     currentTerm: { amount: null, declarationCount: 0, incomplete: false },
     historical: { amount: "0", declarationCount: 8, incomplete: true },

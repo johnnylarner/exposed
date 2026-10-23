@@ -41,12 +41,12 @@
     {#if view === "summary"}
       <div class="member-earnings-totals">
         <div class="earnings-values">
-          {#each [{ label: "Declared amounts this parliamentary term", regionLabel: "Declared amounts this parliamentary term in GBP", total: summary.declaredTotals.currentTerm }, { regionLabel: "Historical declared amounts in GBP", label: `Historical declared amounts${summary.firstRegisteredAt ? ` since ${dateLabel(summary.firstRegisteredAt)}` : ""}`, total: summary.declaredTotals.historical }] as metric}<Metric
+          {#each [{ label: "Declared amounts this parliamentary term", regionLabel: "Declared amounts this parliamentary term in GBP", total: summary.declaredTotals.currentTerm }, { regionLabel: "Historical declared amounts in GBP", label: `Historical declared amounts${summary.firstRegisteredAt ? ` since ${dateLabel(summary.firstRegisteredAt)}` : ""}`, total: summary.declaredTotals.historical }, { label: `Declared amounts in ${summary.declaredTotals.calendarYear}`, regionLabel: `Declared amounts in ${summary.declaredTotals.calendarYear} in GBP`, total: summary.declaredTotals.currentYear }] as metric}<Metric
               variant="expanded"
               regionLabel={metric.regionLabel}
               label={metric.label}
               value={metric.total.declarationCount === 0
-                ? "No declaration data available"
+                ? "No declarations recorded"
                 : formatPounds(metric.total.amount)}
               available={metric.total.declarationCount > 0 &&
                 metric.total.amount !== null}

@@ -181,3 +181,64 @@ test("details preserves decimal strings and rejects a numeric nested party amoun
     (await loadDetails(funderRoute, signal(), reply(body), "http://api")).kind,
   ).toBe("error");
 });
+
+for (const [name, fields] of [
+  ["missing calendar year", { calendar_year: undefined }],
+  ["string calendar year", { calendar_year: "2026" }],
+  ["fractional calendar year", { calendar_year: 2026.5 }],
+  ["null calendar year", { calendar_year: null }],
+  ["missing current year", { current_year: undefined }],
+  ["null current year", { current_year: null }],
+  [
+    "numeric year amount",
+    { current_year: { amount: 12, declaration_count: 1, incomplete: false } },
+  ],
+  [
+    "missing year amount",
+    { current_year: { declaration_count: 1, incomplete: false } },
+  ],
+  [
+    "negative year count",
+    { current_year: { amount: "0", declaration_count: -1, incomplete: false } },
+  ],
+  [
+    "missing year coverage",
+    { current_year: { amount: null, declaration_count: 1 } },
+  ],
+] satisfies [string, Record<string, unknown>][]) {
+  test(`details rejects ${name}`, async () => {
+    const route = {
+      kind: "member",
+      id: "1",
+      view: "summary",
+    } satisfies Parameters<typeof loadDetails>[0];
+    const valid = await loadDetails(
+      route,
+      signal(),
+      reply(memberDetails),
+      "http://api",
+    );
+    expect(valid.kind).toBe("member");
+    if (valid.kind !== "member") throw new Error("expected member details");
+    expect(valid.details.summary.declaredTotals.calendarYear).toBe(2026);
+    expect(valid.details.summary.declaredTotals.currentYear.amount).toBe(
+      "18014398509481986.246913578",
+    );
+    const body = {
+      ...memberDetails,
+      summary: {
+        ...memberDetails.summary,
+        declared_totals: {
+          ...memberDetails.summary.declared_totals,
+          ...fields,
+        },
+      },
+    };
+    expect(
+      await loadDetails(route, signal(), reply(body), "http://api"),
+    ).toEqual({
+      kind: "error",
+      message: "Details returned an unexpected response. Try again.",
+    });
+  });
+}
