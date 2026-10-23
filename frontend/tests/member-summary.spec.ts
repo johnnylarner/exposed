@@ -34,6 +34,12 @@ function details(declarations: MemberDeclaration[]): MemberDetails {
     declarations,
     summary: {
       declaredTotals: {
+        calendarYear: 2040,
+        currentYear: {
+          amount: "17.55",
+          declarationCount: 2,
+          incomplete: false,
+        },
         currentTermStart: "2024-07-09T00:00:00Z",
         currentTerm: {
           amount: "225.45",
@@ -297,6 +303,8 @@ test("declared headlines pass backend authority through despite contradictory de
 test("headline null, zero, counts and coverage pass through without inference", () => {
   const fixture = details([declaration("2025-01-01Z", [entry("100")])]);
   fixture.summary.declaredTotals = {
+    calendarYear: 2040,
+    currentYear: { amount: "17.55", declarationCount: 2, incomplete: false },
     currentTermStart: "2024-07-09T00:00:00Z",
     currentTerm: { amount: null, declarationCount: 0, incomplete: false },
     historical: { amount: "0", declarationCount: 8, incomplete: true },

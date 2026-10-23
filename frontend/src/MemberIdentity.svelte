@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
     Icon,
-    Metric,
+    DataTable,
     IdentityHeader,
     ViewLinks,
     ViewLink,
@@ -22,7 +22,6 @@
   } = $props();
   function dateLabel(value: string) {
     return new Date(value).toLocaleDateString("en-GB", {
-      day: "numeric",
       month: "long",
       year: "numeric",
       timeZone: "UTC",
@@ -39,22 +38,41 @@
     ><span>{member.isCurrentCommons ? "Current MP" : "Former MP"}</span>
   {/snippet}{#snippet values()}
     {#if view === "summary"}
-      <div class="member-earnings-totals">
-        <div class="earnings-values">
-          {#each [{ label: "Declared amounts this parliamentary term", regionLabel: "Declared amounts this parliamentary term in GBP", total: summary.declaredTotals.currentTerm }, { regionLabel: "Historical declared amounts in GBP", label: `Historical declared amounts${summary.firstRegisteredAt ? ` since ${dateLabel(summary.firstRegisteredAt)}` : ""}`, total: summary.declaredTotals.historical }] as metric}<Metric
-              variant="expanded"
-              regionLabel={metric.regionLabel}
-              label={metric.label}
-              value={metric.total.declarationCount === 0
-                ? "No declaration data available"
-                : formatPounds(metric.total.amount)}
-              available={metric.total.declarationCount > 0 &&
-                metric.total.amount !== null}
-              description={metric.total.incomplete
-                ? "Known GBP amounts only. Some amounts unavailable."
-                : undefined}
-            />{/each}
-        </div>
+      <div class="member-declared-totals">
+        <DataTable caption="Declared GBP amounts">
+          {#snippet head()}<tr
+              ><th scope="col">Period</th><th scope="col" class="declared-total"
+                >Declared amount (GBP)</th
+              ></tr
+            >{/snippet}
+          {#each [{ label: `Total declared${summary.firstRegisteredAt ? ` (${dateLabel(summary.firstRegisteredAt)})` : ""}`, total: summary.declaredTotals.historical }, { label: "Declared this term", total: summary.declaredTotals.currentTerm }, { label: `Declared in ${summary.declaredTotals.calendarYear}`, total: summary.declaredTotals.currentYear }] as row}
+            <tr>
+              <th scope="row">{row.label}</th>
+              <td class="declared-total">
+                {#if row.total.declarationCount > 0 && row.total.amount !== null}
+                  <!-- svelte-ignore a11y_no_noninteractive_tabindex (Exact amounts must be keyboard scrollable.) -->
+                  <div
+                    class="declared-value declared-amount"
+                    role="region"
+                    aria-label={`${row.label} in GBP`}
+                    tabindex="0"
+                    title={row.total.incomplete
+                      ? "Known GBP amounts only. Some amounts unavailable."
+                      : undefined}
+                  >
+                    {formatPounds(row.total.amount)}
+                  </div>
+                {:else}
+                  <span class="declared-value declared-unavailable"
+                    >{row.total.declarationCount === 0
+                      ? "No declaration data available"
+                      : formatPounds(row.total.amount)}</span
+                  >
+                {/if}
+              </td>
+            </tr>
+          {/each}
+        </DataTable>
       </div>
     {/if}
   {/snippet}{#snippet navigation()}<ViewLinks label="Member views">
@@ -78,3 +96,32 @@
       >
     </ViewLinks>{/snippet}</IdentityHeader
 >
+
+<style>
+  .member-declared-totals {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+  .declared-total {
+    text-align: right;
+    width: 55%;
+  }
+  .declared-amount {
+    font-size: clamp(1.5rem, 5vw, 2.75rem);
+    font-weight: 650;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
+    overflow-x: auto;
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .declared-amount:focus-visible {
+    outline: var(--focus-width) solid var(--focus-color);
+    outline-offset: var(--focus-offset);
+  }
+  .declared-unavailable {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+</style>
