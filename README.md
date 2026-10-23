@@ -78,6 +78,7 @@ These references explain the data and deployment:
 - [Entity details](docs/entity-details.md) describes API responses and detail views.
 - [Database guide](db/README.md) covers schema migrations.
 - [Production image](docs/production-image.md) covers builds and deployment.
+- [Verification skill](.agents/skills/verify/SKILL.md) compares snapshot-backed worktrees with live production.
 
 ## Data licence
 

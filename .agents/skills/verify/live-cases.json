@@ -1,0 +1,46 @@
+{
+  "searches": [
+    "unite",
+    "west mid",
+    "hsbc",
+    "john mcdonnell",
+    "jahn",
+    "bbc",
+    "gb news",
+    "premier league"
+  ],
+  "entities": [
+    { "kind": "member", "id": "178", "name": "John McDonnell" },
+    { "kind": "member", "id": "4613", "name": "Alex Burghart" },
+    {
+      "kind": "funder",
+      "query": "bbc",
+      "name": "BBC",
+      "funderKind": "Company"
+    },
+    {
+      "kind": "funder",
+      "query": "gb news",
+      "name": "GB News",
+      "funderKind": "Not Specified"
+    },
+    {
+      "kind": "funder",
+      "query": "premier league",
+      "name": "Premier League",
+      "funderKind": "Company"
+    },
+    {
+      "kind": "funder",
+      "query": "hsbc",
+      "name": "HSBC UK Bank plc",
+      "funderKind": "Company"
+    },
+    {
+      "kind": "funder",
+      "query": "unite",
+      "name": "Unite the Union",
+      "funderKind": "Trade Union"
+    }
+  ]
+}

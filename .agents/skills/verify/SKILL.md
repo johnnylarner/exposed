@@ -1,159 +1,83 @@
 ---
 name: verify
-description: Verify Exposed search, recorded funder names, and grouped funders through the real HTTP API. Use after changing search queries, ranking, alias matching, grouping policy, or API serialization.
+description: Compare selected Exposed searches and authoritative MP and organisation totals with live production, using an isolated snapshot-backed Compose build of the current worktree. Use after search, grouping, totals, or public loader changes.
 ---
 
-# Verify Exposed search
+# Verify against live production
 
-Run from the repository root. Read [the feature map](features/README.md).
-The default strictness for this regression check is `0.8` for every search.
-This check freezes search behavior over persisted identities. It does not rerun
-declaration resolution or verify frontend rendering.
-
-## Launch
-
-Require Python 3, Cargo, curl, and the existing Compose PostgreSQL service.
-Check the snapshot and its migration history without changing it:
+Read [the feature map](features/README.md). From the repository root:
 
 ```sh
-docker compose exec -T postgres psql -X -U exposed -d exposed_search_regression -c 'SELECT current_database()'
-docker compose exec -T postgres psql -X -U exposed -d exposed_search_regression -c 'SELECT version, success FROM public._sqlx_migrations ORDER BY version'
+npm ci --prefix .agents/skills/verify
+npm test --prefix .agents/skills/verify
+./.agents/skills/verify/scripts/run-snapshot-comparison.sh
 ```
 
-Require all current `db/migrations/*.up.sql` versions to have succeeded, including
-the funder-group and preferred-name migrations. An older snapshot can pass
-`/healthz` while search fails with missing-table errors. If the snapshot or its
-required schema is absent, report the missing prerequisite. The existing
-[snapshot refresh helper](scripts/refresh-search-regression-db.sh) replaces the snapshot and requires
-stopping source clients. Never refresh it as part of a regression run.
+Require Docker Compose, Node with built-in fetch/test, curl, and an existing
+`exposed_search_regression` snapshot in container `exposed-postgres-1` (user
+`exposed`). Override those prerequisite identities with `VERIFY_SNAPSHOT_CONTAINER`,
+`VERIFY_SNAPSHOT_DATABASE`, and `VERIFY_SNAPSHOT_USER` when necessary. The helper
+can start a stopped source container and restores that initial state; it never
+stops a source container that was already running. Do not run during snapshot
+refresh. A missing snapshot is a failed prerequisite, never permission to ingest.
+The [refresh helper](scripts/refresh-search-regression-db.sh) remains a separate,
+deliberate replacement operation requiring its documented source-client shutdown.
 
-Build and start the current worktree's API with a read-only database connection:
+The helper creates a unique project for this worktree/run, dumps one consistent
+source snapshot, builds this worktree's backend/frontend with the production
+Dockerfiles, and restores into its own PostgreSQL volume. Only that disposable
+copy receives current migrations; checksum mismatches fail without alignment.
+It does not rerun ingestion or refresh stored groups. The backend uses a read-only
+connection; the frontend reaches its private API within the project's network.
+No shared target/cache volumes or database ports are mounted. A random loopback
+frontend port supplies the comparator's development origin. Doctor checks backend
+health and decodes a successful public search model before comparison.
+
+Production defaults to `https://exposed.today`. Every invocation reads it live
+with bounded sequential GETs through the same SvelteKit page-data loaders used by
+the public frontend. [The manifest](live-cases.json) contains selectors only,
+never expected money. Resolve funder UUIDs independently in each environment by
+one exact name/kind match, then assert the identity returned by each detail page.
+Member Parliament IDs and names must match. Missing or ambiguous identities,
+error models, malformed fields, redirects, HTTP failures and timeouts fail closed.
+
+Compare supplied decimal strings/null without arithmetic, rounding, currency
+conversion, or fallback totals. Search preserves order, duplicate multiplicity,
+match provenance and entity context. Totals include authoritative declared periods,
+counts/completeness, currencies/categories, parties and ranked recipients. Arrays
+retain the public loader's order. Installation-local funder UUIDs are omitted only
+from semantic comparisons; raw responses retain them.
+
+The printed new evidence directory survives success, mismatch, failure and cleanup.
+It records the worktree commit/dirty status, source container and snapshot, unique
+Compose project, derived origin, build/migration/doctor/container/cleanup logs,
+raw request URLs/status/headers/body/timestamps, normalized observations, incremental
+`http/report.json`, and readable `http/diff.txt`. An interrupted comparator leaves
+an incomplete report and available partial evidence. Treat incomplete evidence as
+failure. Evidence retains the database dump.
+
+Exit 0 requires every observation to succeed and match. Exit 1 means observed field
+differences; exit 2 means observation/configuration/schema/identity errors (which
+take precedence over differences). Report the code and evidence paths. Snapshot
+age or live production changes can explain discrepancies, but discrepancies still
+fail; investigate provenance before attributing them to branch code. Never edit
+expected totals or refresh data to manufacture parity. There is no baseline-update
+mode. If the snapshot predates grouped funder metadata, missing group identities
+can be valid observed errors.
+
+Cleanup always removes only this run's Compose project and volumes, including on
+failure. It retains the source snapshot and filesystem evidence. Check
+`cleanup.log`; failed cleanup is exit 2. Do not use blanket Docker prune/down.
+
+For controlled HTTP replay or diagnosis, the internal observer accepts explicit
+origins; this alone does not prove a worktree build:
 
 ```sh
-export DATABASE_URL='postgresql://exposed:exposed_local_dev@127.0.0.1:55432/exposed_search_regression?sslmode=disable&options=-c%20default_transaction_read_only%3Don'
-evidence_dir=$(mktemp -d /tmp/exposed-search-regression.XXXXXX)
-cargo build --package exposed --bin exposed >"$evidence_dir/build.log" 2>&1
+node .agents/skills/verify/scripts/compare-live.mjs --development http://127.0.0.1:PORT
 ```
 
-Require a successful build before starting the API. Inspect `build.log` on failure.
-The server requires port 6999. If another host process owns it, report the conflict
-and do not reuse or stop that process. Run only one snapshot API on this host at a time.
-
-```sh
-base_url='http://127.0.0.1:6999'
-RUST_LOG='warn,exposed=info' ./target/debug/exposed server >"$evidence_dir/server.log" 2>&1 &
-server_pid=$!
-```
-
-Wait for the JSON startup event with `fields.message` equal to
-`HTTP server listening` and `fields.address` equal to `0.0.0.0:6999` in `server.log`.
-Then run Doctor before any drive. Do not reuse the development API.
-Separate runs have their own processes and evidence directories and share only
-the read-only snapshot. Do not run during a snapshot refresh.
-
-## Doctor
-
-Confirm the process is alive, its connection selects the snapshot, and both
-health and search answer successfully:
-
-```sh
-kill -0 "$server_pid"
-docker compose exec -T postgres psql -X -U exposed -d exposed_search_regression -c "SELECT datname, application_name, client_addr FROM pg_stat_activity WHERE datname = 'exposed_search_regression'"
-cat "$evidence_dir/server.log"
-curl --fail --write-out '%{http_code}\n' "$base_url/healthz"
-curl --fail --get "$base_url/search" --data-urlencode 'term=unite' --data-urlencode 'strictness=0.8' --data-urlencode 'max_entries=10' --output "$evidence_dir/doctor.response.json" --write-out '%{http_code}\n'
-```
-
-Require HTTP 204 for health and HTTP 200 for search. Do not drive after a failed
-doctor. After a failed drive, repeat Doctor before the next drive. If startup
-fails, capture the log and clean up this run's process before retrying.
-
-## Drive
-
-Run the executable [HTTP check](scripts/check-search-regression.py):
-
-```sh
-./.agents/skills/verify/scripts/check-search-regression.py "$base_url" "$evidence_dir/http"
-```
-
-Require five `PASS` lines and exit code 0. Cases and accepted results live in
-[scripts/search-regression.json](scripts/search-regression.json). Keep the exact entity order, names,
-match provenance, and recorded alias lists. The script has no baseline-update
-mode. Investigate a diff before changing expectations.
-
-## Populated funder groups
-
-After changes to alias grouping or reviewed families, run the additional
-`loaded_data_grouped_funders_regression` test. It starts the worktree's API and
-checks BBC, GB News, and Premier League searches and detail pages against an
-isolated copy of the 12 October 2026 development data. This database is separate
-from `exposed_search_regression`. Apply the current migrations to the copy, then
-retry the latest declaration run already loaded into it using its unchanged raw,
-cleaned, and resolved artifacts. Follow the
-[stored funder groups deployment procedure](../../../db/README.md#deploy-stored-funder-groups)
-with `DATABASE_URL` set to the copy. Require a successful load retry whose JSON
-response has `"outcome":"already_loaded"` before the test.
-Loading a new run can replace source data and invalidate the regression fixture.
-Do not change the source database or refresh the frozen search snapshot during
-verification.
-
-The preferred-name migration creates empty metadata; the exact load retry applies the
-compiled reviewed-family names. Expect BBC, GB News, and Premier League in search
-and detail names. Member declaration history continues to show recorded source
-names.
-
-Set `GROUPED_FUNDER_REGRESSION_DATABASE_URL` to a read-only URL for that copy.
-The test also needs the same schema for SQLx compile-time query checks:
-
-```sh
-: "${GROUPED_FUNDER_REGRESSION_DATABASE_URL:?set a populated grouping database URL}"
-DATABASE_URL="$GROUPED_FUNDER_REGRESSION_DATABASE_URL" \
-  cargo test -p exposed --test integration loaded_data_grouped_funders_regression -- --ignored --exact
-```
-
-Require one passing test. It checks one result per search, the documented group
-member and funding entry counts, recorded names, and both alias and reviewed
-family link evidence. If the populated copy is unavailable, report that
-prerequisite; the five-case search snapshot does not replace this check.
-
-## Evidence
-
-Retain `build.log`, `server.log`, `doctor.response.json`, and the `http` directory
-under the printed `evidence_dir`.
-Each case stores the GET URL, complete HTTP response, expected selected field,
-and comparison diff. Search compares the entity array with IDs omitted. Funder detail compares the
-funder profile with its ID omitted, including its recorded name and aliases.
-Group member IDs and alias/family link endpoints are normalized to stable labels;
-membership and both evidence arrays are still compared.
-Detail URLs use IDs from the current search response, never frozen IDs.
-Funding totals are outside this check.
-
-Use the real `/search` and `/funders/{UUID}` routes. Do not replace them with
-mocks or direct database reads. Report failures with their diff and exit code.
-The API connection is read-only and these routes only read stored data.
-
-## Cleanup
-
-```sh
-kill "$server_pid"
-wait "$server_pid" || true
-test -s "$evidence_dir/server.log"
-test -s "$evidence_dir/http/unite.response.json"
-printf '%s\n' "$evidence_dir"
-```
-
-Kill only the process started by this run. Keep the snapshot and evidence.
-Run cleanup after failed attempts too. If failure happened before HTTP capture,
-retain the startup log and report the missing response evidence. A build failure
-retains `build.log` and has no server process to stop.
-
-## Helpers
-
-`./.agents/skills/verify/scripts/check-search-regression.py BASE_URL NEW_EVIDENCE_DIRECTORY` needs only
-Python's standard library. `--cases PATH` selects a different case file for a
-temporary failure probe. It sends GET requests and never writes the database or
-accepted baseline. Its evidence directory must not already exist.
-
-`./.agents/skills/verify/scripts/refresh-search-regression-db.sh --help` describes
-the snapshot replacement procedure. Run it without `--help` only when deliberately
-refreshing the snapshot after stopping source clients, never during verification.
+Optional `--production ORIGIN`, `--cases PATH`, and `--evidence NEW_DIRECTORY` select
+a controlled reference, selector subset, or evidence location. Equal origins are
+rejected. The lifecycle command accepts only `--production` and `--cases`; it always
+derives its own development origin and evidence directory. No production writes,
+CI changes or financial-semantic changes are part of verification.

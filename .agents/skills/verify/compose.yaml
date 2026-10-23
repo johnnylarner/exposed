@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: exposed
+      POSTGRES_PASSWORD: verification
+      POSTGRES_DB: verification
+    volumes:
+      - database:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U exposed -d verification']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  migrate:
+    build:
+      context: ${VERIFY_WORKTREE:?}
+      dockerfile: docker/Dockerfile
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://exposed:verification@postgres:5432/verification?sslmode=disable
+  exposed:
+    build:
+      context: ${VERIFY_WORKTREE:?}
+      dockerfile: docker/Dockerfile
+      target: binary
+    environment:
+      DATABASE_URL: postgresql://exposed:verification@postgres:5432/verification?sslmode=disable&options=-c%20default_transaction_read_only%3Don
+    depends_on:
+      postgres:
+        condition: service_healthy
+  frontend:
+    build:
+      context: ${VERIFY_WORKTREE:?}
+      dockerfile: docker/Dockerfile.frontend
+    environment:
+      EXPOSED_API_ORIGIN: http://exposed:6999
+    ports:
+      - '127.0.0.1::8080'
+volumes:
+  database:
