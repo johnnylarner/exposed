@@ -35,7 +35,7 @@
   const chartSlices = [
     {
       label: "Example party",
-      value: "£90,071,992,547,409,993.123456789",
+      value: "£98,765,432.12345678901234567890123456789",
       detail: "2 entries, 1 amount unavailable",
       share: 1,
       path: "",
@@ -388,7 +388,7 @@
           >{/snippet}{#snippet values()}<Metric
             level={3}
             label="Known declared value"
-            value="£90,071,992,547,409,993.123456789"
+            value="£98,765,432.12345678901234567890123456789"
           /><Metric
             level={3}
             label="Unavailable value"
@@ -396,6 +396,13 @@
             available={false}
           />{/snippet}</IdentityHeader
       >
+      <Metric
+        variant="expanded"
+        align="end"
+        level={3}
+        label="Declared amounts"
+        value="£42,500.75"
+      />
       <DeclarationList
         ><DeclarationCard
           >{#snippet heading()}<h3>Employment</h3>

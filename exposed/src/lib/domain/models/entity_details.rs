@@ -397,6 +397,10 @@ pub struct CurrencyBreakdown {
 /// Funder summary without currency conversion or historical party inference.
 #[derive(Clone, Debug)]
 pub struct FunderDetails {
+    /// Authoritative declared GBP headlines for matching declarations.
+    pub declared_totals: DeclaredGbpTotals,
+    /// Earliest known registration timestamp among matching declarations.
+    pub first_registered_at: Option<DateTime<Utc>>,
     /// Complete source history with matching funding occurrences only.
     pub declarations: Vec<FunderDeclaration>,
     /// Persistent funder identity.

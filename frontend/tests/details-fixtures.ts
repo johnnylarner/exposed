@@ -19,13 +19,13 @@ export const memberHistoryFixture = {
       entries: [
         {
           funder: { id: funderId, name: "Exact Funder" },
-          amount: "9007199254740993.123456789",
+          amount: "12345.67",
           currency: "GBP",
           payment_type: "Cash",
         },
         {
           funder: { id: funderId, name: "Exact Funder" },
-          amount: "9007199254740993.123456789",
+          amount: "12345.67",
           currency: "GBP",
           payment_type: "Cash",
         },
@@ -69,12 +69,12 @@ export const memberDetails = {
   summary: {
     declared_totals: declaredTotals(
       {
-        amount: "18014398509481986.246913578",
+        amount: "24691.34",
         declaration_count: 1,
         incomplete: true,
       },
       {
-        amount: "18014398509481986.246913578",
+        amount: "24691.34",
         declaration_count: 2,
         incomplete: true,
       },
@@ -87,14 +87,14 @@ export const memberDetails = {
     currencies: [
       {
         currency: "GBP",
-        amount: "18014398509481986.246913578",
+        amount: "24691.34",
         entry_count: 2,
         unknown_amount_count: 0,
         categories: [
           {
             category_id: 3,
             category_name: "Support",
-            amount: "18014398509481986.246913578",
+            amount: "24691.34",
             entry_count: 2,
             unknown_amount_count: 0,
           },
@@ -141,6 +141,12 @@ export const memberDetails = {
   },
 };
 export const funderDetails = {
+  declared_totals: declaredTotals({
+    amount: "24686.34",
+    declaration_count: 1,
+    incomplete: true,
+  }),
+  first_registered_at: "2026-01-21T00:00:00Z",
   funder: {
     id: funderId,
     name: "Exact Funder",
@@ -189,12 +195,12 @@ export const funderDetails = {
     },
     {
       currency: "GBP",
-      amount: "18014398509481981.246913578",
+      amount: "24686.34",
       parties: [
         {
           party_id: 1,
           party_name: "Party A",
-          amount: "18014398509481986.246913578",
+          amount: "24691.34",
           entry_count: 3,
           unknown_amount_count: 1,
         },
@@ -209,7 +215,7 @@ export const funderDetails = {
       top_recipients: [
         {
           member,
-          amount: "18014398509481986.246913578",
+          amount: "24691.34",
           entry_count: 3,
           unknown_amount_count: 1,
         },

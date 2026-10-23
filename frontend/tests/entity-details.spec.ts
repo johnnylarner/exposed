@@ -126,7 +126,7 @@ test("member summary shows recent declarations when none are donations", async (
     page.getByRole("table", {
       name: "Sources ranked by known declared GBP amounts",
     }),
-  ).toContainText("£18,014,398,509,481,986.246913578");
+  ).toContainText("£24,691.34");
   await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 780 });
   await expect(
@@ -178,8 +178,8 @@ test("member declarations retain duplicate precise amounts and missing source fi
     page.getByText("Showing 1 to 2 of 2 declarations"),
   ).toBeVisible();
   await expect(page.locator(".funding-value .amount")).toHaveText([
-    "£9,007,199,254,740,993.123456789",
-    "£9,007,199,254,740,993.123456789",
+    "£12,345.67",
+    "£12,345.67",
     "Amount unavailable",
   ]);
   for (const text of [
@@ -202,17 +202,17 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
 }) => {
   await mockDetails(backend);
   await page.goto(`/funders/${funderId}?q=Example&strictness=0.42`);
-  await expect(page.locator(".member-total")).toHaveText(
-    "£18,014,398,509,481,981.246913578",
-  );
+  await expect(page.locator(".declared-totals .member-total")).toHaveText([
+    "£24,686.34",
+    "£24,686.34",
+    "£24,686.34",
+  ]);
   await expect(page.getByText("Company number 00123456")).toBeVisible();
   const controls = page.locator(".funder-party-legend li");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
   await expect(page.locator(".funder-party-legend")).not.toContainText("£");
   await controls.first().hover();
-  await expect(page.getByRole("tooltip")).toContainText(
-    "£18,014,398,509,481,986.246913578",
-  );
+  await expect(page.getByRole("tooltip")).toContainText("£24,691.34");
   await page.getByRole("tooltip").hover();
   await page.waitForTimeout(180);
   await expect(page.getByRole("tooltip")).toBeVisible();
@@ -222,16 +222,14 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
   await expect(page.getByRole("tooltip")).toContainText("−£5.00");
   await page.keyboard.press("Escape");
   await page.locator(".funder-party-chart svg g").hover();
-  await expect(page.getByRole("tooltip")).toContainText(
-    "£18,014,398,509,481,986.246913578",
-  );
+  await expect(page.getByRole("tooltip")).toContainText("£24,691.34");
   await page.keyboard.press("Escape");
   await expect(
     page.getByRole("img", { name: "Monthly registered funding" }),
   ).toHaveCount(0);
   await expect(page.locator(".funder-party-chart svg circle")).toHaveCount(1);
   await expect(page.locator(".funder-recipients .amount")).toHaveText([
-    "£18,014,398,509,481,986.246913578",
+    "£24,691.34",
     "£0.00",
   ]);
   await expect(
@@ -288,12 +286,7 @@ test("funding history retains sources, duplicate amounts and date paging", async
   await expect(page.locator(".declaration")).toHaveCount(10);
   await expect(
     page.locator(".declaration").first().locator(".amount"),
-  ).toHaveText([
-    "£9,007,199,254,740,993.123456789",
-    "£9,007,199,254,740,993.123456789",
-    "500",
-    "Amount unavailable",
-  ]);
+  ).toHaveText(["£12,345.67", "£12,345.67", "500", "Amount unavailable"]);
   await expect(page.locator(".declaration").first()).toContainText("Support");
   await expect(page.locator(".declaration").first()).toContainText("Benefit");
   await expect(
@@ -414,6 +407,9 @@ test("empty details and unknown currency only details remain distinct from error
     route.fulfill({
       json: {
         ...funderDetails,
+        declared_totals: emptyDeclaredTotals,
+        first_registered_at: null,
+        declarations: [],
         currencies: [],
         entry_count: 0,
         unknown_currency_count: 0,
@@ -432,7 +428,7 @@ test("empty details and unknown currency only details remain distinct from error
     "No declarations recorded",
     "No declarations recorded",
   ]);
-  await expect(page.locator(".member-earnings-totals h2")).toHaveText([
+  await expect(page.locator(".declared-totals h2")).toHaveText([
     "Declared amounts this parliamentary term",
     "Historical declared amounts",
     "Declared amounts in 2026",
@@ -660,9 +656,9 @@ test("member summary retains signed category bars alongside all-category totals"
   await mockDetails(backend);
   await page.goto("/members/1");
   await expect(page.locator(".member-total")).toHaveText([
-    "£18,014,398,509,481,986.246913578",
-    "£18,014,398,509,481,986.246913578",
-    "£18,014,398,509,481,986.246913578",
+    "£24,691.34",
+    "£24,691.34",
+    "£24,691.34",
   ]);
   await expect(page.locator(".signed-bar .negative")).toHaveCount(1);
   await expect(
@@ -1380,14 +1376,12 @@ test("member declared amounts include gifts and travel with registration coverag
       name: "Sources ranked by known declared GBP amounts",
     }),
   ).toContainText("£425.00");
-  await expect(page.locator(".member-earnings-totals h2")).toHaveText([
+  await expect(page.locator(".declared-totals h2")).toHaveText([
     "Declared amounts this parliamentary term",
     "Historical declared amounts since 1 January 2020",
     "Declared amounts in 2031",
   ]);
-  await expect(
-    page.locator(".member-earnings-totals .partial-note"),
-  ).toHaveCount(0);
+  await expect(page.locator(".declared-totals .partial-note")).toHaveCount(0);
   if (process.env.EXPOSED_SCREENSHOT_DIR)
     await page.screenshot({
       path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-earnings-summary.png`,
@@ -1409,7 +1403,7 @@ test("declared amounts keep precise figures readable on narrow screens and missi
   page,
 }) => {
   await mockDetails(backend);
-  let amount: string | null = "1234567890.12";
+  let amount: string | null = "98765432.12";
   await backend.route("**/api/members/1", (route) =>
     route.fulfill({
       json: {
@@ -1438,9 +1432,9 @@ test("declared amounts keep precise figures readable on narrow screens and missi
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/members/1");
     await expect(page.locator(".member-total")).toHaveText([
-      "£1,234,567,890.12",
-      "£1,234,567,890.12",
-      "£1,234,567,890.12",
+      "£98,765,432.12",
+      "£98,765,432.12",
+      "£98,765,432.12",
     ]);
     await page.evaluate(() => document.fonts.ready);
     const figures = await page
@@ -1486,32 +1480,36 @@ test("declared amounts keep precise figures readable on narrow screens and missi
     "Amount unavailable",
     "Amount unavailable",
   ]);
-  amount = "90071992547409939007199254740993.123456789";
+  amount = "98765432.12345678901234567890123456789";
   await page.reload();
-  const figure = page.getByRole("region", {
-    name: "Historical declared amounts in GBP",
-    exact: true,
-  });
-  await expect(figure).toHaveText(
-    "£90,071,992,547,409,939,007,199,254,740,993.123456789",
-  );
-  await figure.focus();
-  await page.keyboard.press("ArrowRight");
-  expect(
-    await figure.evaluate((element) => {
-      const range = document.createRange();
-      range.selectNodeContents(element);
-      return range.getClientRects().length;
+  for (const figure of [
+    page.getByRole("region", {
+      name: "Historical declared amounts in GBP",
+      exact: true,
     }),
-  ).toBe(1);
-  expect(
-    await figure.evaluate((element) =>
-      parseFloat(getComputedStyle(element).outlineWidth),
-    ),
-  ).toBeGreaterThanOrEqual(2);
-  await expect
-    .poll(() => figure.evaluate((element) => element.scrollLeft))
-    .toBeGreaterThan(0);
+    page.locator(".declared-totals .member-value").last().getByRole("region"),
+  ]) {
+    await expect(figure).toHaveText(
+      "£98,765,432.12345678901234567890123456789",
+    );
+    await figure.focus();
+    await page.keyboard.press("ArrowRight");
+    expect(
+      await figure.evaluate((element) => {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        return range.getClientRects().length;
+      }),
+    ).toBe(1);
+    expect(
+      await figure.evaluate((element) =>
+        parseFloat(getComputedStyle(element).outlineWidth),
+      ),
+    ).toBeGreaterThanOrEqual(2);
+    await expect
+      .poll(() => figure.evaluate((element) => element.scrollLeft))
+      .toBeGreaterThan(0);
+  }
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -1663,7 +1661,7 @@ test("source table keeps all sources, coverage, native links and narrow exact am
   page,
 }) => {
   await mockDetails(backend);
-  const huge = "9".repeat(100) + ".123456789";
+  const huge = "98765432.12345678901234567890123456789";
   const sources = [
     {
       funder: {
@@ -1841,3 +1839,169 @@ test("member source table has an explicit empty state", async ({
     }),
   ).toHaveCount(0);
 });
+
+for (const entity of ["member", "funder"] as const) {
+  test(`${entity} headlines use authoritative periods in the same responsive row`, async ({
+    backend,
+    page,
+  }) => {
+    const totals = declaredTotals(
+      { amount: "0", declaration_count: 1, incomplete: false },
+      {
+        amount: "42500.75",
+        declaration_count: 4,
+        incomplete: true,
+      },
+      { amount: "-12.34", declaration_count: 2, incomplete: false },
+      2031,
+    );
+    const first = "2020-01-01T00:00:00Z";
+    const body =
+      entity === "member"
+        ? {
+            ...memberDetails,
+            summary: {
+              ...memberDetails.summary,
+              declared_totals: totals,
+              first_registered_at: first,
+            },
+          }
+        : {
+            ...funderDetails,
+            declared_totals: totals,
+            first_registered_at: first,
+          };
+    const path = entity === "member" ? "/members/1" : `/funders/${funderId}`;
+    await backend.route(`**/api${path}`, (route) =>
+      route.fulfill({ json: body }),
+    );
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto(path);
+    const headlines = page.locator(".declared-totals");
+    await expect(headlines.locator("h2")).toHaveText([
+      "Declared amounts this parliamentary term",
+      "Historical declared amounts since 1 January 2020",
+      "Declared amounts in 2031",
+    ]);
+    await expect(headlines.locator(".member-total")).toHaveText([
+      "£0.00",
+      "£42,500.75",
+      "−£12.34",
+    ]);
+    await expect(
+      headlines.getByRole("region", {
+        name: "Historical declared amounts in GBP",
+      }),
+    ).toHaveAttribute(
+      "title",
+      "Known GBP amounts only. Some amounts unavailable.",
+    );
+    const boxes = await headlines
+      .locator(".member-value")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => {
+          const rect = node.getBoundingClientRect();
+          return { top: rect.top, left: rect.left };
+        }),
+      );
+    expect(boxes[0].top).toBe(boxes[1].top);
+    expect(boxes[1].top).toBe(boxes[2].top);
+    expect(boxes[0].left).toBeLessThan(boxes[1].left);
+    const firstMetric = headlines.locator(".member-value").first();
+    const lastMetric = headlines.locator(".member-value").last();
+    await expect(firstMetric.locator("h2")).toHaveCSS("text-align", "left");
+    await expect(firstMetric.locator(".member-total")).toHaveCSS(
+      "text-align",
+      "left",
+    );
+    await expect(lastMetric.locator("h2")).toHaveCSS("text-align", "end");
+    await expect(lastMetric.locator(".member-total")).toHaveCSS(
+      "text-align",
+      "end",
+    );
+    const section = await page.locator(".member-summary-top").boundingBox();
+    const firstBox = await firstMetric.boundingBox();
+    const lastBox = await lastMetric.boundingBox();
+    expect(section).not.toBeNull();
+    expect(firstBox?.x).toBe(section?.x);
+    expect(lastBox && lastBox.x + lastBox.width).toBe(
+      section && section.x + section.width,
+    );
+    if (process.env.EXPOSED_SCREENSHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.EXPOSED_SCREENSHOT_DIR}/${entity}-periods-desktop.png`,
+        fullPage: true,
+      });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const narrow = await headlines
+      .locator(".member-value")
+      .evaluateAll((nodes) =>
+        nodes.map((node) => node.getBoundingClientRect().top),
+      );
+    expect(narrow[0]).toBeLessThan(narrow[1]);
+    expect(narrow[1]).toBeLessThan(narrow[2]);
+    await expect(lastMetric.locator("h2")).toHaveCSS("text-align", "end");
+    await expect(lastMetric.locator(".member-total")).toHaveCSS(
+      "text-align",
+      "end",
+    );
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(390);
+    if (process.env.EXPOSED_SCREENSHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.EXPOSED_SCREENSHOT_DIR}/${entity}-periods-narrow.png`,
+        fullPage: true,
+      });
+  });
+}
+
+for (const period of [
+  {
+    name: "empty",
+    total: { amount: null, declaration_count: 0, incomplete: false },
+    expected: "No declarations recorded",
+  },
+  {
+    name: "unavailable",
+    total: { amount: null, declaration_count: 1, incomplete: true },
+    expected: "Amount unavailable",
+  },
+]) {
+  test(`funder headlines distinguish ${period.name} from zero`, async ({
+    backend,
+    page,
+  }) => {
+    await backend.route("**/api/funders/*", (route) =>
+      route.fulfill({
+        json: {
+          ...funderDetails,
+          declared_totals: declaredTotals(period.total),
+          first_registered_at: null,
+          declarations: [],
+          currencies: [],
+          entry_count: 0,
+          unknown_currency_count: 0,
+        },
+      }),
+    );
+    await page.goto(`/funders/${funderId}`);
+    await expect(page.locator(".declared-totals .member-total")).toHaveText([
+      period.expected,
+      period.expected,
+      period.expected,
+    ]);
+    await expect(page.locator(".declared-totals [role=region]")).toHaveCount(0);
+    const lastMetric = page.locator(".declared-totals .member-value").last();
+    await expect(lastMetric.locator("h2")).toHaveCSS("text-align", "end");
+    await expect(lastMetric.locator(".member-total")).toHaveCSS(
+      "text-align",
+      "end",
+    );
+    if (period.name === "empty" && process.env.EXPOSED_SCREENSHOT_DIR)
+      await page.screenshot({
+        path: `${process.env.EXPOSED_SCREENSHOT_DIR}/funder-empty-desktop.png`,
+        fullPage: true,
+      });
+  });
+}

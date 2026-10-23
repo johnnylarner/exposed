@@ -724,6 +724,12 @@
 .member-value[data-variant="expanded"] .member-total.unavailable {
   font-size: 1.25rem;
 }
+.member-value[data-align="start"] {
+  text-align: start;
+}
+.member-value[data-align="end"] {
+  text-align: end;
+}
 .category-list[data-variant="compact"] .category-label {
   font-size: 13px;
   line-height: 1.65;

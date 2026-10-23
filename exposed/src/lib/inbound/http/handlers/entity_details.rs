@@ -195,6 +195,18 @@ struct DeclaredGbpTotalsResponse {
     historical: DeclaredGbpPeriodResponse,
 }
 
+impl From<crate::domain::models::entity_details::DeclaredGbpTotals> for DeclaredGbpTotalsResponse {
+    fn from(value: crate::domain::models::entity_details::DeclaredGbpTotals) -> Self {
+        Self {
+            calendar_year: value.calendar_year.value(),
+            current_year: value.current_year.into(),
+            current_term_start: value.current_term_start,
+            current_term: value.current_term.into(),
+            historical: value.historical.into(),
+        }
+    }
+}
+
 #[derive(Serialize)]
 pub struct MemberSummaryResponse {
     declared_totals: DeclaredGbpTotalsResponse,
@@ -208,13 +220,7 @@ pub struct MemberSummaryResponse {
 impl From<MemberSummary> for MemberSummaryResponse {
     fn from(value: MemberSummary) -> Self {
         Self {
-            declared_totals: DeclaredGbpTotalsResponse {
-                calendar_year: value.declared_totals.calendar_year.value(),
-                current_year: value.declared_totals.current_year.into(),
-                current_term_start: value.declared_totals.current_term_start,
-                current_term: value.declared_totals.current_term.into(),
-                historical: value.declared_totals.historical.into(),
-            },
+            declared_totals: value.declared_totals.into(),
             currencies: value.currencies.into_iter().map(Into::into).collect(),
             entry_count: value.entry_count,
             unknown_currency_count: value.unknown_currency_count,
@@ -371,6 +377,8 @@ impl From<FunderDeclaration> for FunderDeclarationResponse {
 
 #[derive(Serialize)]
 pub struct FunderDetailsResponse {
+    declared_totals: DeclaredGbpTotalsResponse,
+    first_registered_at: Option<DateTime<Utc>>,
     declarations: Vec<FunderDeclarationResponse>,
     funder: FunderResponse,
     currencies: Vec<CurrencyResponse>,
@@ -381,6 +389,8 @@ pub struct FunderDetailsResponse {
 impl From<FunderDetails> for FunderDetailsResponse {
     fn from(details: FunderDetails) -> Self {
         Self {
+            declared_totals: details.declared_totals.into(),
+            first_registered_at: details.first_registered_at,
             declarations: details.declarations.into_iter().map(Into::into).collect(),
             funder: details.profile.into(),
             currencies: details.currencies.into_iter().map(Into::into).collect(),

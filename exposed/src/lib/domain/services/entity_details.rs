@@ -49,7 +49,7 @@ impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
         self.repo
             .funder_funding(request.id())
             .await?
-            .map(summarize_funder)
+            .map(|funding| summarize_funder(funding, CalendarYear::containing(chrono::Utc::now())))
             .ok_or(EntityDetailsError::NotFound)
     }
 }
@@ -150,22 +150,53 @@ impl CurrentParliamentStart {
     }
 }
 
+struct DeclaredTotalsAggregate {
+    historical: PeriodAggregate,
+    current_term: PeriodAggregate,
+    current_year: PeriodAggregate,
+    calendar_year: CalendarYear,
+    boundary: CurrentParliamentStart,
+}
+
+impl DeclaredTotalsAggregate {
+    fn new(calendar_year: CalendarYear) -> Self {
+        Self {
+            historical: PeriodAggregate::default(),
+            current_term: PeriodAggregate::default(),
+            current_year: PeriodAggregate::default(),
+            calendar_year,
+            boundary: CurrentParliamentStart::new(),
+        }
+    }
+
+    fn observe(&mut self, declaration: &MemberDeclaration) {
+        self.historical.observe(declaration);
+        if self.calendar_year.includes(declaration.registered_at) {
+            self.current_year.observe(declaration);
+        }
+        if self.boundary.includes(declaration) {
+            self.current_term.observe(declaration);
+        }
+    }
+
+    fn totals(&self) -> DeclaredGbpTotals {
+        DeclaredGbpTotals {
+            calendar_year: self.calendar_year,
+            current_year: self.current_year.gbp_total(),
+            current_term_start: self.boundary.0,
+            historical: self.historical.gbp_total(),
+            current_term: self.current_term.gbp_total(),
+        }
+    }
+}
+
 fn summarize_member(history: MemberHistory, calendar_year: CalendarYear) -> MemberDetails {
-    let boundary = CurrentParliamentStart::new();
-    let mut historical = PeriodAggregate::default();
-    let mut current_term = PeriodAggregate::default();
-    let mut current_year = PeriodAggregate::default();
+    let mut aggregate = DeclaredTotalsAggregate::new(calendar_year);
     let mut first_registered_at = None;
     let mut last_registered_at = None;
     let mut undated_declaration_count = 0;
     for declaration in &history.declarations {
-        historical.observe(declaration);
-        if calendar_year.includes(declaration.registered_at) {
-            current_year.observe(declaration);
-        }
-        if boundary.includes(declaration) {
-            current_term.observe(declaration);
-        }
+        aggregate.observe(declaration);
         if let Some(date) = declaration.registered_at {
             first_registered_at = Some(
                 first_registered_at
@@ -180,16 +211,10 @@ fn summarize_member(history: MemberHistory, calendar_year: CalendarYear) -> Memb
         }
     }
     let summary = MemberSummary {
-        declared_totals: DeclaredGbpTotals {
-            calendar_year,
-            current_year: current_year.gbp_total(),
-            current_term_start: boundary.0,
-            historical: historical.gbp_total(),
-            current_term: current_term.gbp_total(),
-        },
-        entry_count: historical.entry_count,
-        unknown_currency_count: historical.unknown_currency_count,
-        currencies: historical.finish(),
+        declared_totals: aggregate.totals(),
+        entry_count: aggregate.historical.entry_count,
+        unknown_currency_count: aggregate.historical.unknown_currency_count,
+        currencies: aggregate.historical.finish(),
         first_registered_at,
         last_registered_at,
         undated_declaration_count,
@@ -209,12 +234,21 @@ fn compare_allocations(left: &RecipientAllocation, right: &RecipientAllocation) 
         .then_with(|| left.member.name.cmp(&right.member.name))
 }
 
-fn summarize_funder(funding: FunderFunding) -> FunderDetails {
+fn summarize_funder(funding: FunderFunding, calendar_year: CalendarYear) -> FunderDetails {
+    let mut aggregate = DeclaredTotalsAggregate::new(calendar_year);
+    let mut first_registered_at = None;
     let mut entry_count = 0;
     let mut unknown_currency_count = 0;
     let mut currencies: BTreeMap<String, Vec<RecipientAllocation>> = BTreeMap::new();
     let mut recipients: BTreeMap<(String, u32), RecipientAllocation> = BTreeMap::new();
     for source in &funding.declarations {
+        aggregate.observe(&source.declaration);
+        if let Some(date) = source.declaration.registered_at {
+            first_registered_at = Some(
+                first_registered_at
+                    .map_or(date, |first: chrono::DateTime<chrono::Utc>| first.min(date)),
+            );
+        }
         for entry in &source.declaration.entries {
             entry_count += 1;
             let Some(currency) = &entry.currency else {
@@ -286,6 +320,8 @@ fn summarize_funder(funding: FunderFunding) -> FunderDetails {
         })
         .collect();
     FunderDetails {
+        declared_totals: aggregate.totals(),
+        first_registered_at,
         declarations: funding.declarations,
         profile: funding.profile,
         currencies,
@@ -333,6 +369,124 @@ mod tests {
         }
     }
 
+    fn funder_history(history: MemberHistory) -> FunderFunding {
+        use crate::domain::models::{
+            entity_details::{FunderDeclaration, FunderProfile},
+            funder::{Funder, FunderKind},
+        };
+        let id = "10000000-0000-0000-0000-000000000001".parse().unwrap();
+        FunderFunding {
+            profile: FunderProfile {
+                funder: Funder::new(id, "Example".into(), FunderKind::Company),
+                company_number: None,
+                aliases: Vec::new(),
+                member_ids: vec![id],
+                alias_links: Vec::new(),
+                family_links: Vec::new(),
+            },
+            declarations: history
+                .declarations
+                .into_iter()
+                .map(|declaration| FunderDeclaration {
+                    member: history.member.clone(),
+                    declaration,
+                })
+                .collect(),
+        }
+    }
+
+    fn assert_periods_equal(left: &DeclaredGbpTotals, right: &DeclaredGbpTotals) {
+        assert_eq!(left.calendar_year.value(), right.calendar_year.value());
+        assert_eq!(left.current_term_start, right.current_term_start);
+        for (left, right) in [
+            (&left.historical, &right.historical),
+            (&left.current_term, &right.current_term),
+            (&left.current_year, &right.current_year),
+        ] {
+            assert_eq!(left.amount, right.amount);
+            assert_eq!(left.declaration_count, right.declaration_count);
+            assert_eq!(left.incomplete, right.incomplete);
+        }
+    }
+
+    fn summarize_both(history: MemberHistory, year: CalendarYear) -> MemberDetails {
+        let funder = summarize_funder(funder_history(history.clone()), year);
+        let member = summarize_member(history, year);
+        assert_periods_equal(&member.summary.declared_totals, &funder.declared_totals);
+        assert_eq!(
+            member.summary.first_registered_at,
+            funder.first_registered_at
+        );
+        member
+    }
+
+    #[test]
+    fn funder_and_member_share_term_boundaries_and_matching_occurrence_totals() {
+        let year = CalendarYear::containing("2025-06-01T00:00:00Z".parse().unwrap());
+        let mut duplicate =
+            declaration(Some("2024-07-09T01:00:00+01:00"), Some("4.25"), Some("GBP"));
+        duplicate.entries.push(duplicate.entries[0].clone());
+        let details = summarize_both(
+            history(vec![
+                declaration(
+                    Some("2024-07-08T23:59:59.999999Z"),
+                    Some("-20"),
+                    Some("GBP"),
+                ),
+                duplicate,
+                declaration(None, Some("3"), Some("GBP")),
+            ]),
+            year,
+        );
+        assert_eq!(
+            details.summary.declared_totals.current_term.amount,
+            Some("8.5".parse().unwrap())
+        );
+        assert_eq!(
+            details
+                .summary
+                .declared_totals
+                .current_term
+                .declaration_count,
+            1
+        );
+        assert_eq!(
+            details.summary.declared_totals.historical.amount,
+            Some("-8.5".parse().unwrap())
+        );
+        assert_eq!(
+            details.summary.declared_totals.historical.declaration_count,
+            3
+        );
+        assert_eq!(details.summary.entry_count, 4);
+    }
+
+    #[test]
+    fn both_entities_classify_offset_registrations_by_utc_year() {
+        let year = CalendarYear::containing("2025-06-01T00:00:00Z".parse().unwrap());
+        let details = summarize_both(
+            history(vec![
+                declaration(Some("2024-12-31T23:00:00-02:00"), Some("1.25"), Some("GBP")),
+                declaration(Some("2025-01-01T00:30:00+01:00"), Some("10"), Some("GBP")),
+                declaration(Some("2025-12-31T23:00:00-02:00"), Some("100"), Some("GBP")),
+                declaration(Some("2026-01-01T00:30:00+01:00"), Some("2.75"), Some("GBP")),
+            ]),
+            year,
+        );
+        assert_eq!(
+            details.summary.declared_totals.current_year.amount,
+            Some("4".parse().unwrap())
+        );
+        assert_eq!(
+            details
+                .summary
+                .declared_totals
+                .current_year
+                .declaration_count,
+            2
+        );
+    }
+
     #[test]
     fn calendar_year_totals_use_utc_boundaries_and_preserve_coverage() {
         let history = history(vec![
@@ -356,7 +510,7 @@ mod tests {
             declaration(None, Some("50"), None),
         ]);
         let year = CalendarYear::containing("2025-06-01T00:00:00Z".parse().unwrap());
-        let details = summarize_member(history.clone(), year);
+        let details = summarize_both(history.clone(), year);
         let total = details.summary.declared_totals.current_year;
         assert_eq!(total.amount, Some("0.1".parse().unwrap()));
         assert_eq!(total.declaration_count, 3);
@@ -371,7 +525,7 @@ mod tests {
             .declarations
             .push(declaration(Some("2025-07-01T00:00:00Z"), None, Some("GBP")));
         assert!(
-            summarize_member(missing, year)
+            summarize_both(missing, year)
                 .summary
                 .declared_totals
                 .current_year
@@ -382,7 +536,7 @@ mod tests {
             .declarations
             .push(declaration(Some("2025-07-01T00:00:00Z"), Some("8"), None));
         assert!(
-            summarize_member(unknown, year)
+            summarize_both(unknown, year)
                 .summary
                 .declared_totals
                 .current_year
@@ -394,7 +548,7 @@ mod tests {
     fn calendar_year_totals_distinguish_empty_zero_and_unavailable() {
         let year = CalendarYear::containing("2025-06-01T00:00:00Z".parse().unwrap());
         let summarize = |declarations| {
-            summarize_member(history(declarations), year)
+            summarize_both(history(declarations), year)
                 .summary
                 .declared_totals
                 .current_year
