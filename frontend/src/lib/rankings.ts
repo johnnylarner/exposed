@@ -22,7 +22,7 @@ export const rankingCategories = [
   {
     id: "members",
     label: "MPs",
-    icon: "group",
+    icon: "parliament",
     accent: "member",
     path: "M138 8 A130 130 0 0 0 8 138 L98 138 A40 40 0 0 1 138 98 Z",
     rimPath: "M138 8 A130 130 0 0 0 8 138",
@@ -58,7 +58,7 @@ export const rankingCategories = [
   {
     id: "parties",
     label: "Parties",
-    icon: "flag",
+    icon: "group",
     accent: "neutral",
     path: "M8 4 A130 130 0 0 0 138 134 L138 44 A40 40 0 0 1 98 4 Z",
     rimPath: "M8 4 A130 130 0 0 0 138 134",
