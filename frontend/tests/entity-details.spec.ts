@@ -1059,7 +1059,7 @@ test("member source summary includes every dated entry", async ({
     name: "Sources ranked by known declared GBP amounts",
   });
   await expect(table).toContainText("£8.50");
-  await expect(table).toContainText("3 entries");
+  await expect(table.getByRole("rowheader")).toHaveText("Funder unavailable");
   await expect(
     page.getByRole("img", { name: "Monthly registered earnings" }),
   ).toHaveCount(0);
@@ -1703,6 +1703,15 @@ test("source table keeps all sources, coverage, native links and narrow exact am
     },
     { funder: null, amount: null, currency: "GBP", payment_type: null },
     { funder: null, amount: "10", currency: "  ", payment_type: null },
+    {
+      funder: {
+        id: "22222222-2222-4222-8222-222222222222",
+        name: "Community Trust",
+      },
+      amount: null,
+      currency: "GBP",
+      payment_type: null,
+    },
   ];
   await backend.route("**/api/members/1", (route) =>
     route.fulfill({
@@ -1750,9 +1759,25 @@ test("source table keeps all sources, coverage, native links and narrow exact am
     name: "Sources ranked by known declared GBP amounts",
   });
   await expect(table.getByRole("row")).toHaveCount(6);
-  await expect(table).toContainText("1 foreign-currency entry excluded");
-  await expect(table).toContainText("1 GBP amount unavailable");
-  await expect(table).toContainText("1 entry with unknown currency excluded");
+  await expect(table.getByRole("columnheader").last()).toHaveText(
+    "Declared GBP",
+  );
+  await expect(table.locator(".entry-count")).toHaveCount(0);
+  await expect(
+    table.getByText("Amount unavailable", { exact: true }),
+  ).toHaveCount(2);
+  await expect(
+    table.getByRole("row", { name: /Funder unavailable/u }).getByRole("cell"),
+  ).toHaveText("Amount unavailable");
+  await expect(table.getByText("Some amounts unavailable")).toHaveCount(1);
+  await expect(
+    table
+      .getByRole("row", { name: /Overseas Cultural Exchange/u })
+      .getByRole("cell"),
+  ).toHaveText("Amount unavailable");
+  const partialSource = table.getByRole("row", { name: /Community Trust/u });
+  await expect(partialSource).toContainText("£12,500.50");
+  await expect(partialSource).toContainText("Some amounts unavailable");
   await expect(table).toContainText("−£25.00");
   const link = table.getByRole("link").first();
   await expect(link).toHaveAttribute("href", `/funders/${funderId}?q=Example`);

@@ -18,7 +18,7 @@
         <tr
           ><th scope="col" class="source-name">Source</th><th
             scope="col"
-            class="source-value">Known declared GBP</th
+            class="source-value">Declared GBP</th
           ></tr
         >
       {/snippet}
@@ -31,15 +31,11 @@
                   "summary",
                   page.url.searchParams,
                 )}>{source.funder.name}</a
-              >{:else}Source unavailable{/if}
-            <span class="entry-count"
-              >{source.entryCount}
-              {source.entryCount === 1 ? "entry" : "entries"}</span
-            >
+              >{:else}Funder unavailable{/if}
           </th>
           <td class="source-value">
             {#if source.amount === null}<span class="partial-note"
-                >No known GBP amount</span
+                >{formatPounds(source.amount)}</span
               >{:else}<!-- svelte-ignore a11y_no_noninteractive_tabindex (Exact amounts must remain keyboard-scrollable.) -->
               <div
                 class="source-amount"
@@ -49,23 +45,9 @@
               >
                 <span class="amount">{formatPounds(source.amount)}</span>
               </div>{/if}
-            {#if source.missingGbpAmountCount}<span class="partial-note"
-                >{source.missingGbpAmountCount} GBP {source.missingGbpAmountCount ===
-                1
-                  ? "amount"
-                  : "amounts"} unavailable</span
-              >{/if}
-            {#if source.unknownCurrencyCount}<span class="partial-note"
-                >{source.unknownCurrencyCount}
-                {source.unknownCurrencyCount === 1 ? "entry" : "entries"} with unknown
-                currency excluded</span
-              >{/if}
-            {#if source.foreignCurrencyCount}<span class="partial-note"
-                >{source.foreignCurrencyCount} foreign-currency {source.foreignCurrencyCount ===
-                1
-                  ? "entry"
-                  : "entries"} excluded</span
-              >{/if}
+            {#if source.amount !== null && (source.missingGbpAmountCount > 0 || source.unknownCurrencyCount > 0)}
+              <span class="partial-note">Some amounts unavailable</span>
+            {/if}
           </td>
         </tr>
       {/each}
