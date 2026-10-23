@@ -134,10 +134,22 @@ The goal of this project is to make declaration data easy to search, browse and 
 ## Git history
 
 - After completing and validating a task, commit its changes on the task's work
-  branch without waiting for a separate request.
+  branch, push the branch, and open a pull request against the target branch
+  without waiting for a separate request. If the branch already has an open PR,
+  update it instead of creating a duplicate.
+- Before reporting completion, verify that the remote branch matches local
+  `HEAD` and that the open PR targets the intended base and includes that commit.
+  Include the PR URL and validation results in the final response.
+- If pushing or opening the PR fails, report the blocker and the remaining step.
+  Do not describe a local commit alone as completed delivery. Follow explicit
+  user instructions to stop before pushing or opening a PR.
 - Never commit directly on `main`.
 - Keep Git history linear. Rebase feature branches onto the target branch and
   integrate changes with a fast-forward or squash; do not create merge commits.
+
+| Rule | Enforcement |
+| --- | --- |
+| Deliver validated changes as a pushed branch with an open PR. | Agent completion check against the remote branch and `gh pr view`; include the verified PR URL in the final response. This is a workflow rule, not an automated gate. CI cannot observe work that was never pushed. |
 
 ## Development database migrations
 
