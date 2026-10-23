@@ -183,9 +183,6 @@ h1 {
   font-size: 0.85rem;
   line-height: 1.6;
 }
-.history-link {
-  margin-top: 24px;
-}
 .history-filters {
   display: flex;
   flex-wrap: wrap;

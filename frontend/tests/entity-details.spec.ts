@@ -61,7 +61,7 @@ test("native links preserve search through details, back, reload and new tabs", 
   await link.click();
   await expect(page).toHaveURL(/\/members\/1\?q=Example$/u);
   await expect(
-    page.getByRole("heading", { name: "Recent declarations" }),
+    page.getByRole("heading", { name: "Declared value by category" }),
   ).toBeVisible();
   await page.reload();
   await expect(
@@ -93,7 +93,7 @@ test("native links preserve search through details, back, reload and new tabs", 
   await expect(page.getByRole("searchbox")).toHaveValue("Example");
 });
 
-test("member summary shows recent declarations when none are donations", async ({
+test("member summary retains precise sources without individual declarations", async ({
   backend,
   page,
 }) => {
@@ -115,10 +115,11 @@ test("member summary shows recent declarations when none are donations", async (
   await page.goto("/members/1");
   await expect(
     page.getByRole("heading", { name: "Recent declarations" }),
-  ).toBeVisible();
-  await expect(page.getByText("Declaration 120")).toBeVisible();
-  await expect(page.getByText("Declaration 119")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Employment" })).toBeVisible();
+  ).toHaveCount(0);
+  await expect(page.locator(".declarations-list")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "View declaration history" }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Declared amounts by source" }),
   ).toBeVisible();
@@ -127,7 +128,6 @@ test("member summary shows recent declarations when none are donations", async (
       name: "Sources ranked by known declared GBP amounts",
     }),
   ).toContainText("£24,691.34");
-  await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 780 });
   await expect(
     page.getByRole("heading", { name: "Declared amounts by source" }),
@@ -139,7 +139,7 @@ test("member summary shows recent declarations when none are donations", async (
   ).toBe(true);
 });
 
-test("member summary shows only the first five declarations in history order", async ({
+test("member declaration history remains accessible from the summary tab navigation", async ({
   backend,
   page,
 }) => {
@@ -153,15 +153,15 @@ test("member summary shows only the first five declarations in history order", a
   await backend.route("**/api/members/1", (route) =>
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
-  await page.goto("/members/1");
-  await expect(page.locator(".declaration-reference")).toHaveText([
-    "Declaration 120",
-    "Declaration 119",
-    "Declaration 118",
-    "Declaration 117",
-    "Declaration 116",
-  ]);
-  await page.getByRole("link", { name: "View declaration history" }).click();
+  await page.goto("/members/1?q=Example");
+  await expect(page.locator(".declaration-reference")).toHaveCount(0);
+  const history = page.getByRole("link", {
+    name: "Declaration history",
+    exact: true,
+  });
+  await expect(history).toHaveAttribute("href", "/members/1/history?q=Example");
+  await history.click();
+  await expect(page).toHaveURL(/members\/1\/history\?q=Example$/u);
   await expect(page.locator(".declaration-reference")).toHaveCount(7);
 });
 
@@ -422,7 +422,7 @@ test("empty details and unknown currency only details remain distinct from error
   ).toBeVisible();
   await expect(
     page.getByText("No declarations are stored for this MP."),
-  ).toBeVisible();
+  ).toHaveCount(0);
   await expect(page.locator(".member-total")).toHaveText([
     "No declarations recorded",
     "No declarations recorded",
@@ -677,9 +677,9 @@ test("member summary retains signed category bars alongside all-category totals"
   const total = await page.locator(".member-total").first().boundingBox();
   const tabs = await page.locator(".member-tabs").boundingBox();
   expect(total && tabs && total.y + total.height <= tabs.y).toBeTruthy();
-  await expect(page.locator(".declarations-list > li")).toHaveCount(2);
+  await expect(page.locator(".declarations-list")).toHaveCount(0);
   await expect(
-    page.getByRole("link", { name: "View declaration history" }),
+    page.getByRole("link", { name: "Declaration history", exact: true }),
   ).toHaveAttribute("href", "/members/1/history");
 });
 
@@ -1757,13 +1757,8 @@ test("source table keeps all sources, coverage, native links and narrow exact am
     name: "Sources ranked by known declared GBP amounts",
   });
   await expect(table.getByRole("row")).toHaveCount(6);
-  const firstDeclaration = page.locator(".declarations-list > li").first();
-  await expect(firstDeclaration).toHaveCSS("border-top-width", "1px");
-  const declarationDivider = await firstDeclaration.evaluate(
-    (element) => getComputedStyle(element).borderTop,
-  );
   for (const cell of await table.locator("tbody tr:first-child > *").all())
-    await expect(cell).toHaveCSS("border-top", declarationDivider);
+    await expect(cell).toHaveCSS("border-top-width", "1px");
   await expect(table.getByRole("columnheader").last()).toHaveText(
     "Declared GBP",
   );
