@@ -50,7 +50,8 @@
   .ranking-meta {
     margin: var(--space-2) 0;
     color: var(--muted);
-    font-size: var(--text-small);
+    font-size: var(--text-heading);
+    line-height: 1.5;
   }
   .ranking-intro {
     display: flex;
