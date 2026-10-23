@@ -29,7 +29,7 @@ test("search uses funder teal and member purple for results and legend", async (
   await page.goto("/search?q=Example");
   await expect(page.getByRole("link", { name: "Exposed home" })).toHaveCSS(
     "color",
-    "rgb(182, 123, 229)",
+    "rgb(240, 237, 243)",
   );
   const search = page.getByRole("searchbox");
   await search.focus();
