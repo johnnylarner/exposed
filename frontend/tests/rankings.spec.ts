@@ -37,7 +37,9 @@ test("rankings SSR includes exact top ten and category switching is immediate an
   await expect(
     page.getByRole("list", { name: "Individuals rankings" }),
   ).toContainText("£0.00");
-  await expect(page.getByText("Donations and support · GBP")).toBeVisible();
+  await expect(
+    page.getByText("Total declared during this parliament", { exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Companies" })
     .click({ position: { x: 20, y: 20 } });

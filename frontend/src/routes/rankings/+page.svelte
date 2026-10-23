@@ -6,7 +6,6 @@
     rankingRows,
     type RankingCategory,
   } from "../../lib/rankings";
-  import { registrationDate } from "../../lib/entity-details";
   import type { PageData } from "./$types";
   let { data }: { data: PageData } = $props();
   let selected = $state<RankingCategory>("members");
@@ -22,14 +21,7 @@
       <div class="ranking-intro">
         <div>
           <h1>Rankings</h1>
-          <p class="ranking-meta">
-            Since {registrationDate(data.rankings.currentTermStart)}
-          </p>
-          <p class="ranking-meta">
-            {selected === "members"
-              ? "Declared amounts · GBP"
-              : "Donations and support · GBP"}
-          </p>
+          <p class="ranking-meta">Total declared during this parliament</p>
         </div>
         <CategoryWheel
           options={rankingCategories}
