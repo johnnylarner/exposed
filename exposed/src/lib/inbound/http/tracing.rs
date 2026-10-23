@@ -170,8 +170,24 @@ mod tests {
         }
     }
 
+    impl crate::domain::services::rankings::RankingsService for Details {
+        fn rankings(
+            &self,
+        ) -> impl Future<
+            Output = Result<
+                crate::domain::models::rankings::Rankings,
+                crate::domain::repositories::rankings::RankingsError,
+            >,
+        > {
+            std::future::ready(Err(crate::domain::repositories::rankings::RankingsError(
+                "database rankings failed".into(),
+            )))
+        }
+    }
+
     fn app() -> Router {
         routes().with_state(AppState {
+            rankings_service: Arc::new(Details),
             entity_search_service: Arc::new(Search),
             entity_details_service: Arc::new(Details),
         })

@@ -5,11 +5,13 @@ pub use interface::EntityDetailsService;
 
 pub use crate::domain::models::entity_details::EntityDetailsError;
 use crate::domain::{
-    models::entity_details::{
-        CalendarYear, CategoryTotal, CurrencyBreakdown, DeclarationCategory,
-        DeclaredGbpPeriodTotal, DeclaredGbpTotals, FunderDetails, FunderDetailsRequest,
-        FunderFunding, MemberCurrencyTotal, MemberDeclaration, MemberDetails, MemberDetailsRequest,
-        MemberHistory, MemberSummary, PartyTotal, RecipientAllocation,
+    models::{
+        declared_totals::{CurrentParliamentStart, PeriodAggregate, add_known},
+        entity_details::{
+            CalendarYear, CurrencyBreakdown, DeclaredGbpTotals, FunderDetails,
+            FunderDetailsRequest, FunderFunding, MemberDeclaration, MemberDetails,
+            MemberDetailsRequest, MemberHistory, MemberSummary, PartyTotal, RecipientAllocation,
+        },
     },
     repositories::entity_details::EntityDetailsRepo,
 };
@@ -54,102 +56,6 @@ impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
     }
 }
 
-fn add_known(total: &mut Option<bigdecimal::BigDecimal>, amount: Option<&bigdecimal::BigDecimal>) {
-    if let Some(amount) = amount {
-        match total {
-            Some(total) => *total += amount,
-            None => *total = Some(amount.clone()),
-        }
-    }
-}
-
-#[derive(Default)]
-struct PeriodAggregate {
-    currencies: BTreeMap<String, MemberCurrencyTotal>,
-    categories: BTreeMap<(String, DeclarationCategory, String), CategoryTotal>,
-    declaration_count: usize,
-    entry_count: usize,
-    unknown_currency_count: usize,
-}
-
-impl PeriodAggregate {
-    fn observe(&mut self, declaration: &MemberDeclaration) {
-        self.declaration_count += 1;
-        for entry in &declaration.entries {
-            self.entry_count += 1;
-            let Some(currency) = &entry.currency else {
-                self.unknown_currency_count += 1;
-                continue;
-            };
-            let group =
-                self.currencies
-                    .entry(currency.clone())
-                    .or_insert_with(|| MemberCurrencyTotal {
-                        currency: currency.clone(),
-                        amount: None,
-                        entry_count: 0,
-                        unknown_amount_count: 0,
-                        categories: Vec::new(),
-                    });
-            add_known(&mut group.amount, entry.amount.as_ref());
-            group.entry_count += 1;
-            group.unknown_amount_count += usize::from(entry.amount.is_none());
-            let category = self
-                .categories
-                .entry((
-                    currency.clone(),
-                    declaration.category,
-                    declaration.category_name.clone(),
-                ))
-                .or_insert_with(|| CategoryTotal {
-                    category: declaration.category,
-                    category_name: declaration.category_name.clone(),
-                    amount: None,
-                    entry_count: 0,
-                    unknown_amount_count: 0,
-                });
-            add_known(&mut category.amount, entry.amount.as_ref());
-            category.entry_count += 1;
-            category.unknown_amount_count += usize::from(entry.amount.is_none());
-        }
-    }
-
-    fn gbp_total(&self) -> DeclaredGbpPeriodTotal {
-        let gbp = self.currencies.get("GBP");
-        DeclaredGbpPeriodTotal {
-            amount: gbp.and_then(|group| group.amount.clone()),
-            declaration_count: self.declaration_count,
-            incomplete: self.unknown_currency_count > 0
-                || gbp.is_some_and(|group| group.unknown_amount_count > 0),
-        }
-    }
-
-    fn finish(mut self) -> Vec<MemberCurrencyTotal> {
-        for ((currency, _, _), category) in self.categories {
-            if let Some(group) = self.currencies.get_mut(&currency) {
-                group.categories.push(category);
-            }
-        }
-        self.currencies.into_values().collect()
-    }
-}
-
-struct CurrentParliamentStart(chrono::DateTime<chrono::Utc>);
-impl CurrentParliamentStart {
-    fn new() -> Self {
-        use chrono::TimeZone;
-        Self(
-            chrono::Utc
-                .with_ymd_and_hms(2024, 7, 9, 0, 0, 0)
-                .single()
-                .expect("valid parliament start"),
-        )
-    }
-    fn includes(&self, declaration: &MemberDeclaration) -> bool {
-        declaration.registered_at.is_some_and(|date| date >= self.0)
-    }
-}
-
 struct DeclaredTotalsAggregate {
     historical: PeriodAggregate,
     current_term: PeriodAggregate,
@@ -183,7 +89,7 @@ impl DeclaredTotalsAggregate {
         DeclaredGbpTotals {
             calendar_year: self.calendar_year,
             current_year: self.current_year.gbp_total(),
-            current_term_start: self.boundary.0,
+            current_term_start: self.boundary.value(),
             historical: self.historical.gbp_total(),
             current_term: self.current_term.gbp_total(),
         }
@@ -334,7 +240,9 @@ fn summarize_funder(funding: FunderFunding, calendar_year: CalendarYear) -> Fund
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::models::entity_details::{DeclaredFunding, MemberProfile};
+    use crate::domain::models::entity_details::{
+        DeclarationCategory, DeclaredFunding, MemberDeclaration, MemberProfile,
+    };
 
     fn declaration(
         date: Option<&str>,

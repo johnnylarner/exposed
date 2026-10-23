@@ -2,6 +2,8 @@
   import { onMount } from "svelte";
   import AppShell from "../../AppShell.svelte";
   import {
+    CategoryWheel,
+    RankingList,
     Icon,
     Badge,
     IconIndicator,
@@ -30,6 +32,57 @@
     Field,
     Notice,
   } from "../../lib/ui";
+  let exampleCategory = $state("members");
+  const wheelOptions = [
+    {
+      id: "members",
+      label: "MPs",
+      icon: "parliament",
+      accent: "member",
+      path: "M138 8 A130 130 0 0 0 8 138 L98 138 A40 40 0 0 1 138 98 Z",
+      rimPath: "M138 8 A130 130 0 0 0 8 138",
+      left: 0,
+      top: 0,
+      x: 73,
+      y: 73,
+    },
+    {
+      id: "individuals",
+      label: "Individuals",
+      icon: "person",
+      accent: "funder",
+      path: "M4 8 A130 130 0 0 1 134 138 L44 138 A40 40 0 0 0 4 98 Z",
+      rimPath: "M4 8 A130 130 0 0 1 134 138",
+      left: 142,
+      top: 0,
+      x: 69,
+      y: 73,
+    },
+    {
+      id: "companies",
+      label: "Companies",
+      icon: "building",
+      accent: "funder",
+      path: "M4 134 A130 130 0 0 0 134 4 L44 4 A40 40 0 0 1 4 44 Z",
+      rimPath: "M4 134 A130 130 0 0 0 134 4",
+      left: 142,
+      top: 142,
+      x: 54,
+      y: 55,
+    },
+    {
+      id: "parties",
+      label: "Parties",
+      icon: "group",
+      accent: "neutral",
+      path: "M8 4 A130 130 0 0 0 138 134 L138 44 A40 40 0 0 1 98 4 Z",
+      rimPath: "M8 4 A130 130 0 0 0 138 134",
+      left: 0,
+      top: 142,
+      x: 88,
+      y: 55,
+    },
+  ] satisfies import("../../lib/ui").CategoryWheelOption[];
   let exampleSearch = $state("Example name");
   let examplePage = $state(1);
   const chartSlices = [
@@ -379,6 +432,45 @@
         </ul>
       </div>
     </section>
+    <section id="ranking-patterns" aria-labelledby="ranking-patterns-heading">
+      <SectionHeading
+        id="ranking-patterns-heading"
+        title="Category selection and rankings"
+      />
+      <CategoryWheel
+        options={wheelOptions}
+        selected={exampleCategory}
+        onselect={(id) => (exampleCategory = id)}
+        label="Example ranking category"
+      />
+      <RankingList
+        label="Example rankings"
+        rows={[
+          {
+            key: exampleCategory + "1",
+            name: "Jane Example",
+            context: "Example Party · Example constituency",
+            href: "/members/1",
+            amount: "£90,071,992,547,409,993.123456789",
+            incomplete: true,
+            width: 100,
+            negative: false,
+            accent: exampleCategory === "members" ? "member" : "funder",
+          },
+          {
+            key: exampleCategory + "2",
+            name: "Example party",
+            context: "2 declarations",
+            amount: "£0.00",
+            incomplete: false,
+            width: 0,
+            negative: false,
+            accent: "neutral",
+          },
+        ]}
+      />
+    </section>
+
     <section id="data-patterns" aria-labelledby="data-patterns-heading">
       <SectionHeading id="data-patterns-heading" title="Identity and data" />
       <IdentityHeader name="Example member with a long recorded name" level={3}

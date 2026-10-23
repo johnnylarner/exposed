@@ -1,5 +1,7 @@
 mod entity_details;
+mod rankings;
 pub use entity_details::{funder_details, member_details};
+pub use rankings::rankings;
 
 use axum::{
     extract::{Query, State},
@@ -12,7 +14,10 @@ use crate::{
         models::entity_search::{
             Entity, EntitySearchError, EntitySearchRequest, SearchMatchSource,
         },
-        services::{entity_details::EntityDetailsService, entity_search::EntitySearchService},
+        services::{
+            entity_details::EntityDetailsService, entity_search::EntitySearchService,
+            rankings::RankingsService,
+        },
     },
     inbound::http::{error::ApiError, state::AppState, success::ApiSuccess},
 };
@@ -89,8 +94,12 @@ impl From<EntitySearchError> for ApiError {
     }
 }
 
-pub async fn search_entities<E: EntitySearchService, D: EntityDetailsService>(
-    State(state): State<AppState<E, D>>,
+pub async fn search_entities<
+    E: EntitySearchService,
+    D: EntityDetailsService,
+    R: RankingsService,
+>(
+    State(state): State<AppState<E, D, R>>,
     Query(query): Query<SearchEntitiesHttpRequest>,
 ) -> Result<ApiSuccess<SearchEntityResponseData>, ApiError> {
     let domain_req = query.try_into_domain()?;

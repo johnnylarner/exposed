@@ -412,3 +412,83 @@ test("focus tokens propagate to native and component controls", async ({
     await expect(control).toHaveCSS("outline-offset", offset);
   }
 });
+
+test("category wheel retains keyboard focus and neutral focus without a tick", async ({
+  page,
+}) => {
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const selector = page.getByRole("group", {
+    name: "Example ranking category",
+  });
+  const surfaces = selector.locator(".sector-surface");
+  const appearance = () =>
+    selector.evaluate((wheel) => ({
+      surfaces: [...wheel.querySelectorAll(".sector-surface")].map(
+        (surface) => {
+          const style = getComputedStyle(surface);
+          return [style.fill, style.stroke, style.strokeWidth];
+        },
+      ),
+      labels: [...wheel.querySelectorAll("button")].map((button) => {
+        const icon = button.querySelector("svg");
+        return [
+          getComputedStyle(button).color,
+          icon && getComputedStyle(icon).color,
+        ];
+      }),
+    }));
+  const initialAppearance = await appearance();
+  await expect(surfaces).toHaveCount(4);
+  const members = selector.getByRole("button", { name: "MPs" });
+  const individuals = selector.getByRole("button", { name: "Individuals" });
+  const parties = selector.getByRole("button", { name: "Parties" });
+  await expect(members).toHaveCSS("left", "0px");
+  await expect(individuals).toHaveCSS("left", "142px");
+  await expect(parties).toHaveCSS("left", "0px");
+  await expect(parties).toHaveCSS("top", "142px");
+  await expect(members.locator("svg")).toHaveCSS("width", "32px");
+  await expect(selector.locator(".wheel-center svg")).toHaveCSS(
+    "width",
+    "30px",
+  );
+  const company = selector.getByRole("button", { name: "Companies" });
+  await company.focus();
+  await page.keyboard.press("Enter");
+  await expect(company).toBeFocused();
+  await expect(company).toHaveAttribute("aria-pressed", "true");
+  await expect(selector).not.toContainText("✓");
+  await expect(selector.getByRole("button", { name: "MPs" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await expect(company).toHaveCSS("outline-color", "rgb(240, 240, 237)");
+  await expect(selector.locator("path.focus-outline")).toHaveCSS(
+    "stroke",
+    "rgb(240, 240, 237)",
+  );
+  await expect(selector.locator("path.sector-rim.selected")).toHaveCSS(
+    "stroke",
+    "rgb(100, 207, 181)",
+  );
+  expect(await appearance()).toEqual(initialAppearance);
+  await expect(selector.locator(".sector-rim.selected")).toHaveCount(1);
+  await expect(selector.locator(".sector-rim:not(.selected)")).toHaveCount(3);
+  for (const rim of await selector
+    .locator(".sector-rim:not(.selected)")
+    .all()) {
+    await expect(rim).not.toHaveCSS("stroke", "rgb(100, 207, 181)");
+    await expect(rim).not.toHaveCSS("stroke", "rgb(182, 123, 229)");
+  }
+  const list = page.getByRole("list", { name: "Example rankings" });
+  await expect(list.getByRole("listitem")).toHaveCount(2);
+  await expect(list).toContainText("£90,071,992,547,409,993.123456789");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(selector.locator(".sector-rim").first()).toHaveCSS(
+    "transition-duration",
+    "0s",
+  );
+  await expect(list.getByRole("listitem").first()).toHaveCSS(
+    "animation-name",
+    "none",
+  );
+});

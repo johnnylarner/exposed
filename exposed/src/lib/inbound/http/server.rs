@@ -43,6 +43,7 @@ pub async fn serve_exposed(config: &ServerConfig, listener: TcpListener) -> anyh
     let service = EntitySearchService::new(db.clone(), db.clone());
 
     let state = AppState {
+        rankings_service: Arc::new(crate::domain::services::rankings::Service::new(db.clone())),
         entity_search_service: Arc::new(service),
         entity_details_service: Arc::new(crate::domain::services::entity_details::Service::new(db)),
     };

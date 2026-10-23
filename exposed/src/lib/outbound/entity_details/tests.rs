@@ -297,6 +297,9 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
     use std::sync::Arc;
     let db = ExposedDatabase::from(pool);
     let state = AppState {
+        rankings_service: std::sync::Arc::new(crate::domain::services::rankings::Service::new(
+            db.clone(),
+        )),
         entity_search_service: Arc::new(entity_search::Service::new(db.clone(), db.clone())),
         entity_details_service: Arc::new(Service::new(db.clone())),
     };
@@ -600,6 +603,9 @@ async fn declared_totals_include_all_categories_and_preserve_coverage(pool: PgPo
     use std::sync::Arc;
     let db = ExposedDatabase::from(pool);
     let state = AppState {
+        rankings_service: std::sync::Arc::new(crate::domain::services::rankings::Service::new(
+            db.clone(),
+        )),
         entity_search_service: Arc::new(entity_search::Service::new(db.clone(), db.clone())),
         entity_details_service: Arc::new(Service::new(db)),
     };
