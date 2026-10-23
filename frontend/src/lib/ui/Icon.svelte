@@ -51,6 +51,15 @@
         },
       },
     ],
+    flag: [
+      {
+        tag: "path",
+        attributes: { d: "M5 21V3m0 1c5-3 9 3 14 0v10c-5 3-9-3-14 0" },
+      },
+    ],
+    chart: [
+      { tag: "path", attributes: { d: "M4 20h16M7 16v-5m5 5V5m5 11V8" } },
+    ],
     question: [
       { tag: "circle", attributes: { cx: "12", cy: "12", r: "9" } },
       {

@@ -6,6 +6,7 @@ export interface CategoryWheelOption<Id extends string = string> {
   icon: IconName;
   accent: EntityAccent;
   path: string;
+  rimPath: string;
   left: number;
   top: number;
   x: number;

@@ -8,4 +8,6 @@ export type IconName =
   | "building"
   | "group"
   | "question"
-  | "tag";
+  | "tag"
+  | "flag"
+  | "chart";

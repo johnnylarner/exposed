@@ -25,21 +25,31 @@
   style:height={`${size}px`}
 >
   <div class="wheel-canvas" style:transform={`scale(${size / 284})`}>
-    <svg viewBox="0 0 284 284" aria-hidden="true">
+    <svg class="wheel-sectors" viewBox="0 0 284 284" aria-hidden="true">
       {#each options as option}
+        <path
+          class="sector-surface"
+          d={option.path}
+          transform={`translate(${option.left} ${option.top})`}
+          data-accent={option.accent}
+        />
+        <path
+          class="sector-rim"
+          class:selected={option.id === selected}
+          d={option.rimPath}
+          transform={`translate(${option.left} ${option.top})`}
+          data-accent={option.accent}
+        />
         {#if option.id === focused}<path
             class="focus-outline"
             d={option.path}
             transform={`translate(${option.left} ${option.top})`}
           />{/if}
-        <path
-          d={option.path}
-          transform={`translate(${option.left} ${option.top})`}
-          class:selected={option.id === selected}
-          data-accent={option.accent}
-        />
       {/each}
     </svg>
+    <span class="wheel-center" aria-hidden="true"
+      ><Icon name="chart" size={30} /></span
+    >
     {#each options as option}
       <button
         type="button"
@@ -60,7 +70,7 @@
           style:left={`${option.x}px`}
           style:top={`${option.y}px`}
         >
-          <Icon name={option.icon} size={20} />
+          <Icon name={option.icon} size={32} />
           <span>{option.label}</span>
         </span>
       </button>
@@ -80,20 +90,17 @@
     height: 284px;
     transform-origin: top left;
   }
-  svg {
+  .wheel-sectors {
     display: block;
     width: 284px;
     height: 284px;
     overflow: visible;
     pointer-events: none;
   }
-  path {
-    fill: var(--surface);
+  .sector-surface {
+    fill: color-mix(in srgb, var(--sector-accent) 10%, var(--canvas));
     stroke: var(--line);
-    stroke-width: 1.5;
-    transition:
-      fill 180ms,
-      stroke 180ms;
+    stroke-width: 1;
   }
   [data-accent="member"] {
     --sector-accent: var(--accent-member);
@@ -104,10 +111,25 @@
   [data-accent="neutral"] {
     --sector-accent: var(--muted);
   }
-  path.selected {
-    stroke: var(--sector-accent);
+  .sector-rim {
+    fill: none;
+    stroke: color-mix(in srgb, var(--sector-accent) 25%, var(--line));
     stroke-width: 2;
-    fill: color-mix(in srgb, var(--sector-accent) 13%, var(--canvas));
+    stroke-linecap: round;
+    transition: stroke 180ms;
+  }
+  .sector-rim.selected {
+    stroke: var(--sector-accent);
+    stroke-width: 3;
+  }
+  .wheel-center {
+    position: absolute;
+    left: 142px;
+    top: 142px;
+    transform: translate(-50%, -50%);
+    color: var(--muted);
+    pointer-events: none;
+    display: flex;
   }
   path.focus-outline {
     fill: none;
@@ -121,19 +143,16 @@
     background: transparent;
     border: 0;
     padding: 0;
-    color: var(--text);
+    color: color-mix(in srgb, var(--sector-accent) 80%, var(--muted));
     font: inherit;
-    font-size: 15px;
+    font-size: 17px;
+    font-weight: 600;
     cursor: pointer;
-  }
-  button[aria-pressed="true"] {
-    color: var(--sector-accent);
   }
   .sector-label {
     position: absolute;
     transform: translate(-50%, -50%);
     width: 110px;
-    padding-bottom: calc(14px + var(--space-1));
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -141,7 +160,6 @@
     gap: var(--space-1);
   }
   button :global(svg) {
-    color: var(--muted);
     flex: none;
   }
   @media (prefers-reduced-motion: reduce) {

@@ -42,11 +42,10 @@ test("rankings SSR includes exact top ten and category switching is immediate an
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Companies" })
-    .click({ position: { x: 20, y: 20 } });
-  await expect(page.locator(".category-wheel path.selected")).toHaveCSS(
-    "stroke",
-    "rgb(100, 207, 181)",
-  );
+    .click({ position: { x: 55, y: 55 } });
+  await expect(
+    page.locator(".category-wheel path.sector-rim.selected"),
+  ).toHaveCSS("stroke", "rgb(100, 207, 181)");
   await expect(
     page.getByRole("link", { name: "Example company" }),
   ).toHaveAttribute("href", "/funders/10000000-0000-0000-0000-000000000002");
