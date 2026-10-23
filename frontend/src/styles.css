@@ -315,6 +315,12 @@ h1 {
   gap: 24px;
 }
 
+@media (min-width: 1000px) {
+  .earnings-values {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .entity-legend {
   display: flex;
   align-items: center;
