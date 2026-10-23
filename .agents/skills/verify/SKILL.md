@@ -13,6 +13,11 @@ npm test --prefix .agents/skills/verify
 ./.agents/skills/verify/scripts/run-snapshot-comparison.sh
 ```
 
+For totals or ranking changes, also run the
+[current-term checks](features/current-term-totals.md). Production parity alone
+does not prove that totals exclude earlier and undated records. Report the
+current-term result separately from the live comparison result.
+
 Require Docker Compose, Node with built-in fetch/test, curl, and an existing
 `exposed_search_regression` snapshot in container `exposed-postgres-1` (user
 `exposed`). Override those prerequisite identities with `VERIFY_SNAPSHOT_CONTAINER`,
