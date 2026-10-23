@@ -1,4 +1,5 @@
 //! Exact current-term rankings use the same aggregate as member summaries.
+//! Companies includes every canonical non-individual kind, including unclassified funders.
 use crate::domain::{
     models::{
         declared_totals::{CurrentParliamentStart, PeriodAggregate},
@@ -97,8 +98,8 @@ fn summarize(sources: Vec<RankingDeclaration>, boundary: CurrentParliamentStart)
         for (key, (funder, entries)) in funders {
             let board = match funder.kind {
                 FunderKind::Individual => &mut individuals,
-                FunderKind::Company => &mut companies,
-                FunderKind::Trust
+                FunderKind::Company
+                | FunderKind::Trust
                 | FunderKind::TradeUnion
                 | FunderKind::Other
                 | FunderKind::NotSpecified
@@ -106,7 +107,7 @@ fn summarize(sources: Vec<RankingDeclaration>, boundary: CurrentParliamentStart)
                 | FunderKind::LimitedLiabilityPartnership
                 | FunderKind::UnincorporatedAssociation
                 | FunderKind::FriendlySociety
-                | FunderKind::RegisteredParty => continue,
+                | FunderKind::RegisteredParty => &mut companies,
             };
             let mut projected = declaration.clone();
             projected.entries = entries;
@@ -130,6 +131,79 @@ fn summarize(sources: Vec<RankingDeclaration>, boundary: CurrentParliamentStart)
 mod tests {
     use super::*;
     use crate::domain::models::entity_details::DeclaredGbpPeriodTotal;
+    #[test]
+    fn companies_include_every_non_individual_kind() {
+        use crate::domain::models::{
+            entity_details::{DeclaredFunding, FunderReference, MemberDeclaration},
+            funder::FunderId,
+            parliament_member::MemberId,
+            rankings::{RankedFunder, RankedMember, RankedParty},
+        };
+        for (kind, individual) in [
+            (FunderKind::Individual, true),
+            (FunderKind::Company, false),
+            (FunderKind::Trust, false),
+            (FunderKind::TradeUnion, false),
+            (FunderKind::Other, false),
+            (FunderKind::NotSpecified, false),
+            (FunderKind::BuildingSociety, false),
+            (FunderKind::LimitedLiabilityPartnership, false),
+            (FunderKind::UnincorporatedAssociation, false),
+            (FunderKind::FriendlySociety, false),
+            (FunderKind::RegisteredParty, false),
+        ] {
+            let id: FunderId = "10000000-0000-0000-0000-000000000001".parse().unwrap();
+            let boundary = CurrentParliamentStart::new();
+            let rankings = summarize(
+                vec![RankingDeclaration {
+                    member: RankedMember {
+                        id: MemberId::new(1).unwrap(),
+                        name: "Member".into(),
+                        party_name: "Party".into(),
+                        membership_from: "Constituency".into(),
+                    },
+                    party: RankedParty {
+                        id: 1,
+                        name: "Party".into(),
+                    },
+                    declaration: MemberDeclaration {
+                        source_id: 1,
+                        category: DeclarationCategory::DonationSupport,
+                        category_name: "Support".into(),
+                        registered_at: Some(boundary.value()),
+                        entries: vec![DeclaredFunding {
+                            funder: Some(FunderReference {
+                                id,
+                                name: "Funder".into(),
+                            }),
+                            amount: Some("1".parse().unwrap()),
+                            currency: Some("GBP".into()),
+                            payment_type: None,
+                        }],
+                    },
+                    funders: BTreeMap::from([(
+                        id.value(),
+                        RankedFunder {
+                            id,
+                            name: "Funder".into(),
+                            kind: kind.clone(),
+                        },
+                    )]),
+                }],
+                boundary,
+            );
+            assert_eq!(
+                rankings.individuals.len(),
+                usize::from(individual),
+                "{kind:?}"
+            );
+            assert_eq!(
+                rankings.companies.len(),
+                usize::from(!individual),
+                "{kind:?}"
+            );
+        }
+    }
     #[test]
     fn exact_sort_is_descending_null_last_stable_and_limited_to_ten() {
         let mut groups = BTreeMap::new();

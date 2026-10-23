@@ -47,8 +47,22 @@ async fn rankings_preserve_summary_parity_canonical_identity_and_party_attributi
     assert!(!rankings.members[4].total.incomplete);
     assert_eq!(rankings.members[5].identity.id.value(), 5);
     assert!(!rankings.members[5].total.incomplete);
-    assert_eq!(rankings.companies.len(), 1);
-    let company = &rankings.companies[0];
+    assert_eq!(rankings.companies.len(), 3);
+    assert_eq!(rankings.companies[0].identity.name, "Trust root");
+    assert_eq!(
+        rankings.companies[0].total.amount,
+        Some("8".parse().unwrap())
+    );
+    assert_eq!(rankings.companies[1].identity.name, "Unclassified funder");
+    assert_eq!(
+        rankings.companies[1].identity.kind,
+        crate::domain::models::funder::FunderKind::NotSpecified
+    );
+    assert_eq!(
+        rankings.companies[1].total.amount,
+        Some("4".parse().unwrap())
+    );
+    let company = &rankings.companies[2];
     assert_eq!(
         company.identity.id,
         "10000000-0000-0000-0000-000000000001"
@@ -125,6 +139,14 @@ async fn http_rankings_expose_four_bounded_boards_with_exact_wire_totals(pool: P
     assert_eq!(body["individuals"][0]["total"]["amount"], "0");
     assert_eq!(
         body["companies"][0]["id"],
+        "10000000-0000-0000-0000-000000000004"
+    );
+    assert_eq!(
+        body["companies"][1]["id"],
+        "10000000-0000-0000-0000-000000000007"
+    );
+    assert_eq!(
+        body["companies"][2]["id"],
         "10000000-0000-0000-0000-000000000001"
     );
     assert!(body["parties"][0].get("context").is_none());

@@ -52,7 +52,7 @@ pub struct Rankings {
     pub members: Vec<Ranking<RankedMember>>,
     /// Donation/support totals from canonical individual funders.
     pub individuals: Vec<Ranking<RankedFunder>>,
-    /// Donation/support totals from canonical company funders.
+    /// Donation/support totals from all canonical non-individual funders, including unclassified.
     pub companies: Vec<Ranking<RankedFunder>>,
     /// Donation/support declared by recipient MPs' latest party.
     pub parties: Vec<Ranking<RankedParty>>,
