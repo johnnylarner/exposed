@@ -8,10 +8,7 @@
 </script>
 
 <section class="money-sources" aria-labelledby="money-sources-heading">
-  <SectionHeading
-    id="money-sources-heading"
-    title="Declared amounts by source"
-  />
+  <SectionHeading id="money-sources-heading" title="Top amount" />
   {#if sources.length}
     <DataTable caption="Sources ranked by known declared GBP amounts">
       {#snippet head()}
@@ -22,7 +19,7 @@
           ></tr
         >
       {/snippet}
-      {#each sources as source}
+      {#each sources.slice(0, 5) as source}
         <tr>
           <th scope="row" class="source-name">
             {#if source.funder}<a

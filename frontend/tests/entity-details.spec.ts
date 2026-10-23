@@ -119,9 +119,7 @@ test("member summary shows recent declarations when none are donations", async (
   await expect(page.getByText("Declaration 120")).toBeVisible();
   await expect(page.getByText("Declaration 119")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Employment" })).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Declared amounts by source" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Top amount" })).toBeVisible();
   await expect(
     page.getByRole("table", {
       name: "Sources ranked by known declared GBP amounts",
@@ -129,9 +127,7 @@ test("member summary shows recent declarations when none are donations", async (
   ).toContainText("£24,691.34");
   await expect(page.getByRole("heading", { name: "Visits" })).toBeVisible();
   await page.setViewportSize({ width: 360, height: 780 });
-  await expect(
-    page.getByRole("heading", { name: "Declared amounts by source" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Top amount" })).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
@@ -1656,7 +1652,7 @@ test("calendar-year empty state preserves populated term and historical totals",
     });
 });
 
-test("source table keeps all sources, coverage, native links and narrow exact amounts accessible", async ({
+test("source table keeps top five sources, coverage, native links and narrow exact amounts accessible", async ({
   backend,
   page,
 }) => {
@@ -1699,6 +1695,15 @@ test("source table keeps all sources, coverage, native links and narrow exact am
       currency: "EUR",
       payment_type: null,
     },
+    {
+      funder: {
+        id: "55555555-5555-4555-8555-555555555555",
+        name: "Zzz Sixth Source",
+      },
+      amount: null,
+      currency: "GBP",
+      payment_type: null,
+    },
     { funder: null, amount: null, currency: "GBP", payment_type: null },
     { funder: null, amount: "10", currency: "  ", payment_type: null },
     {
@@ -1726,15 +1731,15 @@ test("source table keeps all sources, coverage, native links and narrow exact am
             {
               currency: "GBP",
               amount: "30975.75",
-              entry_count: 4,
-              unknown_amount_count: 1,
+              entry_count: 5,
+              unknown_amount_count: 2,
               categories: [
                 {
                   category_id: 999,
                   category_name: "Other",
                   amount: "30975.75",
-                  entry_count: 4,
-                  unknown_amount_count: 1,
+                  entry_count: 5,
+                  unknown_amount_count: 2,
                 },
               ],
             },
@@ -1756,7 +1761,10 @@ test("source table keeps all sources, coverage, native links and narrow exact am
   const table = page.getByRole("table", {
     name: "Sources ranked by known declared GBP amounts",
   });
-  await expect(table.getByRole("row")).toHaveCount(6);
+  await expect(table.locator("tbody tr")).toHaveCount(5);
+  await expect(
+    table.getByRole("row", { name: /Zzz Sixth Source/u }),
+  ).toHaveCount(0);
   const firstDeclaration = page.locator(".declarations-list > li").first();
   await expect(firstDeclaration).toHaveCSS("border-top-width", "1px");
   const declarationDivider = await firstDeclaration.evaluate(
