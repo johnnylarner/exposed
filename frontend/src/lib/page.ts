@@ -20,7 +20,7 @@ export const pagePresentation = {
     label: "content",
     title: "Exposed",
     description:
-      "Explore UK MPs' declared financial interests and the people and organisations behind them.",
+      "Explore MPs' declared financial interests and the people and organisations behind them.",
   },
   methodology: {
     target: "methodology",

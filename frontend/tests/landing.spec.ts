@@ -24,8 +24,20 @@ test("landing and methodology navigate without backend requests", async ({
   await page.goto("/");
   await expect(page).toHaveTitle("Exposed");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Explore UK MPs' declared financial interests and the people and organisations behind them.",
+    "Explore MPs' declared financial interests and the people and organisations behind them.",
   );
+  await expect(page.getByRole("link", { name: "Exposed home" })).toHaveCSS(
+    "color",
+    "rgb(182, 123, 229)",
+  );
+  await expect(
+    page.locator("#landing h1").getByText("MPs", { exact: true }),
+  ).toHaveCSS("color", "rgb(182, 123, 229)");
+  await expect(
+    page
+      .locator("#landing h1")
+      .getByText("financial interests", { exact: true }),
+  ).toHaveCSS("color", "rgb(100, 207, 181)");
   await page.keyboard.press("Tab");
   await expect(
     page.getByRole("link", { name: "Skip to content" }),

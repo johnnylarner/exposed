@@ -9,7 +9,12 @@
   --accent: var(--accent-member);
   --line: #28232e;
   --warning: #f0c17d;
-  --action-ink: #160b1f;
+  --action: #f0f0ed;
+  --action-ink: #111;
+  --action-border: #484848;
+  --action-surface: #181818;
+  --action-hover: #282828;
+  --focus-color: #f0f0ed;
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
