@@ -835,3 +835,20 @@ summary:focus-visible {
   font-size: 1.15rem;
   font-weight: 650;
 }
+
+.funder-party-legend[data-layout="list"] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-auto-rows: auto;
+  height: auto;
+  overflow: visible;
+}
+.funder-party-legend[data-layout="list"] li {
+  height: auto;
+  min-height: 48px;
+}
+.funder-party-legend[data-layout="list"] .party-name,
+.funder-party-legend[data-layout="list"] .entry-count {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+}

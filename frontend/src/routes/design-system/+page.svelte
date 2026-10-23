@@ -455,7 +455,11 @@
             minimumY={265}
           />
           <div class="funder-party-chart">
-            <PieChart label={`${tone} party example`} slices={chartSlices} />
+            <PieChart
+              label={`${tone} party example`}
+              slices={chartSlices}
+              legendLayout={tone === "member" ? "list" : "grid"}
+            />
           </div>
         </div>{/each}
       <Disclosure summary="Recorded names example" open

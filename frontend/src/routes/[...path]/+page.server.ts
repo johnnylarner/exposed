@@ -1,3 +1,4 @@
+import { loadOverview } from "../../lib/server/overview";
 import { redirect } from "@sveltejs/kit";
 import { readDetailRoute } from "../../lib/entity-details";
 import { searchConfiguration } from "../../lib/search";
@@ -13,16 +14,21 @@ export const load = (async ({ url, fetch, request, depends }) => {
     redirect(308, canonical.pathname + canonical.search);
   }
   depends("exposed:page");
+  const origin = (
+    process.env.EXPOSED_API_ORIGIN || "http://127.0.0.1:6999"
+  ).replace(/\/$/, "");
   if (url.pathname === "/") {
     if (url.searchParams.has("q")) redirect(307, `/search${url.search}`);
-    return { model: { kind: "landing" } satisfies PageModel };
+    return {
+      model: {
+        kind: "landing",
+        overview: await loadOverview(request.signal, fetch, origin),
+      } satisfies PageModel,
+    };
   }
   if (url.pathname === "/methodology")
     return { model: { kind: "methodology" } satisfies PageModel };
   const route = readDetailRoute(url.pathname);
-  const origin = (
-    process.env.EXPOSED_API_ORIGIN || "http://127.0.0.1:6999"
-  ).replace(/\/$/, "");
   let model: PageModel;
   if (route.kind !== "search") {
     model = {

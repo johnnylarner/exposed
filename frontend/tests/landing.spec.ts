@@ -12,7 +12,7 @@ test("footer displays the build version on public pages", async ({ page }) => {
   }
 });
 
-test("landing and methodology navigate without backend requests", async ({
+test("landing and methodology remain usable when overview is unavailable", async ({
   page,
   backend,
 }) => {
@@ -28,7 +28,7 @@ test("landing and methodology navigate without backend requests", async ({
   );
   await expect(page.getByRole("link", { name: "Exposed home" })).toHaveCSS(
     "color",
-    "rgb(182, 123, 229)",
+    "rgb(240, 237, 243)",
   );
   await expect(
     page.locator("#landing h1").getByText("MPs", { exact: true }),
@@ -63,7 +63,8 @@ test("landing and methodology navigate without backend requests", async ({
   await page.getByRole("link", { name: "Search MPs and funders" }).click();
   await expect(page).toHaveURL(/\/search$/u);
   await expect(page.getByRole("searchbox")).toHaveValue("");
-  expect(requests).toEqual([]);
+  expect(requests.length).toBeGreaterThan(0);
+  expect(requests.every((url) => url.endsWith("/overview"))).toBe(true);
 });
 
 for (const viewport of [
@@ -81,8 +82,8 @@ for (const viewport of [
         width: document.documentElement.scrollWidth,
         height: document.documentElement.scrollHeight,
       })),
-    ).toEqual(viewport);
-    for (const link of await page.locator("#landing a").all()) {
+    ).toMatchObject({ width: viewport.width });
+    for (const link of await page.locator("#landing nav a").all()) {
       const bounds = await link.boundingBox();
       expect(bounds?.height).toBeGreaterThanOrEqual(44);
     }

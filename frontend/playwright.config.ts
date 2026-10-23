@@ -6,12 +6,13 @@ export default defineConfig({
   projects: [
     {
       name: "unit",
-      testMatch: /(?:member-summary|funder-summary|loader-adapters)\.spec\.ts$/,
+      testMatch:
+        /(?:member-summary|funder-summary|loader-adapters|overview)\.spec\.ts$/,
     },
     {
       name: "browser",
       testIgnore:
-        /(?:member-summary|funder-summary|loader-adapters)\.spec\.ts$/,
+        /(?:member-summary|funder-summary|loader-adapters|overview)\.spec\.ts$/,
     },
   ],
   forbidOnly: Boolean(process.env.CI),

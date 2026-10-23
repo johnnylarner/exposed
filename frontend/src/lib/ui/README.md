@@ -33,3 +33,5 @@ Tokens in [tokens.css](tokens.css) own colors, spacing, type and focus. Override
 The [barrel](index.ts) is the public inventory. The gallery covers native disclosure/input behavior, precise metric overflow, repeated association IDs and pointer tooltip lifecycle. Financial parsing and availability decisions belong in feature adapters, never in UI components.
 
 UI-owned snippet classes are `.results-list` (list reset and divider), `.entity-text` (shrinkable content), `.entity-name` (result anchor typography and hover), `.entity-alias` (secondary result text), `.funding-list` (nested list reset and spacing), `.declaration-reference`, `.payment-type`, `.currency-label`, `.empty-entry` (declaration context), `.amount` (exact value typography), and `.entry-count`/`.partial-note` (secondary chart/table text). These work with the single UI stylesheet import. Feature grids and custom table columns stay in callers.
+
+`PieChart` accepts `legendLayout="grid"` (default compact scrolling legend) or `legendLayout="list"` (one column with wrapped, fully visible names and details). Use the list layout when exact values must remain visible without interaction.

@@ -1,3 +1,4 @@
+import type { OverviewState } from "./overview";
 import type { DetailRoute, DetailState } from "./entity-details";
 import type { Entity } from "./search";
 export type SearchResult =
@@ -5,7 +6,7 @@ export type SearchResult =
   | { status: "success"; term: string; entities: Entity[] }
   | { status: "error"; term: string; message: string };
 export type PageModel =
-  | { kind: "landing" }
+  | { kind: "landing"; overview: OverviewState }
   | { kind: "methodology" }
   | { kind: "search"; query: string; result: SearchResult }
   | {

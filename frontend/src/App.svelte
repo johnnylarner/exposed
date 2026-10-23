@@ -20,7 +20,7 @@
   current={model.kind}
 >
   {#if model.kind === "landing"}
-    <LandingPage />
+    <LandingPage overview={model.overview} />
   {:else if model.kind === "methodology"}
     <MethodologyPage />
   {:else if model.kind === "search"}

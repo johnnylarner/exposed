@@ -1,7 +1,15 @@
 <script lang="ts">
   import { onDestroy } from "svelte";
   import type { PieSlice } from "./chart-types";
-  let { slices, label }: { slices: PieSlice[]; label: string } = $props();
+  let {
+    slices,
+    label,
+    legendLayout = "grid",
+  }: {
+    slices: PieSlice[];
+    label: string;
+    legendLayout?: "grid" | "list";
+  } = $props();
   const instanceId = $props.id();
   let tooltip = $state<{ index: number; left: number; top: number } | null>(
     null,
@@ -99,7 +107,11 @@
     {/each}
   </svg>
 </div>
-<ul class="funder-party-legend" onscroll={dismissIfAnchorMoved}>
+<ul
+  class="funder-party-legend"
+  data-layout={legendLayout}
+  onscroll={dismissIfAnchorMoved}
+>
   {#each slices as slice, index}<li
       aria-label={`${slice.label}: ${slice.value}`}
       aria-describedby={tooltip?.index === index

@@ -373,3 +373,20 @@ test("focus tokens propagate to native and component controls", async ({
     await expect(control).toHaveCSS("outline-offset", offset);
   }
 });
+
+test("pie list legend wraps precise values without clipping", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const legend = page.locator('.funder-party-legend[data-layout="list"]');
+  await expect(legend).toHaveCount(1);
+  const detail = legend.locator(".entry-count");
+  await expect(detail).toHaveCSS("white-space", "normal");
+  expect(
+    await detail.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  await expect(legend.locator(".party-name")).toHaveText("Example party");
+});

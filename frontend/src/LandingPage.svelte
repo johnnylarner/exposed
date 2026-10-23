@@ -1,4 +1,7 @@
 <script lang="ts">
+  import OverviewCharts from "./OverviewCharts.svelte";
+  import type { OverviewState } from "./lib/overview";
+  let { overview }: { overview: OverviewState } = $props();
   import { ButtonLink } from "./lib/ui";
 </script>
 
@@ -16,6 +19,7 @@
       <ButtonLink size="large" href="/methodology">Methodology</ButtonLink>
     </nav>
   </div>
+  <OverviewCharts state={overview} />
 </main>
 
 <style>
@@ -24,7 +28,8 @@
     margin: 0;
     padding: 64px 0 80px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
   }
   .landing-content {
     max-width: 1050px;
