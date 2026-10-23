@@ -69,9 +69,6 @@
                       : formatPounds(row.total.amount)}</span
                   >
                 {/if}
-                {#if row.total.incomplete}<span class="partial-note"
-                    >Known GBP amounts only. Some amounts unavailable.</span
-                  >{/if}
               </td>
             </tr>
           {/each}
@@ -124,8 +121,5 @@
   .declared-unavailable {
     font-size: var(--text-body);
     color: var(--muted);
-  }
-  .partial-note {
-    display: block;
   }
 </style>

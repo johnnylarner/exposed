@@ -1650,7 +1650,13 @@ test("declared table uses backend year and UTC historical month before member na
     "Declared in 2040",
   ]);
   await expect(table.getByRole("row").last()).toContainText("£12.3456789");
-  await expect(table.getByRole("row").last()).toContainText(
+  await expect(
+    table.getByText("Known GBP amounts only. Some amounts unavailable."),
+  ).toHaveCount(0);
+  await expect(
+    table.getByRole("region", { name: "Declared in 2040 in GBP", exact: true }),
+  ).toHaveAttribute(
+    "title",
     "Known GBP amounts only. Some amounts unavailable.",
   );
   const tableBounds = await table.boundingBox();
