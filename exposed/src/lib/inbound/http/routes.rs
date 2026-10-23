@@ -9,6 +9,7 @@ use crate::{
 pub fn routes<E: EntitySearchService, D: EntityDetailsService>() -> Router<AppState<E, D>> {
     let router = Router::new()
         .route("/healthz", get(|| async { StatusCode::NO_CONTENT }))
+        .route("/overview", get(handlers::overview))
         .route("/search", get(handlers::search_entities))
         .route("/members/{id}", get(handlers::member_details))
         .route("/funders/{id}", get(handlers::funder_details));

@@ -1,5 +1,5 @@
 mod entity_details;
-pub use entity_details::{funder_details, member_details};
+pub use entity_details::{funder_details, member_details, overview};
 
 use axum::{
     extract::{Query, State},

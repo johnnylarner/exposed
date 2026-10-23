@@ -9,6 +9,10 @@ use thiserror::Error;
 
 /// Stored entity detail reads.
 pub trait EntityDetailsRepo: Clone + Send + Sync + 'static {
+    /// All current Commons histories from one consistent snapshot.
+    fn current_commons(
+        &self,
+    ) -> impl Future<Output = Result<Vec<MemberHistory>, EntityDetailsRepoError>> + Send;
     /// All declarations for a member, or absent identity.
     fn member(
         &self,

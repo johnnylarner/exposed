@@ -32,6 +32,11 @@ impl<R> Service<R> {
 }
 
 impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
+    async fn overview(
+        &self,
+    ) -> Result<crate::domain::models::entity_details::CommonsOverview, EntityDetailsError> {
+        Ok(summarize_overview(self.repo.current_commons().await?))
+    }
     async fn member(
         &self,
         request: MemberDetailsRequest,
@@ -441,5 +446,272 @@ mod tests {
         assert!(year.includes(Some("2024-12-31T23:00:00-02:00".parse().unwrap())));
         assert!(!year.includes(None));
         assert!(!year.includes(Some("2025-12-31T23:00:00-02:00".parse().unwrap())));
+    }
+}
+
+fn summarize_overview(
+    histories: Vec<MemberHistory>,
+) -> crate::domain::models::entity_details::CommonsOverview {
+    use crate::domain::models::entity_details::{
+        CommonsOverview, DeclaredAmountRange, OverviewMember, OverviewParty, OverviewQuartile,
+        Quartile,
+    };
+    let year = CalendarYear::containing(chrono::Utc::now());
+    let mut parties: BTreeMap<i32, OverviewParty> = BTreeMap::new();
+    let member_count = histories.len();
+    let mut incomplete = false;
+    let mut known = Vec::new();
+    for history in histories {
+        let details = summarize_member(history, year);
+        let total = details.summary.declared_totals.current_term;
+        incomplete |= total.incomplete;
+        let party = parties
+            .entry(details.member.party_id)
+            .or_insert_with(|| OverviewParty {
+                party_id: details.member.party_id,
+                party_name: details.member.party_name.clone(),
+                total: DeclaredGbpPeriodTotal {
+                    amount: None,
+                    declaration_count: 0,
+                    incomplete: false,
+                },
+                member_count: 0,
+            });
+        party.member_count += 1;
+        party.total.declaration_count += total.declaration_count;
+        party.total.incomplete |= total.incomplete;
+        add_known(&mut party.total.amount, total.amount.as_ref());
+        if total.amount.is_some() {
+            known.push(OverviewMember {
+                member: details.member,
+                total,
+            });
+        }
+    }
+    known.sort_by(|a, b| {
+        a.total
+            .amount
+            .cmp(&b.total.amount)
+            .then_with(|| a.member.id.value().cmp(&b.member.id.value()))
+    });
+    let quartiles = [
+        Quartile::First,
+        Quartile::Second,
+        Quartile::Third,
+        Quartile::Fourth,
+    ]
+    .into_iter()
+    .enumerate()
+    .map(|(index, quartile)| {
+        let group = &known[index * known.len() / 4..(index + 1) * known.len() / 4];
+        OverviewQuartile {
+            quartile,
+            member_count: group.len(),
+            range: group.first().zip(group.last()).and_then(|(first, last)| {
+                first
+                    .total
+                    .amount
+                    .clone()
+                    .zip(last.total.amount.clone())
+                    .map(|(minimum, maximum)| DeclaredAmountRange { minimum, maximum })
+            }),
+            incomplete_member_count: group
+                .iter()
+                .filter(|member| member.total.incomplete)
+                .count(),
+        }
+    })
+    .collect();
+    let unavailable_member_count = member_count - known.len();
+    known.sort_by(|a, b| {
+        b.total
+            .amount
+            .cmp(&a.total.amount)
+            .then_with(|| a.member.id.value().cmp(&b.member.id.value()))
+    });
+    known.truncate(5);
+    CommonsOverview {
+        current_term_start: CurrentParliamentStart::new().0,
+        member_count,
+        unavailable_member_count,
+        incomplete,
+        quartiles,
+        top_members: known,
+        parties: parties.into_values().collect(),
+    }
+}
+
+#[cfg(test)]
+mod overview_tests {
+    use super::*;
+    use crate::domain::models::entity_details::{DeclaredFunding, MemberProfile};
+
+    fn member(
+        id: u32,
+        party: i32,
+        entries: Vec<(Option<&str>, Option<&str>, Option<&str>)>,
+    ) -> MemberHistory {
+        MemberHistory {
+            member: MemberProfile {
+                id: crate::domain::models::parliament_member::MemberId::new(id).unwrap(),
+                name: format!("Member {id}"),
+                party_id: party,
+                party_name: "Same party label".into(),
+                membership_from: "Place".into(),
+                is_current_commons: true,
+            },
+            declarations: entries
+                .into_iter()
+                .enumerate()
+                .map(|(index, (date, amount, currency))| MemberDeclaration {
+                    source_id: i32::try_from(index).unwrap(),
+                    category: DeclarationCategory::Other(987),
+                    category_name: "Unknown".into(),
+                    registered_at: date.map(|value| value.parse().unwrap()),
+                    entries: vec![DeclaredFunding {
+                        funder: None,
+                        amount: amount.map(|value| value.parse().unwrap()),
+                        currency: currency.map(str::to_owned),
+                        payment_type: None,
+                    }],
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn overview_uses_canonical_boundary_precision_currency_and_party_identity() {
+        let start = Some("2024-07-09T00:00:00Z");
+        let overview = summarize_overview(vec![
+            member(
+                1,
+                1,
+                vec![
+                    (
+                        Some("2024-07-08T23:59:59.999999Z"),
+                        Some("100"),
+                        Some("GBP"),
+                    ),
+                    (None, Some("200"), Some("GBP")),
+                    (start, Some("9007199254740993.123456789"), Some("GBP")),
+                    (start, None, Some("EUR")),
+                    (start, None, Some("GBP")),
+                ],
+            ),
+            member(
+                2,
+                2,
+                vec![(start, Some("-9007199254740993.023456789"), Some("GBP"))],
+            ),
+            member(3, 1, vec![(start, Some("0"), Some("GBP"))]),
+            member(4, 1, vec![(start, Some("8"), None)]),
+            member(5, 1, vec![(start, None, Some("USD"))]),
+            member(6, 1, vec![]),
+        ]);
+        assert_eq!(overview.member_count, 6);
+        assert_eq!(overview.unavailable_member_count, 3);
+        assert!(overview.incomplete);
+        assert_eq!(overview.parties.len(), 2);
+        assert_eq!(overview.parties[0].member_count, 5);
+        assert_eq!(overview.parties[0].total.declaration_count, 6);
+        assert_eq!(
+            overview.parties[0].total.amount,
+            Some("9007199254740993.123456789".parse().unwrap())
+        );
+        assert!(overview.parties[0].total.incomplete);
+        assert_eq!(
+            overview.parties[1].total.amount,
+            Some("-9007199254740993.023456789".parse().unwrap())
+        );
+        assert!(!overview.parties[1].total.incomplete);
+        assert_eq!(
+            overview
+                .top_members
+                .iter()
+                .map(|value| value.member.id.value())
+                .collect::<Vec<_>>(),
+            vec![1, 3, 2]
+        );
+        assert_eq!(overview.top_members[0].total.declaration_count, 3);
+        assert!(overview.top_members[0].total.incomplete);
+        assert_eq!(
+            overview
+                .quartiles
+                .iter()
+                .map(|value| value.member_count)
+                .collect::<Vec<_>>(),
+            vec![0, 1, 1, 1]
+        );
+        assert_eq!(
+            overview.quartiles[0]
+                .range
+                .as_ref()
+                .map(|range| &range.minimum),
+            None
+        );
+        assert_eq!(
+            overview.quartiles[1]
+                .range
+                .as_ref()
+                .map(|range| range.minimum.clone()),
+            overview.parties[1].total.amount
+        );
+    }
+
+    #[test]
+    fn overview_rank_groups_and_top_five_have_deterministic_ties() {
+        let overview = summarize_overview(
+            (1..=10)
+                .rev()
+                .map(|id| {
+                    member(
+                        id,
+                        1,
+                        vec![(
+                            Some("2024-07-09T00:00:00Z"),
+                            Some("1.000000000000000001"),
+                            Some("GBP"),
+                        )],
+                    )
+                })
+                .collect(),
+        );
+        assert_eq!(
+            overview
+                .top_members
+                .iter()
+                .map(|value| value.member.id.value())
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3, 4, 5]
+        );
+        assert_eq!(
+            overview
+                .quartiles
+                .iter()
+                .map(|value| value.member_count)
+                .collect::<Vec<_>>(),
+            vec![2, 3, 2, 3]
+        );
+        assert!(overview.quartiles.iter().all(|value| {
+            value
+                .range
+                .as_ref()
+                .is_some_and(|range| range.minimum == range.maximum)
+                && value.incomplete_member_count == 0
+        }));
+        assert_eq!(
+            overview.parties[0].total.amount,
+            Some("10.000000000000000010".parse().unwrap())
+        );
+        let empty = summarize_overview(Vec::new());
+        assert_eq!(empty.member_count, 0);
+        assert!(empty.top_members.is_empty());
+        assert!(empty.parties.is_empty());
+        assert!(
+            empty
+                .quartiles
+                .iter()
+                .all(|value| value.member_count == 0 && value.range.is_none())
+        );
     }
 }

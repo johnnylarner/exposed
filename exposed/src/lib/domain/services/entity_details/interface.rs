@@ -5,6 +5,12 @@ use crate::domain::models::entity_details::{
 
 /// Entity detail operations with fixed presentation limits.
 pub trait EntityDetailsService: Clone + Send + Sync + 'static {
+    /// Current Commons declaration overview.
+    fn overview(
+        &self,
+    ) -> impl Future<
+        Output = Result<crate::domain::models::entity_details::CommonsOverview, EntityDetailsError>,
+    > + Send;
     /// Member identity and recent declarations.
     fn member(
         &self,

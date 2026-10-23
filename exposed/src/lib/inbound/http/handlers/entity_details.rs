@@ -408,3 +408,88 @@ pub async fn funder_details<E: EntitySearchService, D: EntityDetailsService>(
     let details = state.entity_details_service.funder(request).await?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }
+
+#[derive(Serialize)]
+pub struct OverviewResponse {
+    current_term_start: DateTime<Utc>,
+    member_count: usize,
+    unavailable_member_count: usize,
+    incomplete: bool,
+    quartiles: Vec<OverviewQuartileResponse>,
+    top_members: Vec<OverviewMemberResponse>,
+    parties: Vec<OverviewPartyResponse>,
+}
+#[derive(Serialize)]
+struct OverviewQuartileResponse {
+    quartile: usize,
+    member_count: usize,
+    minimum: Option<String>,
+    maximum: Option<String>,
+    incomplete_member_count: usize,
+}
+#[derive(Serialize)]
+struct OverviewMemberResponse {
+    member: MemberResponse,
+    total: DeclaredGbpPeriodResponse,
+}
+#[derive(Serialize)]
+struct OverviewPartyResponse {
+    party_id: i32,
+    party_name: String,
+    total: DeclaredGbpPeriodResponse,
+    member_count: usize,
+}
+impl From<crate::domain::models::entity_details::CommonsOverview> for OverviewResponse {
+    fn from(value: crate::domain::models::entity_details::CommonsOverview) -> Self {
+        Self {
+            current_term_start: value.current_term_start,
+            member_count: value.member_count,
+            unavailable_member_count: value.unavailable_member_count,
+            incomplete: value.incomplete,
+            quartiles: value
+                .quartiles
+                .into_iter()
+                .map(|group| OverviewQuartileResponse {
+                    quartile: group.quartile.number(),
+                    member_count: group.member_count,
+                    minimum: group
+                        .range
+                        .as_ref()
+                        .map(|range| range.minimum.normalized().to_plain_string()),
+                    maximum: group
+                        .range
+                        .as_ref()
+                        .map(|range| range.maximum.normalized().to_plain_string()),
+                    incomplete_member_count: group.incomplete_member_count,
+                })
+                .collect(),
+            top_members: value
+                .top_members
+                .into_iter()
+                .map(|member| OverviewMemberResponse {
+                    member: member.member.into(),
+                    total: member.total.into(),
+                })
+                .collect(),
+            parties: value
+                .parties
+                .into_iter()
+                .map(|party| OverviewPartyResponse {
+                    party_id: party.party_id,
+                    party_name: party.party_name,
+                    total: party.total.into(),
+                    member_count: party.member_count,
+                })
+                .collect(),
+        }
+    }
+}
+
+pub async fn overview<E: EntitySearchService, D: EntityDetailsService>(
+    State(state): State<AppState<E, D>>,
+) -> Result<ApiSuccess<OverviewResponse>, ApiError> {
+    Ok(ApiSuccess::new(
+        StatusCode::OK,
+        state.entity_details_service.overview().await?.into(),
+    ))
+}

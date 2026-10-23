@@ -647,3 +647,69 @@ async fn declared_totals_include_all_categories_and_preserve_coverage(pool: PgPo
     }
     server.abort();
 }
+
+#[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
+async fn commons_overview_matches_individual_member_summaries_and_http(pool: PgPool) {
+    use crate::{
+        domain::services::entity_search,
+        inbound::http::{routes::routes, state::AppState},
+    };
+    use std::sync::Arc;
+    let db = ExposedDatabase::from(pool);
+    let histories = db.current_commons().await.unwrap();
+    assert_eq!(histories.len(), 15);
+    assert!(
+        histories
+            .iter()
+            .all(|history| history.member.is_current_commons)
+    );
+    assert!(
+        histories
+            .iter()
+            .any(|history| history.member.id.value() == 3 && history.declarations.is_empty())
+    );
+    let service = Service::new(db.clone());
+    let overview = service.overview().await.unwrap();
+    assert_eq!(overview.member_count, 15);
+    assert!(overview.incomplete);
+    for ranked in &overview.top_members {
+        let details = service
+            .member(ranked.member.id.value().to_string().parse().unwrap())
+            .await
+            .unwrap();
+        let expected = details.summary.declared_totals.current_term;
+        assert_eq!(ranked.total.amount, expected.amount);
+        assert_eq!(ranked.total.declaration_count, expected.declaration_count);
+        assert_eq!(ranked.total.incomplete, expected.incomplete);
+    }
+    let state = AppState {
+        entity_search_service: Arc::new(entity_search::Service::new(db.clone(), db)),
+        entity_details_service: Arc::new(service),
+    };
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let origin = format!("http://{}", listener.local_addr().unwrap());
+    let server = tokio::spawn(async move {
+        axum::serve(listener, routes().with_state(state))
+            .await
+            .unwrap();
+    });
+    let response = reqwest::get(format!("{origin}/overview")).await.unwrap();
+    assert_eq!(response.status(), reqwest::StatusCode::OK);
+    let body: serde_json::Value = serde_json::from_str(&response.text().await.unwrap()).unwrap();
+    assert_eq!(body["member_count"], 15);
+    assert_eq!(body["current_term_start"], "2024-07-09T00:00:00Z");
+    assert_eq!(body["quartiles"].as_array().unwrap().len(), 4);
+    assert_eq!(
+        body["top_members"][0]["total"]["amount"],
+        overview.top_members[0]
+            .total
+            .amount
+            .as_ref()
+            .unwrap()
+            .normalized()
+            .to_plain_string()
+    );
+    assert!(body["top_members"][0]["member"]["id"].is_string());
+    assert!(body["parties"][0]["total"]["incomplete"].is_boolean());
+    server.abort();
+}

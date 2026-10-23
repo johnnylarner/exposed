@@ -18,6 +18,85 @@ use std::str::FromStr;
 const CURRENCY_WHITESPACE: &str = "\t\n\u{000b}\u{000c}\r \u{0085}\u{00a0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200a}\u{2028}\u{2029}\u{202f}\u{205f}\u{3000}\u{feff}";
 
 impl EntityDetailsRepo for ExposedDatabase {
+    async fn current_commons(&self) -> Result<Vec<MemberHistory>, EntityDetailsRepoError> {
+        let rows = sqlx::query!(
+            "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.latest_membership_from,
+                m.is_current_commons, d.source_declaration_id AS \"source_declaration_id?\",
+                d.category_id AS \"category_id?\", d.category_name AS \"category_name?\", d.registration_date,
+                e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $1), '') AS currency, e.payment_type
+             FROM exposed.members m
+             LEFT JOIN exposed.declarations d ON d.member_id = m.id
+             LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id
+             WHERE m.is_current_commons
+             ORDER BY m.parliament_member_id, d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
+            CURRENCY_WHITESPACE
+        ).fetch_all(self.pool()).await?;
+        let mut histories: Vec<MemberHistory> = Vec::new();
+        for row in rows {
+            let id = row
+                .parliament_member_id
+                .to_string()
+                .parse::<MemberId>()
+                .map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?;
+            if histories
+                .last()
+                .is_none_or(|history| history.member.id != id)
+            {
+                histories.push(MemberHistory {
+                    member: MemberProfile {
+                        id,
+                        name: row.name,
+                        party_id: row.party_id,
+                        party_name: row.party_name,
+                        membership_from: row.latest_membership_from,
+                        is_current_commons: row.is_current_commons,
+                    },
+                    declarations: Vec::new(),
+                });
+            }
+            let Some(history) = histories.last_mut() else {
+                continue;
+            };
+            let Some(source_id) = row.source_declaration_id else {
+                continue;
+            };
+            if history
+                .declarations
+                .last()
+                .is_none_or(|declaration| declaration.source_id != source_id)
+            {
+                history.declarations.push(MemberDeclaration {
+                    source_id,
+                    category: DeclarationCategory::from_source_id(row.category_id.ok_or_else(
+                        || {
+                            EntityDetailsRepoError::DatabaseError(
+                                "Declaration category missing".into(),
+                            )
+                        },
+                    )?),
+                    category_name: row.category_name.ok_or_else(|| {
+                        EntityDetailsRepoError::DatabaseError(
+                            "Declaration category label missing".into(),
+                        )
+                    })?,
+                    registered_at: row.registration_date.map(registration_date).transpose()?,
+                    entries: Vec::new(),
+                });
+            }
+            if row.entry_id.is_some()
+                && let Some(declaration) = history.declarations.last_mut()
+            {
+                declaration.entries.push(DeclaredFunding {
+                    funder: None,
+                    amount: row.amount,
+                    currency: row.currency,
+                    payment_type: row.payment_type,
+                });
+            }
+        }
+        Ok(histories)
+    }
+
     async fn member(&self, id: MemberId) -> Result<Option<MemberHistory>, EntityDetailsRepoError> {
         let mut tx = self.pool().begin().await?;
         sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")

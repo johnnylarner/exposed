@@ -149,6 +149,13 @@ mod tests {
     #[derive(Clone)]
     struct Details;
     impl EntityDetailsService for Details {
+        async fn overview(
+            &self,
+        ) -> Result<crate::domain::models::entity_details::CommonsOverview, EntityDetailsError>
+        {
+            tokio::task::yield_now().await;
+            unreachable!("overview is not used by tracing tests")
+        }
         async fn member(
             &self,
             request: MemberDetailsRequest,

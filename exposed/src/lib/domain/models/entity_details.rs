@@ -457,3 +457,91 @@ mod tests {
         }
     }
 }
+
+/// Current Commons overview using authoritative current-term member totals.
+#[derive(Clone, Debug)]
+pub struct CommonsOverview {
+    /// Inclusive registration boundary.
+    pub current_term_start: DateTime<Utc>,
+    /// Current Commons population, including members with no known GBP amount.
+    pub member_count: usize,
+    /// Members whose current-term GBP amount is unavailable.
+    pub unavailable_member_count: usize,
+    /// Whether any member has incomplete declarations.
+    pub incomplete: bool,
+    /// Equal rank groups of members with known amounts, ascending by amount and identity.
+    pub quartiles: Vec<OverviewQuartile>,
+    /// Five highest known current-term amounts.
+    pub top_members: Vec<OverviewMember>,
+    /// Known amounts grouped by latest recorded party identity.
+    pub parties: Vec<OverviewParty>,
+}
+
+/// One ranked member with exact amount and coverage.
+#[derive(Clone, Debug)]
+pub struct OverviewMember {
+    /// Latest stored member identity.
+    pub member: MemberProfile,
+    /// Authoritative current-term total.
+    pub total: DeclaredGbpPeriodTotal,
+}
+
+/// An equal rank group; empty groups have no range.
+#[derive(Clone, Debug)]
+pub struct OverviewQuartile {
+    /// One-based rank group.
+    pub quartile: Quartile,
+    /// Members in the group.
+    pub member_count: usize,
+    /// Exact range, absent only for an empty group.
+    pub range: Option<DeclaredAmountRange>,
+    /// Members with incomplete totals.
+    pub incomplete_member_count: usize,
+}
+
+/// Exact declared GBP grouped by latest recorded party, not historical affiliation.
+#[derive(Clone, Debug)]
+pub struct OverviewParty {
+    /// Stable party identity.
+    pub party_id: i32,
+    /// Latest stored party label.
+    pub party_name: String,
+    /// Known current-term amount and declaration coverage.
+    pub total: DeclaredGbpPeriodTotal,
+    /// Current Commons members in this party.
+    pub member_count: usize,
+}
+
+/// Canonical equal rank groups in ascending order.
+#[derive(Clone, Copy, Debug)]
+pub enum Quartile {
+    /// Lowest ranked group.
+    First,
+    /// Second ranked group.
+    Second,
+    /// Third ranked group.
+    Third,
+    /// Highest ranked group.
+    Fourth,
+}
+impl Quartile {
+    /// Stable one-based group identifier.
+    #[must_use]
+    pub const fn number(self) -> usize {
+        match self {
+            Self::First => 1,
+            Self::Second => 2,
+            Self::Third => 3,
+            Self::Fourth => 4,
+        }
+    }
+}
+
+/// Exact endpoints of a nonempty ranked group.
+#[derive(Clone, Debug)]
+pub struct DeclaredAmountRange {
+    /// Lowest declared amount.
+    pub minimum: BigDecimal,
+    /// Highest declared amount.
+    pub maximum: BigDecimal,
+}
