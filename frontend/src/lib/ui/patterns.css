@@ -624,6 +624,10 @@
   border-bottom: 1px solid var(--line);
   overflow-wrap: anywhere;
 }
+.ui-data-table tbody tr:first-child > th,
+.ui-data-table tbody tr:first-child > td {
+  border-top: 1px solid var(--line);
+}
 .ui-data-table thead th {
   font-size: 12px;
   font-weight: 400;
