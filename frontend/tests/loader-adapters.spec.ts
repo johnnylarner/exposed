@@ -181,30 +181,3 @@ test("details preserves decimal strings and rejects a numeric nested party amoun
     (await loadDetails(funderRoute, signal(), reply(body), "http://api")).kind,
   ).toBe("error");
 });
-
-for (const [index, invalid] of [
-  { calendar_year: undefined },
-  { calendar_year: "2026" },
-  { calendar_year: 2026.5 },
-  { current_year: undefined },
-  { current_year: { amount: 12, declaration_count: 1, incomplete: false } },
-].entries()) {
-  test(`member totals require calendar-year contract ${index}`, async () => {
-    const result = await loadDetails(
-      { kind: "member", id: "1", view: "summary" },
-      signal(),
-      reply({
-        ...memberDetails,
-        summary: {
-          ...memberDetails.summary,
-          declared_totals: {
-            ...memberDetails.summary.declared_totals,
-            ...invalid,
-          },
-        },
-      }),
-      "http://api",
-    );
-    expect(result.kind).toBe("error");
-  });
-}
