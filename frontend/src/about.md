@@ -8,7 +8,7 @@ At Exposed we believe that governments perform better when held accountable. Thi
 <section aria-labelledby="who">
 <h2 id="who">The Team</h2>
 
-Currently we are a small team made up of one person - Jamie. You can reach out to me on linkedin, x and check my blog.
+Currently we are a small team made up of one person - Jamie. You can reach out to me on [LinkedIn](https://www.linkedin.com/in/james-richardson-6736bb166/), [X](https://x.com/johnny_larner). Feel free to check [my blog](https://johnnylarner.blog/) too.
 
 </section>
 
