@@ -30,6 +30,7 @@
     Button,
     ButtonLink,
     Field,
+    Textarea,
     Notice,
   } from "../../lib/ui";
   import { updateCategories, type UpdateCategory } from "../../lib/updates";
@@ -318,6 +319,29 @@
           hint="Edit the name, then restore its initial value."
         />
         <div><Button type="reset">Restore name</Button></div>
+      </form>
+      <form class="default-field">
+        <Field
+          label="Contact email"
+          type="email"
+          name="email"
+          required
+          autocomplete="email"
+        />
+        <Textarea
+          label="Message"
+          name="message"
+          defaultValue="Example feedback"
+          rows={4}
+          required
+          maxlength={2000}
+          hint="Up to 2,000 characters."
+          aria-describedby="message-context"
+        />
+        <p id="message-context">Local form example.</p>
+        <Textarea label="Message with error" error="Enter a message." />
+        <Textarea label="Disabled message" disabled />
+        <div><Button type="reset">Restore message</Button></div>
       </form>
       <Disclosure summary="Using fields" variant="plain" class="code-example">
         <pre><code

@@ -518,3 +518,43 @@ test("semicircle buttons cover both lower halves and retain keyboard focus", asy
   await expect(members).toBeFocused();
   await expect(members).toHaveAttribute("aria-pressed", "true");
 });
+
+test("email and multiline fields retain native semantics, descriptions and reset", async ({
+  page,
+}) => {
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const email = page.getByRole("textbox", {
+    name: "Contact email",
+    exact: true,
+  });
+  await expect(email).toHaveAttribute("type", "email");
+  await expect(email).toHaveAttribute("autocomplete", "email");
+  await email.fill("invalid-email");
+  expect(
+    await email.evaluate(
+      (element: HTMLInputElement) => element.validity.typeMismatch,
+    ),
+  ).toBe(true);
+  const message = page.getByRole("textbox", { name: "Message", exact: true });
+  await expect(message).toHaveAccessibleDescription(
+    "Local form example. Up to 2,000 characters.",
+  );
+  await expect(message).toHaveAttribute("maxlength", "2000");
+  await expect(message).toHaveAttribute("rows", "4");
+  await message.fill("First line\nSecond line");
+  await expect(message).toHaveValue("First line\nSecond line");
+  await message.focus();
+  await expect(message).toHaveCSS("outline-color", "rgb(240, 240, 237)");
+  await expect(
+    page.getByRole("textbox", { name: "Message with error", exact: true }),
+  ).toHaveAccessibleDescription("Enter a message.");
+  await expect(
+    page.getByRole("textbox", { name: "Message with error", exact: true }),
+  ).toHaveAttribute("aria-invalid", "true");
+  await expect(
+    page.getByRole("textbox", { name: "Disabled message", exact: true }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Restore message" }).click();
+  await expect(message).toHaveValue("Example feedback");
+  await expect(email).toHaveValue("");
+});

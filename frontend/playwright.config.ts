@@ -7,12 +7,12 @@ export default defineConfig({
     {
       name: "unit",
       testMatch:
-        /(?:member-summary|funder-summary|loader-adapters|updates-sort)\.spec\.ts$/,
+        /(?:member-summary|funder-summary|loader-adapters|updates-sort|feedback)\.spec\.ts$/,
     },
     {
       name: "browser",
       testIgnore:
-        /(?:member-summary|funder-summary|loader-adapters|updates-sort)\.spec\.ts$/,
+        /(?:member-summary|funder-summary|loader-adapters|updates-sort|feedback)\.spec\.ts$/,
     },
   ],
   forbidOnly: Boolean(process.env.CI),

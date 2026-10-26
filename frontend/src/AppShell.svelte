@@ -25,10 +25,8 @@
   {@render children()}
   <footer class="app-footer">
     <span>Version {PUBLIC_APP_VERSION}</span>
-    <a
-      href="/methodology"
-      aria-current={current === "methodology" ? "page" : undefined}
-      >Methodology</a
+    <a href="/about" aria-current={current === "about" ? "page" : undefined}
+      >About</a
     >
     {#if dev}
       <a
