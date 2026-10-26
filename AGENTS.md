@@ -5,6 +5,33 @@ The goal of this project is to make declaration data easy to search, browse and 
 - `exposed/` contains the rust application and CLI code that powers the project.
 - `frontend/` contains a simple Svelte application
 
+## Domain terminology
+
+Use these meanings consistently in code, documentation, and UI copy.
+
+- **Declarations** are records of financial interests registered by a member.
+  A declaration belongs to a category and can contain zero, one, or multiple
+  funding entries. A declaration count is not a payment or funding-entry count.
+  Registration dates do not necessarily describe when money changed hands.
+- **Members** are people identified by their Parliament member ID. Public MP
+  pages use that identity. Stored records can include former members, and the
+  latest stored party or constituency does not establish affiliation at the
+  time of a declaration.
+- **Funding** refers to the payments, support, rates, loans, gifts, or other
+  benefits recorded within declarations. A funding entry is one source
+  occurrence, even when another entry has identical values. Funding can have
+  no known amount or resolved funder. Support linked to a member can go to a
+  party organisation rather than to the member personally.
+- **Earnings** means income earned from work. It is not a synonym for funding
+  or declared amounts. Preserve source category names such as "Employment and
+  earnings", but do not label aggregate declared amounts as earnings.
+- **Rankings** are ordered comparisons of declared GBP amounts in the imported
+  data, not measures of income or wealth. The current-term member ranking uses
+  all declaration categories. Individual funder, company, and party rankings
+  use donation-support declarations. The company ranking includes all
+  non-individual funder kinds. Preserve the backend's ordering, coverage, and
+  completeness fields, and apply the financial totals contract below.
+
 ## Worktree policy
 
 - For read-only tasks (investigating, reading, summarizing, or describing code),
@@ -57,7 +84,9 @@ The goal of this project is to make declaration data easy to search, browse and 
 
 ## Frontend coding policy
 
-- Frontend presentation is largely a prototype. UI edits must preserve the financial contract above.
+All frontend changes must follow this policy, including prototype UI. UI edits
+must preserve the financial totals contract above. The design-system rules are
+required acceptance criteria for new UI and changes to existing UI.
 
 ### UI copy scope
 
@@ -101,21 +130,36 @@ The goal of this project is to make declaration data easy to search, browse and 
 
 ### Design system
 
-- Read the [component reference](frontend/src/lib/ui/README.md) and
-  [composition recipes](frontend/src/lib/ui/COMPOSITION.md) before adding UI.
+- You must read the [component reference](frontend/src/lib/ui/README.md) and
+  [composition recipes](frontend/src/lib/ui/COMPOSITION.md) before adding or
+  changing UI. Follow their component contracts and composition patterns.
   The interactive reference is `/design-system` in development only.
-- Import components and types from `frontend/src/lib/ui/index.ts` through the
-  appropriate relative path. Load `frontend/src/lib/ui/styles.css` once in the
-  root layout.
-- Reuse components and typed variants. Use tokens for colors, spacing, and
-  focus. Purple identifies MPs, teal identifies funders, and utility icons use
-  the muted neutral color.
+- You must import shared UI components and types from
+  `frontend/src/lib/ui/index.ts` through the appropriate relative path. Load
+  `frontend/src/lib/ui/styles.css` once in the root layout. Do not import
+  component internals or internal stylesheets directly.
+- You must reuse existing components, composition patterns, and typed variants.
+  Do not recreate shared controls or patterns in feature components. When a
+  reusable capability is missing, extend the design system before using it
+  in a feature.
+- You must use design-system tokens for colors, spacing, typography, and focus.
+  Do not substitute hard-coded values for those tokens. Purple identifies MPs,
+  teal identifies funders, and utility icons use the muted neutral color.
+  Actions and focus indicators must stay neutral in every entity context.
 - Keep page arrangement, URLs, async work, and financial formatting in features.
-  Shared UI accepts presentation models. Scope feature CSS to page arrangement
-  and caller-authored content rather than component internals.
-- Extend reusable patterns in `frontend/src/lib/ui`. Export public additions
+  Shared UI must accept presentation models without interpreting money or
+  fetching data. Feature CSS must be limited to page arrangement and
+  caller-authored content. Do not target shared component internals or override
+  their appearance through global selectors or replacement classes. Use the
+  documented typed variants and additive root hooks.
+- You must implement reusable additions in `frontend/src/lib/ui`, export them
   from the barrel, document their contracts, and add a gallery example. Cover
   changed behavior in `frontend/tests/design-system.spec.ts` or feature tests.
+
+| Rule | Enforcement |
+| --- | --- |
+| Follow the design-system contracts for every UI change. | Before committing, review the diff against the component reference and composition recipes. Remove duplicate UI, direct internal imports, hard-coded token values, and overrides of component internals. |
+| Complete reusable additions in the design system. | Verify the barrel export, documented contract, gallery example, and affected tests before marking the PR ready for review. |
 
 ### UI verification
 
