@@ -94,9 +94,23 @@ No database URL or credentials enter the Docker build.
 
 The release workflow publishes on pushes to `main` that change Rust, frontend,
 migrations, SQLx metadata, Docker, or release inputs, including the shared
-`.github/actions/build-images` action. It builds all four variants on a native
-`ubuntu-24.04` runner for `linux/amd64`. CI uses Docker, `gh`, and `jq`, without
-host Rust or SQLx installations.
+`.github/actions/build-images` action and the release planner. It publishes all
+four variants for `linux/amd64` using a native `ubuntu-24.04` runner. CI uses
+Docker, `gh`, `jq`, and Python, without host Rust or SQLx installations.
+
+Before building, the planner compares the latest published release's
+`images.json` source commit with the current source using full Git history.
+When every changed path is under `frontend/` or is `docker/Dockerfile.frontend`,
+it builds only the app and reuses all three immutable backend image indexes
+from that release. This skips backend builds independently of Docker caches.
+Every other changed path rebuilds all four images, including backend changes
+from an earlier failed or unpublished release. Rename detection is disabled so
+backend deletions and moves into the frontend also require a backend build.
+
+Missing, malformed, unavailable, or foreign-repository release metadata causes
+a full build. The recorded source must be an ancestor of the current commit,
+and all four image references must be valid immutable digests in this GHCR
+repository. A latest release from another history causes a full build.
 
 Each push runs independently without cancelling earlier pushes. Before building,
 the prepare job atomically creates a Git tag at the exact source SHA using the
@@ -104,7 +118,7 @@ current UTC minute in `yyyy.mm.dd.hh.mm` format. If that tag already occupies th
 minute, the job waits for the next actual minute. If tag creation fails without
 an existing matching tag, the job fails.
 
-All variants use the same allocated version and GHCR repository.
+All version tags use the same allocated version and GHCR repository.
 
 | Target | Release tag | Default command |
 | --- | --- | --- |
@@ -115,10 +129,11 @@ All variants use the same allocated version and GHCR repository.
 
 The repository is `ghcr.io/<repository-owner>/<repository-name>`. The shared build
 action pushes original image indexes by digest with `mode=max` provenance and
-labels the images with the source commit. One BuildKit builder handles all four
-variants so backend targets reuse Rust compilation. Builds write their own
-`exposed-linux-amd64` or `exposed-linux-arm64` GitHub Actions cache and read the
-previous `exposed-linux-multiarch` cache as a fallback.
+labels newly built images with their source commit. One BuildKit builder
+handles the selected targets so backend targets reuse Rust compilation. Backend
+and frontend builds read and write separate GitHub Actions cache scopes,
+`exposed-backend-linux-ARCH` and `exposed-frontend-linux-ARCH`, where `ARCH` is
+`amd64` or `arm64`. They do not read the previous mixed caches.
 
 After the AMD64 build succeeds, the release job copies each original attested
 index to its version tag. It updates the `server` alias only after all four
@@ -129,12 +144,15 @@ Each release includes `images.json` with `version`, source commit `source`, and
 an `images` object with `server`, `app`, `migrate`, and `cli` keys. Each key maps
 to that variant's immutable GHCR pull reference. The `image.txt` asset contains
 the server reference for existing deployments. Use these digest references for
-deployment.
+deployment. The manifest's `source` identifies the release as a whole. Reused
+backend indexes retain their original provenance and older OCI revision labels;
+they are copied by digest without rebuilding or changing their attestations.
 
 Manual runs of the release workflow build all four AMD64 variants without
 publishing images, reserving Git tags, or creating releases. They populate the
-AMD64 cache. Set `cold` to rebuild the Rust toolchain and dependencies without
-cached compiler layers. Later backend targets still reuse that build.
+AMD64 backend and frontend caches. Set `cold` to rebuild the Rust toolchain and
+dependencies without cached compiler layers. Later backend targets still reuse
+that build.
 
 An interrupted or failed automatic release can leave a reserved Git tag or some
 version tags without a release. A new run allocates a new unused UTC minute.
@@ -189,3 +207,13 @@ docker run --rm --env DATABASE_URL -p 6999:6999 "$(cat image.txt)"
 
 These test images contain only `linux/arm64`. The newest automatic release
 continues to contain only `linux/amd64`.
+
+## Verify release planning
+
+Run the release tests without Docker or GitHub access. They use temporary Git
+repositories and a fake `gh` command.
+
+```sh
+python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+actionlint
+```
