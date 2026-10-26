@@ -1,0 +1,19 @@
+[package]
+name = "exposed-identity-proofs"
+version = "0.1.0"
+edition = "2024"
+publish = false
+build = "build.rs"
+
+[workspace]
+
+[dev-dependencies]
+serde = { version = "=1.0.229", features = ["derive"] }
+serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }
+
+[build-dependencies]
+quote = "=1.0.47"
+syn = { version = "=2.0.119", features = ["full", "visit-mut"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ["cfg(kani)"] }
