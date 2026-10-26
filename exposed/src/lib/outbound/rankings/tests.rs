@@ -113,6 +113,9 @@ async fn http_rankings_expose_four_bounded_boards_with_exact_wire_totals(pool: P
     use std::sync::Arc;
     let db = ExposedDatabase::from(pool);
     let state = AppState {
+        updates_service: std::sync::Arc::new(crate::domain::services::updates::Service::new(
+            db.clone(),
+        )),
         entity_search_service: Arc::new(entity_search::Service::new(db.clone(), db.clone())),
         entity_details_service: Arc::new(DetailsService::new(db.clone())),
         rankings_service: Arc::new(Service::new(db)),

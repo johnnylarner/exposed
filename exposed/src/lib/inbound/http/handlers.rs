@@ -1,7 +1,9 @@
 mod entity_details;
 mod rankings;
+mod updates;
 pub use entity_details::{funder_details, member_details};
 pub use rankings::rankings;
+pub use updates::updates;
 
 use axum::{
     extract::{Query, State},
@@ -16,7 +18,7 @@ use crate::{
         },
         services::{
             entity_details::EntityDetailsService, entity_search::EntitySearchService,
-            rankings::RankingsService,
+            rankings::RankingsService, updates::UpdatesService,
         },
     },
     inbound::http::{error::ApiError, state::AppState, success::ApiSuccess},
@@ -98,8 +100,9 @@ pub async fn search_entities<
     E: EntitySearchService,
     D: EntityDetailsService,
     R: RankingsService,
+    U: UpdatesService,
 >(
-    State(state): State<AppState<E, D, R>>,
+    State(state): State<AppState<E, D, R, U>>,
     Query(query): Query<SearchEntitiesHttpRequest>,
 ) -> Result<ApiSuccess<SearchEntityResponseData>, ApiError> {
     let domain_req = query.try_into_domain()?;

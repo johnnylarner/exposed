@@ -63,6 +63,7 @@
         data-accent={option.accent}
         style:left={`${option.left}px`}
         style:top={`${option.top}px`}
+        style:height={`${option.height ?? 142}px`}
         style:clip-path={`path('${option.path}')`}
       >
         <span
@@ -139,7 +140,6 @@
   button {
     position: absolute;
     width: 142px;
-    height: 142px;
     background: transparent;
     border: 0;
     padding: 0;

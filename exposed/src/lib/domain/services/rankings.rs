@@ -4,7 +4,6 @@ use crate::domain::{
     models::{
         declared_totals::{CurrentParliamentStart, PeriodAggregate},
         entity_details::DeclarationCategory,
-        funder::FunderKind,
         rankings::{Ranking, RankingDeclaration, Rankings},
     },
     repositories::rankings::{RankingsError, RankingsRepo},
@@ -96,18 +95,10 @@ fn summarize(sources: Vec<RankingDeclaration>, boundary: CurrentParliamentStart)
             }
         }
         for (key, (funder, entries)) in funders {
-            let board = match funder.kind {
-                FunderKind::Individual => &mut individuals,
-                FunderKind::Company
-                | FunderKind::Trust
-                | FunderKind::TradeUnion
-                | FunderKind::Other
-                | FunderKind::NotSpecified
-                | FunderKind::BuildingSociety
-                | FunderKind::LimitedLiabilityPartnership
-                | FunderKind::UnincorporatedAssociation
-                | FunderKind::FriendlySociety
-                | FunderKind::RegisteredParty => &mut companies,
+            let board = if funder.kind.is_individual() {
+                &mut individuals
+            } else {
+                &mut companies
             };
             let mut projected = declaration.clone();
             projected.entries = entries;
@@ -131,6 +122,7 @@ fn summarize(sources: Vec<RankingDeclaration>, boundary: CurrentParliamentStart)
 mod tests {
     use super::*;
     use crate::domain::models::entity_details::DeclaredGbpPeriodTotal;
+    use crate::domain::models::funder::FunderKind;
     #[test]
     fn companies_include_every_non_individual_kind() {
         use crate::domain::models::{

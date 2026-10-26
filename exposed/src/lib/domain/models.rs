@@ -23,3 +23,5 @@ pub mod funder_grouping;
 pub mod rankings;
 
 pub(crate) mod declared_totals;
+
+pub mod updates;

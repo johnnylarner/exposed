@@ -32,6 +32,8 @@
     Field,
     Notice,
   } from "../../lib/ui";
+  import { updateCategories, type UpdateCategory } from "../../lib/updates";
+  let exampleUpdateCategory = $state<UpdateCategory>("members");
   let exampleCategory = $state("members");
   const wheelOptions = [
     {
@@ -442,6 +444,12 @@
         selected={exampleCategory}
         onselect={(id) => (exampleCategory = id)}
         label="Example ranking category"
+      />
+      <CategoryWheel
+        options={Object.values(updateCategories)}
+        selected={exampleUpdateCategory}
+        onselect={(id) => (exampleUpdateCategory = id)}
+        label="Example updates category"
       />
       <RankingList
         label="Example rankings"

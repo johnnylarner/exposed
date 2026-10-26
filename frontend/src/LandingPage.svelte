@@ -13,6 +13,7 @@
       <ButtonLink variant="primary" size="large" href="/search"
         >Search MPs and funders</ButtonLink
       >
+      <ButtonLink size="large" href="/updates">Latest declarations</ButtonLink>
       <ButtonLink size="large" href="/rankings">Rankings</ButtonLink>
       <ButtonLink size="large" href="/methodology">Methodology</ButtonLink>
     </nav>
@@ -68,16 +69,13 @@
   }
   @media (max-width: 480px) and (max-height: 650px) {
     .landing-page {
-      padding: 16px 0;
+      padding: 12px 0;
     }
     nav {
       margin-top: 20px;
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-    }
-    nav :global(a:first-child) {
-      grid-column: 1 / -1;
     }
     nav :global(a) {
       min-height: 44px;

@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE exposed.declarations SET registration_date = $1 WHERE source_declaration_id = 100",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ac85a1f679644f23e5ea6c1bc9b5e8f59711b80e763208dc42f3a5b256e0435b"
+}
