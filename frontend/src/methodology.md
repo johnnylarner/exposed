@@ -5,10 +5,21 @@ Exposed makes MPs' registered interests easier to search and explore. To build t
 
 </header>
 
+<section aria-labelledby="interpretation">
+<h2 id="interpretation">Reading the data</h2>
+
+Exposed provides all declarations for sitting MPs. Until now all declarations have been made in GBP, so currency conversion has not been necessary. Some declarations are not monetary but are still shown here.
+
+We are a small team and while we do our best to test our data we may miss some things!
+
+</section>
+
 <section aria-labelledby="sources">
 <h2 id="sources">How we source and update our data</h2>
 
 Exposed uses from the UK Parliament's [Members API](https://members-api.parliament.uk/index.html) and [Interests API](https://interests-api.parliament.uk/index.html). For every sitting member in parliament we pull all declarations associated with them via the parliament member ID. Our data is updated daily which means new declarations will appear on the site within 24 hours.
+
+The Parliament API designates declarations older than 12 months as 'expired'. We don't acknowledge this distinction in our datal as ignoring expired declarations only serves to obscure the full view over an MPs interests and earnings.
 
 </section>
 
@@ -32,15 +43,6 @@ It's possible that MPs make mistakes when entering declaration records. Company 
 For some wider more common cases we have configured aliases in our application. In the case of GB News, for instance, grouping based on the data provided in declarations would not have been possible. If you find more cases where obvious groupings have been missed, please let us know.
 
 A declaration can name a donor, a payer and an ultimate payer. These roles can refer to different people or organisations. We use the declaration's evidence to attribute each payment once, rather than counting it under every named role.
-
-</section>
-
-<section aria-labelledby="interpretation">
-<h2 id="interpretation">Reading the data</h2>
-
-Exposed provides all declarations for sitting MPs. Until now all declarations have been made in GBP, so currency conversion has not been necessary. Some declarations are not monetary but are still shown here.
-
-We are a small team and while we do our best to test our data we may miss some things!
 
 </section>
 
