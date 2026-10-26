@@ -19,7 +19,7 @@
     label: string;
     hint?: string;
     error?: string;
-    type?: "text" | "search" | "date";
+    type?: "text" | "search" | "date" | "email";
     value?: string;
     defaultValue?: string;
   } = $props();

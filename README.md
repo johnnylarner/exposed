@@ -99,3 +99,19 @@ These references explain the data and deployment:
 
 Contains Parliamentary information licensed under the
 [Open Parliament Licence v3.0](https://www.parliament.uk/site-information/copyright-parliament/open-parliament-licence/).
+
+### Feedback email
+
+The About form sends email through
+[Resend](https://resend.com/docs/api-reference/emails/send-email) from the
+SvelteKit server. Set both `RESEND_API_KEY` and `FEEDBACK_TO_EMAIL` in the
+frontend server environment. The fixed sender is `onboarding@resend.dev`, which
+can only deliver to the Resend account email. Set `FEEDBACK_TO_EMAIL` to that
+address. The visitor's address is used only as the reply-to address. Without
+both required values, submissions report that feedback is temporarily
+unavailable.
+
+The [Node adapter](https://svelte.dev/docs/kit/adapter-node) assumes HTTPS. When a trusted reverse proxy forwards the request
+scheme, set `PROTOCOL_HEADER` to that header's name (for example,
+`x-forwarded-proto`). The proxy must overwrite this header so native form
+submissions pass SvelteKit's origin check with the correct scheme.

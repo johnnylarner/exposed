@@ -72,6 +72,7 @@ export const test = base.extend<
     application: { url: string; backend: Backend };
   }
 >({
+  extraHTTPHeaders: { "x-forwarded-proto": "http" },
   analytics: [false, { option: true, scope: "worker" }],
   development: [false, { option: true, scope: "worker" }],
   application: [
@@ -105,6 +106,9 @@ export const test = base.extend<
               ? "phc_test_search_tracking"
               : "",
             PUBLIC_POSTHOG_HOST: analytics ? "https://posthog.test" : "",
+            RESEND_API_KEY: "",
+            FEEDBACK_TO_EMAIL: "",
+            PROTOCOL_HEADER: "x-forwarded-proto",
             PORT: String(port),
             HOST: "127.0.0.1",
             EXPOSED_API_ORIGIN: `http://127.0.0.1:${address.port}`,
