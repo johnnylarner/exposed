@@ -1,6 +1,8 @@
 <script lang="ts">
+  import { tick } from "svelte";
   import AppShell from "../../AppShell.svelte";
   import {
+    Button,
     ResultRow,
     CategoryWheel,
     Notice,
@@ -10,13 +12,42 @@
     updateMonth,
     updateDate,
     updateCategories,
+    sortUpdates,
     type UpdateCategory,
+    type UpdateSort,
+    type UpdateView,
   } from "../../lib/updates";
   import type { PageData } from "./$types";
   let { data }: { data: PageData } = $props();
-  let selected = $state<UpdateCategory>("members");
-  const rows = $derived(data.updates?.[selected] ?? []);
-  const category = $derived(updateCategories[selected]);
+  const batchSize = 10;
+  let view = $state<UpdateView>({
+    category: "members",
+    sort: "newest",
+    visible: batchSize,
+  });
+  let board = $state<HTMLDivElement>();
+  const rows = $derived(
+    sortUpdates(data.updates?.[view.category] ?? [], view.sort),
+  );
+  const visibleRows = $derived(rows.slice(0, view.visible));
+  const category = $derived(updateCategories[view.category]);
+  function selectCategory(category: UpdateCategory): void {
+    if (category !== view.category)
+      view = { ...view, category, visible: batchSize };
+  }
+  function selectSort(sort: UpdateSort): void {
+    if (sort !== view.sort) view = { ...view, sort, visible: batchSize };
+  }
+  async function showMore(): Promise<void> {
+    const firstNewRow = view.visible;
+    view = { ...view, visible: view.visible + batchSize };
+    if (view.visible >= rows.length) {
+      await tick();
+      board
+        ?.querySelectorAll<HTMLAnchorElement>(".entity-name")
+        [firstNewRow]?.focus();
+    }
+  }
 </script>
 
 <svelte:head><title>Updates | Exposed</title></svelte:head>
@@ -36,17 +67,35 @@
           <CategoryWheel
             options={Object.values(updateCategories)}
             size={220}
-            {selected}
+            selected={view.category}
             label="Updates category"
-            onselect={(category) => (selected = category)}
+            onselect={selectCategory}
           />
         </div>
       </div>
-      {#key selected}
-        <div class="board" style={`--accent: var(--accent-${category.accent})`}>
+      <div class="sort-order" role="group" aria-label="Sort order">
+        <Button
+          size="compact"
+          variant={view.sort === "newest" ? "primary" : "secondary"}
+          aria-pressed={view.sort === "newest"}
+          onclick={() => selectSort("newest")}>Newest first</Button
+        >
+        <Button
+          size="compact"
+          variant={view.sort === "oldest" ? "primary" : "secondary"}
+          aria-pressed={view.sort === "oldest"}
+          onclick={() => selectSort("oldest")}>Oldest first</Button
+        >
+      </div>
+      {#key `${view.category}-${view.sort}`}
+        <div
+          bind:this={board}
+          class="board"
+          style={`--accent: var(--accent-${category.accent})`}
+        >
           {#if rows.length}
             <ul class="results-list" aria-label={`${category.label} updates`}>
-              {#each rows as row (row.id)}
+              {#each visibleRows as row (row.id)}
                 <ResultRow>
                   <IconIndicator icon={category.icon} label={category.kind} />
                   <div class="entity-text">
@@ -67,6 +116,11 @@
                 </ResultRow>
               {/each}
             </ul>
+            {#if view.visible < rows.length}
+              <div class="show-more">
+                <Button onclick={showMore}>Show more</Button>
+              </div>
+            {/if}
           {:else}<p class="empty">No declarations found.</p>{/if}
         </div>
       {/key}
@@ -91,6 +145,15 @@
   }
   .selector {
     flex: none;
+  }
+  .sort-order {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+  .show-more {
+    margin-top: var(--space-4);
   }
   .board {
     min-width: 0;

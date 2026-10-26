@@ -492,3 +492,29 @@ test("category wheel retains keyboard focus and neutral focus without a tick", a
     "none",
   );
 });
+
+test("semicircle buttons cover both lower halves and retain keyboard focus", async ({
+  page,
+}) => {
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const wheel = page.getByRole("group", { name: "Example updates category" });
+  await wheel.scrollIntoViewIfNeeded();
+  const members = wheel.getByRole("button", { name: "MPs" });
+  const companies = wheel.getByRole("button", { name: "Companies" });
+  await expect(members).toHaveCSS("height", "284px");
+  const bounds = await wheel.boundingBox();
+  if (!bounds) throw new Error("Missing semicircle bounds");
+  await page.mouse.click(bounds.x + 230, bounds.y + 210);
+  await expect(companies).toHaveAttribute("aria-pressed", "true");
+  await page.mouse.click(bounds.x + 54, bounds.y + 210);
+  await expect(members).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Tab");
+  await expect(companies).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(companies).toBeFocused();
+  await expect(companies).toHaveAttribute("aria-pressed", "true");
+  await page.keyboard.press("Shift+Tab");
+  await page.keyboard.press("Space");
+  await expect(members).toBeFocused();
+  await expect(members).toHaveAttribute("aria-pressed", "true");
+});

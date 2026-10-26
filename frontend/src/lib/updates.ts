@@ -29,6 +29,37 @@ export function updateDate(value: string): string {
 }
 
 export type UpdateCategory = "members" | "companies";
+export type UpdateSort = "newest" | "oldest";
+export interface UpdateView {
+  category: UpdateCategory;
+  sort: UpdateSort;
+  visible: number;
+}
+const names = new Intl.Collator("en-GB", { sensitivity: "base" });
+function compareText(left: string, right: string): number {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+function preciseTimestamp(value: string): string {
+  const [seconds, fraction = ""] = value.slice(0, -1).split(".");
+  return `${seconds}.${fraction.padEnd(9, "0")}Z`;
+}
+export function sortUpdates(
+  rows: readonly EntityUpdate[],
+  sort: UpdateSort,
+): EntityUpdate[] {
+  return [...rows].sort((left, right) => {
+    const date = compareText(
+      preciseTimestamp(left.latestRegistration),
+      preciseTimestamp(right.latestRegistration),
+    );
+    return (
+      date * (sort === "newest" ? -1 : 1) ||
+      names.compare(left.name, right.name) ||
+      compareText(left.name, right.name) ||
+      compareText(left.id, right.id)
+    );
+  });
+}
 export const updateCategories = {
   members: {
     id: "members",
@@ -37,12 +68,13 @@ export const updateCategories = {
     label: "MPs",
     icon: "parliament",
     accent: "member",
-    path: "M138 8 A130 130 0 0 0 8 138 L98 138 A40 40 0 0 1 138 98 Z",
-    rimPath: "M138 8 A130 130 0 0 0 8 138",
+    path: "M142 8 A134 134 0 0 0 142 276 L142 186 A44 44 0 0 1 142 98 Z",
+    rimPath: "M142 8 A134 134 0 0 0 142 276",
     left: 0,
     top: 0,
-    x: 73,
-    y: 73,
+    x: 52,
+    y: 142,
+    height: 284,
   },
   companies: {
     id: "companies",
@@ -51,12 +83,13 @@ export const updateCategories = {
     label: "Companies",
     icon: "building",
     accent: "funder",
-    path: "M4 134 A130 130 0 0 0 134 4 L44 4 A40 40 0 0 1 4 44 Z",
-    rimPath: "M4 134 A130 130 0 0 0 134 4",
+    path: "M0 8 A134 134 0 0 1 0 276 L0 186 A44 44 0 0 0 0 98 Z",
+    rimPath: "M0 8 A134 134 0 0 1 0 276",
     left: 142,
-    top: 142,
-    x: 54,
-    y: 55,
+    top: 0,
+    x: 84,
+    y: 142,
+    height: 284,
   },
 } satisfies Record<
   UpdateCategory,

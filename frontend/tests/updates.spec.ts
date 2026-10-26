@@ -1,7 +1,9 @@
 import { expect, test } from "./backend";
-import { updatesFixture } from "./updates-fixtures";
+import { sortUpdates } from "../src/lib/updates";
+import { parseUpdates } from "../src/lib/server/updates";
+import { updatesFixture, browseUpdatesFixture } from "./updates-fixtures";
 
-test("updates default to all MPs and switch locally with profile links and UTC dates", async ({
+test("updates default to ten MPs and switch locally with profile links and UTC dates", async ({
   page,
   backend,
   request,
@@ -14,14 +16,14 @@ test("updates default to all MPs and switch locally with profile links and UTC d
   });
   const response = await request.get(`${baseURL}/updates`);
   const html = await response.text();
-  expect(html).toContain("Member 12");
+  expect(html).toContain("Member 1");
 
   await page.goto("/");
   await page.getByRole("link", { name: "Updates", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Updates");
   await expect(page.getByText("October 2026", { exact: true })).toBeVisible();
   const members = page.getByRole("list", { name: "MPs updates" });
-  await expect(members.getByRole("listitem")).toHaveCount(12);
+  await expect(members.getByRole("listitem")).toHaveCount(10);
   await expect(members.getByRole("link").first()).toHaveAttribute(
     "href",
     "/members/1",
@@ -33,7 +35,9 @@ test("updates default to all MPs and switch locally with profile links and UTC d
     "31 October 2026",
   );
   await expect(members.getByRole("link")).toHaveText(
-    updatesFixture.members.map(({ name }) => name),
+    sortUpdates(parseUpdates(updatesFixture).members, "newest")
+      .slice(0, 10)
+      .map(({ name }) => name),
   );
   const mps = page.getByRole("button", { name: "MPs", exact: true });
   const companies = page.getByRole("button", {
@@ -123,4 +127,76 @@ test("updates fit narrow screens and respect reduced motion", async ({
     await expect(page.locator(".board")).toHaveCSS("animation-name", "none");
     await expect(page.locator(".board")).toHaveCSS("opacity", "1");
   }
+});
+
+test("updates browse sorted batches locally and restore focus after the last batch", async ({
+  page,
+  backend,
+  browser,
+  baseURL,
+}) => {
+  let requests = 0;
+  await backend.route("**/api/updates", (route) => {
+    requests += 1;
+    return route.fulfill({ json: browseUpdatesFixture });
+  });
+  const ssr = await browser.newContext({ javaScriptEnabled: false });
+  const ssrPage = await ssr.newPage();
+  await ssrPage.goto(`${baseURL}/updates`);
+  await expect(
+    ssrPage.getByRole("list", { name: "MPs updates" }).getByRole("link"),
+  ).toHaveCount(10);
+  await ssr.close();
+  await page.goto("/updates");
+  const initialRequests = requests;
+  const links = page
+    .getByRole("list", { name: "MPs updates" })
+    .getByRole("link");
+  const newest = sortUpdates(
+    parseUpdates(browseUpdatesFixture).members,
+    "newest",
+  );
+  const oldest = sortUpdates(
+    parseUpdates(browseUpdatesFixture).members,
+    "oldest",
+  );
+  const more = page.getByRole("button", { name: "Show more" });
+  const mps = page.getByRole("button", { name: "MPs", exact: true });
+  const companies = page.getByRole("button", {
+    name: "Companies",
+    exact: true,
+  });
+  const oldestButton = page.getByRole("button", { name: "Oldest first" });
+  const newestButton = page.getByRole("button", { name: "Newest first" });
+  await expect(links).toHaveText(newest.slice(0, 10).map((row) => row.name));
+  await page
+    .locator(".board")
+    .evaluate((board) => (board.dataset.retained = "yes"));
+  await more.click();
+  await expect(links).toHaveCount(20);
+  await expect(more).toBeFocused();
+  await expect(page.locator(".board")).toHaveAttribute("data-retained", "yes");
+  await newestButton.click();
+  await mps.click();
+  await expect(links).toHaveCount(20);
+  await more.click();
+  await expect(links).toHaveText(newest.map((row) => row.name));
+  await expect(more).toHaveCount(0);
+  await expect(links.nth(20)).toBeFocused();
+  await oldestButton.click();
+  await expect(oldestButton).toHaveAttribute("aria-pressed", "true");
+  await expect(links).toHaveText(oldest.slice(0, 10).map((row) => row.name));
+  await more.click();
+  await oldestButton.click();
+  await expect(links).toHaveCount(20);
+  await companies.click();
+  await expect(oldestButton).toHaveAttribute("aria-pressed", "true");
+  await expect(
+    page.getByRole("list", { name: "Companies updates" }).getByRole("link"),
+  ).toHaveCount(10);
+  await mps.click();
+  await expect(links).toHaveText(oldest.slice(0, 10).map((row) => row.name));
+  await newestButton.click();
+  await expect(links).toHaveText(newest.slice(0, 10).map((row) => row.name));
+  expect(requests).toBe(initialRequests);
 });
