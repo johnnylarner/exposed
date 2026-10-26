@@ -22,15 +22,10 @@ Use these meanings consistently in code, documentation, and UI copy.
   occurrence, even when another entry has identical values. Funding can have
   no known amount or resolved funder. Support linked to a member can go to a
   party organisation rather than to the member personally.
-- **Earnings** means income earned from work. It is not a synonym for funding
-  or declared amounts. Preserve source category names such as "Employment and
-  earnings", but do not label aggregate declared amounts as earnings.
 - **Rankings** are ordered comparisons of declared GBP amounts in the imported
-  data, not measures of income or wealth. The current-term member ranking uses
-  all declaration categories. Individual funder, company, and party rankings
-  use donation-support declarations. The company ranking includes all
-  non-individual funder kinds. Preserve the backend's ordering, coverage, and
-  completeness fields, and apply the financial totals contract below.
+  data, not measures of income or wealth.
+
+**Note**: users may use the word _earnings_ when prompting. You should understand this to mean all funding sources.
 
 ## Worktree policy
 
