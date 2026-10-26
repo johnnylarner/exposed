@@ -26,3 +26,5 @@ mod funder_grouping;
 
 mod currency;
 mod rankings;
+
+mod updates;

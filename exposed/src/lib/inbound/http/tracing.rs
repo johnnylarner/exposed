@@ -170,6 +170,21 @@ mod tests {
         }
     }
 
+    impl crate::domain::services::updates::UpdatesService for Details {
+        fn updates(
+            &self,
+            _now: chrono::DateTime<chrono::Utc>,
+        ) -> impl Future<
+            Output = Result<
+                crate::domain::models::updates::MonthlyUpdates,
+                crate::domain::repositories::updates::UpdatesError,
+            >,
+        > {
+            std::future::ready(Err(crate::domain::repositories::updates::UpdatesError(
+                "database updates failed".into(),
+            )))
+        }
+    }
     impl crate::domain::services::rankings::RankingsService for Details {
         fn rankings(
             &self,
@@ -188,6 +203,7 @@ mod tests {
     fn app() -> Router {
         routes().with_state(AppState {
             rankings_service: Arc::new(Details),
+            updates_service: Arc::new(Details),
             entity_search_service: Arc::new(Search),
             entity_details_service: Arc::new(Details),
         })

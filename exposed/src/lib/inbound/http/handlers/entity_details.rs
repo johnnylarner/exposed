@@ -1,4 +1,3 @@
-use crate::domain::services::rankings::RankingsService;
 use crate::{
     domain::{
         models::entity_details::{
@@ -10,6 +9,8 @@ use crate::{
         services::{
             entity_details::{EntityDetailsError, EntityDetailsService},
             entity_search::EntitySearchService,
+            rankings::RankingsService,
+            updates::UpdatesService,
         },
     },
     inbound::http::{error::ApiError, state::AppState, success::ApiSuccess},
@@ -402,8 +403,13 @@ impl From<FunderDetails> for FunderDetailsResponse {
     }
 }
 
-pub async fn member_details<E: EntitySearchService, D: EntityDetailsService, R: RankingsService>(
-    State(state): State<AppState<E, D, R>>,
+pub async fn member_details<
+    E: EntitySearchService,
+    D: EntityDetailsService,
+    R: RankingsService,
+    U: UpdatesService,
+>(
+    State(state): State<AppState<E, D, R, U>>,
     Path(id): Path<String>,
 ) -> Result<ApiSuccess<MemberDetailsResponse>, ApiError> {
     let request = id.parse::<MemberDetailsRequest>()?;
@@ -411,8 +417,13 @@ pub async fn member_details<E: EntitySearchService, D: EntityDetailsService, R: 
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }
 
-pub async fn funder_details<E: EntitySearchService, D: EntityDetailsService, R: RankingsService>(
-    State(state): State<AppState<E, D, R>>,
+pub async fn funder_details<
+    E: EntitySearchService,
+    D: EntityDetailsService,
+    R: RankingsService,
+    U: UpdatesService,
+>(
+    State(state): State<AppState<E, D, R, U>>,
     Path(id): Path<String>,
 ) -> Result<ApiSuccess<FunderDetailsResponse>, ApiError> {
     let request = id.parse::<FunderDetailsRequest>()?;

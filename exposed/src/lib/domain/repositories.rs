@@ -21,3 +21,5 @@ pub mod declaration_resolution;
 pub mod entity_details;
 
 pub mod rankings;
+
+pub mod updates;

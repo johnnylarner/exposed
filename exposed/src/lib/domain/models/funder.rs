@@ -68,6 +68,26 @@ pub enum FunderKind {
     RegisteredParty,
 }
 
+impl FunderKind {
+    /// Whether this canonical classification represents an individual.
+    #[must_use]
+    pub const fn is_individual(&self) -> bool {
+        match self {
+            Self::Individual => true,
+            Self::Company
+            | Self::Trust
+            | Self::TradeUnion
+            | Self::Other
+            | Self::NotSpecified
+            | Self::BuildingSociety
+            | Self::LimitedLiabilityPartnership
+            | Self::UnincorporatedAssociation
+            | Self::FriendlySociety
+            | Self::RegisteredParty => false,
+        }
+    }
+}
+
 /// Persistent exact-name funder identity.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FunderId(Uuid);

@@ -3,16 +3,21 @@ use axum::{Router, http::StatusCode, routing::get};
 use crate::{
     domain::services::{
         entity_details::EntityDetailsService, entity_search::EntitySearchService,
-        rankings::RankingsService,
+        rankings::RankingsService, updates::UpdatesService,
     },
     inbound::http::{handlers, state::AppState},
 };
 
 /// Routes for the exposed application
-pub fn routes<E: EntitySearchService, D: EntityDetailsService, R: RankingsService>()
--> Router<AppState<E, D, R>> {
+pub fn routes<
+    E: EntitySearchService,
+    D: EntityDetailsService,
+    R: RankingsService,
+    U: UpdatesService,
+>() -> Router<AppState<E, D, R, U>> {
     let router = Router::new()
         .route("/healthz", get(|| async { StatusCode::NO_CONTENT }))
+        .route("/updates", get(handlers::updates))
         .route("/rankings", get(handlers::rankings))
         .route("/search", get(handlers::search_entities))
         .route("/members/{id}", get(handlers::member_details))

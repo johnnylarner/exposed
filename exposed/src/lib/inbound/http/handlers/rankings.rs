@@ -4,7 +4,7 @@ use crate::{
         models::rankings::{Ranking, Rankings},
         services::{
             entity_details::EntityDetailsService, entity_search::EntitySearchService,
-            rankings::RankingsService,
+            rankings::RankingsService, updates::UpdatesService,
         },
     },
     inbound::http::{error::ApiError, state::AppState, success::ApiSuccess},
@@ -81,8 +81,13 @@ impl From<Rankings> for RankingsResponse {
         }
     }
 }
-pub async fn rankings<E: EntitySearchService, D: EntityDetailsService, R: RankingsService>(
-    State(state): State<AppState<E, D, R>>,
+pub async fn rankings<
+    E: EntitySearchService,
+    D: EntityDetailsService,
+    R: RankingsService,
+    U: UpdatesService,
+>(
+    State(state): State<AppState<E, D, R, U>>,
 ) -> Result<ApiSuccess<RankingsResponse>, ApiError> {
     let rankings = state.rankings_service.rankings().await.map_err(|error| {
         tracing::error!(?error, "rankings failed");
