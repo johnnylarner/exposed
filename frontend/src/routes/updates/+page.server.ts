@@ -10,6 +10,9 @@ export const load = (async ({ fetch, request }) => {
       error: null,
     };
   } catch {
-    return { updates: null, error: "Updates couldn’t load. Try again." };
+    return {
+      updates: null,
+      error: "Latest declarations couldn’t load. Try again.",
+    };
   }
 }) satisfies PageServerLoad;

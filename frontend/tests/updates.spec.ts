@@ -19,10 +19,15 @@ test("updates default to ten MPs and switch locally with profile links and UTC d
   expect(html).toContain("Member 1");
 
   await page.goto("/");
-  await page.getByRole("link", { name: "Updates", exact: true }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Updates");
+  await page
+    .getByRole("link", { name: "Latest declarations", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+    "Latest declarations",
+  );
+  await expect(page).toHaveTitle("Latest declarations | Exposed");
   await expect(page.getByText("October 2026", { exact: true })).toBeVisible();
-  const members = page.getByRole("list", { name: "MPs updates" });
+  const members = page.getByRole("list", { name: "MPs latest declarations" });
   await expect(members.getByRole("listitem")).toHaveCount(10);
   await expect(members.getByRole("link").first()).toHaveAttribute(
     "href",
@@ -51,7 +56,9 @@ test("updates default to ten MPs and switch locally with profile links and UTC d
   await expect(companies).toBeFocused();
   await expect(companies).toHaveAttribute("aria-pressed", "true");
   await expect(mps).toHaveAttribute("aria-pressed", "false");
-  const companyRows = page.getByRole("list", { name: "Companies updates" });
+  const companyRows = page.getByRole("list", {
+    name: "Companies latest declarations",
+  });
   await expect(companyRows.getByRole("listitem")).toHaveCount(1);
   await expect(companyRows.getByRole("link")).toHaveAttribute(
     "href",
@@ -82,10 +89,10 @@ test("updates show unavailable and empty states", async ({ page, backend }) => {
   );
   await page.goto("/updates");
   await expect(page.getByRole("alert")).toHaveText(
-    "Updates couldn’t load. Try again.",
+    "Latest declarations couldn’t load. Try again.",
   );
   await expect(
-    page.getByRole("group", { name: "Updates category" }),
+    page.getByRole("group", { name: "Latest declarations category" }),
   ).toHaveCount(0);
   await backend.route("**/api/updates", (route) =>
     route.fulfill({ json: { ...updatesFixture, members: [] } }),
@@ -94,14 +101,16 @@ test("updates show unavailable and empty states", async ({ page, backend }) => {
   await expect(page.getByText("No declarations found.")).toHaveCount(1);
   await page.getByRole("button", { name: "Companies", exact: true }).click();
   await expect(
-    page.getByRole("list", { name: "Companies updates" }),
+    page.getByRole("list", { name: "Companies latest declarations" }),
   ).toBeVisible();
   await expect(page.getByText("No declarations found.")).toHaveCount(0);
   await backend.route("**/api/updates", (route) =>
     route.fulfill({ json: { ...updatesFixture, companies: [] } }),
   );
   await page.reload();
-  await expect(page.getByRole("list", { name: "MPs updates" })).toBeVisible();
+  await expect(
+    page.getByRole("list", { name: "MPs latest declarations" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Companies", exact: true }).click();
   await expect(page.getByText("No declarations found.")).toHaveCount(1);
 });
@@ -119,7 +128,7 @@ test("updates fit narrow screens and respect reduced motion", async ({
   for (const category of ["MPs", "Companies", "MPs"]) {
     await page.getByRole("button", { name: category, exact: true }).click();
     await expect(
-      page.getByRole("list", { name: `${category} updates` }),
+      page.getByRole("list", { name: `${category} latest declarations` }),
     ).toBeVisible();
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
@@ -144,13 +153,15 @@ test("updates browse sorted batches locally and restore focus after the last bat
   const ssrPage = await ssr.newPage();
   await ssrPage.goto(`${baseURL}/updates`);
   await expect(
-    ssrPage.getByRole("list", { name: "MPs updates" }).getByRole("link"),
+    ssrPage
+      .getByRole("list", { name: "MPs latest declarations" })
+      .getByRole("link"),
   ).toHaveCount(10);
   await ssr.close();
   await page.goto("/updates");
   const initialRequests = requests;
   const links = page
-    .getByRole("list", { name: "MPs updates" })
+    .getByRole("list", { name: "MPs latest declarations" })
     .getByRole("link");
   const newest = sortUpdates(
     parseUpdates(browseUpdatesFixture).members,
@@ -192,7 +203,9 @@ test("updates browse sorted batches locally and restore focus after the last bat
   await companies.click();
   await expect(oldestButton).toHaveAttribute("aria-pressed", "true");
   await expect(
-    page.getByRole("list", { name: "Companies updates" }).getByRole("link"),
+    page
+      .getByRole("list", { name: "Companies latest declarations" })
+      .getByRole("link"),
   ).toHaveCount(10);
   await mps.click();
   await expect(links).toHaveText(oldest.slice(0, 10).map((row) => row.name));

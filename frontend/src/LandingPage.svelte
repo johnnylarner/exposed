@@ -13,7 +13,7 @@
       <ButtonLink variant="primary" size="large" href="/search"
         >Search MPs and funders</ButtonLink
       >
-      <ButtonLink size="large" href="/updates">Updates</ButtonLink>
+      <ButtonLink size="large" href="/updates">Latest declarations</ButtonLink>
       <ButtonLink size="large" href="/rankings">Rankings</ButtonLink>
       <ButtonLink size="large" href="/methodology">Methodology</ButtonLink>
     </nav>

@@ -348,7 +348,7 @@ test("updates parse the full list and preserve counts and dates", async () => {
       signal(),
       "http://backend",
     ),
-  ).rejects.toThrow("Updates couldn’t load");
+  ).rejects.toThrow("Latest declarations couldn’t load");
 });
 for (const patch of [
   { month_start: "2026-10-02T00:00:00Z" },

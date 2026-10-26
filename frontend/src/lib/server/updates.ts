@@ -1,7 +1,9 @@
 import { memberIdPattern, funderIdPattern } from "../entity-details";
 import type { EntityUpdate, MonthlyUpdates } from "../updates";
 function malformed(): never {
-  throw new Error("Updates returned an unexpected response. Try again.");
+  throw new Error(
+    "Latest declarations returned an unexpected response. Try again.",
+  );
 }
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -103,7 +105,8 @@ export async function loadUpdates(
   const response = await fetch(`${origin}/updates`, {
     signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
   });
-  if (!response.ok) throw new Error("Updates couldn’t load. Try again.");
+  if (!response.ok)
+    throw new Error("Latest declarations couldn’t load. Try again.");
   const body: unknown = await response.json();
   return parseUpdates(body);
 }

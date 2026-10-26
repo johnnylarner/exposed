@@ -50,13 +50,13 @@
   }
 </script>
 
-<svelte:head><title>Updates | Exposed</title></svelte:head>
+<svelte:head><title>Latest declarations | Exposed</title></svelte:head>
 <AppShell target="updates" current="updates">
   <main id="updates" tabindex="-1">
     {#if data.updates}
       <div class="updates-intro">
         <div>
-          <h1>Updates</h1>
+          <h1>Latest declarations</h1>
           <p class="month">
             <time datetime={data.updates.monthStart.slice(0, 7)}
               >{updateMonth(data.updates.monthStart)}</time
@@ -68,7 +68,7 @@
             options={Object.values(updateCategories)}
             size={220}
             selected={view.category}
-            label="Updates category"
+            label="Latest declarations category"
             onselect={selectCategory}
           />
         </div>
@@ -94,7 +94,10 @@
           style={`--accent: var(--accent-${category.accent})`}
         >
           {#if rows.length}
-            <ul class="results-list" aria-label={`${category.label} updates`}>
+            <ul
+              class="results-list"
+              aria-label={`${category.label} latest declarations`}
+            >
               {#each visibleRows as row (row.id)}
                 <ResultRow>
                   <IconIndicator icon={category.icon} label={category.kind} />
@@ -124,7 +127,7 @@
           {:else}<p class="empty">No declarations found.</p>{/if}
         </div>
       {/key}
-    {:else}<h1>Updates</h1>
+    {:else}<h1>Latest declarations</h1>
       <Notice role="alert">{data.error}</Notice>{/if}
   </main>
 </AppShell>
