@@ -1,0 +1,18 @@
+#!/bin/sh
+set -eu
+
+subject=
+IFS= read -r subject < "$1" || :
+
+if printf '%s\n' "$subject" | LC_ALL=C grep -Eq '^[A-Za-z]+(\([^()]+\))?!?: .*[^[:space:]].*$'; then
+    exit 0
+fi
+
+cat >&2 <<'MESSAGE'
+Commit subject must use Conventional Commits format:
+  type(optional scope)!: description
+Scope and ! are optional. Use an alphabetic type and a nonblank description.
+Example: feat(search): add funder filtering
+Only the first line is checked; the body is unrestricted.
+MESSAGE
+exit 1

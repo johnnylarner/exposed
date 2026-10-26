@@ -67,6 +67,21 @@ The declaration pipeline runs through `fetch`, `clean`, `resolve`, and `load`.
 Keeping these stages separate lets contributors reprocess captured data without
 fetching it again.
 
+## Git hooks
+
+Enable the repository hooks after cloning:
+
+```sh
+git config core.hooksPath .githooks
+```
+
+Commit subjects use `type(optional scope)!: description`, for example
+`feat(search): add funder filtering`. The scope and `!` are optional. Types
+contain letters, and descriptions must contain non-whitespace text. Only the
+subject is checked; commit bodies are unrestricted.
+
+Run the hook regression tests with `sh scripts/test-commit-msg.sh`.
+
 ## Further reading
 
 The CLI documents its commands through `exposed --help` and subcommand help.
