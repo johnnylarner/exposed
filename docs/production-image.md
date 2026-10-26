@@ -207,13 +207,3 @@ docker run --rm --env DATABASE_URL -p 6999:6999 "$(cat image.txt)"
 
 These test images contain only `linux/arm64`. The newest automatic release
 continues to contain only `linux/amd64`.
-
-## Verify release planning
-
-Run the release tests without Docker or GitHub access. They use temporary Git
-repositories and a fake `gh` command.
-
-```sh
-python3 -m unittest discover -s .github/scripts -p 'test_*.py'
-actionlint
-```
