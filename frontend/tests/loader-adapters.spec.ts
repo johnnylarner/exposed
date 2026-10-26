@@ -326,3 +326,68 @@ for (const value of [
     expect(() => parseRankings(value)).toThrow("unexpected response");
   });
 }
+
+import { parseUpdates, loadUpdates } from "../src/lib/server/updates";
+import { updatesFixture } from "./updates-fixtures";
+
+test("updates parse the full list and preserve counts and dates", async () => {
+  const parsed = parseUpdates(updatesFixture);
+  expect(parsed.members).toHaveLength(12);
+  expect(parsed.members[0]).toEqual({
+    id: "1",
+    name: "Member 1",
+    declarationCount: 2,
+    latestRegistration: "2026-10-31T23:59:59Z",
+  });
+  expect(
+    await loadUpdates(reply(updatesFixture), signal(), "http://backend"),
+  ).toEqual(parsed);
+  await expect(
+    loadUpdates(
+      async () => new Response(null, { status: 503 }),
+      signal(),
+      "http://backend",
+    ),
+  ).rejects.toThrow("Updates couldn’t load");
+});
+for (const patch of [
+  { month_start: "2026-10-02T00:00:00Z" },
+  { month_start: "2026-10-01T00:00:00.000000001Z" },
+  { month_end: "2026-12-01T00:00:00Z" },
+  { month_end: "2026-11-01T00:00:00.000000001Z" },
+  { members: [{ ...updatesFixture.members[0], declaration_count: 0 }] },
+  { members: [{ ...updatesFixture.members[0], declaration_count: 1.5 }] },
+  { members: [{ ...updatesFixture.members[0], id: "2147483648" }] },
+  { members: [updatesFixture.members[0], updatesFixture.members[0]] },
+  {
+    members: [
+      {
+        ...updatesFixture.members[0],
+        latest_registration: "2026-11-01T00:00:00Z",
+      },
+    ],
+  },
+  {
+    members: [
+      {
+        ...updatesFixture.members[0],
+        latest_registration: "2026-09-30T23:59:59Z",
+      },
+    ],
+  },
+  {
+    members: [
+      {
+        ...updatesFixture.members[0],
+        latest_registration: "2026-10-32T00:00:00Z",
+      },
+    ],
+  },
+  { companies: [{ ...updatesFixture.companies[0], id: "bad" }] },
+]) {
+  test(`updates reject malformed snapshot ${JSON.stringify(patch)}`, () => {
+    expect(() => parseUpdates({ ...updatesFixture, ...patch })).toThrow(
+      "unexpected response",
+    );
+  });
+}
