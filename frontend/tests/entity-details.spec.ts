@@ -34,10 +34,20 @@ async function mockDetails(backend: Backend) {
     }),
   );
   await backend.route("**/api/members/*?*", (route) =>
-    route.fulfill({ json: memberDetails }),
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        period: new URL(route.request().url()).searchParams.get("period"),
+      },
+    }),
   );
   await backend.route("**/api/funders/*?*", (route) =>
-    route.fulfill({ json: funderDetails }),
+    route.fulfill({
+      json: {
+        ...funderDetails,
+        period: new URL(route.request().url()).searchParams.get("period"),
+      },
+    }),
   );
 }
 
@@ -151,7 +161,13 @@ test("member declaration history remains accessible from the summary tab navigat
     entries: [],
   }));
   await backend.route("**/api/members/1?*", (route) =>
-    route.fulfill({ json: { ...memberDetails, declarations } }),
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        declarations,
+        period: new URL(route.request().url()).searchParams.get("period"),
+      },
+    }),
   );
   await page.goto("/members/1?q=Example");
   await expect(page.locator(".declaration-reference")).toHaveCount(0);
@@ -178,7 +194,7 @@ test("member declarations retain duplicate precise amounts and missing source fi
   await mockDetails(backend);
   await page.goto("/members/1/history");
   await expect(page.locator(".profile-type")).toHaveText("MP");
-  await expect(page.locator(".member-total")).toHaveCount(1);
+  await expect(page.locator(".member-total")).toHaveCount(0);
   await expect(
     page.getByText("Showing 1 to 2 of 2 declarations"),
   ).toBeVisible();
@@ -282,13 +298,19 @@ test("funding history retains sources, duplicate amounts and date paging", async
     },
   }));
   await backend.route("**/api/funders/*?*", (route) =>
-    route.fulfill({ json: { ...funderDetails, declarations } }),
+    route.fulfill({
+      json: {
+        ...funderDetails,
+        declarations,
+        period: new URL(route.request().url()).searchParams.get("period"),
+      },
+    }),
   );
   await page.goto(`/funders/${funderId}/history?q=Example&strictness=0.42`);
   await expect(page).toHaveURL(
     new RegExp(`/funders/${funderId}/history\\?q=Example$`, "u"),
   );
-  await expect(page.locator(".member-total")).toHaveCount(1);
+  await expect(page.locator(".member-total")).toHaveCount(0);
   await expect(page.locator(".declaration")).toHaveCount(10);
   await expect(
     page.locator(".declaration").first().locator(".amount"),
@@ -697,7 +719,13 @@ test("history filters the full dataset before paging and resets page for date ch
     entries: [],
   }));
   await backend.route("**/api/members/1?*", (route) =>
-    route.fulfill({ json: { ...memberDetails, declarations } }),
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        declarations,
+        period: new URL(route.request().url()).searchParams.get("period"),
+      },
+    }),
   );
   await page.goto("/members/1/history?q=Example&strictness=0.42");
   await expect(page).toHaveURL(/members\/1\/history\?q=Example$/u);

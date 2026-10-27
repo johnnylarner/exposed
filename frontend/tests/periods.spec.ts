@@ -32,7 +32,7 @@ const totals = declaredTotals(
 );
 
 for (const kind of ["member", "funder"] as const) {
-  test(`${kind} selects one authoritative headline and scoped history, resets dates and paging`, async ({
+  test(`${kind} keeps full history independent of the selected summary period`, async ({
     backend,
     page,
   }) => {
@@ -49,7 +49,7 @@ for (const kind of ["member", "funder"] as const) {
           ...memberDetails.declarations[0],
           source_id: 500 - index,
           category_name: `Selected ${period}`,
-          registered_at: "2026-01-21T00:00:00Z",
+          registered_at: index === 20 ? null : "2026-01-21T00:00:00Z",
         }),
       );
       return route.fulfill({
@@ -100,37 +100,9 @@ for (const kind of ["member", "funder"] as const) {
       "£0.00",
     ]);
     expect(reads.at(-1)).toBe("current-term");
-    await page
-      .getByRole("link", {
-        name: kind === "member" ? "Declaration history" : "Funding history",
-        exact: true,
-      })
-      .click();
-    await expect(page).toHaveURL(
-      `${path}/history?period=current-term&q=Example`,
-    );
-    await expect(page.locator(".filter-context")).toContainText(
-      "Declarations without a registration date are excluded.",
-    );
-    await page.getByRole("button", { name: "Next", exact: true }).click();
-    await expect(
-      page.getByText("Showing 11 to 12 of 12 declarations"),
-    ).toBeVisible();
-    await page.getByLabel("Registered from").fill("2026-01-01");
-    await page.getByLabel("Registered from").dispatchEvent("change");
-    await expect(
-      page.getByText("Showing 1 to 10 of 12 declarations"),
-    ).toBeVisible();
     await selector
       .getByRole("link", { name: "Historical", exact: true })
       .click();
-    await expect(page.getByLabel("Registered from")).toHaveValue("");
-    await expect(page.locator(".filter-context")).toContainText(
-      "Declarations without a registration date appear last.",
-    );
-    await expect(
-      page.getByText("Showing 1 to 10 of 21 declarations"),
-    ).toBeVisible();
     await expect(page.locator(".declared-totals .member-total")).toHaveText([
       "£9,007,199,254,740,993.123456789",
     ]);
@@ -143,17 +115,44 @@ for (const kind of ["member", "funder"] as const) {
     await selector
       .getByRole("link", { name: "This year", exact: true })
       .click();
-    await expect(page.locator(".filter-context")).toContainText(
-      "Declarations without a registration date are excluded.",
-    );
-    await expect(
-      page.getByText("Showing 1 to 1 of 1 declarations"),
-    ).toBeVisible();
     await expect(page.locator(".declared-totals .member-total")).toHaveText([
       "−£12.34",
     ]);
+    await page
+      .getByRole("link", {
+        name: kind === "member" ? "Declaration history" : "Funding history",
+        exact: true,
+      })
+      .click();
+    await expect(page).toHaveURL(
+      `${path}/history?period=current-year&q=Example`,
+    );
+    await expect(selector).toHaveCount(0);
+    await expect(page.locator(".declared-totals")).toHaveCount(0);
+    expect(reads.at(-1)).toBe("historical");
+    await expect(page.locator(".filter-context")).toContainText(
+      "Declarations without a registration date appear last.",
+    );
+    await expect(
+      page.getByText("Showing 1 to 10 of 21 declarations"),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Next", exact: true }).click();
+    await expect(
+      page.getByText("Showing 11 to 20 of 21 declarations"),
+    ).toBeVisible();
+    await page.getByLabel("Registered from").fill("2026-01-21");
+    await page.getByLabel("Registered from").dispatchEvent("change");
+    await page.getByLabel("Registered to").fill("2026-01-21");
+    await page.getByLabel("Registered to").dispatchEvent("change");
+    await expect(
+      page.getByText("Showing 1 to 10 of 20 declarations"),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Clear dates" }).click();
+    await expect(
+      page.getByText("Showing 1 to 10 of 21 declarations"),
+    ).toBeVisible();
     await page.reload();
-    expect(reads.at(-1)).toBe("current-year");
+    expect(reads.at(-1)).toBe("historical");
     const historyRelated = page
       .locator(".declaration")
       .first()
@@ -350,3 +349,94 @@ for (const state of [
     });
   }
 }
+
+for (const kind of ["member", "funder", "rankings"] as const) {
+  test(`${kind} keeps content and scroll during a slow period navigation`, async ({
+    page,
+    backend,
+  }) => {
+    const path =
+      kind === "member"
+        ? "/members/1"
+        : kind === "funder"
+          ? `/funders/${funderId}`
+          : "/rankings";
+    const response = Promise.withResolvers<void>();
+    await backend.route(`**/api${path}?*`, async (route) => {
+      const period = new URL(route.request().url()).searchParams.get("period");
+      if (period === "current-year") await response.promise;
+      await route.fulfill({
+        json: {
+          ...(kind === "member"
+            ? memberDetails
+            : kind === "funder"
+              ? funderDetails
+              : rankingFixture),
+          period,
+        },
+      });
+    });
+    await page.setViewportSize({ width: 1280, height: 400 });
+    await page.goto(path);
+    const content = page.locator(
+      kind === "rankings" ? ".ranking-list" : ".declared-totals",
+    );
+    const main = page.locator(kind === "rankings" ? "#rankings" : "#details");
+    const selector = page.getByRole("navigation", { name: "Reporting period" });
+    await expect(selector).toBeVisible();
+    await page.evaluate(() => scrollTo(0, 150));
+    expect(await page.evaluate(() => scrollY)).toBe(150);
+    await selector
+      .getByRole("link", { name: "This year", exact: true })
+      .click();
+    try {
+      await expect(main).toHaveAttribute("aria-busy", "true");
+      await expect(content).toHaveCount(1);
+      await expect(
+        selector.getByRole("link", {
+          name: "This parliamentary term",
+          exact: true,
+        }),
+      ).toHaveAttribute("aria-current", "page");
+      expect(await page.evaluate(() => scrollY)).toBe(150);
+    } finally {
+      response.resolve();
+    }
+    await expect(
+      selector.getByRole("link", { name: "This year", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(main).toHaveAttribute("aria-busy", "false");
+    expect(await page.evaluate(() => scrollY)).toBe(150);
+  });
+}
+
+test("cross-entity navigation replaces previous details with the loading state", async ({
+  page,
+  backend,
+}) => {
+  const response = Promise.withResolvers<void>();
+  await backend.route("**/api/members/1?*", (route) =>
+    route.fulfill({ json: memberDetails }),
+  );
+  await backend.route(`**/api/funders/${funderId}?*`, async (route) => {
+    await response.promise;
+    await route.fulfill({ json: funderDetails });
+  });
+  await page.goto("/members/1");
+  await page
+    .getByRole("link", { name: "Exact Funder", exact: true })
+    .first()
+    .click();
+  try {
+    await expect(
+      page.getByRole("heading", { name: "Loading details" }),
+    ).toBeVisible();
+    await expect(page.locator(".declared-totals")).toHaveCount(0);
+  } finally {
+    response.resolve();
+  }
+  await expect(
+    page.getByRole("heading", { name: "Exact Funder", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("#details")).toHaveAttribute("aria-busy", "false");
+});
