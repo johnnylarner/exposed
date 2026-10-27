@@ -11,7 +11,7 @@
   }
 </script>
 
-<ViewLinks variant="filter" label="Reporting period">
+<ViewLinks variant="filter" align="end" label="Reporting period">
   {#each periodOptions as option}
     <ViewLink
       href={href(option.value)}

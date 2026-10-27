@@ -3,7 +3,12 @@
   import { page, navigating } from "$app/state";
   import { goto } from "$app/navigation";
   import AppShell from "../../AppShell.svelte";
-  import { CategoryWheel, RankingList, Notice } from "../../lib/ui";
+  import {
+    CategoryWheel,
+    ContentChange,
+    RankingList,
+    Notice,
+  } from "../../lib/ui";
   import {
     rankingCategories,
     rankingRows,
@@ -31,10 +36,7 @@
       </h1>
     {:else if data.rankings}
       <div class="ranking-intro">
-        <div>
-          <h1>Rankings</h1>
-          <PeriodSelector period={data.period} />
-        </div>
+        <h1>Rankings</h1>
         <CategoryWheel
           options={rankingCategories}
           size={220}
@@ -43,16 +45,21 @@
           onselect={selectCategory}
         />
       </div>
-      <div class="board">
-        {#if selected === "parties"}<p class="party-context">
-            Support declared by MPs, grouped by their latest party.
-          </p>{/if}
-        <RankingList
-          {rows}
-          label={`${rankingCategories.find((category) => category.id === selected)?.label} rankings`}
-        />
-        {#if rows.length === 0}<p class="empty">No declarations found.</p>{/if}
-      </div>
+      <PeriodSelector period={data.period} />
+      <ContentChange changeKey={data.period}>
+        <div class="board">
+          {#if selected === "parties"}<p class="party-context">
+              Support declared by MPs, grouped by their latest party.
+            </p>{/if}
+          <RankingList
+            {rows}
+            label={`${rankingCategories.find((category) => category.id === selected)?.label} rankings`}
+          />
+          {#if rows.length === 0}<p class="empty">
+              No declarations found.
+            </p>{/if}
+        </div>
+      </ContentChange>
     {:else}<h1>Rankings</h1>
       <Notice role="alert">{data.error}</Notice>{/if}
   </main>

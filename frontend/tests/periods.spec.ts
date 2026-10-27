@@ -412,6 +412,17 @@ for (const kind of ["member", "funder", "rankings"] as const) {
       });
     });
     await page.setViewportSize({ width: 1280, height: 400 });
+    await page.addInitScript(() => {
+      const animate = Element.prototype.animate;
+      Element.prototype.animate = function (...args) {
+        if (this.classList.contains("content-change")) {
+          document.documentElement.dataset.contentChanges = String(
+            Number(document.documentElement.dataset.contentChanges ?? 0) + 1,
+          );
+        }
+        return animate.apply(this, args);
+      };
+    });
     await page.goto(path);
     const content = page.locator(
       kind === "rankings" ? ".ranking-list" : ".declared-totals",
@@ -419,6 +430,12 @@ for (const kind of ["member", "funder", "rankings"] as const) {
     const main = page.locator(kind === "rankings" ? "#rankings" : "#details");
     const selector = page.getByRole("navigation", { name: "Reporting period" });
     await expect(selector).toBeVisible();
+    const persistentContent = await page
+      .locator(".content-change")
+      .elementHandle();
+    await expect(page.locator("html")).not.toHaveAttribute(
+      "data-content-changes",
+    );
     await page.evaluate(() => scrollTo(0, 150));
     expect(await page.evaluate(() => scrollY)).toBe(150);
     await selector
@@ -434,6 +451,12 @@ for (const kind of ["member", "funder", "rankings"] as const) {
         }),
       ).toHaveAttribute("aria-current", "page");
       expect(await page.evaluate(() => scrollY)).toBe(150);
+      await expect(page.locator("html")).not.toHaveAttribute(
+        "data-content-changes",
+      );
+      await expect(
+        selector.getByRole("link", { name: "This year", exact: true }),
+      ).toBeFocused();
     } finally {
       response.resolve();
     }
@@ -441,7 +464,40 @@ for (const kind of ["member", "funder", "rankings"] as const) {
       selector.getByRole("link", { name: "This year", exact: true }),
     ).toHaveAttribute("aria-current", "page");
     await expect(main).toHaveAttribute("aria-busy", "false");
+    await expect(page.locator("html")).toHaveAttribute(
+      "data-content-changes",
+      "1",
+    );
+    expect(
+      await persistentContent?.evaluate(
+        (element) => element === document.querySelector(".content-change"),
+      ),
+    ).toBe(true);
+    await expect(
+      selector.getByRole("link", { name: "This year", exact: true }),
+    ).toBeFocused();
     expect(await page.evaluate(() => scrollY)).toBe(150);
+    for (const width of [1440, 320]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const bounds = await selector.evaluate((nav) => ({
+        right: nav.getBoundingClientRect().right,
+        links: Array.from(nav.querySelectorAll("a"), (link) => ({
+          top: link.getBoundingClientRect().top,
+          right: link.getBoundingClientRect().right,
+        })),
+      }));
+      const lineEnds = new Map<number, number>();
+      for (const link of bounds.links)
+        lineEnds.set(
+          link.top,
+          Math.max(lineEnds.get(link.top) ?? 0, link.right),
+        );
+      for (const right of lineEnds.values())
+        expect(Math.abs(right - bounds.right)).toBeLessThan(1);
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth),
+      ).toBeLessThanOrEqual(width);
+    }
   });
 }
 

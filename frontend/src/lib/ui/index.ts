@@ -37,4 +37,5 @@ export type {
   EntityAccent,
 } from "./ranking-types";
 
-export type { ViewLinksVariant } from "./types";
+export { default as ContentChange } from "./ContentChange.svelte";
+export type { ViewLinksAlignment, ViewLinksVariant } from "./types";

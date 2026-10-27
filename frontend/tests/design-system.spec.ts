@@ -657,3 +657,61 @@ test("native filter links wrap and keep selected state and neutral keyboard focu
   ).toBe(true);
   await expect(filters.getByRole("link")).toHaveCount(3);
 });
+
+test("content changes preserve their root and respect live reduced motion", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      if (this.classList.contains("content-change")) {
+        const data = document.documentElement.dataset;
+        data.contentChanges = String(Number(data.contentChanges ?? 0) + 1);
+        data.contentFrames = JSON.stringify(args[0]);
+        animation.addEventListener("cancel", () => {
+          data.contentCancellations = String(
+            Number(data.contentCancellations ?? 0) + 1,
+          );
+        });
+        animation.pause();
+      }
+      return animation;
+    };
+  });
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const html = page.locator("html");
+  const content = page.locator(".content-change");
+  const root = await content.elementHandle();
+  const metric = await content.locator(".member-value").elementHandle();
+  await expect(html).not.toHaveAttribute("data-content-changes");
+  const selector = page.getByRole("navigation", { name: "Example periods" });
+  await selector.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(html).toHaveAttribute("data-content-changes", "1");
+  await expect(html).toHaveAttribute(
+    "data-content-frames",
+    '[{"opacity":0.65},{"opacity":1}]',
+  );
+  await expect(content).toContainText("£1,234.56");
+  await selector.getByRole("link", { name: "This year", exact: true }).click();
+  await expect(html).toHaveAttribute("data-content-changes", "2");
+  await expect(html).toHaveAttribute("data-content-cancellations", "1");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(html).toHaveAttribute("data-content-cancellations", "2");
+  await expect
+    .poll(() => content.evaluate((element) => element.getAnimations().length))
+    .toBe(0);
+  await expect(content).toHaveCSS("opacity", "1");
+  await selector.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(content).toContainText("£1,234.56");
+  await expect(html).toHaveAttribute("data-content-changes", "2");
+  expect(
+    await root?.evaluate(
+      (element) => element === document.querySelector(".content-change"),
+    ),
+  ).toBe(true);
+  expect(await metric?.evaluate((element) => element.isConnected)).toBe(true);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await selector.getByRole("link", { name: "This year", exact: true }).click();
+  await expect(html).toHaveAttribute("data-content-changes", "3");
+});

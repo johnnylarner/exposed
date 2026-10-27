@@ -2,6 +2,7 @@
   import { onMount } from "svelte";
   import AppShell from "../../AppShell.svelte";
   import {
+    ContentChange,
     CategoryWheel,
     RankingList,
     Icon,
@@ -35,6 +36,7 @@
   } from "../../lib/ui";
   import { updateCategories, type UpdateCategory } from "../../lib/updates";
   let exampleUpdateCategory = $state<UpdateCategory>("members");
+  let examplePeriod = $state("This parliamentary term");
   let exampleCategory = $state("members");
   const wheelOptions = [
     {
@@ -385,13 +387,40 @@
           ><ViewLink href="#data-patterns">Declaration history</ViewLink
           ></ViewLinks
         >
-        <ViewLinks variant="filter" label="Example periods">
-          <ViewLink href="#patterns">Historical</ViewLink>
-          <ViewLink href="#patterns" aria-current="page"
-            >This parliamentary term</ViewLink
+        <ViewLinks variant="filter" align="end" label="Example periods">
+          <ViewLink
+            href="#patterns"
+            aria-current={examplePeriod === "Historical" ? "page" : undefined}
+            onclick={(event) => {
+              event.preventDefault();
+              examplePeriod = "Historical";
+            }}>Historical</ViewLink
           >
-          <ViewLink href="#patterns">This year</ViewLink>
+          <ViewLink
+            href="#patterns"
+            aria-current={examplePeriod === "This parliamentary term"
+              ? "page"
+              : undefined}
+            onclick={(event) => {
+              event.preventDefault();
+              examplePeriod = "This parliamentary term";
+            }}>This parliamentary term</ViewLink
+          >
+          <ViewLink
+            href="#patterns"
+            aria-current={examplePeriod === "This year" ? "page" : undefined}
+            onclick={(event) => {
+              event.preventDefault();
+              examplePeriod = "This year";
+            }}>This year</ViewLink
+          >
         </ViewLinks>
+        <ContentChange changeKey={examplePeriod}
+          ><Metric
+            label="Declared amounts"
+            value={examplePeriod === "Historical" ? "£1,234.56" : "£234.56"}
+          /></ContentChange
+        >
         <div class="entity-legend">
           <Badge variant="legend"><Icon name="parliament" size={16} />MP</Badge
           ><Badge variant="legend" class="result-palette-example"
