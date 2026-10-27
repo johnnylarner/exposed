@@ -109,6 +109,9 @@ for (const kind of ["member", "funder"] as const) {
     await expect(page).toHaveURL(
       `${path}/history?period=current-term&q=Example`,
     );
+    await expect(page.locator(".filter-context")).toContainText(
+      "Declarations without a registration date are excluded.",
+    );
     await page.getByRole("button", { name: "Next", exact: true }).click();
     await expect(
       page.getByText("Showing 11 to 12 of 12 declarations"),
@@ -122,6 +125,9 @@ for (const kind of ["member", "funder"] as const) {
       .getByRole("link", { name: "Historical", exact: true })
       .click();
     await expect(page.getByLabel("Registered from")).toHaveValue("");
+    await expect(page.locator(".filter-context")).toContainText(
+      "Declarations without a registration date appear last.",
+    );
     await expect(
       page.getByText("Showing 1 to 10 of 21 declarations"),
     ).toBeVisible();
@@ -137,6 +143,9 @@ for (const kind of ["member", "funder"] as const) {
     await selector
       .getByRole("link", { name: "This year", exact: true })
       .click();
+    await expect(page.locator(".filter-context")).toContainText(
+      "Declarations without a registration date are excluded.",
+    );
     await expect(
       page.getByText("Showing 1 to 1 of 1 declarations"),
     ).toBeVisible();

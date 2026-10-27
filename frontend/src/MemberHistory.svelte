@@ -61,7 +61,7 @@
     >
   </div>
   <p class="filter-context">
-    Filter by registration date. Both dates are included.{#if from || to}
+    Filter by registration date. Both dates are included.{" "}{#if from || to || details.period !== "historical"}
       Declarations without a registration date are excluded.{:else}
       Declarations without a registration date appear last.{/if}
   </p>
