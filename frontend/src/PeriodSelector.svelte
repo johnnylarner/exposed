@@ -15,6 +15,7 @@
   {#each periodOptions as option}
     <ViewLink
       href={href(option.value)}
+      data-sveltekit-reset={false}
       aria-current={period === option.value ? "page" : undefined}
       >{option.label}</ViewLink
     >

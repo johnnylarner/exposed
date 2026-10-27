@@ -23,7 +23,10 @@
     }
   }
   const detailState = $derived<DetailState>(
-    navigating.to || retrying ? { kind: "loading" } : model.result,
+    (navigating.to && navigating.to.url.pathname !== page.url.pathname) ||
+      retrying
+      ? { kind: "loading" }
+      : model.result,
   );
   const backHref = $derived(backToSearch(page.url.searchParams));
 </script>
@@ -33,7 +36,7 @@
   class="detail-page"
   class:member-page={route.kind === "member"}
   class:funder-page={route.kind === "funder"}
-  aria-busy={detailState.kind === "loading"}
+  aria-busy={Boolean(navigating.to) || retrying}
 >
   <ButtonLink variant="quiet" size="inline" class="back-link" href={backHref}
     >Back to search</ButtonLink
@@ -74,9 +77,9 @@
       {summary}
       view={route.kind === "member" ? route.view : "summary"}
     />
-    {#if route.kind === "member" && route.view === "history"}{#key details.period}<MemberHistory
-          {details}
-        />{/key}{:else}<MemberSummary {summary} />{/if}
+    {#if route.kind === "member" && route.view === "history"}<MemberHistory
+        {details}
+      />{:else}<MemberSummary {summary} />{/if}
   {:else}
     {@const details = detailState.details}
     <FunderIdentity
@@ -84,7 +87,7 @@
       view={route.kind === "funder" ? route.view : "summary"}
     />
     {#if route.kind === "funder" && route.view === "history"}
-      {#key details.period}<FunderHistory {details} />{/key}
+      <FunderHistory {details} />
     {:else}
       <FunderSummary {details} />
     {/if}

@@ -28,10 +28,10 @@
       >{member.membershipFrom || "Membership unavailable"}</span
     ><span>{member.isCurrentCommons ? "Current MP" : "Former MP"}</span>
   {/snippet}{#snippet values()}
-    <div class="identity-totals">
-      <PeriodSelector {period} />
-      <DeclaredTotals totals={summary.declaredTotals} {period} />
-    </div>
+    {#if view === "summary"}<div class="identity-totals">
+        <PeriodSelector {period} />
+        <DeclaredTotals totals={summary.declaredTotals} {period} />
+      </div>{/if}
   {/snippet}{#snippet navigation()}<ViewLinks label="Member views">
       <ViewLink
         href={memberHref(member.id, "summary", page.url.searchParams)}

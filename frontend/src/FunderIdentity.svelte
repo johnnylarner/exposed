@@ -23,10 +23,13 @@
         >Company number {details.funder.companyNumber}</span
       >{/if}
   {/snippet}{#snippet values()}
-    <div class="identity-totals">
-      <PeriodSelector period={details.period} />
-      <DeclaredTotals totals={details.declaredTotals} period={details.period} />
-    </div>
+    {#if view === "summary"}<div class="identity-totals">
+        <PeriodSelector period={details.period} />
+        <DeclaredTotals
+          totals={details.declaredTotals}
+          period={details.period}
+        />
+      </div>{/if}
   {/snippet}{#snippet navigation()}<ViewLinks label="Funder views">
       <ViewLink
         href={funderHref(details.funder.id, "summary", page.url.searchParams)}

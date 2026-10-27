@@ -39,7 +39,13 @@ export const load = (async ({ url, fetch, request, depends }) => {
       result:
         route.kind === "invalid"
           ? { kind: "not-found" }
-          : await loadDetails(route, request.signal, fetch, origin, period),
+          : await loadDetails(
+              route,
+              request.signal,
+              fetch,
+              origin,
+              route.view === "history" ? "historical" : period,
+            ),
     };
   } else {
     const query = url.searchParams.get("q") ?? "";

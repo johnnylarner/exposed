@@ -25,8 +25,10 @@
 
 <svelte:head><title>Rankings | Exposed</title></svelte:head>
 <AppShell target="rankings" current="rankings">
-  <main id="rankings" tabindex="-1">
-    {#if navigating.to}<h1>Rankings</h1>
+  <main id="rankings" tabindex="-1" aria-busy={Boolean(navigating.to)}>
+    {#if navigating.to && navigating.to.url.pathname !== page.url.pathname}<h1>
+        Rankings
+      </h1>
     {:else if data.rankings}
       <div class="ranking-intro">
         <div>
