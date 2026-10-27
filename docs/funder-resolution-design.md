@@ -38,6 +38,7 @@ Rust accepts an initial statistical edge when supported by one of the following 
 
 - Both normalized names agree exactly, both normalized full addresses have `numbered_street` quality and agree after punctuation/case normalization, and the computed probability is at least 0.999.
 - Both are donors with the same usable normalized name, preserving the existing permissive donor rule.
+- Both are explicitly individual/person donors with the same nonempty cleaner-extracted `person_name_normalized`. This exact full-name rule uses a shared namespaced candidate key and records `extracted_name_evidence`. It compares the entire parsed name without fuzzy or initial matching. Scoring names and profiles remain unchanged; payer roles and missing donor kinds are ineligible.
 - Explicit aliases agree, or compatible organizations have at least two distinctive shared name tokens plus an agreeing numbered-street address, and one source name has a recognized executive title in parentheses. This supports annotations such as `HSBC UK (Ian Stuart, CEO)` against `HSBC UK Bank plc` while retaining the source name and requiring address corroboration. Shared roots alone do not collapse ordinary committees or branches.
 - Both are explicitly typed `Trade Union` observations and both contain the distinctive whole-token root `Unite`. Regional and branch descriptors may differ; each source name and payment role remains attached to its original observation.
 
@@ -96,7 +97,7 @@ Rust policy tests cover noncompany identities, exact full-address support, addre
 
 The 43 golden cases in `exposed/tests/fixtures/funder-resolution.json` preserve frozen-model comparison levels and probabilities. They check native parity with the captured scoring behavior, rather than dataset accuracy or calibration.
 
-The Rust integration test `declaration_resolution_cli` creates raw evidence, runs the real `clean` and `resolve` commands with `PATH=/nonexistent`, inspects resulting Parquet rows, and checks input immutability and output refusal. It verifies statistical charity links, Gary Lubner donor links across missing and disagreeing addresses, alias and typed Unite-family links, and distinct Carlton Club organizations. No Python installation is needed. Building the CLI still requires an environment that satisfies the existing SQLx macros. See the [resolution guide](../resolution/README.md) for the test command.
+The Rust integration test `declaration_resolution_cli` creates raw evidence, runs the real `clean` and `resolve` commands with `PATH=/nonexistent`, inspects resulting Parquet rows, and checks input immutability and output refusal. It verifies statistical charity links, Gary Lubner donor links across missing and disagreeing addresses, alias and typed Unite-family links, distinct Carlton Club organizations, and separate Farmer/Sainsbury identities shared by each person's titled, plain, and parenthesized given-name variants. No Python installation is needed. Building the CLI still requires an environment that satisfies the existing SQLx macros. See the [resolution guide](../resolution/README.md) for the test command.
 
 The resolved manifest uses schema version 2 for source-only member identities.
 Observation and occurrence keys contain numeric Parliament member IDs. Database

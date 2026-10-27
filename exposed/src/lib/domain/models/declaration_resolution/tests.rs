@@ -23,6 +23,7 @@ fn observation(
         donor_company_number: company.map(str::to_owned),
         name_raw: name.map(str::to_owned),
         name_normalized: name.map(str::to_owned),
+        person_name_normalized: None,
         organisation_core: name.map(str::to_owned),
         alias_normalized: Vec::new(),
         address_normalized: address.map(str::to_owned),
@@ -990,4 +991,128 @@ fn attribution_sql_scalars_match_the_serialized_labels() {
             serde_json::json!(reason.as_ref())
         );
     }
+}
+
+fn individual(id: u32, name: &str, parsed: &str) -> Observation {
+    let mut row = observation(id, Some(name), None, Some("Individual"), None);
+    row.person_name_normalized = Some(parsed.into());
+    row
+}
+
+#[test]
+fn individual_donor_parsed_names_link_exactly_with_extracted_evidence() {
+    let mut plain = individual(2, "michael farmer", "michael farmer");
+    plain.donor_kind = Some(" PeRsOn ".into());
+    let result = resolve(
+        &input(vec![
+            individual(1, "lord michael farmer", "michael farmer"),
+            plain,
+            individual(3, "lord (michael) farmer", "michael farmer"),
+            individual(4, "lord david sainsbury", "david sainsbury"),
+        ]),
+        0.01,
+    );
+    assert_eq!(
+        result.observations[0].identity_id,
+        result.observations[1].identity_id
+    );
+    assert_eq!(
+        result.observations[0].identity_id,
+        result.observations[2].identity_id
+    );
+    assert_ne!(
+        result.observations[0].identity_id,
+        result.observations[3].identity_id
+    );
+    for pair in result
+        .pairs
+        .iter()
+        .filter(|pair| pair.disposition == PairDisposition::Accepted)
+    {
+        assert!(matches!(pair.reason, PairReason::ExtractedNameEvidence));
+    }
+    assert!(
+        result.observations[..3]
+            .iter()
+            .all(|row| matches!(row.identity_basis, IdentityBasis::ExtractedNameLink))
+    );
+}
+
+#[test]
+fn parsed_person_evidence_requires_explicit_individual_donor_roles() {
+    for kind in [None, Some("Company")] {
+        let mut other = individual(2, "michael farmer", "michael farmer");
+        other.donor_kind = kind.map(str::to_owned);
+        let result = resolve(
+            &input(vec![
+                individual(1, "lord michael farmer", "michael farmer"),
+                other,
+            ]),
+            0.9999,
+        );
+        assert_ne!(
+            result.observations[0].identity_id,
+            result.observations[1].identity_id
+        );
+    }
+    for role in [FunderRole::Payer, FunderRole::UltimatePayer] {
+        let mut other = payer(individual(2, "michael farmer", "michael farmer"));
+        if role == FunderRole::UltimatePayer {
+            other.role = role;
+            other.funder_id = serde_json::from_value(serde_json::json!(
+                other
+                    .funder_id
+                    .as_str()
+                    .replace("/payer", "/ultimate_payer")
+            ))
+            .unwrap();
+        }
+        assert!(identity::individual_donor_name(&other).is_none());
+        assert!(
+            !input(vec![other.clone()]).scoring_input(100).rows[0]
+                .blocking_keys
+                .iter()
+                .any(|key| key.starts_with("individual-donor-name:"))
+        );
+        let result = resolve(
+            &input(vec![
+                individual(1, "lord michael farmer", "michael farmer"),
+                other,
+            ]),
+            0.9999,
+        );
+        assert_ne!(
+            result.observations[0].identity_id,
+            result.observations[1].identity_id
+        );
+    }
+    let missing = observation(2, Some("michael farmer"), None, Some("Individual"), None);
+    let result = resolve(
+        &input(vec![
+            individual(1, "lord michael farmer", "michael farmer"),
+            missing,
+        ]),
+        0.9999,
+    );
+    assert_ne!(
+        result.observations[0].identity_id,
+        result.observations[1].identity_id
+    );
+}
+
+#[test]
+fn individual_donor_blocking_preserves_original_profiles_and_missing_raw_name() {
+    let mut titled = individual(1, "lord michael farmer", "michael farmer");
+    titled.name_raw = None;
+    let plain = individual(2, "michael farmer", "michael farmer");
+    let scoring = input(vec![titled, plain]).scoring_input(100);
+    assert_eq!(scoring.rows.len(), 2);
+    assert_ne!(scoring.rows[0].name, scoring.rows[1].name);
+    assert!(scoring.rows.iter().all(|row| {
+        row.blocking_keys
+            .iter()
+            .any(|key| key == "individual-donor-name:michael farmer")
+    }));
+    let empty = individual(1, "lord michael farmer", " ");
+    assert!(ResolutionInput::new(vec![empty], Vec::new(), BTreeMap::new()).is_err());
 }

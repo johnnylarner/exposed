@@ -150,7 +150,9 @@ house or building token and a street designation. Address evidence comes from re
 The [resolver](funder-resolution-design.md) requires this cleaned schema. Old artifacts containing database member UUIDs are unsupported. Capture a new
 ingestion run, then clean, resolve, and load that run. Old files remain unchanged.
 
-The person candidates do not classify funders or change resolution and display names.
+Person candidates do not classify funders or replace raw/public display names.
+Resolution uses exact equality of the entire parsed `person_name_normalized` only
+when both observations are explicitly individual/person donors.
 The added person columns require regenerating older cleaned artifacts before resolution,
 using the existing recapture/clean/resolve/load workflow; the resolution reader requires
 the complete current cleaned schema. Raw names and other comparison features are unchanged.

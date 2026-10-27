@@ -1,4 +1,4 @@
-use super::identity::company;
+use super::identity::{company, individual_donor_name};
 use super::{
     AddressMatchQuality, BTreeMap, BTreeSet, EntityIngestionError, FunderObservationId, FunderRole,
     FundingEntryId, invalid,
@@ -24,6 +24,7 @@ pub struct Observation {
     pub donor_company_number: Option<String>,
     pub name_raw: Option<String>,
     pub name_normalized: Option<String>,
+    pub person_name_normalized: Option<String>,
     pub organisation_core: Option<String>,
     pub alias_normalized: Vec<String>,
     pub address_normalized: Option<String>,
@@ -186,6 +187,9 @@ fn blocking_keys(observation: &Observation) -> BTreeSet<String> {
         .chain(observation.alias_normalized.iter())
         .map(|name| format!("funder-name:{name}"))
         .collect::<BTreeSet<_>>();
+    if let Some(name) = individual_donor_name(observation) {
+        keys.insert(format!("individual-donor-name:{name}"));
+    }
     let is_trade_union = observation
         .donor_kind
         .as_deref()
@@ -340,6 +344,10 @@ fn check_observation(
         .name_normalized
         .as_ref()
         .is_some_and(|name| name.trim().is_empty())
+        || observation
+            .person_name_normalized
+            .as_ref()
+            .is_some_and(|name| name.trim().is_empty())
         || observation
             .address_normalized
             .as_ref()

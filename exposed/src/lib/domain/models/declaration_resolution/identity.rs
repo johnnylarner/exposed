@@ -35,6 +35,12 @@ fn kind(observation: &Observation) -> EntityKind {
         _ => EntityKind::Unknown,
     }
 }
+pub(super) fn individual_donor_name(observation: &Observation) -> Option<&str> {
+    if observation.role != FunderRole::Donor || kind(observation) != EntityKind::Person {
+        return None;
+    }
+    observation.person_name_normalized.as_deref()
+}
 pub(super) fn company(observation: &Observation) -> Option<String> {
     if observation
         .donor_kind
@@ -101,7 +107,11 @@ fn classify(a: &Observation, b: &Observation, probability: f64) -> EdgeEligibili
         EdgeEligibility::Link(LinkEvidence::Statistical)
     } else if exact_name && a.role == FunderRole::Donor && b.role == FunderRole::Donor {
         EdgeEligibility::Link(LinkEvidence::DonorName)
-    } else if extracted_name_agrees {
+    } else if extracted_name_agrees
+        || individual_donor_name(a)
+            .zip(individual_donor_name(b))
+            .is_some_and(|(left, right)| left == right)
+    {
         EdgeEligibility::Link(LinkEvidence::ExtractedName)
     } else if full_addresses && !addresses_agree {
         EdgeEligibility::Reject(PairReason::FullAddressDisagreement)
