@@ -63,7 +63,7 @@ def source_record(root):
     models = root / "exposed/src/lib/domain/models"
     files = sorted(models.glob("declaration_resolution/*.rs")) + [
         models / name for name in (
-            "declaration_resolution.rs", "declaration_cleaning.rs",
+            "declaration_resolution.rs", "declaration_cleaning.rs", "funder_name.rs",
             "declaration_ingestion.rs", "parliament_member.rs", "entity_ingestion.rs",
         )
     ]

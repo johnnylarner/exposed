@@ -8,6 +8,21 @@ pub enum ParliamentApiError {}
 #[derive(Debug)]
 pub enum EntitySearchPipelineError {}
 
+mod domain {
+    pub(crate) mod models {
+        pub(crate) mod funder_name {
+            include!(concat!(env!("OUT_DIR"), "/funder_name.rs"));
+        }
+    }
+}
+mod peerage {
+    include!(concat!(
+        env!("EXPOSED_SOURCE_ROOT"),
+        "/exposed/src/lib/domain/models/declaration_resolution/peerage.rs"
+    ));
+}
+use peerage::PeerageAliases;
+
 include!(concat!(env!("OUT_DIR"), "/domain.rs"));
 
 #[cfg(test)]
@@ -59,6 +74,7 @@ fn observation(id: &str) -> Observation {
         donor_company_number: None,
         name_raw: Some("A".into()),
         name_normalized: Some("a".into()),
+        person_name_normalized: None,
         organisation_core: None,
         alias_normalized: Vec::new(),
         address_normalized: None,

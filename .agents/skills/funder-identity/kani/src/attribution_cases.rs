@@ -1,3 +1,5 @@
+use crate::PeerageAliases;
+
 use super::{DeclarationId, FundingEntryId, MemberId, Observation};
 
 fn proof_payment(parent: bool) -> Payment {
@@ -37,6 +39,7 @@ fn proof_role(id: &str, payment: &Payment, role: FunderRole) -> Observation {
 
 fn proof_input(observations: Vec<Observation>, payments: Vec<Payment>) -> ResolutionInput {
     let mut input = ResolutionInput {
+        peerage_aliases: PeerageAliases::default(),
         observations: Default::default(),
         payments: Default::default(),
         digests: Default::default(),
@@ -51,6 +54,7 @@ fn proof_input(observations: Vec<Observation>, payments: Vec<Payment>) -> Resolu
             .payments
             .insert(payment.funding_entry_id.clone(), payment);
     }
+    input.peerage_aliases = PeerageAliases::from_observations(input.observations.values());
     input
 }
 

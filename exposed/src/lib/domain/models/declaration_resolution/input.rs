@@ -1,4 +1,5 @@
 use super::identity::{company, individual_donor_name};
+use super::peerage::PeerageAliases;
 use super::{
     AddressMatchQuality, BTreeMap, BTreeSet, EntityIngestionError, FunderObservationId, FunderRole,
     FundingEntryId, invalid,
@@ -48,6 +49,7 @@ pub struct Payment {
 
 /// Cleaned evidence whose identity and role references have been checked together.
 pub struct ResolutionInput {
+    pub(super) peerage_aliases: PeerageAliases,
     pub(crate) observations: BTreeMap<FunderObservationId, Observation>,
     pub(crate) payments: BTreeMap<FundingEntryId, Payment>,
     pub(crate) digests: BTreeMap<String, String>,
@@ -60,6 +62,7 @@ impl ResolutionInput {
         digests: BTreeMap<String, String>,
     ) -> Result<Self, EntityIngestionError> {
         let mut input = Self {
+            peerage_aliases: PeerageAliases::default(),
             observations: BTreeMap::new(),
             payments: BTreeMap::new(),
             digests,
@@ -117,6 +120,7 @@ impl ResolutionInput {
                 }
             }
         }
+        input.peerage_aliases = PeerageAliases::from_observations(input.observations.values());
         Ok(input)
     }
 
@@ -142,7 +146,7 @@ impl ResolutionInput {
                 address: address.clone(),
                 blocking_keys: ids
                     .iter()
-                    .flat_map(|id| blocking_keys(&self.observations[id]))
+                    .flat_map(|id| blocking_keys(&self.observations[id], &self.peerage_aliases))
                     .collect::<BTreeSet<_>>()
                     .into_iter()
                     .collect(),
@@ -163,7 +167,7 @@ impl ResolutionInput {
                     address,
                     blocking_keys: ids
                         .iter()
-                        .flat_map(|id| blocking_keys(&self.observations[id]))
+                        .flat_map(|id| blocking_keys(&self.observations[id], &self.peerage_aliases))
                         .collect::<BTreeSet<_>>()
                         .into_iter()
                         .collect(),
@@ -180,7 +184,7 @@ impl ResolutionInput {
     }
 }
 
-fn blocking_keys(observation: &Observation) -> BTreeSet<String> {
+fn blocking_keys(observation: &Observation, peerage_aliases: &PeerageAliases) -> BTreeSet<String> {
     let mut keys = observation
         .name_normalized
         .iter()
@@ -189,6 +193,9 @@ fn blocking_keys(observation: &Observation) -> BTreeSet<String> {
         .collect::<BTreeSet<_>>();
     if let Some(name) = individual_donor_name(observation) {
         keys.insert(format!("individual-donor-name:{name}"));
+    }
+    if let Some(name) = peerage_aliases.personal_name(&observation.funder_id) {
+        keys.insert(format!("peerage-person:{name}"));
     }
     let is_trade_union = observation
         .donor_kind

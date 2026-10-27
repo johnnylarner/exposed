@@ -7,6 +7,9 @@ build = "build.rs"
 
 [workspace]
 
+[dependencies]
+unicode-normalization = "=0.1.24"
+
 [dev-dependencies]
 serde = { version = "=1.0.229", features = ["derive"] }
 serde_json = { version = "=1.0.151", features = ["arbitrary_precision"] }

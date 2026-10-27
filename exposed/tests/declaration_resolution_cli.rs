@@ -480,3 +480,129 @@ async fn individual_donor_title_variants_resolve_to_one_identity_per_person() ->
     }
     Ok(())
 }
+
+#[tokio::test]
+async fn source_peerage_variants_resolve_without_merging_other_sainsburys() -> anyhow::Result<()> {
+    let temporary = tempfile::tempdir()?;
+    let key = IngestionKey::default();
+    let root = temporary.path().join("data");
+    let storage = ExposedDataPipeline::new_with_ingestion_key(&root, key.clone())?;
+    let names = [
+        "Lord Sainsbury of Turville",
+        "Lord David Sainsbury of Turville",
+        "Baron Sainsbury of Turville (David Sainsbury)",
+        "Baron Sainsbury of Turville (David Sainsbury )",
+        "David Sainsbury",
+        "Lord David Sainsbury",
+        "Lord (David) Sainsbury",
+        "Francesca Sainsbury",
+        "Francesca Sainsbury Perrin",
+    ];
+    let captures = names.iter().enumerate().map(|(index, name)| {
+        let id = u32::try_from(index + 1)?;
+        let source = json!({"id":id,"category":{"id":3,"name":"Donations"},"versions":[{"register":{"id":820,"publishedDate":"2026-09-07"},"fields":[
+            {"name":"DonorName","value":name}, {"name":"DonorStatus","value":"Individual"}, {"name":"Value","value":"100"}
+        ]}]});
+        Ok(CapturedDeclaration::new(
+            DeclarationId::new(id)?, None, 3, "Donations".into(), 820,
+            NaiveDate::from_ymd_opt(2026, 9, 7).unwrap(), None,
+            vec![CapturedFundingEntry::new(None, Some((*name).into()), None, Some("100".into()), None, None, Some("Individual".into()), None, None)],
+            Utc::now(), source.to_string(),
+        )?)
+    }).collect::<anyhow::Result<Vec<_>>>()?;
+    storage
+        .write_raw_declarations(MemberId::new(1)?, &captures)
+        .await?;
+    let raw = root.join(key.to_string()).join("raw/declarations");
+    let raw_before = fs::read_dir(&raw)?
+        .map(|entry| {
+            let path = entry?.path();
+            Ok((path.clone(), fs::read(path)?))
+        })
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    let config = temporary.path().join("resolution.yaml");
+    fs::write(
+        &config,
+        format!(
+            "data_dir: {}\ncandidate_budget: 1000\n",
+            serde_json::to_string(&root)?
+        ),
+    )?;
+    let clean = run("clean", &config, &key);
+    assert!(
+        clean.status.success(),
+        "{}",
+        String::from_utf8_lossy(&clean.stderr)
+    );
+    let cleaned = root.join(key.to_string()).join("cleaned/declarations");
+    let funders_before = fs::read(cleaned.join("funders.parquet"))?;
+    let funding_before = fs::read(cleaned.join("funding_entries.parquet"))?;
+    let funders = rows(&cleaned.join("funders.parquet"))?;
+    assert_eq!(funders.len(), names.len());
+    assert_eq!(
+        funders
+            .iter()
+            .map(|row| row["name_raw"].as_str().unwrap())
+            .collect::<BTreeSet<_>>(),
+        names.into_iter().collect()
+    );
+    assert!(
+        funders
+            .iter()
+            .all(|row| row["address_normalized"].is_null())
+    );
+    let resolved = run("resolve", &config, &key);
+    assert!(
+        resolved.status.success(),
+        "{}",
+        String::from_utf8_lossy(&resolved.stderr)
+    );
+    let output = root.join(key.to_string()).join("resolved/declarations");
+    let observations = rows(&output.join("observation_resolution.parquet"))?;
+    assert_eq!(observations.len(), names.len());
+    let identities = observations
+        .iter()
+        .map(|row| {
+            (
+                row["funder_id"].as_str().unwrap(),
+                row["identity_id"].as_str().unwrap(),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let david = funders
+        .iter()
+        .filter(|row| !row["name_raw"].as_str().unwrap().starts_with("Francesca"))
+        .map(|row| identities[row["funder_id"].as_str().unwrap()])
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        david.len(),
+        1,
+        "one identity for all source-backed David peerage variants"
+    );
+    assert_eq!(
+        identities.values().copied().collect::<BTreeSet<_>>().len(),
+        3,
+        "Francesca Sainsbury and Francesca Sainsbury Perrin remain separate"
+    );
+    let funding = rows(&cleaned.join("funding_entries.parquet"))?;
+    let attribution = rows(&output.join("payment_attribution.parquet"))?;
+    assert_eq!(funding.len(), names.len());
+    assert_eq!(attribution.len(), funding.len());
+    for payment in &funding {
+        let attributed = attribution
+            .iter()
+            .find(|row| row["funding_entry_id"] == payment["funding_entry_id"])
+            .unwrap();
+        assert_eq!(attributed["attribution_basis"], "donor");
+        assert_eq!(attributed["selected_funder_id"], payment["donor_funder_id"]);
+    }
+    assert_eq!(fs::read(cleaned.join("funders.parquet"))?, funders_before);
+    assert_eq!(
+        fs::read(cleaned.join("funding_entries.parquet"))?,
+        funding_before
+    );
+    for (path, bytes) in raw_before {
+        assert_eq!(fs::read(path)?, bytes);
+    }
+    Ok(())
+}
