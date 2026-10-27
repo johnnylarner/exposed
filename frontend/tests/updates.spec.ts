@@ -83,6 +83,42 @@ test("updates default to ten MPs and switch locally with profile links and UTC d
   expect(requests).toBe(initialRequests);
 });
 
+test("updates horizontal halves select across their full scaled bounds", async ({
+  page,
+  backend,
+}) => {
+  await backend.route("**/api/updates", (route) =>
+    route.fulfill({ json: updatesFixture }),
+  );
+  await page.goto("/updates");
+  const wheel = page.getByRole("group", {
+    name: "Latest declarations category",
+  });
+  const members = wheel.getByRole("button", { name: "MPs" });
+  const companies = wheel.getByRole("button", { name: "Companies" });
+  for (const width of [1280, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    await wheel.scrollIntoViewIfNeeded();
+    const bounds = await wheel.boundingBox();
+    if (!bounds) throw new Error("Missing updates wheel bounds");
+    expect(bounds.width).toBe(220);
+    const scale = bounds.width / 284;
+    for (const x of [54, 230]) {
+      await page.mouse.click(bounds.x + x * scale, bounds.y + 210 * scale);
+      await expect(companies).toHaveAttribute("aria-pressed", "true");
+      await page.mouse.click(bounds.x + 142 * scale, bounds.y + 132 * scale);
+      await expect(companies).toHaveAttribute("aria-pressed", "true");
+      await page.mouse.click(bounds.x + x * scale, bounds.y + 74 * scale);
+      await expect(members).toHaveAttribute("aria-pressed", "true");
+      await page.mouse.click(bounds.x + 142 * scale, bounds.y + 152 * scale);
+      await expect(members).toHaveAttribute("aria-pressed", "true");
+    }
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(width);
+  }
+});
+
 test("updates show unavailable and empty states", async ({ page, backend }) => {
   await backend.route("**/api/updates", (route) =>
     route.fulfill({ status: 503 }),

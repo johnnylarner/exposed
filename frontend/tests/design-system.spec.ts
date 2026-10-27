@@ -442,6 +442,10 @@ test("category wheel retains keyboard focus and neutral focus without a tick", a
   const members = selector.getByRole("button", { name: "MPs" });
   const individuals = selector.getByRole("button", { name: "Individuals" });
   const parties = selector.getByRole("button", { name: "Parties" });
+  for (const button of await selector.getByRole("button").all()) {
+    await expect(button).toHaveCSS("width", "142px");
+    await expect(button).toHaveCSS("height", "142px");
+  }
   await expect(members).toHaveCSS("left", "0px");
   await expect(individuals).toHaveCSS("left", "142px");
   await expect(parties).toHaveCSS("left", "0px");
@@ -539,7 +543,7 @@ test("ranking amounts are larger and align with bars while retaining mobile stac
   }
 });
 
-test("semicircle buttons cover both lower halves and retain keyboard focus", async ({
+test("horizontal halves cover both sides with upright labels and native keyboard focus", async ({
   page,
 }) => {
   await page.goto("/design-system", { waitUntil: "networkidle" });
@@ -547,15 +551,35 @@ test("semicircle buttons cover both lower halves and retain keyboard focus", asy
   await wheel.scrollIntoViewIfNeeded();
   const members = wheel.getByRole("button", { name: "MPs" });
   const companies = wheel.getByRole("button", { name: "Companies" });
-  await expect(members).toHaveCSS("height", "284px");
+  for (const button of [members, companies]) {
+    await expect(button).toHaveCSS("width", "284px");
+    await expect(button).toHaveCSS("height", "142px");
+    expect(
+      await button.locator(".sector-label").evaluate((label) => {
+        const matrix = new DOMMatrix(getComputedStyle(label).transform);
+        return [matrix.a, matrix.b, matrix.c, matrix.d];
+      }),
+    ).toEqual([1, 0, 0, 1]);
+  }
   const bounds = await wheel.boundingBox();
   if (!bounds) throw new Error("Missing semicircle bounds");
-  await page.mouse.click(bounds.x + 230, bounds.y + 210);
-  await expect(companies).toHaveAttribute("aria-pressed", "true");
-  await page.mouse.click(bounds.x + 54, bounds.y + 210);
-  await expect(members).toHaveAttribute("aria-pressed", "true");
+  for (const x of [54, 230]) {
+    await page.mouse.click(bounds.x + x, bounds.y + 210);
+    await expect(companies).toHaveAttribute("aria-pressed", "true");
+    await page.mouse.click(bounds.x + 142, bounds.y + 132);
+    await expect(companies).toHaveAttribute("aria-pressed", "true");
+    await page.mouse.click(bounds.x + x, bounds.y + 74);
+    await expect(members).toHaveAttribute("aria-pressed", "true");
+    await page.mouse.click(bounds.x + 142, bounds.y + 152);
+    await expect(members).toHaveAttribute("aria-pressed", "true");
+  }
+  await members.focus();
   await page.keyboard.press("Tab");
   await expect(companies).toBeFocused();
+  await expect(wheel.locator("path.focus-outline")).toHaveCSS(
+    "stroke",
+    "rgb(240, 240, 237)",
+  );
   await page.keyboard.press("Enter");
   await expect(companies).toBeFocused();
   await expect(companies).toHaveAttribute("aria-pressed", "true");

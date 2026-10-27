@@ -9,6 +9,7 @@ export interface CategoryWheelOption<Id extends string = string> {
   rimPath: string;
   left: number;
   top: number;
+  width?: number;
   height?: number;
   x: number;
   y: number;
