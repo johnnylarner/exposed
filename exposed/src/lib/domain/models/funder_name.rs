@@ -15,6 +15,130 @@ pub enum NameStatus {
     Withheld,
 }
 
+/// A recognized leading honorific, retained in source order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum PersonTitle {
+    /// The `mr` honorific.
+    Mr,
+    /// The `mrs` honorific.
+    Mrs,
+    /// The `ms` honorific.
+    Ms,
+    /// The `miss` honorific.
+    Miss,
+    /// The `mx` honorific.
+    Mx,
+    /// The `dr` honorific.
+    Dr,
+    /// The `prof` honorific.
+    Prof,
+    /// The `professor` honorific.
+    Professor,
+    /// The `sir` honorific.
+    Sir,
+    /// The `dame` honorific.
+    Dame,
+    /// The `lord` honorific.
+    Lord,
+    /// The `lady` honorific.
+    Lady,
+    /// The `rev` honorific.
+    Rev,
+    /// The `reverend` honorific.
+    Reverend,
+    /// The `rt` honorific.
+    Rt,
+    /// The `hon` honorific.
+    Hon,
+}
+
+impl PersonTitle {
+    fn from_token(token: &str) -> Option<Self> {
+        match token {
+            "mr" => Some(Self::Mr),
+            "mrs" => Some(Self::Mrs),
+            "ms" => Some(Self::Ms),
+            "miss" => Some(Self::Miss),
+            "mx" => Some(Self::Mx),
+            "dr" => Some(Self::Dr),
+            "prof" => Some(Self::Prof),
+            "professor" => Some(Self::Professor),
+            "sir" => Some(Self::Sir),
+            "dame" => Some(Self::Dame),
+            "lord" => Some(Self::Lord),
+            "lady" => Some(Self::Lady),
+            "rev" => Some(Self::Rev),
+            "reverend" => Some(Self::Reverend),
+            "rt" => Some(Self::Rt),
+            "hon" => Some(Self::Hon),
+            _ => None,
+        }
+    }
+}
+
+struct ParsedPersonName {
+    titles: Vec<PersonTitle>,
+    normalized: Option<String>,
+    core: String,
+}
+
+impl ParsedPersonName {
+    fn parse(name: &str) -> Self {
+        let mut titles = Vec::new();
+        let mut remainder = name;
+        while let Some(word) = remainder.split_whitespace().next() {
+            let Some(title) = PersonTitle::from_token(word.strip_suffix('.').unwrap_or(word))
+            else {
+                break;
+            };
+            titles.push(title);
+            remainder = remainder[word.len()..].trim_start();
+        }
+        let normalized = if titles.is_empty() {
+            remainder.to_owned()
+        } else {
+            unwrap_given_name(remainder).unwrap_or_else(|| remainder.to_owned())
+        };
+        let tokenized = tokens(name);
+        let core = tokenized
+            .split_whitespace()
+            .skip_while(|word| PersonTitle::from_token(word).is_some())
+            .collect::<Vec<_>>()
+            .join(" ");
+        Self {
+            titles,
+            normalized: (!normalized.is_empty()).then_some(normalized),
+            core,
+        }
+    }
+}
+
+fn unwrap_given_name(name: &str) -> Option<String> {
+    let (given, surname) = name.strip_prefix('(')?.split_once(')')?;
+    if !surname.starts_with(char::is_whitespace) {
+        return None;
+    }
+    let given = given.trim();
+    let surname = surname.trim();
+    let name_like = |value: &str| {
+        !value.is_empty()
+            && value.split_whitespace().all(|word| {
+                !matches!(
+                    word,
+                    "and" | "or" | "trading" | "as" | "trustee" | "ceo" | "director"
+                ) && word.chars().next().is_some_and(char::is_alphabetic)
+                    && word.chars().last().is_some_and(char::is_alphabetic)
+                    && word.chars().all(|c| {
+                        c.is_alphabetic()
+                            || is_combining_mark(c)
+                            || matches!(c, '-' | '\'' | '’' | '‘' | 'ʼ')
+                    })
+            })
+    };
+    (name_like(given) && name_like(surname)).then(|| format!("{given} {surname}"))
+}
+
 /// Independent candidate representations, never keys for merging observations.
 #[derive(Debug, Serialize)]
 pub struct FunderNameFeatures {
@@ -34,6 +158,10 @@ pub struct FunderNameFeatures {
     pub primary_name_normalized: Option<String>,
     /// Primary-name tokens without an explicit UK legal suffix.
     pub organisation_core: Option<String>,
+    /// Recognized leading titles, including titles without a remaining name.
+    pub person_titles: Vec<PersonTitle>,
+    /// Title-free normalized candidate, retaining name punctuation.
+    pub person_name_normalized: Option<String>,
     /// Token sequence without common leading honorifics.
     pub person_core: Option<String>,
     /// Initial letters of the person-core tokens.
@@ -90,7 +218,11 @@ impl FunderNameFeatures {
         let organisation_core = primary_name_normalized
             .as_deref()
             .map(|name| organisation_core(&tokens(name)));
-        let person_core = name_tokens.as_deref().map(person_core);
+        let person = usable.as_deref().map(ParsedPersonName::parse);
+        let (person_titles, person_name_normalized, person_core) = person.map_or_else(
+            || (Vec::new(), None, None),
+            |person| (person.titles, person.normalized, Some(person.core)),
+        );
         let person_initials = person_core.as_deref().map(|name| initials(name, false));
         let organisation_initials = organisation_core
             .as_deref()
@@ -112,6 +244,8 @@ impl FunderNameFeatures {
             name_token_key,
             primary_name_normalized,
             organisation_core,
+            person_titles,
+            person_name_normalized,
             person_core,
             person_initials,
             organisation_initials,
@@ -176,31 +310,6 @@ fn organisation_core(name: &str) -> String {
         words.truncate(words.len() - suffix.len());
     }
     words.join(" ")
-}
-
-fn person_core(name: &str) -> String {
-    const TITLES: &[&str] = &[
-        "mr",
-        "mrs",
-        "ms",
-        "miss",
-        "mx",
-        "dr",
-        "prof",
-        "professor",
-        "sir",
-        "dame",
-        "lord",
-        "lady",
-        "rev",
-        "reverend",
-        "rt",
-        "hon",
-    ];
-    name.split_whitespace()
-        .skip_while(|word| TITLES.contains(word))
-        .collect::<Vec<_>>()
-        .join(" ")
 }
 
 fn initials(name: &str, omit_connectives: bool) -> String {

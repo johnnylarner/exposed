@@ -162,3 +162,124 @@ fn withholds_matching_features_for_missing_and_confidential_names() {
         Some("club club the")
     );
 }
+
+#[test]
+fn separates_ordered_titles_without_guessing_name_roles() {
+    use super::PersonTitle;
+    for (raw, titles, remainder) in [
+        (
+            "Mrs. Jane Smith",
+            vec![PersonTitle::Mrs],
+            Some("jane smith"),
+        ),
+        ("Mr John Smith", vec![PersonTitle::Mr], Some("john smith")),
+        (
+            "Lord (Michael) Farmer",
+            vec![PersonTitle::Lord],
+            Some("michael farmer"),
+        ),
+        (
+            "  Lord ( Michael  John )  Farmer  ",
+            vec![PersonTitle::Lord],
+            Some("michael john farmer"),
+        ),
+        (
+            "Dame Élodie O’Brien-Smith",
+            vec![PersonTitle::Dame],
+            Some("élodie o’brien-smith"),
+        ),
+        (
+            "Rt. Hon. Dr. Dr Jane de la Cruz",
+            vec![
+                PersonTitle::Rt,
+                PersonTitle::Hon,
+                PersonTitle::Dr,
+                PersonTitle::Dr,
+            ],
+            Some("jane de la cruz"),
+        ),
+        ("Jane Lord Smith", vec![], Some("jane lord smith")),
+        ("Lord", vec![PersonTitle::Lord], None),
+        ("Ｍｒ. James", vec![PersonTitle::Mr], Some("james")),
+    ] {
+        let parsed = features(raw);
+        assert_eq!(parsed.name_raw.as_deref(), Some(raw));
+        assert_eq!(parsed.person_titles, titles, "{raw}");
+        assert_eq!(parsed.person_name_normalized.as_deref(), remainder, "{raw}");
+    }
+    for raw in [None, Some(""), Some("anonymous"), Some("withheld")] {
+        let parsed = FunderNameFeatures::from_name(raw);
+        assert!(parsed.person_titles.is_empty());
+        assert!(parsed.person_name_normalized.is_none());
+    }
+    for title in [
+        "mr",
+        "mrs",
+        "ms",
+        "miss",
+        "mx",
+        "dr",
+        "prof",
+        "professor",
+        "sir",
+        "dame",
+        "lord",
+        "lady",
+        "rev",
+        "reverend",
+        "rt",
+        "hon",
+    ] {
+        let parsed = features(&format!("{title}. Smith"));
+        assert_eq!(
+            serde_json::to_value(&parsed.person_titles).unwrap(),
+            serde_json::json!([title])
+        );
+        assert_eq!(parsed.person_core.as_deref(), Some("smith"));
+    }
+}
+
+#[test]
+fn unwraps_only_simple_post_title_parentheses_and_preserves_evidence() {
+    let parsed = features("Lord (Michael) Farmer");
+    assert_eq!(parsed.parenthetical_text, ["Michael"]);
+    assert_eq!(
+        parsed.name_normalized.as_deref(),
+        Some("lord (michael) farmer")
+    );
+    assert_eq!(
+        parsed.organisation_core.as_deref(),
+        Some("lord michael farmer")
+    );
+    assert_eq!(parsed.person_core.as_deref(), Some("michael farmer"));
+    assert_eq!(parsed.person_initials.as_deref(), Some("mf"));
+    for raw in [
+        "Lord (Michael)Farmer",
+        "Lord ((Michael)) Farmer",
+        "Lord (Michael Farmer",
+        "Lord () Farmer",
+        "Lord (Michael) Farmer)",
+        "Lord (Michael 2) Farmer",
+        "Lord (Michael and Jane) Farmer",
+        "Lord (trading as Michael) Farmer",
+        "Lord (trustee) Farmer",
+        "Lord Smith (trustee)",
+        "BJD (GB) Limited",
+        "HSBC UK (Ian Stuart, CEO)",
+    ] {
+        let parsed = features(raw);
+        let expected = raw.to_lowercase();
+        let remainder = expected.strip_prefix("lord ").unwrap_or(&expected);
+        assert_eq!(
+            parsed.person_name_normalized.as_deref(),
+            Some(remainder),
+            "{raw}"
+        );
+        assert_eq!(parsed.name_normalized.as_deref(), Some(expected.as_str()));
+    }
+    for raw in ["(Mr) Smith", "Mr, Smith", "Mr-Mrs Smith"] {
+        let parsed = features(raw);
+        assert_eq!(parsed.person_core.as_deref(), Some("smith"));
+        assert_eq!(parsed.person_initials.as_deref(), Some("s"));
+    }
+}

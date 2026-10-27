@@ -54,3 +54,31 @@ fn original_splink_golden_candidates_levels_and_probabilities() {
         }
     }
 }
+
+#[test]
+fn individual_donor_shared_key_generates_native_candidate_without_name_or_address_blocks() {
+    let rows = ["lord michael farmer", "michael farmer"]
+        .into_iter()
+        .enumerate()
+        .map(|(index, name)| ComparisonRow {
+            key: format!("profile-{index}"),
+            name: name.into(),
+            address: None,
+            blocking_keys: vec!["individual-donor-name:michael farmer".into()],
+            needs_resolution: true,
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        blocking::bounded_candidates(&rows, &blocking::CandidateRule::ALL[..4], 10)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        blocking::bounded_candidates(&rows, &[blocking::CandidateRule::SharedBlockingKey], 10)
+            .unwrap()
+            .len(),
+        1
+    );
+    let scorer = WeldrsFunderScorer::new().unwrap();
+    assert_eq!(infer(rows, 10, &scorer.model).unwrap().len(), 1);
+}

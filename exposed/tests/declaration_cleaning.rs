@@ -1,6 +1,7 @@
 #[path = "common/response_schema.rs"]
 mod response_schema;
 use exposed::domain::models::parliament_member::MemberId;
+use exposed::domain::repositories::declaration_resolution::DeclarationResolutionStorage;
 use std::{
     collections::HashSet,
     fs::{self, File},
@@ -476,7 +477,18 @@ async fn empty_valid_partitions_produce_two_empty_tables_but_invalid_empty_schem
                 assert_eq!(response[count].as_u64(), Some(0));
             }
             for table in ["funding_entries.parquet", "funders.parquet"] {
-                assert!(read_table(&cleaned_path(tmp.path(), &key).join(table))?.is_empty());
+                let path = cleaned_path(tmp.path(), &key).join(table);
+                assert!(read_table(&path)?.is_empty());
+                if table == "funders.parquet" {
+                    let reader = ParquetRecordBatchReaderBuilder::try_new(File::open(path)?)?;
+                    assert!(reader.schema().field_with_name("person_titles").is_ok());
+                    assert!(
+                        reader
+                            .schema()
+                            .field_with_name("person_name_normalized")
+                            .is_ok()
+                    );
+                }
             }
         } else {
             assert!(!output.status.success());
@@ -532,5 +544,61 @@ async fn reordered_raw_columns_and_abandoned_staging_do_not_change_cleaning() ->
         fs::read_to_string(abandoned.join("funding_entries.parquet"))?,
         "incomplete"
     );
+    Ok(())
+}
+
+#[tokio::test]
+async fn person_candidates_survive_cli_parquet_and_resolution_reader() -> anyhow::Result<()> {
+    let tmp = TempDir::new()?;
+    let key = IngestionKey::default();
+    let storage =
+        ExposedDataPipeline::new_with_ingestion_key(&tmp.path().join("data"), key.clone())?;
+    let names = [
+        "Lord (Michael) Farmer",
+        "Dame Élodie O’Brien-Smith",
+        "BJD (GB) Limited",
+        "Confidential",
+        "Mrs.",
+    ];
+    let captures = names
+        .iter()
+        .enumerate()
+        .map(|(index, name)| declaration(index as u32 + 1, vec![funding(Some(name), None)], vec![]))
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    storage
+        .write_raw_declarations(MemberId::new(4613)?, &captures)
+        .await?;
+    assert_success(&run_clean(tmp.path(), Some(&key))?);
+    let path = cleaned_path(tmp.path(), &key).join("funders.parquet");
+    let rows = read_table(&path)?;
+    for (index, (titles, name)) in [
+        (json!(["lord"]), json!("michael farmer")),
+        (json!(["dame"]), json!("élodie o’brien-smith")),
+        (json!([]), json!("bjd (gb) limited")),
+        (json!([]), Value::Null),
+        (json!(["mrs"]), Value::Null),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let row = rows
+            .iter()
+            .find(|row| row["declaration_id"] == index as u32 + 1)
+            .unwrap();
+        assert_eq!(row["name_raw"], names[index]);
+        assert_eq!(row["person_titles"], titles);
+        assert_eq!(row["person_name_normalized"], name);
+    }
+    let reader = ParquetRecordBatchReaderBuilder::try_new(File::open(path)?)?;
+    let schema = reader.schema();
+    let titles = schema.field_with_name("person_titles")?;
+    assert!(!titles.is_nullable());
+    assert!(
+        matches!(titles.data_type(), DataType::List(item) if item.data_type() == &DataType::Utf8 && !item.is_nullable())
+    );
+    let name = schema.field_with_name("person_name_normalized")?;
+    assert_eq!(name.data_type(), &DataType::Utf8);
+    assert!(name.is_nullable());
+    storage.read_resolution_input().await?;
     Ok(())
 }

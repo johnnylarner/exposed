@@ -33,3 +33,11 @@ The resolved manifest uses schema version 2 for source-only member identities.
 Observation and occurrence keys contain numeric Parliament member IDs. Database
 member UUIDs never enter resolution artifacts. Loading resolves those source IDs
 to the destination database member UUIDs inside the load transaction.
+
+Verify individual donor title variants through the real clean/resolve CLI:
+
+```sh
+cargo test --package exposed --test declaration_resolution_cli individual_donor_title_variants_resolve_to_one_identity_per_person
+```
+
+The fixture checks that `Lord Michael Farmer`, `Michael Farmer`, and `Lord (Michael) Farmer` share one identity, and the corresponding David Sainsbury variants share a different identity. All six are explicit individual donors without addresses. It checks retained raw names, unchanged raw and cleaned artifacts, six funding occurrences, and donor attribution. Resolution compares the cleaner's exact title-free full-name feature only for explicit individual/person donors. These links record extracted-name evidence; raw scoring profiles and the existing exact donor-name rule remain unchanged.
