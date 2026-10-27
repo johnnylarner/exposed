@@ -24,8 +24,10 @@ impl ParliamentApiClient {
                 member.value(),
                 self.batch_size,
             );
-            let bytes = self.client.get(&url).send().await?.bytes().await?;
-            let response: InterestPage = decode_response(&bytes, &url)?;
+            let result = self.client.get(&url).send().await?;
+            let status = result.status();
+            let bytes = result.bytes().await?;
+            let response: InterestPage = decode_response(&bytes, &url, status)?;
             if response.items.is_empty() {
                 break;
             }
@@ -54,15 +56,18 @@ struct InterestPage {
 mod tests {
     use super::super::ParliamentResponse;
     use super::*;
+    use crate::inbound::cli::{IntoResponse, Response};
+    use reqwest::StatusCode;
     use serde::de::DeserializeOwned;
 
     fn assert_diagnostic<T: DeserializeOwned>(url: &str, body: &str, cause: &str) {
-        let Err(error) = decode_response::<T>(body.as_bytes(), url) else {
+        let Err(error) = decode_response::<T>(body.as_bytes(), url, StatusCode::BAD_GATEWAY) else {
             panic!("invalid response was accepted");
         };
         let error: crate::domain::repositories::parliament_api::ParliamentApiError = error.into();
         let diagnostic = error.to_string();
         assert!(diagnostic.contains(cause), "{diagnostic}");
+        assert!(diagnostic.contains("HTTP 502 Bad Gateway"), "{diagnostic}");
         assert!(
             diagnostic.contains(body),
             "response body missing from diagnostic: {diagnostic}"
@@ -71,6 +76,16 @@ mod tests {
             diagnostic.contains(url),
             "request URL missing from diagnostic: {diagnostic}"
         );
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        let exit = Result::<Response, _>::Err(error)
+            .into_response()
+            .write_to(&mut stdout, &mut stderr)
+            .unwrap();
+        assert_eq!(exit, std::process::ExitCode::FAILURE);
+        assert!(stdout.is_empty());
+        let output: Value = serde_json::from_slice(&stderr).unwrap();
+        assert_eq!(output["error"]["message"].as_str().unwrap(), diagnostic);
     }
 
     #[test]
@@ -120,10 +135,10 @@ mod tests {
     #[test]
     fn valid_pages_still_decode() {
         let body = br#"{"items":[],"totalResults":0}"#;
-        let members: ParliamentResponse = decode_response(body, "members").unwrap();
+        let members: ParliamentResponse = decode_response(body, "members", StatusCode::OK).unwrap();
         assert!(members.items.is_empty());
         assert_eq!(members.total_results, 0);
-        let interests: InterestPage = decode_response(body, "interests").unwrap();
+        let interests: InterestPage = decode_response(body, "interests", StatusCode::OK).unwrap();
         assert!(interests.items.is_empty());
         assert_eq!(interests.total_results, 0);
     }
