@@ -391,6 +391,15 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+.metric-value-clip {
+  display: block;
+  overflow: hidden;
+  width: max-content;
+  min-width: 100%;
+}
+.metric-value {
+  display: block;
+}
 .category-list {
   list-style: none;
   padding: 0;
@@ -427,10 +436,12 @@
 .signed-bar > span {
   position: absolute;
   left: var(--baseline);
+  transform-origin: left;
   height: 100%;
   background: var(--accent);
 }
 .signed-bar > span.negative {
+  transform-origin: right;
   left: auto;
   right: calc(100% - var(--baseline));
   opacity: 0.65;

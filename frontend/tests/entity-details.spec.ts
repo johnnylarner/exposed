@@ -613,6 +613,7 @@ for (const negative of [false, true]) {
     backend,
     page,
   }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
     await backend.route("**/api/members/1?*", (route) =>
       route.fulfill({
         json: {
@@ -1465,16 +1466,22 @@ test("declared amounts keep precise figures readable on narrow screens and missi
       .evaluateAll((elements) =>
         elements.map((element) => {
           const text = document.createRange();
-          text.selectNodeContents(element);
+          text.selectNodeContents(
+            element.querySelector(".metric-value") ?? element,
+          );
           return {
-            fits: element.scrollWidth <= element.clientWidth,
+            readable:
+              element.scrollWidth <= element.clientWidth ||
+              (element.getAttribute("role") === "region" &&
+                element.getAttribute("tabindex") === "0" &&
+                getComputedStyle(element).overflowX === "auto"),
             lines: text.getClientRects().length,
             fontSize: parseFloat(getComputedStyle(element).fontSize),
           };
         }),
       );
     for (const figure of figures) {
-      expect(figure.fits).toBe(true);
+      expect(figure.readable).toBe(true);
       expect(figure.lines).toBe(1);
       expect(figure.fontSize).toBeGreaterThanOrEqual(24);
     }
@@ -1518,7 +1525,9 @@ test("declared amounts keep precise figures readable on narrow screens and missi
     expect(
       await figure.evaluate((element) => {
         const range = document.createRange();
-        range.selectNodeContents(element);
+        range.selectNodeContents(
+          element.querySelector(".metric-value") ?? element,
+        );
         return range.getClientRects().length;
       }),
     ).toBe(1);

@@ -1,11 +1,15 @@
 <script lang="ts">
+  import { entryMotion } from "./entry-motion";
   import type { RankingRow } from "./ranking-types";
   let { rows, label }: { rows: RankingRow[]; label: string } = $props();
 </script>
 
 <ol class="ranking-list" role="list" aria-label={label}>
   {#each rows as row, index (row.key)}
-    <li data-accent={row.accent} style:--row-delay={`${index * 35}ms`}>
+    <li
+      data-accent={row.accent}
+      use:entryMotion={{ preset: "row", initial: true, index }}
+    >
       <span class="rank" aria-hidden="true">{index + 1}</span>
       <div class="identity">
         {#if row.href}<a href={row.href}>{row.name}</a>{:else}<span class="name"
@@ -14,7 +18,10 @@
         <span class="context">{row.context}</span>
       </div>
       <span class="bar-track" aria-hidden="true"
-        ><span class:negative={row.negative} style:width={`${row.width}%`}
+        ><span
+          use:entryMotion={{ preset: "bar", initial: true, index }}
+          class:negative={row.negative}
+          style:width={`${row.width}%`}
         ></span></span
       >
       <span class="value">{row.amount}</span>
@@ -37,8 +44,6 @@
     row-gap: var(--space-1);
     padding: var(--space-2) 0;
     border-bottom: 1px solid var(--line);
-    animation: ranking-enter 300ms both;
-    animation-delay: var(--row-delay);
   }
   [data-accent="member"] {
     --row-accent: var(--accent-member);
@@ -91,8 +96,6 @@
     height: 100%;
     background: var(--row-accent);
     transform-origin: left;
-    animation: ranking-bar 420ms both;
-    animation-delay: var(--row-delay);
   }
   .bar-track > span.negative {
     opacity: 0.5;
@@ -112,30 +115,6 @@
     grid-column: 3;
     grid-row: 3;
     text-align: right;
-  }
-  @keyframes ranking-enter {
-    from {
-      opacity: 0;
-      transform: translateY(8px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
-  }
-  @keyframes ranking-bar {
-    from {
-      transform: scaleX(0);
-    }
-    to {
-      transform: scaleX(1);
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    li,
-    .bar-track > span {
-      animation: none;
-    }
   }
   @media (max-width: 480px) {
     li {

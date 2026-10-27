@@ -42,3 +42,9 @@ UI-owned snippet classes are `.results-list` (list reset and divider), `.entity-
 `RankingList` accepts formatted `RankingRow[]` and an accessible list `label`. Features supply stable keys, destinations, amounts, coverage, signs and bar widths. The list animates row and bar entry and disables animation for reduced motion. Party identities can omit destinations.
 
 `ContentChange` takes a string `changeKey` and `children` snippet. Its persistent root fades new committed content from opacity 0.65 to 1 over 200ms. Initial rendering is static. New changes cancel earlier motion; reduced motion skips animation and cancels active motion when enabled. Keep controls and stable identity outside. Features own loading and the committed key. Children retain DOM identity and local state.
+
+`Metric` accepts optional opaque committed `changeKey`. Changed keys roll the exact incoming formatted value upward within a clip over 200ms; initial and unavailable values stay static. Its keyboard-scrollable region stays stationary.
+
+`SignedBarList` accepts optional opaque committed `changeKey` to replay the rankings entry recipe: rows enter over 300ms and bars grow over 420ms, with 35ms row stagger and ease timing. Rows also animate on insertion; unchanged keys do not replay. Negative signed bars grow from the right baseline.
+
+Metric, SignedBarList, RankingList and ContentChange share internal finite motion presets. Reduced motion skips entry and cancels active animations immediately; skipped keys are remembered. Keep rolling metrics and animated bars outside ContentChange to avoid layering its fade.

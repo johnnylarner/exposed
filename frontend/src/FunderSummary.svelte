@@ -35,9 +35,11 @@
 </script>
 
 <section aria-label="Summary">
-  <PeriodSelector period={details.period} />
-  <ContentChange changeKey={details.period}>
+  <div class="summary-header">
     <DeclaredTotals totals={details.declaredTotals} period={details.period} />
+    <PeriodSelector period={details.period} />
+  </div>
+  <ContentChange changeKey={details.period}>
     <p class="entry-count">
       {details.entryCount}
       {details.entryCount === 1 ? "funding entry" : "funding entries"}

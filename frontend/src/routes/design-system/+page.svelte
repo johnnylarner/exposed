@@ -591,23 +591,43 @@
           ></tr
         ></DataTable
       >
+      <Metric
+        label="Animated declared amounts"
+        changeKey={examplePeriod}
+        value={examplePeriod === "Historical"
+          ? "£9,007,199,254,740,993.123456789"
+          : "£234.56"}
+      />
       <SignedBarList
+        changeKey={examplePeriod}
         baseline={25}
-        bars={[
-          {
-            label: "Employment",
-            value: "£12,345.67",
-            width: 75,
-            negative: false,
-          },
-          {
-            label: "Adjustment",
-            value: "-£1,000",
-            width: 25,
-            negative: true,
-            note: "Some amounts unavailable",
-          },
-        ]}
+        bars={examplePeriod === "This year"
+          ? []
+          : [
+              ...(examplePeriod === "Historical"
+                ? [
+                    {
+                      label: "New category",
+                      value: "£10",
+                      width: 10,
+                      negative: false,
+                    },
+                  ]
+                : []),
+              {
+                label: "Employment",
+                value: "£12,345.67",
+                width: 75,
+                negative: false,
+              },
+              {
+                label: "Adjustment",
+                value: "-£1,000",
+                width: 25,
+                negative: true,
+                note: "Some amounts unavailable",
+              },
+            ]}
       />
       {#each ["member", "funder"] as tone}<div
           class:funder-page={tone === "funder"}

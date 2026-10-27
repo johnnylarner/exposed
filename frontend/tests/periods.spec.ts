@@ -231,7 +231,12 @@ for (const kind of ["member", "funder"] as const) {
         .locator(".member-summary-top")
         .boundingBox();
       expect(breakdown!.y).toBeGreaterThanOrEqual(metric!.y + metric!.height);
-      expect(metric!.y).toBeGreaterThan(controls!.y + controls!.height);
+      if (width === 1440) {
+        expect(controls!.y).toBeLessThan(metric!.y + metric!.height);
+        expect(metric!.x + metric!.width).toBeLessThanOrEqual(controls!.x);
+      } else {
+        expect(controls!.y).toBeGreaterThanOrEqual(metric!.y + metric!.height);
+      }
     }
     const historical = selector.getByRole("link", {
       name: "Historical",
@@ -430,8 +435,10 @@ for (const kind of ["member", "funder", "rankings"] as const) {
     const main = page.locator(kind === "rankings" ? "#rankings" : "#details");
     const selector = page.getByRole("navigation", { name: "Reporting period" });
     await expect(selector).toBeVisible();
+    const persistentSelector =
+      kind === "member" ? ".member-summary-top" : ".content-change";
     const persistentContent = await page
-      .locator(".content-change")
+      .locator(persistentSelector)
       .elementHandle();
     await expect(page.locator("html")).not.toHaveAttribute(
       "data-content-changes",
@@ -464,13 +471,19 @@ for (const kind of ["member", "funder", "rankings"] as const) {
       selector.getByRole("link", { name: "This year", exact: true }),
     ).toHaveAttribute("aria-current", "page");
     await expect(main).toHaveAttribute("aria-busy", "false");
-    await expect(page.locator("html")).toHaveAttribute(
-      "data-content-changes",
-      "1",
-    );
+    if (kind === "member")
+      await expect(page.locator("html")).not.toHaveAttribute(
+        "data-content-changes",
+      );
+    else
+      await expect(page.locator("html")).toHaveAttribute(
+        "data-content-changes",
+        "1",
+      );
     expect(
       await persistentContent?.evaluate(
-        (element) => element === document.querySelector(".content-change"),
+        (element, selector) => element === document.querySelector(selector),
+        persistentSelector,
       ),
     ).toBe(true);
     await expect(

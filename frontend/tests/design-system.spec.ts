@@ -715,3 +715,131 @@ test("content changes preserve their root and respect live reduced motion", asyn
   await selector.getByRole("link", { name: "This year", exact: true }).click();
   await expect(html).toHaveAttribute("data-content-changes", "3");
 });
+
+test("committed values roll exactly while signed bars share the ranking recipe", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      if (
+        this instanceof HTMLElement &&
+        this.matches(
+          ".metric-value, .category-list li, .signed-bar > span, .ranking-list li, .bar-track > span",
+        )
+      ) {
+        const data = this.dataset;
+        data.entries = String(Number(data.entries ?? 0) + 1);
+        animation.pause();
+        animation.currentTime = 0;
+      }
+      return animation;
+    };
+  });
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const metric = page.getByRole("region", {
+    name: "Animated declared amounts",
+    exact: true,
+  });
+  const value = metric.locator(".metric-value");
+  await expect(value).not.toHaveAttribute("data-entries");
+  const region = await metric.elementHandle();
+  const filters = page.getByRole("navigation", { name: "Example periods" });
+  await filters.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(value).toHaveText("£9,007,199,254,740,993.123456789");
+  await expect(value).toHaveAttribute("data-entries", "1");
+  await expect(page.locator(".category-list li")).toHaveCount(3);
+  await expect(page.locator(".category-list li").last()).toHaveAttribute(
+    "data-entries",
+    "1",
+  );
+  const frames = await value.evaluate((element) => {
+    const effect = element.getAnimations()[0]?.effect;
+    if (!(effect instanceof KeyframeEffect))
+      throw new Error("Missing roll effect");
+    return effect.getKeyframes().map((frame) => frame.transform);
+  });
+  expect(frames).toEqual(["translateY(100%)", "translateY(0px)"]);
+  expect(
+    await metric.evaluate((element) => getComputedStyle(element).transform),
+  ).toBe("none");
+  expect(
+    await value.evaluate((element) => getComputedStyle(element).transform),
+  ).not.toBe("none");
+  await value.evaluate((element) => {
+    element.getAnimations()[0].currentTime = 100;
+  });
+  const middle = await value.evaluate(
+    (element) => new DOMMatrixReadOnly(getComputedStyle(element).transform).m42,
+  );
+  expect(middle).toBeGreaterThan(0);
+  expect(middle).toBeLessThan(
+    await value.evaluate((element) => element.getBoundingClientRect().height),
+  );
+  const recipe = async (selector: string) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate((element) => {
+        const effect = element.getAnimations()[0]?.effect;
+        if (!(effect instanceof KeyframeEffect))
+          throw new Error("Missing entry effect");
+        const timing = effect.getTiming();
+        return {
+          duration: timing.duration,
+          easing: timing.easing,
+          fill: timing.fill,
+          frames: effect
+            .getKeyframes()
+            .map(({ opacity, transform }) => ({ opacity, transform })),
+        };
+      });
+  expect(await recipe(".category-list li")).toEqual(
+    await recipe(".ranking-list li"),
+  );
+  expect(await recipe(".signed-bar > span")).toEqual(
+    await recipe(".bar-track > span"),
+  );
+  const negative = page.locator(".signed-bar > span.negative");
+  expect(
+    await negative.evaluate(
+      (element) => getComputedStyle(element).transformOrigin.split(" ")[0],
+    ),
+  ).toBe(
+    await negative.evaluate((element) => `${getComputedStyle(element).width}`),
+  );
+  await filters.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(value).toHaveAttribute("data-entries", "1");
+  await page.setViewportSize({ width: 320, height: 900 });
+  await metric.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect
+    .poll(() => metric.evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
+  await expect(metric).toBeFocused();
+  await metric.evaluate((element) => {
+    element.scrollLeft = 20;
+  });
+  const scroll = await metric.evaluate((element) => element.scrollLeft);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect
+    .poll(() => value.evaluate((element) => element.getAnimations().length))
+    .toBe(0);
+  await filters.getByRole("link", { name: "This year", exact: true }).click();
+  await expect(value).toHaveAttribute("data-entries", "1");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await filters.getByRole("link", { name: "This year", exact: true }).click();
+  await expect(value).toHaveAttribute("data-entries", "1");
+  expect(await region?.evaluate((element) => element.isConnected)).toBe(true);
+  expect(
+    await metric.evaluate((element) => element.scrollLeft),
+  ).toBeLessThanOrEqual(scroll);
+  await expect(page.locator(".category-list li")).toHaveCount(0);
+  await filters.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(page.locator(".category-list li")).toHaveCount(3);
+  await expect(page.locator(".category-list li").last()).toHaveAttribute(
+    "data-entries",
+    "1",
+  );
+});

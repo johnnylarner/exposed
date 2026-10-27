@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { entryMotion } from "./entry-motion";
   let {
     variant = "default",
     align,
@@ -8,6 +9,7 @@
     available = true,
     description,
     level = 2,
+    changeKey,
   }: {
     variant?: "default" | "expanded";
     align?: "start" | "end";
@@ -17,6 +19,7 @@
     available?: boolean;
     description?: string;
     level?: 2 | 3;
+    changeKey?: string;
   } = $props();
 </script>
 
@@ -32,6 +35,11 @@
       aria-label={regionLabel}
       title={description}
     >
-      {value}
+      <span class="metric-value-clip"
+        ><span
+          class="metric-value"
+          use:entryMotion={{ preset: "roll-up", changeKey }}>{value}</span
+        ></span
+      >
     </div>{:else}<p class="member-total unavailable">{value}</p>{/if}
 </div>

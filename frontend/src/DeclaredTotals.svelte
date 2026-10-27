@@ -12,6 +12,7 @@
 
 <div class="declared-totals">
   <Metric
+    changeKey={period}
     variant="expanded"
     label="Declared amounts"
     regionLabel="Declared amounts in GBP"
