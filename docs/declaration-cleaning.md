@@ -92,6 +92,8 @@ entity ID or a reason to merge rows.
 | `name_token_key` | Lexically sorted tokens, including repeated tokens. |
 | `primary_name_normalized` | Normalized name excluding explicit trading-as text and parenthetical trading-as annotations. Other parentheses remain. |
 | `organisation_core` | Primary-name tokens with one complete trailing UK legal suffix removed. |
+| `person_titles` | Ordered leading honorifics, serialized in lowercase; retained for title-only names. |
+| `person_name_normalized` | Title-free normalized candidate retaining apostrophes and hyphens; null when absent. A simple leading post-title parenthetical given name is unwrapped, e.g. `Lord (Michael) Farmer` becomes `michael farmer`. No given-name or surname roles are inferred. |
 | `person_core` | Full-name tokens with listed leading honorifics removed. |
 | `person_initials` | First character of each person-core token. |
 | `organisation_initials` | First character of each organisation-core token, excluding listed connective words. |
@@ -147,3 +149,8 @@ house or building token and a street designation. Address evidence comes from re
 
 The [resolver](funder-resolution-design.md) requires this cleaned schema. Old artifacts containing database member UUIDs are unsupported. Capture a new
 ingestion run, then clean, resolve, and load that run. Old files remain unchanged.
+
+The person candidates do not classify funders or change resolution and display names.
+The added person columns require regenerating older cleaned artifacts before resolution,
+using the existing recapture/clean/resolve/load workflow; the resolution reader requires
+the complete current cleaned schema. Raw names and other comparison features are unchanged.

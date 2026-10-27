@@ -292,6 +292,8 @@ pub(super) fn funders_schema() -> Schema {
         text("name_token_key", true),
         text("primary_name_normalized", true),
         text("organisation_core", true),
+        list("person_titles"),
+        text("person_name_normalized", true),
         text("person_core", true),
         text("person_initials", true),
         text("organisation_initials", true),
