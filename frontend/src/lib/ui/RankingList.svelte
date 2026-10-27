@@ -12,16 +12,13 @@
             >{row.name}</span
           >{/if}
         <span class="context">{row.context}</span>
-        <span class="bar-track" aria-hidden="true"
-          ><span class:negative={row.negative} style:width={`${row.width}%`}
-          ></span></span
-        >
       </div>
-      <div class="value">
-        <span>{row.amount}</span>{#if row.incomplete}<span class="incomplete"
-            >Incomplete</span
-          >{/if}
-      </div>
+      <span class="bar-track" aria-hidden="true"
+        ><span class:negative={row.negative} style:width={`${row.width}%`}
+        ></span></span
+      >
+      <span class="value">{row.amount}</span>
+      {#if row.incomplete}<span class="incomplete">Incomplete</span>{/if}
     </li>
   {/each}
 </ol>
@@ -34,9 +31,10 @@
   }
   li {
     display: grid;
-    grid-template-columns: 24px minmax(0, 1fr) minmax(0, auto);
+    grid-template-columns: 24px minmax(0, 1fr) fit-content(50%);
     align-items: start;
-    gap: var(--space-3);
+    column-gap: var(--space-3);
+    row-gap: var(--space-1);
     padding: var(--space-2) 0;
     border-bottom: 1px solid var(--line);
     animation: ranking-enter 300ms both;
@@ -58,6 +56,7 @@
     font-variant-numeric: tabular-nums;
   }
   .identity {
+    grid-column: 2 / -1;
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
@@ -80,9 +79,11 @@
     font-size: var(--text-small);
   }
   .bar-track {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: center;
     display: block;
     height: 3px;
-    margin-top: var(--space-1);
     background: var(--surface);
   }
   .bar-track > span {
@@ -97,15 +98,20 @@
     opacity: 0.5;
   }
   .value {
+    grid-column: 3;
+    grid-row: 2;
     color: var(--row-accent);
+    min-width: 0;
     max-width: 330px;
     text-align: right;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-1);
-    font-size: var(--text-body);
+    font-size: var(--text-heading);
     font-variant-numeric: tabular-nums;
     overflow-wrap: anywhere;
+  }
+  .incomplete {
+    grid-column: 3;
+    grid-row: 3;
+    text-align: right;
   }
   @keyframes ranking-enter {
     from {
@@ -134,12 +140,18 @@
   @media (max-width: 480px) {
     li {
       grid-template-columns: 18px minmax(0, 1fr);
-      gap: var(--space-2);
+      column-gap: var(--space-2);
     }
     .value {
       grid-column: 2;
-      text-align: left;
+      grid-row: 3;
       max-width: 100%;
+      text-align: left;
+    }
+    .incomplete {
+      grid-column: 2;
+      grid-row: 4;
+      text-align: left;
     }
   }
 </style>
