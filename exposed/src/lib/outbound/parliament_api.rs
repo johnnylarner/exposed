@@ -2,10 +2,10 @@
 
 use std::num::NonZeroU8;
 
-use serde::Deserialize;
+use serde::{Deserialize, de::DeserializeOwned};
 use thiserror::Error;
 
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 
 use crate::domain::{
     models::{
@@ -54,18 +54,18 @@ impl Interface for ParliamentApiClient {
             );
             let result = self
                 .client
-                .get(url)
+                .get(&url)
                 .send()
                 .await
                 .map_err(|e| ApiError::ResponseError(e.to_string()))?;
 
+            let status = result.status();
             let bytes = result
                 .bytes()
                 .await
                 .map_err(|e| ApiError::ResponseError(e.to_string()))?;
 
-            let response: ParliamentResponse = serde_json::from_slice(&bytes)
-                .map_err(|e| ApiError::ResponseError(e.to_string()))?;
+            let response: ParliamentResponse = decode_response(&bytes, &url, status)?;
 
             offset += response.items.len();
             members.extend(response.items);
@@ -167,4 +167,17 @@ impl From<EntityIngestionError> for ApiError {
     fn from(error: EntityIngestionError) -> Self {
         Self::ResponseError(error.to_string())
     }
+}
+
+fn decode_response<T: DeserializeOwned>(
+    bytes: &[u8],
+    url: &str,
+    status: StatusCode,
+) -> Result<T, ApiError> {
+    serde_json::from_slice(bytes).map_err(|error| {
+        ApiError::ResponseError(format!(
+            "failed to decode response from {url} (HTTP {status}): {error}\nResponse body:\n{}",
+            String::from_utf8_lossy(bytes),
+        ))
+    })
 }
