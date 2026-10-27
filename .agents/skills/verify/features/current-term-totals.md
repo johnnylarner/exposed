@@ -2,7 +2,7 @@
 
 Run these checks when verifying totals or rankings. Use the
 [financial totals contract](../../../../AGENTS.md) and
-[CurrentParliamentStart](../../../../exposed/src/lib/domain/models/declared_totals.rs)
+[ReportingContext](../../../../exposed/src/lib/domain/models/reporting_period.rs)
 as the scope. These are declared amounts, which can include rates and benefits.
 Do not restrict the check to employment or earned income.
 
