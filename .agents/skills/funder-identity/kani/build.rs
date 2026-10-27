@@ -129,6 +129,52 @@ fn main() {
             ],
         ),
     ];
+    let name_source = models.join("funder_name.rs");
+    println!("cargo:rerun-if-changed={}", name_source.display());
+    let parsed = syn::parse_file(&fs::read_to_string(name_source).unwrap()).unwrap();
+    let names = [
+        "PersonTitle",
+        "ParsedPersonName",
+        "PeerageName",
+        "PeerageBridge",
+        "normalize",
+        "tokens",
+        "name_like",
+        "unwrap_given_name",
+    ];
+    let mut name_syntax = String::from(
+        "use unicode_normalization::{UnicodeNormalization, char::is_combining_mark};\n",
+    );
+    let mut remaining: BTreeSet<_> = names.into_iter().collect();
+    for mut item in parsed.items {
+        let name = match &item {
+            Item::Struct(item) => Some(item.ident.to_string()),
+            Item::Enum(item) => Some(item.ident.to_string()),
+            Item::Fn(item) => Some(item.sig.ident.to_string()),
+            Item::Impl(item) => match &*item.self_ty {
+                syn::Type::Path(path) => path.path.get_ident().map(ToString::to_string),
+                _ => None,
+            },
+            _ => None,
+        };
+        if let Some(name) = name
+            && names.contains(&name.as_str())
+        {
+            remaining.remove(name.as_str());
+            ProofAttributes.visit_item_mut(&mut item);
+            name_syntax.push_str(&item.into_token_stream().to_string());
+            name_syntax.push('\n');
+        }
+    }
+    assert!(
+        remaining.is_empty(),
+        "missing canonical name syntax: {remaining:?}"
+    );
+    fs::write(
+        PathBuf::from(env::var_os("OUT_DIR").unwrap()).join("funder_name.rs"),
+        name_syntax,
+    )
+    .unwrap();
     let mut generated = String::new();
     for (relative, names) in selections {
         let source = models.join(relative);

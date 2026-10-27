@@ -1,4 +1,4 @@
-use super::{FunderNameFeatures, NameStatus};
+use super::{FunderNameFeatures, NameStatus, PeerageName};
 
 fn features(name: &str) -> FunderNameFeatures {
     FunderNameFeatures::from_name(Some(name))
@@ -282,4 +282,52 @@ fn unwraps_only_simple_post_title_parentheses_and_preserves_evidence() {
         assert_eq!(parsed.person_core.as_deref(), Some("smith"));
         assert_eq!(parsed.person_initials.as_deref(), Some("s"));
     }
+}
+
+#[test]
+fn peerage_bridges_require_complete_matching_personal_names() {
+    for raw in [
+        "Baron Vale of Mere (Alice Vale)",
+        "Lord Vale of Mere (Alice Vale )",
+        "BARON  Vale of Mere ( Alice Vale )",
+        "Lord D’Arcy of Île (Élodie D’Arcy)",
+        "Baron Smith-Jones of Mere (Anne Smith-Jones)",
+    ] {
+        let parsed = PeerageName::parse(raw).unwrap();
+        assert!(parsed.bridge().is_some(), "{raw}");
+    }
+    for raw in [
+        "Baron Vale of Mere (Alice Other)",
+        "Baron Vale of Mere (Vale)",
+        "Baron Vale of Mere (A Vale)",
+        "Baron Vale of Mere (A. Vale)",
+        "Baron Vale of Mere (Alice Vale 2)",
+        "Baron Vale of Mere (Alice and Vale)",
+        "Baron Vale of Mere (director Alice Vale)",
+        "Baron Vale of Mere (representative Alice Vale)",
+        "Baron Vale of Mere (on behalf of Alice Vale)",
+        "Baron Vale of Mere (trading as Alice Vale)",
+        "Baron Vale of Mere ((Alice Vale))",
+        "Baron Vale of Mere (Alice Vale) (Alice Vale)",
+        "Baron Vale of Mere (Alice Vale) annotation",
+        "Baron Vale of Mere (Alice Vale",
+        "Baron Vale of Mere Alice Vale)",
+        "Baron Vale of Mere ()",
+        "Baron Vale (Alice Vale)",
+        "Lady Vale of Mere (Alice Vale)",
+        "Dame Vale of Mere (Alice Vale)",
+        "Baroness Vale of Mere (Alice Vale)",
+        "Lady Vale of Mere",
+        "Dame Alice Vale of Mere",
+        "Vale of Mere",
+        "Alice Vale of Mere",
+    ] {
+        assert!(PeerageName::parse(raw).is_none(), "{raw}");
+    }
+    assert_eq!(
+        PeerageName::parse("Baron Vale of Mere (Alice Vale )")
+            .unwrap()
+            .spelling(),
+        "vale of mere (alice vale)"
+    );
 }

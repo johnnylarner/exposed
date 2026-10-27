@@ -1116,3 +1116,211 @@ fn individual_donor_blocking_preserves_original_profiles_and_missing_raw_name() 
     let empty = individual(1, "lord michael farmer", " ");
     assert!(ResolutionInput::new(vec![empty], Vec::new(), BTreeMap::new()).is_err());
 }
+
+fn peerage_observations(names: &[&str]) -> Vec<Observation> {
+    names
+        .iter()
+        .enumerate()
+        .map(|(index, name)| {
+            observation(
+                u32::try_from(index + 1).unwrap(),
+                Some(name),
+                None,
+                Some("Individual"),
+                None,
+            )
+        })
+        .collect()
+}
+
+#[test]
+fn peerage_bridge_supports_exact_variants_without_changing_comparison_profiles() {
+    let names = [
+        "Baron Vale of Mere (Alice Vale)",
+        "Lord Vale of Mere",
+        "Lord Alice Vale of Mere",
+        "Alice Vale",
+        "Lord (Alice) Vale",
+        "Baron Vale of Mere (Alice Vale )",
+    ];
+    let input = input(peerage_observations(&names));
+    let scoring = input.scoring_input(100);
+    assert_eq!(scoring.rows.len(), names.len());
+    for row in &scoring.rows {
+        assert!(names.contains(&row.name.as_str()));
+        assert_eq!(row.address, None);
+        assert!(
+            row.blocking_keys
+                .contains(&"peerage-person:alice vale".to_owned())
+        );
+    }
+    let result = resolve(&input, 0.001);
+    assert!(
+        result
+            .observations
+            .iter()
+            .all(|row| row.identity_id == result.observations[0].identity_id)
+    );
+    assert!(
+        result
+            .pairs
+            .iter()
+            .all(|pair| pair.probability.to_bits() == 0.001_f64.to_bits()
+                && matches!(pair.reason, PairReason::ExtractedNameEvidence))
+    );
+}
+
+#[test]
+fn peerage_styles_without_bridges_or_with_other_holders_stay_separate() {
+    let names = ["Lord Vale of Mere", "Lord Alice Vale of Mere", "Alice Vale"];
+    let missing = input(peerage_observations(&names));
+    assert!(
+        missing
+            .observations
+            .keys()
+            .all(|id| missing.peerage_aliases.personal_name(id).is_none())
+    );
+    let result = resolve(&missing, 1.0);
+    assert_eq!(
+        result
+            .observations
+            .iter()
+            .map(|row| &row.identity_id)
+            .collect::<BTreeSet<_>>()
+            .len(),
+        3
+    );
+    let names = [
+        "Baron Vale of Mere (Alice Vale)",
+        "Lady Vale of Mere",
+        "Dame Vale of Mere",
+        "Vale of Mere",
+        "Alice Vale of Mere",
+        "Lord Vale of Other",
+        "Beatrice Vale",
+        "Alice Vale Perrin",
+    ];
+    let input = input(peerage_observations(&names));
+    let result = resolve(&input, 1.0);
+    assert_eq!(
+        result
+            .observations
+            .iter()
+            .map(|row| &row.identity_id)
+            .collect::<BTreeSet<_>>()
+            .len(),
+        names.len()
+    );
+}
+
+#[test]
+fn conflicting_peerage_bridges_quarantine_all_styles_independent_of_order() {
+    let names = [
+        "Baron Vale of Mere (Alice Vale)",
+        "Baron Vale of Mere (Beatrice Vale)",
+        "Lord Vale of Mere",
+        "Lord Alice Vale of Mere",
+        "Lord Beatrice Vale of Mere",
+        "Alice Vale",
+        "Beatrice Vale",
+        "Baron Alice Vale of Mere (Caroline Alice Vale)",
+        "Caroline Alice Vale",
+    ];
+    let observations = peerage_observations(&names);
+    for mut rows in [
+        observations.clone(),
+        observations.into_iter().rev().collect(),
+    ] {
+        let input = input(std::mem::take(&mut rows));
+        for row in input.observations.values().take(5) {
+            assert_eq!(input.peerage_aliases.personal_name(&row.funder_id), None);
+        }
+        let result = resolve(&input, 0.001);
+        let ids = &result.observations;
+        assert_ne!(ids[5].identity_id, ids[6].identity_id);
+        assert_ne!(ids[5].identity_id, ids[8].identity_id);
+        assert_ne!(ids[6].identity_id, ids[8].identity_id);
+    }
+}
+
+#[test]
+fn colliding_peerage_aliases_cannot_join_personal_targets_transitively() {
+    let names = [
+        "Baron Vale of Mere (Alice Vale)",
+        "Baron Alice Vale of Mere (Beatrice Alice Vale)",
+        "Lord Alice Vale of Mere",
+        "Alice Vale",
+        "Beatrice Alice Vale",
+        "Lord Beatrice Alice Vale of Mere",
+        "Lord Vale of Mere",
+    ];
+    for rows in [
+        peerage_observations(&names),
+        peerage_observations(&names).into_iter().rev().collect(),
+    ] {
+        let input = input(rows);
+        let collision = input
+            .observations
+            .values()
+            .find(|row| row.name_raw.as_deref() == Some(names[2]))
+            .unwrap();
+        assert_eq!(
+            input.peerage_aliases.personal_name(&collision.funder_id),
+            None
+        );
+        let result = resolve(&input, 0.001);
+        assert_ne!(
+            result.observations[3].identity_id,
+            result.observations[4].identity_id
+        );
+        assert_ne!(
+            result.observations[2].identity_id,
+            result.observations[3].identity_id
+        );
+        assert_ne!(
+            result.observations[2].identity_id,
+            result.observations[4].identity_id
+        );
+    }
+}
+
+#[test]
+fn peerage_sources_and_consumers_require_person_donors() {
+    for excluded in 0..4 {
+        for source in [true, false] {
+            let mut rows = peerage_observations(&[
+                "Baron Vale of Mere (Alice Vale)",
+                "Lord Vale of Mere",
+                "Alice Vale",
+            ]);
+            let index = usize::from(!source);
+            let row = &mut rows[index];
+            match excluded {
+                0 => row.donor_kind = None,
+                1 => row.donor_kind = Some("Company".into()),
+                2 | 3 => {
+                    *row = payer(row.clone());
+                    if excluded == 3 {
+                        row.role = FunderRole::UltimatePayer;
+                        row.funder_id = serde_json::from_value(serde_json::json!(
+                            row.funder_id.as_str().replace("/payer", "/ultimate_payer")
+                        ))
+                        .unwrap();
+                    }
+                }
+                _ => unreachable!(),
+            }
+            let excluded_id = row.funder_id.clone();
+            let input = input(rows);
+            assert_eq!(input.peerage_aliases.personal_name(&excluded_id), None);
+            if source {
+                assert!(
+                    input
+                        .observations
+                        .keys()
+                        .all(|id| input.peerage_aliases.personal_name(id).is_none())
+                );
+            }
+        }
+    }
+}
