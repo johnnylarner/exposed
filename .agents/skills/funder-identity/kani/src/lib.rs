@@ -59,6 +59,7 @@ fn observation(id: &str) -> Observation {
         donor_company_number: None,
         name_raw: Some("A".into()),
         name_normalized: Some("a".into()),
+        person_name_normalized: None,
         organisation_core: None,
         alias_normalized: Vec::new(),
         address_normalized: None,
