@@ -10,6 +10,7 @@ export type PageModel =
   | { kind: "search"; query: string; result: SearchResult }
   | {
       kind: "detail";
+      period: import("./reporting-period").ReportingPeriod;
       route: Exclude<DetailRoute, { kind: "search" }>;
       result: Exclude<DetailState, { kind: "loading" }>;
     };

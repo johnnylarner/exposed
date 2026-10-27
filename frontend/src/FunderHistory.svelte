@@ -39,8 +39,8 @@
 <section aria-labelledby="history-heading">
   <SectionHeading id="history-heading" title="Funding history">
     <p>
-      All {details.declarations.length} stored funding declarations, most recent registration
-      first.
+      {details.declarations.length} funding declarations in this period, most recent
+      registration first.
     </p>
   </SectionHeading>
   <div class="history-filters">
@@ -70,7 +70,7 @@
     </Notice>
   {:else if filtered.length === 0}<p class="empty-details">
       {details.declarations.length === 0
-        ? "No funding history is stored for this funder."
+        ? "No funding history is recorded in this period."
         : "No declarations match these dates. Clear or change the dates."}
     </p>
   {:else}<p class="history-result-count">

@@ -1,4 +1,7 @@
 <script lang="ts">
+  import PeriodSelector from "../../PeriodSelector.svelte";
+  import { page, navigating } from "$app/state";
+  import { goto } from "$app/navigation";
   import AppShell from "../../AppShell.svelte";
   import { CategoryWheel, RankingList, Notice } from "../../lib/ui";
   import {
@@ -8,7 +11,13 @@
   } from "../../lib/rankings";
   import type { PageData } from "./$types";
   let { data }: { data: PageData } = $props();
-  let selected = $state<RankingCategory>("members");
+  const selected = $derived(data.selected);
+  function selectCategory(category: RankingCategory) {
+    const url = new URL(page.url.href);
+    url.searchParams.set("category", category);
+    url.searchParams.set("period", data.period);
+    void goto(url.pathname + url.search);
+  }
   const rows = $derived(
     data.rankings ? rankingRows(data.rankings, selected) : [],
   );
@@ -17,18 +26,19 @@
 <svelte:head><title>Rankings | Exposed</title></svelte:head>
 <AppShell target="rankings" current="rankings">
   <main id="rankings" tabindex="-1">
-    {#if data.rankings}
+    {#if navigating.to}<h1>Rankings</h1>
+    {:else if data.rankings}
       <div class="ranking-intro">
         <div>
           <h1>Rankings</h1>
-          <p class="ranking-meta">Total declared during this parliament</p>
+          <PeriodSelector period={data.period} />
         </div>
         <CategoryWheel
           options={rankingCategories}
           size={220}
           {selected}
           label="Ranking category"
-          onselect={(category) => (selected = category)}
+          onselect={selectCategory}
         />
       </div>
       <div class="board">
@@ -47,12 +57,6 @@
 </AppShell>
 
 <style>
-  .ranking-meta {
-    margin: var(--space-2) 0;
-    color: var(--muted);
-    font-size: var(--text-heading);
-    line-height: 1.5;
-  }
   .ranking-intro {
     display: flex;
     align-items: center;

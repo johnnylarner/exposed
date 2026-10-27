@@ -70,12 +70,13 @@
     {@const summary = summarizeMember(details)}
     <MemberIdentity
       member={details.member}
+      period={details.period}
       {summary}
       view={route.kind === "member" ? route.view : "summary"}
     />
-    {#if route.kind === "member" && route.view === "history"}<MemberHistory
-        {details}
-      />{:else}<MemberSummary {summary} />{/if}
+    {#if route.kind === "member" && route.view === "history"}{#key details.period}<MemberHistory
+          {details}
+        />{/key}{:else}<MemberSummary {summary} />{/if}
   {:else}
     {@const details = detailState.details}
     <FunderIdentity
@@ -83,7 +84,7 @@
       view={route.kind === "funder" ? route.view : "summary"}
     />
     {#if route.kind === "funder" && route.view === "history"}
-      <FunderHistory {details} />
+      {#key details.period}<FunderHistory {details} />{/key}
     {:else}
       <FunderSummary {details} />
     {/if}

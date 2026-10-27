@@ -385,6 +385,13 @@
           ><ViewLink href="#data-patterns">Declaration history</ViewLink
           ></ViewLinks
         >
+        <ViewLinks variant="filter" label="Example periods">
+          <ViewLink href="#patterns">Historical</ViewLink>
+          <ViewLink href="#patterns" aria-current="page"
+            >This parliamentary term</ViewLink
+          >
+          <ViewLink href="#patterns">This year</ViewLink>
+        </ViewLinks>
         <div class="entity-legend">
           <Badge variant="legend"><Icon name="parliament" size={16} />MP</Badge
           ><Badge variant="legend" class="result-palette-example"

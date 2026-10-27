@@ -2,7 +2,7 @@
   import { DeclarationList, DeclarationCard, ValueRow } from "./lib/ui";
   import { page } from "$app/state";
   import { formatPounds } from "./lib/member-summary";
-  import { entityHref } from "./lib/search";
+  import { memberHref } from "./lib/entity-details";
   import {
     formatAmount,
     registrationDate,
@@ -18,8 +18,9 @@
       {#snippet heading()}
         <h3>
           <a
-            href={entityHref(
-              { kind: "MP", id: source.member.id },
+            href={memberHref(
+              source.member.id,
+              "summary",
               page.url.searchParams,
             )}>{source.member.name}</a
           >

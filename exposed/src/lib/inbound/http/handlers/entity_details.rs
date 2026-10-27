@@ -1,3 +1,4 @@
+use crate::domain::models::reporting_period::ReportingPeriod;
 use crate::{
     domain::{
         models::entity_details::{
@@ -16,11 +17,17 @@ use crate::{
     inbound::http::{error::ApiError, state::AppState, success::ApiSuccess},
 };
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     http::StatusCode,
 };
 use chrono::{DateTime, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+
+#[derive(Default, Deserialize)]
+pub struct PeriodQuery {
+    #[serde(default)]
+    pub period: ReportingPeriod,
+}
 
 impl From<EntityDetailsError> for ApiError {
     fn from(error: EntityDetailsError) -> Self {
@@ -113,6 +120,7 @@ impl From<MemberDeclaration> for DeclarationResponse {
 
 #[derive(Serialize)]
 pub struct MemberDetailsResponse {
+    period: ReportingPeriod,
     member: MemberResponse,
     declarations: Vec<DeclarationResponse>,
     summary: MemberSummaryResponse,
@@ -120,6 +128,7 @@ pub struct MemberDetailsResponse {
 impl From<MemberDetails> for MemberDetailsResponse {
     fn from(details: MemberDetails) -> Self {
         Self {
+            period: details.period,
             member: details.member.into(),
             declarations: details.declarations.into_iter().map(Into::into).collect(),
             summary: details.summary.into(),
@@ -379,6 +388,7 @@ impl From<FunderDeclaration> for FunderDeclarationResponse {
 
 #[derive(Serialize)]
 pub struct FunderDetailsResponse {
+    period: ReportingPeriod,
     declared_totals: DeclaredGbpTotalsResponse,
     first_registered_at: Option<DateTime<Utc>>,
     declarations: Vec<FunderDeclarationResponse>,
@@ -391,6 +401,7 @@ pub struct FunderDetailsResponse {
 impl From<FunderDetails> for FunderDetailsResponse {
     fn from(details: FunderDetails) -> Self {
         Self {
+            period: details.period,
             declared_totals: details.declared_totals.into(),
             first_registered_at: details.first_registered_at,
             declarations: details.declarations.into_iter().map(Into::into).collect(),
@@ -411,8 +422,10 @@ pub async fn member_details<
 >(
     State(state): State<AppState<E, D, R, U>>,
     Path(id): Path<String>,
+    Query(query): Query<PeriodQuery>,
 ) -> Result<ApiSuccess<MemberDetailsResponse>, ApiError> {
-    let request = id.parse::<MemberDetailsRequest>()?;
+    let id = id.parse().map_err(EntityDetailsError::InvalidMemberId)?;
+    let request = MemberDetailsRequest::new(id, query.period);
     let details = state.entity_details_service.member(request).await?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }
@@ -425,8 +438,10 @@ pub async fn funder_details<
 >(
     State(state): State<AppState<E, D, R, U>>,
     Path(id): Path<String>,
+    Query(query): Query<PeriodQuery>,
 ) -> Result<ApiSuccess<FunderDetailsResponse>, ApiError> {
-    let request = id.parse::<FunderDetailsRequest>()?;
+    let id = id.parse().map_err(EntityDetailsError::InvalidFunderId)?;
+    let request = FunderDetailsRequest::new(id, query.period);
     let details = state.entity_details_service.funder(request).await?;
     Ok(ApiSuccess::new(StatusCode::OK, details.into()))
 }

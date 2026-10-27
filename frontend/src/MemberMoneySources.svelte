@@ -53,7 +53,7 @@
       {/each}
     </DataTable>
   {:else}<p class="empty-details">
-      No funding entries are stored for this MP.
+      No funding entries are recorded in this period.
     </p>{/if}
 </section>
 

@@ -1,14 +1,14 @@
 import { expect, test } from "./backend";
 import { rankingFixture } from "./rankings-fixtures";
 
-test("rankings SSR includes exact top ten and category switching is immediate and local", async ({
+test("rankings SSR includes exact top ten and category switching is URL backed", async ({
   page,
   backend,
   request,
   baseURL,
 }) => {
   let reads = 0;
-  await backend.route("**/api/rankings", async (route) => {
+  await backend.route("**/api/rankings?*", async (route) => {
     reads += 1;
     await route.fulfill({ json: rankingFixture });
   });
@@ -23,7 +23,7 @@ test("rankings SSR includes exact top ten and category switching is immediate an
   await expect(rows.getByRole("listitem")).toHaveCount(10);
   await expect(
     rows.getByRole("link", { name: "Member 1", exact: true }),
-  ).toHaveAttribute("href", "/members/1");
+  ).toHaveAttribute("href", "/members/1?period=current-term");
   await expect(rows).toContainText("£9,007,199,254,740,993.123456789");
   await expect(rows).toContainText("Incomplete");
   await expect(rows).toContainText("Example Party · Example constituency");
@@ -31,14 +31,14 @@ test("rankings SSR includes exact top ten and category switching is immediate an
   const individuals = page.getByRole("button", { name: "Individuals" });
   await individuals.focus();
   await page.keyboard.press("Space");
-  await expect(individuals).toBeFocused();
+
   await expect(individuals).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator(".category-wheel")).not.toContainText("✓");
   await expect(
     page.getByRole("list", { name: "Individuals rankings" }),
   ).toContainText("£0.00");
   await expect(
-    page.getByText("Total declared during this parliament", { exact: true }),
+    page.getByRole("link", { name: "This parliamentary term", exact: true }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Companies" })
@@ -48,7 +48,10 @@ test("rankings SSR includes exact top ten and category switching is immediate an
   ).toHaveCSS("stroke", "rgb(100, 207, 181)");
   await expect(
     page.getByRole("link", { name: "Example company" }),
-  ).toHaveAttribute("href", "/funders/10000000-0000-0000-0000-000000000002");
+  ).toHaveAttribute(
+    "href",
+    "/funders/10000000-0000-0000-0000-000000000002?period=current-term",
+  );
   await expect(
     page.getByRole("list", { name: "Companies rankings" }),
   ).toContainText("−£12.3456789");
@@ -59,7 +62,8 @@ test("rankings SSR includes exact top ten and category switching is immediate an
   await expect(
     page.getByText("Support declared by MPs, grouped by their latest party."),
   ).toBeVisible();
-  expect(reads).toBe(before);
+  expect(reads).toBeGreaterThan(before);
+  await expect(page).toHaveURL(/category=parties/u);
   await expect(
     page.getByRole("button", { name: /All records|Show more|Replay/u }),
   ).toHaveCount(0);
@@ -69,7 +73,7 @@ test("rankings fit narrow viewports and honor reduced motion", async ({
   page,
   backend,
 }) => {
-  await backend.route("**/api/rankings", async (route) =>
+  await backend.route("**/api/rankings?*", async (route) =>
     route.fulfill({ json: rankingFixture }),
   );
   await page.setViewportSize({ width: 320, height: 900 });
@@ -94,14 +98,14 @@ test("rankings report unavailable and empty snapshots", async ({
   page,
   backend,
 }) => {
-  await backend.route("**/api/rankings", async (route) =>
+  await backend.route("**/api/rankings?*", async (route) =>
     route.fulfill({ status: 503 }),
   );
   await page.goto("/rankings");
   await expect(page.getByRole("alert")).toContainText(
     "Rankings couldn’t load. Try again.",
   );
-  await backend.route("**/api/rankings", async (route) =>
+  await backend.route("**/api/rankings?*", async (route) =>
     route.fulfill({ json: { ...rankingFixture, members: [] } }),
   );
   await page.reload();

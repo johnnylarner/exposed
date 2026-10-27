@@ -102,3 +102,7 @@ Actions and focus remain neutral in every entity context. Override `--accent` on
 ## Native table columns
 
 `DataTable` supplies the caption, `thead`, `tbody` and neutral cell rules. Use actual `th`/`td` classes in the caller for widths and numeric alignment. [FunderSummary](../../FunderSummary.svelte) is the production example. It owns `.recipient-name` and `.recipient-total`; those classes are not reusable UI APIs.
+
+## Period or other native-link filters
+
+Use `<ViewLinks variant="filter" label="Reporting period">` with native `ViewLink` children. Set `aria-current="page"` on the selected destination. Features own URL state and labels; the wrapping presentation stays neutral in every entity context.

@@ -37,7 +37,7 @@
     <div class="funder-party-chart">
       {#if slices.length === 0}<p class="empty-details funder-party-empty">
           {details.entryCount === 0
-            ? "No funding entries are stored for this funder."
+            ? "No funding entries are recorded in this period."
             : "No known funding totals are available."}
         </p>{:else}
         <PieChart

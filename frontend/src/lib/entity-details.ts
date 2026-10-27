@@ -1,3 +1,8 @@
+import {
+  readPeriod,
+  withPeriod,
+  type ReportingPeriod,
+} from "./reporting-period";
 import { searchQueryString } from "./search-query";
 
 export type DetailRoute =
@@ -71,6 +76,7 @@ export interface DeclaredGbpTotals {
 }
 
 export interface MemberDetails {
+  period: ReportingPeriod;
   member: MemberProfile;
   declarations: MemberDeclaration[];
   summary: {
@@ -99,6 +105,7 @@ export interface FunderDeclaration {
 }
 
 export interface FunderDetails {
+  period: ReportingPeriod;
   declaredTotals: DeclaredGbpTotals;
   firstRegisteredAt: string | null;
   declarations: FunderDeclaration[];
@@ -153,8 +160,11 @@ export function memberHref(
   view: "summary" | "history",
   params: Pick<URLSearchParams, "get">,
 ): string {
-  const search = searchQueryString(params);
-  return `/members/${id}${view === "history" ? "/history" : ""}${search}`;
+  return withPeriod(
+    `/members/${id}${view === "history" ? "/history" : ""}`,
+    readPeriod(params),
+    params,
+  );
 }
 
 export function categoryBars(
@@ -206,6 +216,9 @@ export function funderHref(
   view: "summary" | "history",
   params: Pick<URLSearchParams, "get">,
 ): string {
-  const search = searchQueryString(params);
-  return `/funders/${id}${view === "history" ? "/history" : ""}${search}`;
+  return withPeriod(
+    `/funders/${id}${view === "history" ? "/history" : ""}`,
+    readPeriod(params),
+    params,
+  );
 }

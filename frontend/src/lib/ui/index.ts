@@ -36,3 +36,5 @@ export type {
   RankingRow,
   EntityAccent,
 } from "./ranking-types";
+
+export type { ViewLinksVariant } from "./types";

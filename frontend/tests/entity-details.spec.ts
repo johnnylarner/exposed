@@ -33,10 +33,10 @@ async function mockDetails(backend: Backend) {
       },
     }),
   );
-  await backend.route("**/api/members/*", (route) =>
+  await backend.route("**/api/members/*?*", (route) =>
     route.fulfill({ json: memberDetails }),
   );
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({ json: funderDetails }),
   );
 }
@@ -75,7 +75,7 @@ test("native links preserve search through details, back, reload and new tabs", 
     page.getByRole("heading", { name: "Funding by party" }).first(),
   ).toBeVisible();
   await expect(page).toHaveURL(
-    new RegExp(`/funders/${funderId}\\?q=Example$`, "u"),
+    new RegExp(`/funders/${funderId}\\?period=current-term&q=Example$`, "u"),
   );
   await page.getByRole("link", { name: "Ava Example", exact: true }).click();
   await expect(
@@ -97,7 +97,7 @@ test("member summary retains precise sources without individual declarations", a
   backend,
   page,
 }) => {
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -150,7 +150,7 @@ test("member declaration history remains accessible from the summary tab navigat
     category_name: index === 0 ? "Support" : "Employment",
     entries: [],
   }));
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
   await page.goto("/members/1?q=Example");
@@ -159,9 +159,14 @@ test("member declaration history remains accessible from the summary tab navigat
     name: "Declaration history",
     exact: true,
   });
-  await expect(history).toHaveAttribute("href", "/members/1/history?q=Example");
+  await expect(history).toHaveAttribute(
+    "href",
+    "/members/1/history?period=current-term&q=Example",
+  );
   await history.click();
-  await expect(page).toHaveURL(/members\/1\/history\?q=Example$/u);
+  await expect(page).toHaveURL(
+    /members\/1\/history\?period=current-term&q=Example$/u,
+  );
   await expect(page.locator(".declaration-reference")).toHaveCount(7);
 });
 
@@ -173,7 +178,7 @@ test("member declarations retain duplicate precise amounts and missing source fi
   await mockDetails(backend);
   await page.goto("/members/1/history");
   await expect(page.locator(".profile-type")).toHaveText("MP");
-  await expect(page.locator(".member-total")).toHaveCount(0);
+  await expect(page.locator(".member-total")).toHaveCount(1);
   await expect(
     page.getByText("Showing 1 to 2 of 2 declarations"),
   ).toBeVisible();
@@ -203,8 +208,6 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
   await mockDetails(backend);
   await page.goto(`/funders/${funderId}?q=Example&strictness=0.42`);
   await expect(page.locator(".declared-totals .member-total")).toHaveText([
-    "£24,686.34",
-    "£24,686.34",
     "£24,686.34",
   ]);
   await expect(page.getByText("Company number 00123456")).toBeVisible();
@@ -242,7 +245,10 @@ test("funder summary uses authoritative total, positive pie shares and reveals e
   await expect(page.getByText("EXACT FUNDER", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Funding history" }),
-  ).toHaveAttribute("href", `/funders/${funderId}/history?q=Example`);
+  ).toHaveAttribute(
+    "href",
+    `/funders/${funderId}/history?period=current-term&q=Example`,
+  );
 });
 
 test("funding history retains sources, duplicate amounts and date paging", async ({
@@ -275,14 +281,14 @@ test("funding history retains sources, duplicate amounts and date paging", async
       ],
     },
   }));
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({ json: { ...funderDetails, declarations } }),
   );
   await page.goto(`/funders/${funderId}/history?q=Example&strictness=0.42`);
   await expect(page).toHaveURL(
     new RegExp(`/funders/${funderId}/history\\?q=Example$`, "u"),
   );
-  await expect(page.locator(".member-total")).toHaveCount(0);
+  await expect(page.locator(".member-total")).toHaveCount(1);
   await expect(page.locator(".declaration")).toHaveCount(10);
   await expect(
     page.locator(".declaration").first().locator(".amount"),
@@ -294,7 +300,7 @@ test("funding history retains sources, duplicate amounts and date paging", async
       .locator(".declaration")
       .first()
       .getByRole("link", { name: member.name }),
-  ).toHaveAttribute("href", "/members/1?q=Example");
+  ).toHaveAttribute("href", "/members/1?period=current-term&q=Example");
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.locator(".declaration")).toHaveCount(2);
   await expect(
@@ -318,7 +324,7 @@ test("funding history retains sources, duplicate amounts and date paging", async
   ).toBe(true);
   await page.getByRole("link", { name: "Summary", exact: true }).click();
   await expect(page).toHaveURL(
-    new RegExp(`/funders/${funderId}\\?q=Example$`, "u"),
+    new RegExp(`/funders/${funderId}\\?period=current-term&q=Example$`, "u"),
   );
 });
 
@@ -326,7 +332,7 @@ test("former MPs retain their latest membership description without a constituen
   backend,
   page,
 }) => {
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -349,7 +355,7 @@ test("errors allow retry and missing or invalid routes offer search navigation",
   page,
 }) => {
   let calls = 0;
-  await backend.route("**/api/members/*", async (route) => {
+  await backend.route("**/api/members/*?*", async (route) => {
     calls += 1;
     await route.fulfill(
       calls === 1
@@ -364,7 +370,7 @@ test("errors allow retry and missing or invalid routes offer search navigation",
   await expect(
     page.getByRole("heading", { name: member.name, exact: true }),
   ).toBeVisible();
-  await backend.route("**/api/members/999", (route) =>
+  await backend.route("**/api/members/999?*", (route) =>
     route.fulfill({ status: 404 }),
   );
   await page.goto("/members/999?q=Example");
@@ -374,18 +380,19 @@ test("errors allow retry and missing or invalid routes offer search navigation",
   await expect(
     page.getByRole("link", { name: "Search MPs and funders", exact: true }),
   ).toHaveAttribute("href", "/search?q=Example");
+  const callsBeforeInvalidRoute = calls;
   await page.goto("/members/0");
   await expect(
     page.getByRole("heading", { name: "Entity not found" }),
   ).toBeVisible();
-  expect(calls).toBe(2);
+  expect(calls).toBe(callsBeforeInvalidRoute);
 });
 
 test("empty details and unknown currency only details remain distinct from errors", async ({
   backend,
   page,
 }) => {
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -403,7 +410,7 @@ test("empty details and unknown currency only details remain distinct from error
       },
     }),
   );
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -425,19 +432,15 @@ test("empty details and unknown currency only details remain distinct from error
   ).toHaveCount(0);
   await expect(page.locator(".member-total")).toHaveText([
     "No declarations recorded",
-    "No declarations recorded",
-    "No declarations recorded",
   ]);
   await expect(page.locator(".declared-totals h2")).toHaveText([
-    "Declared amounts this parliamentary term",
-    "Historical declared amounts",
-    "Declared amounts in 2026",
+    "Declared amounts",
   ]);
   await page.goto(`/funders/${funderId}`);
   await expect(
-    page.getByText("No funding entries are stored for this funder."),
+    page.getByText("No funding entries are recorded in this period."),
   ).toBeVisible();
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -460,7 +463,7 @@ test("long names and exact amounts fit mobile and source markup stays literal", 
   const longName =
     'Association <img src=x onerror="alert(1)"> for Research and Public Interest Organisations';
   await page.setViewportSize({ width: 360, height: 780 });
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -496,7 +499,7 @@ test("long names and exact amounts fit mobile and source markup stays literal", 
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  await backend.route("**/api/members/*", (route) =>
+  await backend.route("**/api/members/*?*", (route) =>
     route.fulfill({
       json: { ...memberDetails, member: { ...member, name: longName } },
     }),
@@ -522,7 +525,7 @@ test("detail timeout offers retry and leaving a loading page cancels its result"
   const pending = new Promise<void>((resolve) => {
     release = resolve;
   });
-  await backend.route("**/api/members/*", async (route) => {
+  await backend.route("**/api/members/*?*", async (route) => {
     await pending;
     await route.fulfill({ json: memberDetails }).catch(() => {});
   });
@@ -550,7 +553,7 @@ test("recorded names retain stored variants for every funder kind and hide empty
   page,
 }) => {
   for (const kind of ["Company", "Individual", null]) {
-    await backend.route("**/api/funders/*", (route) =>
+    await backend.route("**/api/funders/*?*", (route) =>
       route.fulfill({
         json: {
           ...funderDetails,
@@ -566,7 +569,7 @@ test("recorded names retain stored variants for every funder kind and hide empty
     await expect(names).toHaveCount(funderDetails.funder.aliases.length);
     expect(await names.allTextContents()).toEqual(funderDetails.funder.aliases);
   }
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -588,7 +591,7 @@ for (const negative of [false, true]) {
     backend,
     page,
   }) => {
-    await backend.route("**/api/members/1", (route) =>
+    await backend.route("**/api/members/1?*", (route) =>
       route.fulfill({
         json: {
           ...memberDetails,
@@ -655,11 +658,7 @@ test("member summary retains signed category bars alongside all-category totals"
 }) => {
   await mockDetails(backend);
   await page.goto("/members/1");
-  await expect(page.locator(".member-total")).toHaveText([
-    "£24,691.34",
-    "£24,691.34",
-    "£24,691.34",
-  ]);
+  await expect(page.locator(".member-total")).toHaveText(["£24,691.34"]);
   await expect(page.locator(".signed-bar .negative")).toHaveCount(1);
   await expect(
     page
@@ -672,7 +671,7 @@ test("member summary retains signed category bars alongside all-category totals"
     ),
   ).toHaveCount(0);
   await expect(page.locator(".member-identity")).toContainText(
-    "Declared amounts this parliamentary term",
+    "Declared amounts",
   );
   const total = await page.locator(".member-total").first().boundingBox();
   const tabs = await page.locator(".member-tabs").boundingBox();
@@ -680,7 +679,7 @@ test("member summary retains signed category bars alongside all-category totals"
   await expect(page.locator(".declarations-list")).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "Declaration history", exact: true }),
-  ).toHaveAttribute("href", "/members/1/history");
+  ).toHaveAttribute("href", "/members/1/history?period=current-term");
 });
 
 test("history filters the full dataset before paging and resets page for date changes", async ({
@@ -697,7 +696,7 @@ test("history filters the full dataset before paging and resets page for date ch
         : `2026-01-${String(25 - index).padStart(2, "0")}T23:59:59Z`,
     entries: [],
   }));
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
   await page.goto("/members/1/history?q=Example&strictness=0.42");
@@ -741,7 +740,7 @@ test("history filters the full dataset before paging and resets page for date ch
   ).toBeVisible();
   await page.getByRole("button", { name: "Clear dates" }).click();
   await page.getByRole("link", { name: "Summary", exact: true }).click();
-  await expect(page).toHaveURL(/members\/1\?q=Example$/u);
+  await expect(page).toHaveURL(/members\/1\?period=current-term&q=Example$/u);
   await page.goBack();
   await expect(
     page.getByRole("heading", { name: "Declaration history", exact: true }),
@@ -760,7 +759,7 @@ test("party pie keeps zero and unavailable totals and explains unavailable share
   backend,
   page,
 }) => {
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -820,7 +819,7 @@ for (const amounts of [
             })),
           },
     );
-    await backend.route("**/api/funders/*", (route) =>
+    await backend.route("**/api/funders/*?*", (route) =>
       route.fulfill({ json: { ...funderDetails, currencies } }),
     );
     await page.goto(`/funders/${funderId}`);
@@ -876,7 +875,7 @@ test("party tooltip persists when the pointer crosses between pie slices", async
           parties: group.parties.map((party) => ({ ...party, amount: "5" })),
         },
   );
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({ json: { ...funderDetails, currencies } }),
   );
   await page.goto(`/funders/${funderId}`);
@@ -916,7 +915,7 @@ test("small pie slice tooltips do not cover neighboring slices", async ({
           })),
         },
   );
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({ json: { ...funderDetails, currencies } }),
   );
   await page.goto(`/funders/${funderId}`);
@@ -1047,7 +1046,7 @@ test("member source summary includes every dated entry", async ({
       ],
     },
   ];
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({ json: { ...memberDetails, declarations } }),
   );
   await page.goto("/members/1");
@@ -1076,7 +1075,7 @@ test("funder summary keeps bounded party controls and the five authoritative rec
     unknown_amount_count: index === 0 ? 1 : 0,
   }));
   let partyCount = 1;
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -1152,7 +1151,7 @@ test("funder chart combines Labour controls, counts and exact tooltip while reta
   page,
 }) => {
   const source = funderDetails.currencies[1];
-  await backend.route("**/api/funders/*", (route) =>
+  await backend.route("**/api/funders/*?*", (route) =>
     route.fulfill({
       json: {
         ...funderDetails,
@@ -1270,7 +1269,7 @@ test("member declared amounts include gifts and travel with registration coverag
   page,
 }) => {
   await mockDetails(backend);
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -1348,38 +1347,21 @@ test("member declared amounts include gifts and travel with registration coverag
     }),
   );
   await page.goto("/members/1");
-  await expect(page.locator(".member-total")).toHaveText([
-    "£275.00",
-    "£425.00",
-    "£17.25",
-  ]);
+  await expect(page.locator(".member-total")).toHaveText(["£275.00"]);
   await expect(
     page.getByRole("region", {
-      name: "Declared amounts this parliamentary term in GBP",
+      name: "Declared amounts in GBP",
       exact: true,
     }),
   ).toHaveText("£275.00");
-  await expect(
-    page.getByRole("region", {
-      name: "Historical declared amounts in GBP",
-      exact: true,
-    }),
-  ).toHaveText("£425.00");
-  await expect(
-    page.getByRole("region", {
-      name: "Declared amounts in 2031 in GBP",
-      exact: true,
-    }),
-  ).toHaveText("£17.25");
+
   await expect(
     page.getByRole("table", {
       name: "Sources ranked by known declared GBP amounts",
     }),
   ).toContainText("£425.00");
   await expect(page.locator(".declared-totals h2")).toHaveText([
-    "Declared amounts this parliamentary term",
-    "Historical declared amounts since 1 January 2020",
-    "Declared amounts in 2031",
+    "Declared amounts",
   ]);
   await expect(page.locator(".declared-totals .partial-note")).toHaveCount(0);
   if (process.env.EXPOSED_SCREENSHOT_DIR)
@@ -1390,7 +1372,7 @@ test("member declared amounts include gifts and travel with registration coverag
   await page
     .getByRole("link", { name: "Declaration history", exact: true })
     .click();
-  await expect(page.locator(".member-total")).toHaveCount(0);
+  await expect(page.locator(".member-total")).toHaveCount(1);
   if (process.env.EXPOSED_SCREENSHOT_DIR)
     await page.screenshot({
       path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-earnings-history.png`,
@@ -1404,7 +1386,7 @@ test("declared amounts keep precise figures readable on narrow screens and missi
 }) => {
   await mockDetails(backend);
   let amount: string | null = "98765432.12";
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -1431,11 +1413,7 @@ test("declared amounts keep precise figures readable on narrow screens and missi
   for (const width of [850, 801, 601, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await page.goto("/members/1");
-    await expect(page.locator(".member-total")).toHaveText([
-      "£98,765,432.12",
-      "£98,765,432.12",
-      "£98,765,432.12",
-    ]);
+    await expect(page.locator(".member-total")).toHaveText(["£98,765,432.12"]);
     await page.evaluate(() => document.fonts.ready);
     const figures = await page
       .locator(".member-total")
@@ -1465,7 +1443,7 @@ test("declared amounts keep precise figures readable on narrow screens and missi
     }));
   amount = null;
   await page.reload();
-  await expect(page.locator(".member-total.unavailable")).toHaveCount(3);
+  await expect(page.locator(".member-total.unavailable")).toHaveCount(1);
   const missingStyle = await page
     .locator(".member-total")
     .first()
@@ -1477,14 +1455,12 @@ test("declared amounts keep precise figures readable on narrow screens and missi
   expect(missingStyle.fontSize).toBeLessThan(knownStyle.fontSize);
   await expect(page.locator(".member-total")).toHaveText([
     "Amount unavailable",
-    "Amount unavailable",
-    "Amount unavailable",
   ]);
   amount = "98765432.12345678901234567890123456789";
   await page.reload();
   for (const figure of [
     page.getByRole("region", {
-      name: "Historical declared amounts in GBP",
+      name: "Declared amounts in GBP",
       exact: true,
     }),
     page.locator(".declared-totals .member-value").last().getByRole("region"),
@@ -1525,7 +1501,7 @@ test("declared amounts distinguish an empty term, historical zero and unknown am
   let registeredAt = "2023-01-01T00:00:00Z";
   let amount: string | null = "0";
   let incomplete = false;
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -1564,23 +1540,13 @@ test("declared amounts distinguish an empty term, historical zero and unknown am
   await page.goto("/members/1");
   await expect(page.locator(".member-total")).toHaveText([
     "No declarations recorded",
-    "£0.00",
-    "No declarations recorded",
   ]);
   registeredAt = "2025-01-01T00:00:00Z";
   await page.reload();
-  await expect(page.locator(".member-total")).toHaveText([
-    "£0.00",
-    "£0.00",
-    "£0.00",
-  ]);
+  await expect(page.locator(".member-total")).toHaveText(["£0.00"]);
   incomplete = true;
   await page.reload();
-  await expect(page.locator(".member-total")).toHaveText([
-    "£0.00",
-    "£0.00",
-    "£0.00",
-  ]);
+  await expect(page.locator(".member-total")).toHaveText(["£0.00"]);
   await expect(page.locator(".member-total").first()).toHaveAttribute(
     "title",
     "Known GBP amounts only. Some amounts unavailable.",
@@ -1588,8 +1554,6 @@ test("declared amounts distinguish an empty term, historical zero and unknown am
   amount = null;
   await page.reload();
   await expect(page.locator(".member-total")).toHaveText([
-    "Amount unavailable",
-    "Amount unavailable",
     "Amount unavailable",
   ]);
 });
@@ -1599,7 +1563,7 @@ test("malformed details show an error and recover after retry", async ({
   page,
 }) => {
   let calls = 0;
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({
       json:
         ++calls === 1
@@ -1620,10 +1584,11 @@ test("calendar-year empty state preserves populated term and historical totals",
   page,
 }) => {
   await mockDetails(backend);
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
+        period: "current-year",
         summary: {
           ...memberDetails.summary,
           declared_totals: declaredTotals(
@@ -1636,15 +1601,13 @@ test("calendar-year empty state preserves populated term and historical totals",
       },
     }),
   );
-  await page.goto("/members/1");
+  await page.goto("/members/1?period=current-year");
   await expect(page.locator(".member-total")).toHaveText([
-    "£275.00",
-    "£425.00",
     "No declarations recorded",
   ]);
   await expect(
     page.getByRole("heading", {
-      name: "Declared amounts in 2031",
+      name: "Declared amounts",
       exact: true,
     }),
   ).toBeVisible();
@@ -1711,7 +1674,7 @@ test("source table keeps all sources, coverage, native links and narrow exact am
       payment_type: null,
     },
   ];
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({
       json: {
         ...memberDetails,
@@ -1780,7 +1743,10 @@ test("source table keeps all sources, coverage, native links and narrow exact am
   await expect(partialSource).toContainText("Some amounts unavailable");
   await expect(table).toContainText("−£25.00");
   const link = table.getByRole("link").first();
-  await expect(link).toHaveAttribute("href", `/funders/${funderId}?q=Example`);
+  await expect(link).toHaveAttribute(
+    "href",
+    `/funders/${funderId}?period=current-term&q=Example`,
+  );
   if (process.env.EXPOSED_SCREENSHOT_DIR)
     await page.screenshot({
       path: `${process.env.EXPOSED_SCREENSHOT_DIR}/member-sources-desktop.png`,
@@ -1813,7 +1779,7 @@ test("source table keeps all sources, coverage, native links and narrow exact am
     });
   await link.click();
   await expect(page).toHaveURL(
-    new RegExp(`/funders/${funderId}\\?q=Example$`, "u"),
+    new RegExp(`/funders/${funderId}\\?period=current-term&q=Example$`, "u"),
   );
 });
 
@@ -1821,12 +1787,12 @@ test("member source table has an explicit empty state", async ({
   backend,
   page,
 }) => {
-  await backend.route("**/api/members/1", (route) =>
+  await backend.route("**/api/members/1?*", (route) =>
     route.fulfill({ json: { ...memberDetails, declarations: [] } }),
   );
   await page.goto("/members/1");
   await expect(
-    page.getByText("No funding entries are stored for this MP."),
+    page.getByText("No funding entries are recorded in this period."),
   ).toBeVisible();
   await expect(
     page.getByRole("table", {
@@ -1834,169 +1800,3 @@ test("member source table has an explicit empty state", async ({
     }),
   ).toHaveCount(0);
 });
-
-for (const entity of ["member", "funder"] as const) {
-  test(`${entity} headlines use authoritative periods in the same responsive row`, async ({
-    backend,
-    page,
-  }) => {
-    const totals = declaredTotals(
-      { amount: "0", declaration_count: 1, incomplete: false },
-      {
-        amount: "42500.75",
-        declaration_count: 4,
-        incomplete: true,
-      },
-      { amount: "-12.34", declaration_count: 2, incomplete: false },
-      2031,
-    );
-    const first = "2020-01-01T00:00:00Z";
-    const body =
-      entity === "member"
-        ? {
-            ...memberDetails,
-            summary: {
-              ...memberDetails.summary,
-              declared_totals: totals,
-              first_registered_at: first,
-            },
-          }
-        : {
-            ...funderDetails,
-            declared_totals: totals,
-            first_registered_at: first,
-          };
-    const path = entity === "member" ? "/members/1" : `/funders/${funderId}`;
-    await backend.route(`**/api${path}`, (route) =>
-      route.fulfill({ json: body }),
-    );
-    await page.setViewportSize({ width: 1440, height: 1000 });
-    await page.goto(path);
-    const headlines = page.locator(".declared-totals");
-    await expect(headlines.locator("h2")).toHaveText([
-      "Declared amounts this parliamentary term",
-      "Historical declared amounts since 1 January 2020",
-      "Declared amounts in 2031",
-    ]);
-    await expect(headlines.locator(".member-total")).toHaveText([
-      "£0.00",
-      "£42,500.75",
-      "−£12.34",
-    ]);
-    await expect(
-      headlines.getByRole("region", {
-        name: "Historical declared amounts in GBP",
-      }),
-    ).toHaveAttribute(
-      "title",
-      "Known GBP amounts only. Some amounts unavailable.",
-    );
-    const boxes = await headlines
-      .locator(".member-value")
-      .evaluateAll((nodes) =>
-        nodes.map((node) => {
-          const rect = node.getBoundingClientRect();
-          return { top: rect.top, left: rect.left };
-        }),
-      );
-    expect(boxes[0].top).toBe(boxes[1].top);
-    expect(boxes[1].top).toBe(boxes[2].top);
-    expect(boxes[0].left).toBeLessThan(boxes[1].left);
-    const firstMetric = headlines.locator(".member-value").first();
-    const lastMetric = headlines.locator(".member-value").last();
-    await expect(firstMetric.locator("h2")).toHaveCSS("text-align", "left");
-    await expect(firstMetric.locator(".member-total")).toHaveCSS(
-      "text-align",
-      "left",
-    );
-    await expect(lastMetric.locator("h2")).toHaveCSS("text-align", "end");
-    await expect(lastMetric.locator(".member-total")).toHaveCSS(
-      "text-align",
-      "end",
-    );
-    const section = await page.locator(".member-summary-top").boundingBox();
-    const firstBox = await firstMetric.boundingBox();
-    const lastBox = await lastMetric.boundingBox();
-    expect(section).not.toBeNull();
-    expect(firstBox?.x).toBe(section?.x);
-    expect(lastBox && lastBox.x + lastBox.width).toBe(
-      section && section.x + section.width,
-    );
-    if (process.env.EXPOSED_SCREENSHOT_DIR)
-      await page.screenshot({
-        path: `${process.env.EXPOSED_SCREENSHOT_DIR}/${entity}-periods-desktop.png`,
-        fullPage: true,
-      });
-    await page.setViewportSize({ width: 390, height: 844 });
-    const narrow = await headlines
-      .locator(".member-value")
-      .evaluateAll((nodes) =>
-        nodes.map((node) => node.getBoundingClientRect().top),
-      );
-    expect(narrow[0]).toBeLessThan(narrow[1]);
-    expect(narrow[1]).toBeLessThan(narrow[2]);
-    await expect(lastMetric.locator("h2")).toHaveCSS("text-align", "end");
-    await expect(lastMetric.locator(".member-total")).toHaveCSS(
-      "text-align",
-      "end",
-    );
-    expect(
-      await page.evaluate(() => document.documentElement.scrollWidth),
-    ).toBeLessThanOrEqual(390);
-    if (process.env.EXPOSED_SCREENSHOT_DIR)
-      await page.screenshot({
-        path: `${process.env.EXPOSED_SCREENSHOT_DIR}/${entity}-periods-narrow.png`,
-        fullPage: true,
-      });
-  });
-}
-
-for (const period of [
-  {
-    name: "empty",
-    total: { amount: null, declaration_count: 0, incomplete: false },
-    expected: "No declarations recorded",
-  },
-  {
-    name: "unavailable",
-    total: { amount: null, declaration_count: 1, incomplete: true },
-    expected: "Amount unavailable",
-  },
-]) {
-  test(`funder headlines distinguish ${period.name} from zero`, async ({
-    backend,
-    page,
-  }) => {
-    await backend.route("**/api/funders/*", (route) =>
-      route.fulfill({
-        json: {
-          ...funderDetails,
-          declared_totals: declaredTotals(period.total),
-          first_registered_at: null,
-          declarations: [],
-          currencies: [],
-          entry_count: 0,
-          unknown_currency_count: 0,
-        },
-      }),
-    );
-    await page.goto(`/funders/${funderId}`);
-    await expect(page.locator(".declared-totals .member-total")).toHaveText([
-      period.expected,
-      period.expected,
-      period.expected,
-    ]);
-    await expect(page.locator(".declared-totals [role=region]")).toHaveCount(0);
-    const lastMetric = page.locator(".declared-totals .member-value").last();
-    await expect(lastMetric.locator("h2")).toHaveCSS("text-align", "end");
-    await expect(lastMetric.locator(".member-total")).toHaveCSS(
-      "text-align",
-      "end",
-    );
-    if (period.name === "empty" && process.env.EXPOSED_SCREENSHOT_DIR)
-      await page.screenshot({
-        path: `${process.env.EXPOSED_SCREENSHOT_DIR}/funder-empty-desktop.png`,
-        fullPage: true,
-      });
-  });
-}

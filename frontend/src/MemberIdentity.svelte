@@ -1,4 +1,6 @@
 <script lang="ts">
+  import PeriodSelector from "./PeriodSelector.svelte";
+  import type { ReportingPeriod } from "./lib/reporting-period";
   import DeclaredTotals from "./DeclaredTotals.svelte";
   import { Icon, IdentityHeader, ViewLinks, ViewLink, Badge } from "./lib/ui";
   import { page } from "$app/state";
@@ -7,9 +9,11 @@
   import posthog from "posthog-js";
   let {
     member,
+    period,
     view,
     summary,
   }: {
+    period: ReportingPeriod;
     member: MemberProfile;
     view: "summary" | "history";
     summary: ReturnType<typeof summarizeMember>;
@@ -24,12 +28,10 @@
       >{member.membershipFrom || "Membership unavailable"}</span
     ><span>{member.isCurrentCommons ? "Current MP" : "Former MP"}</span>
   {/snippet}{#snippet values()}
-    {#if view === "summary"}
-      <DeclaredTotals
-        totals={summary.declaredTotals}
-        firstRegisteredAt={summary.firstRegisteredAt}
-      />
-    {/if}
+    <div class="identity-totals">
+      <PeriodSelector {period} />
+      <DeclaredTotals totals={summary.declaredTotals} {period} />
+    </div>
   {/snippet}{#snippet navigation()}<ViewLinks label="Member views">
       <ViewLink
         href={memberHref(member.id, "summary", page.url.searchParams)}
@@ -51,3 +53,10 @@
       >
     </ViewLinks>{/snippet}</IdentityHeader
 >
+
+<style>
+  .identity-totals {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+</style>

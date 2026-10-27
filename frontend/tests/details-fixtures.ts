@@ -8,6 +8,7 @@ export const member = {
   is_current_commons: true,
 };
 export const memberHistoryFixture = {
+  period: "current-term",
   member,
 
   declarations: [
@@ -141,6 +142,7 @@ export const memberDetails = {
   },
 };
 export const funderDetails = {
+  period: "current-term",
   declared_totals: declaredTotals({
     amount: "24686.34",
     declaration_count: 1,

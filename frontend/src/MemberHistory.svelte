@@ -39,7 +39,7 @@
 <section aria-labelledby="history-heading">
   <SectionHeading id="history-heading" title="Declaration history">
     <p>
-      All {details.declarations.length} stored declarations, most recent registration
+      {details.declarations.length} declarations in this period, most recent registration
       first.
     </p>
   </SectionHeading>
@@ -70,7 +70,7 @@
     </Notice>
   {:else if filtered.length === 0}<p class="empty-details">
       {details.declarations.length === 0
-        ? "No declarations are stored for this MP."
+        ? "No declarations are recorded in this period."
         : "No declarations match these dates. Clear or change the dates."}
     </p>
   {:else}<p class="history-result-count">

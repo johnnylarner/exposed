@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Icon, IdentityHeader, ViewLinks, ViewLink, Badge } from "./lib/ui";
   import { page } from "$app/state";
+  import PeriodSelector from "./PeriodSelector.svelte";
   import DeclaredTotals from "./DeclaredTotals.svelte";
   import { funderHref, type FunderDetails } from "./lib/entity-details";
   import { funderKindLabel } from "./lib/search";
@@ -22,10 +23,10 @@
         >Company number {details.funder.companyNumber}</span
       >{/if}
   {/snippet}{#snippet values()}
-    {#if view === "summary"}<DeclaredTotals
-        totals={details.declaredTotals}
-        firstRegisteredAt={details.firstRegisteredAt}
-      />{/if}
+    <div class="identity-totals">
+      <PeriodSelector period={details.period} />
+      <DeclaredTotals totals={details.declaredTotals} period={details.period} />
+    </div>
   {/snippet}{#snippet navigation()}<ViewLinks label="Funder views">
       <ViewLink
         href={funderHref(details.funder.id, "summary", page.url.searchParams)}
@@ -47,3 +48,10 @@
       >
     </ViewLinks>{/snippet}</IdentityHeader
 >
+
+<style>
+  .identity-totals {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+</style>

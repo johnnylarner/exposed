@@ -2,38 +2,25 @@
   import { Metric } from "./lib/ui";
   import { formatPounds } from "./lib/member-summary";
   import type { DeclaredGbpTotals } from "./lib/entity-details";
+  import { declaredTotal, type ReportingPeriod } from "./lib/reporting-period";
   let {
     totals,
-    firstRegisteredAt = null,
-  }: {
-    totals: DeclaredGbpTotals;
-    firstRegisteredAt?: string | null;
-  } = $props();
-  function dateLabel(value: string) {
-    return new Date(value).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      timeZone: "UTC",
-    });
-  }
+    period,
+  }: { totals: DeclaredGbpTotals; period: ReportingPeriod } = $props();
+  const total = $derived(declaredTotal(totals, period));
 </script>
 
 <div class="declared-totals">
-  <div class="declared-values">
-    {#each [{ label: "Declared amounts this parliamentary term", regionLabel: "Declared amounts this parliamentary term in GBP", total: totals.currentTerm }, { regionLabel: "Historical declared amounts in GBP", label: `Historical declared amounts${firstRegisteredAt ? ` since ${dateLabel(firstRegisteredAt)}` : ""}`, total: totals.historical }, { label: `Declared amounts in ${totals.calendarYear}`, regionLabel: `Declared amounts in ${totals.calendarYear} in GBP`, total: totals.currentYear }] as metric, index}<Metric
-        variant="expanded"
-        align={index === 2 ? "end" : undefined}
-        regionLabel={metric.regionLabel}
-        label={metric.label}
-        value={metric.total.declarationCount === 0
-          ? "No declarations recorded"
-          : formatPounds(metric.total.amount)}
-        available={metric.total.declarationCount > 0 &&
-          metric.total.amount !== null}
-        description={metric.total.incomplete
-          ? "Known GBP amounts only. Some amounts unavailable."
-          : undefined}
-      />{/each}
-  </div>
+  <Metric
+    variant="expanded"
+    label="Declared amounts"
+    regionLabel="Declared amounts in GBP"
+    value={total.declarationCount === 0
+      ? "No declarations recorded"
+      : formatPounds(total.amount)}
+    available={total.declarationCount > 0 && total.amount !== null}
+    description={total.incomplete
+      ? "Known GBP amounts only. Some amounts unavailable."
+      : undefined}
+  />
 </div>

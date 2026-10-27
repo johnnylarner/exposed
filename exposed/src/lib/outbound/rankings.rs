@@ -20,17 +20,24 @@ impl From<sqlx::Error> for RankingsError {
     }
 }
 
+fn timestamp(date: chrono::DateTime<chrono::Utc>) -> Result<time::OffsetDateTime, RankingsError> {
+    time::OffsetDateTime::from_unix_timestamp_nanos(
+        i128::from(date.timestamp()) * 1_000_000_000 + i128::from(date.timestamp_subsec_nanos()),
+    )
+    .map_err(|error| RankingsError(error.to_string()))
+}
+
 impl RankingsRepo for ExposedDatabase {
     async fn ranking_declarations(
         &self,
-        start: chrono::DateTime<chrono::Utc>,
+        window: crate::domain::models::reporting_period::RegistrationWindow,
     ) -> Result<Vec<RankingDeclaration>, RankingsError> {
-        let start = time::OffsetDateTime::from_unix_timestamp(start.timestamp())
-            .map_err(|error| RankingsError(error.to_string()))?;
+        let start = window.start().map(timestamp).transpose()?;
+        let end = window.end().map(timestamp).transpose()?;
         let rows = sqlx::query!(
             "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.latest_membership_from,
                 d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
-                e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $2), '') AS currency,
+                e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $3), '') AS currency,
                 f.id AS \"funder_id?\", COALESCE(n.preferred_name, f.funder_name) AS funder_name, f.funder_kind
              FROM exposed.declarations d
              JOIN exposed.members m ON m.id = d.member_id
@@ -38,9 +45,10 @@ impl RankingsRepo for ExposedDatabase {
              LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = e.funder_id
              LEFT JOIN exposed.funders f ON f.id = COALESCE(g.group_id, e.funder_id)
              LEFT JOIN exposed.funder_group_names n ON n.group_id = f.id
-             WHERE d.registration_date >= $1
+             WHERE ($1::timestamptz IS NULL OR d.registration_date >= $1)
+               AND ($2::timestamptz IS NULL OR d.registration_date < $2)
              ORDER BY d.source_declaration_id, e.id",
-            start, CURRENCY_WHITESPACE
+            start, end, CURRENCY_WHITESPACE
         ).fetch_all(self.pool()).await?;
         let mut declarations: Vec<RankingDeclaration> = Vec::new();
         for row in rows {

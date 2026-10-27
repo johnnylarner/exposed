@@ -1,4 +1,5 @@
 export const rankingFixture = {
+  period: "current-term",
   current_term_start: "2024-07-09T00:00:00Z",
   members: Array.from({ length: 10 }, (_, index) => ({
     id: String(index + 1),

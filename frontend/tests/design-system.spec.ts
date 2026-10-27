@@ -604,3 +604,32 @@ test("email and multiline fields retain native semantics, descriptions and reset
   await expect(message).toHaveValue("Example feedback");
   await expect(email).toHaveValue("");
 });
+
+test("native filter links wrap and keep selected state and neutral keyboard focus", async ({
+  page,
+}) => {
+  await page.goto("/design-system");
+  const filters = page.getByRole("navigation", { name: "Example periods" });
+  const current = filters.getByRole("link", {
+    name: "This parliamentary term",
+    exact: true,
+  });
+  await expect(current).toHaveAttribute("aria-current", "page");
+  await expect(current).toHaveCSS("background-color", "rgb(240, 240, 237)");
+  await expect(current).toHaveCSS("color", "rgb(17, 17, 17)");
+  await expect(
+    filters.getByRole("link", { name: "Historical", exact: true }),
+  ).toHaveCSS("color", "rgb(240, 240, 237)");
+  await current.focus();
+  await expect(current).toBeFocused();
+  await expect(current).toHaveCSS("outline-color", "rgb(240, 240, 237)");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#patterns$/u);
+  await page.setViewportSize({ width: 320, height: 900 });
+  expect(
+    await filters.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  await expect(filters.getByRole("link")).toHaveCount(3);
+});

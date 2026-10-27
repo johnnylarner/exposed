@@ -1,6 +1,11 @@
 use crate::{
     domain::{
-        models::{funder::FunderId, parliament_member::MemberId},
+        models::{
+            entity_details::{FunderDetailsRequest, MemberDetailsRequest},
+            funder::FunderId,
+            parliament_member::MemberId,
+            reporting_period::ReportingPeriod,
+        },
         repositories::entity_details::EntityDetailsRepo,
         services::entity_details::{EntityDetailsError, EntityDetailsService, Service},
     },
@@ -22,7 +27,13 @@ const ALIASES: [&str; 5] = [
 async fn complete_history_preserves_occurrences_and_empty_declarations(pool: PgPool) {
     let db = ExposedDatabase::from(pool);
     let service = Service::new(db);
-    let details = service.member("1".parse().unwrap()).await.unwrap();
+    let details = service
+        .member(MemberDetailsRequest::new(
+            "1".parse().unwrap(),
+            ReportingPeriod::Historical,
+        ))
+        .await
+        .unwrap();
     assert_eq!(details.declarations.len(), 23);
     assert_eq!(
         details
@@ -54,7 +65,13 @@ async fn complete_history_preserves_occurrences_and_empty_declarations(pool: PgP
             .iter()
             .all(|declaration| declaration.entries.is_empty())
     );
-    let details = service.member("2".parse().unwrap()).await.unwrap();
+    let details = service
+        .member(MemberDetailsRequest::new(
+            "2".parse().unwrap(),
+            ReportingPeriod::Historical,
+        ))
+        .await
+        .unwrap();
     assert_eq!(
         details
             .declarations
@@ -67,17 +84,31 @@ async fn complete_history_preserves_occurrences_and_empty_declarations(pool: PgP
     assert!(details.declarations[0].registered_at.is_some());
     assert!(
         service
-            .member("3".parse().unwrap())
+            .member(MemberDetailsRequest::new(
+                "3".parse().unwrap(),
+                ReportingPeriod::Historical
+            ))
             .await
             .unwrap()
             .declarations
             .is_empty()
     );
     assert!(matches!(
-        service.member("999".parse().unwrap()).await,
+        service
+            .member(MemberDetailsRequest::new(
+                "999".parse().unwrap(),
+                ReportingPeriod::Historical
+            ))
+            .await,
         Err(EntityDetailsError::NotFound)
     ));
-    let former_mp = service.member("16".parse().unwrap()).await.unwrap();
+    let former_mp = service
+        .member(MemberDetailsRequest::new(
+            "16".parse().unwrap(),
+            ReportingPeriod::Historical,
+        ))
+        .await
+        .unwrap();
     assert_eq!(former_mp.member.membership_from, "Life peer");
     assert!(!former_mp.member.is_current_commons);
 }
@@ -86,7 +117,13 @@ async fn complete_history_preserves_occurrences_and_empty_declarations(pool: PgP
 async fn member_summary_covers_complete_history_and_classifies_by_source_id(pool: PgPool) {
     use crate::domain::models::entity_details::DeclarationCategory;
     let service = Service::new(ExposedDatabase::from(pool));
-    let details = service.member("1".parse().unwrap()).await.unwrap();
+    let details = service
+        .member(MemberDetailsRequest::new(
+            "1".parse().unwrap(),
+            ReportingPeriod::Historical,
+        ))
+        .await
+        .unwrap();
     assert_eq!(details.summary.entry_count, 18);
     assert_eq!(details.summary.unknown_currency_count, 7);
     assert_eq!(details.summary.undated_declaration_count, 2);
@@ -133,7 +170,13 @@ async fn member_summary_covers_complete_history_and_classifies_by_source_id(pool
         details.summary.currencies[3].amount,
         Some(BigDecimal::from(100))
     );
-    let empty = service.member("3".parse().unwrap()).await.unwrap();
+    let empty = service
+        .member(MemberDetailsRequest::new(
+            "3".parse().unwrap(),
+            ReportingPeriod::Historical,
+        ))
+        .await
+        .unwrap();
     assert!(empty.summary.currencies.is_empty());
     assert_eq!(empty.summary.entry_count, 0);
     assert!(empty.summary.first_registered_at.is_none());
@@ -182,7 +225,10 @@ async fn exact_summaries_exclude_unknown_currencies_and_keep_local_coverage(pool
             .any(|entry| entry.currency.is_none() && entry.amount == Some(BigDecimal::from(999)))
     );
     let details = Service::new(db)
-        .funder(FUNDER.parse().unwrap())
+        .funder(FunderDetailsRequest::new(
+            FUNDER.parse().unwrap(),
+            ReportingPeriod::Historical,
+        ))
         .await
         .unwrap();
     assert_eq!(details.profile.company_number.as_deref(), Some("00123456"));
@@ -256,20 +302,29 @@ async fn exact_summaries_exclude_unknown_currencies_and_keep_local_coverage(pool
 async fn empty_funders_are_distinct_from_missing_identities(pool: PgPool) {
     let service = Service::new(ExposedDatabase::from(pool));
     let details = service
-        .funder("10000000-0000-0000-0000-000000000002".parse().unwrap())
+        .funder(FunderDetailsRequest::new(
+            "10000000-0000-0000-0000-000000000002".parse().unwrap(),
+            ReportingPeriod::Historical,
+        ))
         .await
         .unwrap();
     assert_eq!(details.entry_count, 0);
     assert_eq!(details.profile.aliases, ["Empty Funder"]);
     let individual = service
-        .funder("10000000-0000-0000-0000-000000000004".parse().unwrap())
+        .funder(FunderDetailsRequest::new(
+            "10000000-0000-0000-0000-000000000004".parse().unwrap(),
+            ReportingPeriod::Historical,
+        ))
         .await
         .unwrap();
     assert_eq!(individual.profile.aliases, ["Individual Funder"]);
     assert!(details.currencies.is_empty());
     assert!(matches!(
         service
-            .funder("10000000-0000-0000-0000-000000000003".parse().unwrap())
+            .funder(FunderDetailsRequest::new(
+                "10000000-0000-0000-0000-000000000003".parse().unwrap(),
+                ReportingPeriod::Historical
+            ))
             .await,
         Err(EntityDetailsError::NotFound)
     ));
@@ -315,7 +370,7 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
     });
     let client = reqwest::Client::new();
     let response = client
-        .get(format!("{origin}/members/1"))
+        .get(format!("{origin}/members/1?period=historical"))
         .send()
         .await
         .unwrap();
@@ -356,7 +411,7 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
             .any(|entry| entry["amount"] == "100" && entry["currency"] == "USD")
     );
     let response = client
-        .get(format!("{origin}/funders/{FUNDER}"))
+        .get(format!("{origin}/funders/{FUNDER}?period=historical"))
         .send()
         .await
         .unwrap();
@@ -448,9 +503,101 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
             reqwest::StatusCode::NOT_FOUND
         );
     }
+    let context = crate::domain::models::reporting_period::ReportingContext::at(chrono::Utc::now());
+    for path in ["members/1".to_owned(), format!("funders/{FUNDER}")] {
+        let historical: serde_json::Value = serde_json::from_str(
+            &client
+                .get(format!("{origin}/{path}?period=historical"))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        for (wire, period) in [
+            ("historical", ReportingPeriod::Historical),
+            ("current-term", ReportingPeriod::CurrentTerm),
+            ("current-year", ReportingPeriod::CurrentYear),
+        ] {
+            let selected: serde_json::Value = serde_json::from_str(
+                &client
+                    .get(format!("{origin}/{path}?period={wire}"))
+                    .send()
+                    .await
+                    .unwrap()
+                    .text()
+                    .await
+                    .unwrap(),
+            )
+            .unwrap();
+            assert_eq!(selected["period"], wire);
+            let expected: Vec<_> = historical["declarations"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .filter(|source| {
+                    let declaration = source.get("declaration").unwrap_or(source);
+                    let date = declaration["registered_at"]
+                        .as_str()
+                        .map(|value| value.parse().unwrap());
+                    context.window(period).includes(date)
+                })
+                .collect();
+            assert_eq!(
+                selected["declarations"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .collect::<Vec<_>>(),
+                expected
+            );
+            let headline = |value: &serde_json::Value| {
+                value.get("summary").unwrap_or(value)["declared_totals"].clone()
+            };
+            assert_eq!(headline(&historical), headline(&selected));
+            let entry_count: usize = expected
+                .iter()
+                .map(|source| {
+                    source.get("declaration").unwrap_or(source)["entries"]
+                        .as_array()
+                        .unwrap()
+                        .len()
+                })
+                .sum();
+            assert_eq!(
+                selected.get("summary").unwrap_or(&selected)["entry_count"],
+                entry_count
+            );
+        }
+        let default: serde_json::Value = serde_json::from_str(
+            &client
+                .get(format!("{origin}/{path}"))
+                .send()
+                .await
+                .unwrap()
+                .text()
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(default["period"], "current-term");
+        for invalid in ["", "other", "Historical"] {
+            assert_eq!(
+                client
+                    .get(format!("{origin}/{path}?period={invalid}"))
+                    .send()
+                    .await
+                    .unwrap()
+                    .status(),
+                reqwest::StatusCode::BAD_REQUEST
+            );
+        }
+    }
     db.pool().close().await;
     let response = client
-        .get(format!("{origin}/members/1"))
+        .get(format!("{origin}/members/1?period=historical"))
         .send()
         .await
         .unwrap();
@@ -459,6 +606,7 @@ async fn http_handlers_expose_typed_identities_exact_values_and_statuses(pool: P
         reqwest::StatusCode::INTERNAL_SERVER_ERROR
     );
     assert_eq!(response.text().await.unwrap(), "internal server error");
+
     server.abort();
 }
 
