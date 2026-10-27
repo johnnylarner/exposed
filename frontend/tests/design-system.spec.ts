@@ -493,6 +493,52 @@ test("category wheel retains keyboard focus and neutral focus without a tick", a
   );
 });
 
+test("ranking amounts are larger and align with bars while retaining mobile stacking", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const list = page.getByRole("list", { name: "Example rankings" });
+  const rows = list.getByRole("listitem");
+
+  for (const row of await rows.all()) {
+    const amount = row.locator(".value");
+    await expect(amount).toHaveCSS("font-size", "22px");
+    const amountBounds = await amount.boundingBox();
+    const barBounds = await row.locator(".bar-track").boundingBox();
+    if (!amountBounds || !barBounds) throw new Error("Missing ranking bounds");
+    expect(barBounds.y + barBounds.height / 2).toBeCloseTo(
+      amountBounds.y + amountBounds.height / 2,
+      0,
+    );
+  }
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expect(rows.first().locator(".value")).toHaveText(
+    "£90,071,992,547,409,993.123456789",
+  );
+  await expect(
+    rows.first().getByText("Incomplete", { exact: true }),
+  ).toBeVisible();
+  for (const row of await rows.all()) {
+    const amountBounds = await row.locator(".value").boundingBox();
+    const barBounds = await row.locator(".bar-track").boundingBox();
+    if (!amountBounds || !barBounds)
+      throw new Error("Missing mobile ranking bounds");
+    expect(amountBounds.x).toBeCloseTo(barBounds.x, 0);
+    expect(amountBounds.y).toBeGreaterThanOrEqual(
+      barBounds.y + barBounds.height,
+    );
+    expect(amountBounds.x + amountBounds.width).toBeLessThanOrEqual(320);
+    expect(
+      await row.evaluate(
+        (element) => element.scrollWidth <= element.clientWidth,
+      ),
+    ).toBe(true);
+  }
+});
+
 test("semicircle buttons cover both lower halves and retain keyboard focus", async ({
   page,
 }) => {
