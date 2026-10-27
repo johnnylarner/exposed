@@ -209,6 +209,7 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
   gap: 48px;
+  margin-top: var(--space-6);
   padding-bottom: 32px;
   margin-bottom: 32px;
   border-bottom: 1px solid var(--line);

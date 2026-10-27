@@ -89,6 +89,8 @@ for (const kind of ["member", "funder"] as const) {
       });
     });
     await page.goto(`${path}?q=Example`);
+    const identityText = await page.locator(".member-identity").innerText();
+    const identityBounds = await page.locator(".member-identity").boundingBox();
     const selector = page.getByRole("navigation", { name: "Reporting period" });
     await expect(
       selector.getByRole("link", {
@@ -118,6 +120,12 @@ for (const kind of ["member", "funder"] as const) {
     await expect(page.locator(".declared-totals .member-total")).toHaveText([
       "−£12.34",
     ]);
+    expect(await page.locator(".member-identity").innerText()).toBe(
+      identityText,
+    );
+    expect(await page.locator(".member-identity").boundingBox()).toEqual(
+      identityBounds,
+    );
     await page
       .getByRole("link", {
         name: kind === "member" ? "Declaration history" : "Funding history",
@@ -195,7 +203,34 @@ for (const kind of ["member", "funder"] as const) {
         .boundingBox();
       const controls = await selector.boundingBox();
       const metric = await page.locator(".declared-totals").boundingBox();
-      expect(controls!.y).toBeGreaterThan(metadata!.y + metadata!.height);
+      const tabs = await page.locator(".member-tabs").boundingBox();
+      expect(tabs!.y).toBeGreaterThanOrEqual(metadata!.y + metadata!.height);
+      expect(controls!.y).toBeGreaterThanOrEqual(tabs!.y + tabs!.height);
+      expect(
+        await page
+          .locator(".member-tabs")
+          .evaluate((node) =>
+            Boolean(
+              node.compareDocumentPosition(
+                document.querySelector('[aria-label="Reporting period"]')!,
+              ) & Node.DOCUMENT_POSITION_FOLLOWING,
+            ),
+          ),
+      ).toBe(true);
+      await expect(page.locator(".member-identity")).not.toContainText(
+        "Declared amounts",
+      );
+      await expect(
+        page
+          .locator(".member-identity")
+          .getByRole("navigation", { name: "Reporting period" }),
+      ).toHaveCount(0);
+      const panel = page.getByRole("region", { name: "Summary", exact: true });
+      await expect(panel.locator(".declared-totals")).toHaveCount(1);
+      const breakdown = await panel
+        .locator(".member-summary-top")
+        .boundingBox();
+      expect(breakdown!.y).toBeGreaterThanOrEqual(metric!.y + metric!.height);
       expect(metric!.y).toBeGreaterThan(controls!.y + controls!.height);
     }
     const historical = selector.getByRole("link", {
@@ -440,3 +475,106 @@ test("cross-entity navigation replaces previous details with the loading state",
   ).toBeVisible();
   await expect(page.locator("#details")).toHaveAttribute("aria-busy", "false");
 });
+
+for (const kind of ["member", "funder"] as const) {
+  test(`${kind} retains identity and the loaded view during delayed tab navigation`, async ({
+    page,
+    backend,
+  }) => {
+    const canonicalPath =
+      kind === "member"
+        ? "/members/1"
+        : "/funders/abcdefab-0000-0000-0000-000000000001";
+    const initialPath =
+      kind === "member"
+        ? canonicalPath
+        : canonicalPath.toUpperCase().replace("/FUNDERS/", "/funders/");
+    const response = Promise.withResolvers<void>();
+    await backend.route("**/api/*", async (route) => {
+      const period = new URL(route.request().url()).searchParams.get("period");
+      if (period === "historical") await response.promise;
+      await route.fulfill({
+        json:
+          kind === "member"
+            ? { ...memberDetails, period }
+            : {
+                ...funderDetails,
+                funder: {
+                  ...funderDetails.funder,
+                  id: canonicalPath.slice("/funders/".length),
+                },
+                period,
+                entry_count: period === "historical" ? 41 : 1,
+              },
+      });
+    });
+    await page.goto(`${initialPath}?period=current-year`);
+    const identity = page.locator(".member-identity");
+    const header = await identity.elementHandle();
+    const text = await identity.innerText();
+    const bounds = await identity.boundingBox();
+    const historyName =
+      kind === "member" ? "Declaration history" : "Funding history";
+    const nav = page.getByRole("navigation", {
+      name: `${kind === "member" ? "Member" : "Funder"} views`,
+    });
+    if (kind === "funder") {
+      await expect(identity).not.toContainText("funding entry");
+      await expect(
+        page
+          .getByRole("region", { name: "Summary", exact: true })
+          .getByText("1 funding entry", { exact: true }),
+      ).toBeVisible();
+    }
+    await nav.getByRole("link", { name: historyName, exact: true }).click();
+    try {
+      await expect(page.locator("#details")).toHaveAttribute(
+        "aria-busy",
+        "true",
+      );
+      expect(await header!.evaluate((node) => node.isConnected)).toBe(true);
+      await expect(
+        nav.getByRole("link", { name: "Summary", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
+      await expect(
+        page.getByRole("region", { name: "Summary", exact: true }),
+      ).toBeVisible();
+      expect(await identity.innerText()).toBe(text);
+    } finally {
+      response.resolve();
+    }
+    await expect(page).toHaveURL(
+      `${canonicalPath}/history?period=current-year`,
+    );
+    await expect(
+      nav.getByRole("link", { name: historyName, exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(await header!.evaluate((node) => node.isConnected)).toBe(true);
+    expect(await identity.innerText()).toBe(text);
+    expect(await identity.boundingBox()).toEqual(bounds);
+    await expect(
+      page.getByRole("region", { name: "Summary", exact: true }),
+    ).toHaveCount(0);
+    if (kind === "funder") {
+      await expect(
+        page
+          .getByRole("region", { name: "Funding history", exact: true })
+          .getByText("41 funding entries", { exact: true }),
+      ).toBeVisible();
+      await page.getByLabel("Registered from").fill("2099-01-01");
+      await page.getByLabel("Registered from").dispatchEvent("change");
+      await expect(
+        page.getByText("41 funding entries", { exact: true }),
+      ).toBeVisible();
+    }
+    await nav.getByRole("link", { name: "Summary", exact: true }).click();
+    await expect(page).toHaveURL(`${canonicalPath}?period=current-year`);
+    await expect(
+      page
+        .getByRole("navigation", { name: "Reporting period" })
+        .getByRole("link", { name: "This year", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    expect(await identity.boundingBox()).toEqual(bounds);
+    await header!.dispose();
+  });
+}

@@ -60,7 +60,7 @@ Actions and focus remain neutral in every entity context. Override `--accent` on
 
 ## Identity and metric
 
-`IdentityHeader` owns its title, metadata paragraph and grid. Supply inline metadata and a native navigation composition. `.identity-totals` is caller-owned grid placement. `Metric` takes exact formatted strings without interpreting money.
+`IdentityHeader` owns its title, metadata paragraph and grid. Supply inline metadata and a native navigation composition. View-specific controls and metrics belong after identity navigation, inside the active view. The optional `values` snippet remains available for standalone identities without view navigation. `Metric` takes exact formatted strings without interpreting money.
 
 ```svelte
 <script lang="ts">
@@ -78,11 +78,6 @@ Actions and focus remain neutral in every entity context. Override `--accent` on
   {#snippet kind()}<Badge variant="profile"><Icon name="parliament" />MP</Badge
     >{/snippet}
   {#snippet metadata()}Example Party<span>Example constituency</span>{/snippet}
-  {#snippet values()}
-    <div class="identity-totals">
-      <Metric variant="expanded" label="Declared amounts" value="£1,234.56" />
-    </div>
-  {/snippet}
   {#snippet navigation()}
     <ViewLinks label="Example views">
       <ViewLink href="/members/1" aria-current="page">Summary</ViewLink>
@@ -91,12 +86,9 @@ Actions and focus remain neutral in every entity context. Override `--accent` on
   {/snippet}
 </IdentityHeader>
 
-<style>
-  .identity-totals {
-    grid-column: 1 / -1;
-    min-width: 0;
-  }
-</style>
+<section aria-label="Summary">
+  <Metric variant="expanded" label="Declared amounts" value="£1,234.56" />
+</section>
 ```
 
 ## Native table columns

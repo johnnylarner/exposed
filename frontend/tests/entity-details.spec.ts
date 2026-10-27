@@ -692,12 +692,12 @@ test("member summary retains signed category bars alongside all-category totals"
       ".member-currency-totals, .member-overview, .category-currency",
     ),
   ).toHaveCount(0);
-  await expect(page.locator(".member-identity")).toContainText(
+  await expect(page.locator(".member-identity")).not.toContainText(
     "Declared amounts",
   );
   const total = await page.locator(".member-total").first().boundingBox();
   const tabs = await page.locator(".member-tabs").boundingBox();
-  expect(total && tabs && total.y + total.height <= tabs.y).toBeTruthy();
+  expect(total && tabs && tabs.y + tabs.height <= total.y).toBeTruthy();
   await expect(page.locator(".declarations-list")).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "Declaration history", exact: true }),
@@ -909,6 +909,7 @@ test("party tooltip persists when the pointer crosses between pie slices", async
   await page.goto(`/funders/${funderId}`);
   const pie = page.locator(".funder-party-chart svg");
   await expect(pie.locator("path")).toHaveCount(2);
+  await pie.scrollIntoViewIfNeeded();
   const bounds = await pie.evaluate((element) => {
     const { x, y, width, height } = element.getBoundingClientRect();
     return { x, y, width, height };
@@ -949,6 +950,7 @@ test("small pie slice tooltips do not cover neighboring slices", async ({
   await page.goto(`/funders/${funderId}`);
   const pie = page.locator(".funder-party-chart svg");
   await expect(pie.locator("path")).toHaveCount(2);
+  await pie.scrollIntoViewIfNeeded();
   const bounds = await pie.evaluate((element) => {
     const { x, y, width, height, top, bottom } =
       element.getBoundingClientRect();
@@ -1252,6 +1254,21 @@ test("initial HTML renders search and detail views while browser traffic stays i
     `/funders/${funderId}/history`,
   ]) {
     await plainPage.goto(path);
+    await expect(
+      plainPage.locator(".member-identity .declared-totals"),
+    ).toHaveCount(0);
+    if (path.endsWith("/history")) {
+      await expect(
+        plainPage.getByRole("navigation", { name: "Reporting period" }),
+      ).toHaveCount(0);
+      await expect(plainPage.locator(".declared-totals")).toHaveCount(0);
+    } else {
+      await expect(
+        plainPage
+          .getByRole("region", { name: "Summary", exact: true })
+          .locator(".declared-totals"),
+      ).toBeVisible();
+    }
     await expect(
       plainPage.getByRole("heading", {
         name: path.startsWith("/members")

@@ -38,6 +38,10 @@
 
 <section aria-labelledby="history-heading">
   <SectionHeading id="history-heading" title="Funding history">
+    <p class="entry-count">
+      {details.entryCount}
+      {details.entryCount === 1 ? "funding entry" : "funding entries"}
+    </p>
     <p>
       {details.declarations.length} funding declarations, most recent registration
       first.
