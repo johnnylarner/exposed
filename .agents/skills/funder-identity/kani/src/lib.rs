@@ -8,6 +8,21 @@ pub enum ParliamentApiError {}
 #[derive(Debug)]
 pub enum EntitySearchPipelineError {}
 
+mod domain {
+    pub(crate) mod models {
+        pub(crate) mod funder_name {
+            include!(concat!(env!("OUT_DIR"), "/funder_name.rs"));
+        }
+    }
+}
+mod peerage {
+    include!(concat!(
+        env!("EXPOSED_SOURCE_ROOT"),
+        "/exposed/src/lib/domain/models/declaration_resolution/peerage.rs"
+    ));
+}
+use peerage::PeerageAliases;
+
 include!(concat!(env!("OUT_DIR"), "/domain.rs"));
 
 #[cfg(test)]

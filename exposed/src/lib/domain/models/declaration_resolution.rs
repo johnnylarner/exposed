@@ -14,6 +14,7 @@ pub(crate) const AUTOMATIC_THRESHOLD: f64 = 0.999;
 
 mod attribution;
 mod identity;
+mod peerage;
 fn invalid(message: impl Into<String>) -> EntityIngestionError {
     EntityIngestionError::DataError(message.into())
 }

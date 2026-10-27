@@ -1,3 +1,4 @@
+use super::peerage::PeerageAliases;
 use super::{
     AUTOMATIC_THRESHOLD, AddressMatchQuality, BTreeMap, BTreeSet, EntityIngestionError,
     FunderObservationId, FunderRole, IdentityBasis, Observation, ObservationResolution,
@@ -35,8 +36,11 @@ fn kind(observation: &Observation) -> EntityKind {
         _ => EntityKind::Unknown,
     }
 }
+pub(super) fn individual_donor(observation: &Observation) -> bool {
+    observation.role == FunderRole::Donor && kind(observation) == EntityKind::Person
+}
 pub(super) fn individual_donor_name(observation: &Observation) -> Option<&str> {
-    if observation.role != FunderRole::Donor || kind(observation) != EntityKind::Person {
+    if !individual_donor(observation) {
         return None;
     }
     observation.person_name_normalized.as_deref()
@@ -77,7 +81,12 @@ struct CandidateEdge {
     decision: PairDecision,
     eligibility: EdgeEligibility,
 }
-fn classify(a: &Observation, b: &Observation, probability: f64) -> EdgeEligibility {
+fn classify(
+    a: &Observation,
+    b: &Observation,
+    probability: f64,
+    peerage_aliases: &PeerageAliases,
+) -> EdgeEligibility {
     if kind(a) != EntityKind::Unknown && kind(b) != EntityKind::Unknown && kind(a) != kind(b) {
         return EdgeEligibility::Reject(PairReason::PersonOrganisationConflict);
     }
@@ -108,6 +117,7 @@ fn classify(a: &Observation, b: &Observation, probability: f64) -> EdgeEligibili
     } else if exact_name && a.role == FunderRole::Donor && b.role == FunderRole::Donor {
         EdgeEligibility::Link(LinkEvidence::DonorName)
     } else if extracted_name_agrees
+        || peerage_aliases.agree(&a.funder_id, &b.funder_id)
         || individual_donor_name(a)
             .zip(individual_donor_name(b))
             .is_some_and(|(left, right)| left == right)
@@ -243,7 +253,7 @@ fn expanded_edges(
                 edges
                     .entry((left.clone(), right.clone()))
                     .or_insert_with(|| CandidateEdge {
-                        eligibility: classify(a, b, pair.probability),
+                        eligibility: classify(a, b, pair.probability, &input.peerage_aliases),
                         decision: PairDecision {
                             left_funder_id: left.clone(),
                             right_funder_id: right.clone(),

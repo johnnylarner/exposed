@@ -41,6 +41,8 @@ pub enum PersonTitle {
     Dame,
     /// The `lord` honorific.
     Lord,
+    /// The `baron` honorific.
+    Baron,
     /// The `lady` honorific.
     Lady,
     /// The `rev` honorific.
@@ -67,6 +69,7 @@ impl PersonTitle {
             "sir" => Some(Self::Sir),
             "dame" => Some(Self::Dame),
             "lord" => Some(Self::Lord),
+            "baron" => Some(Self::Baron),
             "lady" => Some(Self::Lady),
             "rev" => Some(Self::Rev),
             "reverend" => Some(Self::Reverend),
@@ -74,6 +77,102 @@ impl PersonTitle {
             "hon" => Some(Self::Hon),
             _ => None,
         }
+    }
+
+    const fn is_peerage(self) -> bool {
+        match self {
+            Self::Lord | Self::Baron => true,
+            Self::Mr
+            | Self::Mrs
+            | Self::Ms
+            | Self::Miss
+            | Self::Mx
+            | Self::Dr
+            | Self::Prof
+            | Self::Professor
+            | Self::Sir
+            | Self::Dame
+            | Self::Lady
+            | Self::Rev
+            | Self::Reverend
+            | Self::Rt
+            | Self::Hon => false,
+        }
+    }
+}
+
+pub(crate) struct PeerageName {
+    spelling: String,
+    bridge: Option<PeerageBridge>,
+}
+
+pub(crate) struct PeerageBridge {
+    style: String,
+    full_style: String,
+    personal_name: String,
+}
+
+impl PeerageName {
+    pub(crate) fn parse(raw: &str) -> Option<Self> {
+        let normalized = normalize(raw);
+        let person = ParsedPersonName::parse(&normalized);
+        let spelling = person.normalized?;
+        if spelling.contains(" of ") && (person.titles.len() != 1 || !person.titles[0].is_peerage())
+        {
+            return None;
+        }
+        if name_like(&spelling) {
+            return Some(Self {
+                spelling,
+                bridge: None,
+            });
+        }
+        if person.titles.len() != 1 || !person.titles[0].is_peerage() {
+            return None;
+        }
+        let (style, personal_name) = spelling.strip_suffix(')')?.split_once(" (")?;
+        let personal_name = personal_name.trim();
+        let (stem, territory) = style.split_once(" of ")?;
+        if !name_like(stem)
+            || !name_like(territory)
+            || !name_like(personal_name)
+            || personal_name.split_whitespace().count() < 2
+            || personal_name
+                .split_whitespace()
+                .any(|word| word.chars().count() < 2)
+            || !personal_name
+                .strip_suffix(stem)
+                .is_some_and(|given| given.ends_with(' '))
+        {
+            return None;
+        }
+        Some(Self {
+            spelling: format!("{style} ({personal_name})"),
+            bridge: Some(PeerageBridge {
+                style: style.to_owned(),
+                full_style: format!("{personal_name} of {territory}"),
+                personal_name: personal_name.to_owned(),
+            }),
+        })
+    }
+
+    pub(crate) fn spelling(&self) -> &str {
+        &self.spelling
+    }
+    pub(crate) const fn bridge(&self) -> Option<&PeerageBridge> {
+        self.bridge.as_ref()
+    }
+}
+
+impl PeerageBridge {
+    pub(crate) fn style(&self) -> &str {
+        &self.style
+    }
+    pub(crate) fn personal_name(&self) -> &str {
+        &self.personal_name
+    }
+    pub(crate) fn styles(&self) -> [&str; 2] {
+        [&self.style, &self.full_style]
     }
 }
 
@@ -121,22 +220,32 @@ fn unwrap_given_name(name: &str) -> Option<String> {
     }
     let given = given.trim();
     let surname = surname.trim();
-    let name_like = |value: &str| {
-        !value.is_empty()
-            && value.split_whitespace().all(|word| {
-                !matches!(
-                    word,
-                    "and" | "or" | "trading" | "as" | "trustee" | "ceo" | "director"
-                ) && word.chars().next().is_some_and(char::is_alphabetic)
-                    && word.chars().last().is_some_and(char::is_alphabetic)
-                    && word.chars().all(|c| {
-                        c.is_alphabetic()
-                            || is_combining_mark(c)
-                            || matches!(c, '-' | '\'' | '’' | '‘' | 'ʼ')
-                    })
-            })
-    };
     (name_like(given) && name_like(surname)).then(|| format!("{given} {surname}"))
+}
+
+fn name_like(value: &str) -> bool {
+    !value.is_empty()
+        && value.split_whitespace().all(|word| {
+            !matches!(
+                word,
+                "and"
+                    | "or"
+                    | "trading"
+                    | "as"
+                    | "trustee"
+                    | "ceo"
+                    | "director"
+                    | "representative"
+                    | "representing"
+                    | "behalf"
+            ) && word.chars().next().is_some_and(char::is_alphabetic)
+                && word.chars().last().is_some_and(char::is_alphabetic)
+                && word.chars().all(|c| {
+                    c.is_alphabetic()
+                        || is_combining_mark(c)
+                        || matches!(c, '-' | '\'' | '’' | '‘' | 'ʼ')
+                })
+        })
 }
 
 /// Independent candidate representations, never keys for merging observations.

@@ -1,5 +1,6 @@
 fn input(observations: Vec<Observation>) -> ResolutionInput {
     let mut input = ResolutionInput {
+        peerage_aliases: PeerageAliases::default(),
         observations: BTreeMap::new(),
         payments: BTreeMap::new(),
         digests: BTreeMap::new(),
@@ -7,6 +8,7 @@ fn input(observations: Vec<Observation>) -> ResolutionInput {
     for row in observations {
         input.observations.insert(row.funder_id.clone(), row);
     }
+    input.peerage_aliases = PeerageAliases::from_observations(input.observations.values());
     input
 }
 
