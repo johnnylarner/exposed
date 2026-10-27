@@ -5,7 +5,7 @@ use chrono::Utc;
 use serde::Deserialize;
 use serde_json::Value;
 
-use super::{ApiError, ParliamentApiClient};
+use super::{ApiError, ParliamentApiClient, decode_response};
 use crate::domain::models::declaration_ingestion::CapturedDeclaration;
 use crate::outbound::declaration_source::decode_declaration;
 
@@ -24,8 +24,8 @@ impl ParliamentApiClient {
                 member.value(),
                 self.batch_size,
             );
-            let bytes = self.client.get(url).send().await?.bytes().await?;
-            let response: InterestPage = serde_json::from_slice(&bytes)?;
+            let bytes = self.client.get(&url).send().await?.bytes().await?;
+            let response: InterestPage = decode_response(&bytes, &url)?;
             if response.items.is_empty() {
                 break;
             }
@@ -48,4 +48,83 @@ struct InterestPage {
     total_results: usize,
     // Retain every source field alongside the typed projection below.
     items: Vec<Value>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::ParliamentResponse;
+    use super::*;
+    use serde::de::DeserializeOwned;
+
+    fn assert_diagnostic<T: DeserializeOwned>(url: &str, body: &str, cause: &str) {
+        let Err(error) = decode_response::<T>(body.as_bytes(), url) else {
+            panic!("invalid response was accepted");
+        };
+        let error: crate::domain::repositories::parliament_api::ParliamentApiError = error.into();
+        let diagnostic = error.to_string();
+        assert!(diagnostic.contains(cause), "{diagnostic}");
+        assert!(
+            diagnostic.contains(body),
+            "response body missing from diagnostic: {diagnostic}"
+        );
+        assert!(
+            diagnostic.contains(url),
+            "request URL missing from diagnostic: {diagnostic}"
+        );
+    }
+
+    #[test]
+    fn members_missing_total_results_retains_full_response() {
+        let body = format!(
+            r#"{{"items":[],"message":"{}end of response"}}"#,
+            "upstream detail ".repeat(1024)
+        );
+        assert_diagnostic::<ParliamentResponse>(
+            "https://members-api.parliament.uk/api/Members/Search?skip=20&take=10",
+            &body,
+            "missing field `totalResults`",
+        );
+    }
+
+    #[test]
+    fn interests_missing_total_results_retains_full_response() {
+        let body = format!(
+            r#"{{"items":[],"message":"{}end of response"}}"#,
+            "upstream detail ".repeat(1024)
+        );
+        assert_diagnostic::<InterestPage>(
+            "https://interests-api.parliament.uk/api/v2/Interests?MemberId=42&Skip=20&Take=10",
+            &body,
+            "missing field `totalResults`",
+        );
+    }
+
+    #[test]
+    fn members_malformed_json_retains_response() {
+        assert_diagnostic::<ParliamentResponse>(
+            "https://members-api.parliament.uk/api/Members/Search?skip=0&take=10",
+            "<html>\nupstream unavailable\n</html>",
+            "expected value at line 1 column 1",
+        );
+    }
+
+    #[test]
+    fn interests_malformed_json_retains_response() {
+        assert_diagnostic::<InterestPage>(
+            "https://interests-api.parliament.uk/api/v2/Interests?MemberId=42&Skip=0&Take=10",
+            "<html>\nupstream unavailable\n</html>",
+            "expected value at line 1 column 1",
+        );
+    }
+
+    #[test]
+    fn valid_pages_still_decode() {
+        let body = br#"{"items":[],"totalResults":0}"#;
+        let members: ParliamentResponse = decode_response(body, "members").unwrap();
+        assert!(members.items.is_empty());
+        assert_eq!(members.total_results, 0);
+        let interests: InterestPage = decode_response(body, "interests").unwrap();
+        assert!(interests.items.is_empty());
+        assert_eq!(interests.total_results, 0);
+    }
 }

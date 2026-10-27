@@ -2,7 +2,7 @@
 
 use std::num::NonZeroU8;
 
-use serde::Deserialize;
+use serde::{Deserialize, de::DeserializeOwned};
 use thiserror::Error;
 
 use reqwest::Client;
@@ -54,7 +54,7 @@ impl Interface for ParliamentApiClient {
             );
             let result = self
                 .client
-                .get(url)
+                .get(&url)
                 .send()
                 .await
                 .map_err(|e| ApiError::ResponseError(e.to_string()))?;
@@ -64,8 +64,7 @@ impl Interface for ParliamentApiClient {
                 .await
                 .map_err(|e| ApiError::ResponseError(e.to_string()))?;
 
-            let response: ParliamentResponse = serde_json::from_slice(&bytes)
-                .map_err(|e| ApiError::ResponseError(e.to_string()))?;
+            let response: ParliamentResponse = decode_response(&bytes, &url)?;
 
             offset += response.items.len();
             members.extend(response.items);
@@ -167,4 +166,8 @@ impl From<EntityIngestionError> for ApiError {
     fn from(error: EntityIngestionError) -> Self {
         Self::ResponseError(error.to_string())
     }
+}
+
+fn decode_response<T: DeserializeOwned>(bytes: &[u8], _url: &str) -> Result<T, ApiError> {
+    serde_json::from_slice(bytes).map_err(|error| ApiError::ResponseError(error.to_string()))
 }
