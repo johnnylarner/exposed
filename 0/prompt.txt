@@ -1,0 +1,1 @@
+okay, this is a hacky implementation. it violates important principles around the purpose of application code. We shouldn't have busienss logic stored in the database. Why did you not impelement this as part of the data pipeline?
