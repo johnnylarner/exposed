@@ -1,0 +1,3 @@
+Please implement this using the design system. Remember:
+- remove redundent subheadings
+- consider how to accent the selected category in the wheel
