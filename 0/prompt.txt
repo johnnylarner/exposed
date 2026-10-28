@@ -1,0 +1,1 @@
+- i like that layout but how does that help when for example i want to do a new clean/resolution. How does the fs manager determine what is the correct raw declaration to fetch?
