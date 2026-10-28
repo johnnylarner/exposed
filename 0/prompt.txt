@@ -1,0 +1,7 @@
+<image name=[Image #1] path="/var/folders/cz/rswsvzmn2998q95j0r32bkyh0000gn/T/codex-clipboard-zIJhNa.png">
+
+</image>
+
+$pstack:poteto-mode the scale on these graphs is incorrect. The sum of the bars should be the total width. Right now the total sum of the bars exceeds the max width:
+
+[Image #1]
