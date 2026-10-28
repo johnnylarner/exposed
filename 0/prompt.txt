@@ -1,0 +1,1 @@
+the thing is, i'm not completely opposed to avoiding the delta issue entirely. We could just run a full load each day?
