@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"One declaration record per MP association","question":"When the same declaration is returned for multiple MPs, how should the saved data represent it?","questionItemId":"[\"request_user_input_async\",\"call_KOUPSEjGX5L90Cav0iU0gRNY\",0]"}]
+</send_user_message_question_reply>
