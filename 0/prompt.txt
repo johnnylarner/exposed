@@ -1,0 +1,1 @@
+do we want to rank in the db or on the application side?
