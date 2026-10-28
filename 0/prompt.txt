@@ -1,0 +1,1 @@
+$pstack:poteto-mode are all the hooks installed for this plugin?
