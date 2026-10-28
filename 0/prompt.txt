@@ -1,0 +1,1 @@
+hey, can you please $setup-env for the declaration loading feature. I'm testing this skill and so please stop whenever you have a problem and tell me
