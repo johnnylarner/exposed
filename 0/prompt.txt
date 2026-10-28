@@ -1,0 +1,1 @@
+okay, use kokoro with bm_george voice. Please include this as part of the skill for pr videos
