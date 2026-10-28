@@ -1,0 +1,1 @@
+wow that's quite impressive. Please extend this in two ways: add a migration fro a gist index on the appropraite columns. In the UI, make distinction between an alias and non-alias match. Currently, "west mid" returns Unite Union as the first match because of an alias. But for many users this may appear strange
