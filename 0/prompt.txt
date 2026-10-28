@@ -1,0 +1,1 @@
+how can i reingest this data using the cli?
