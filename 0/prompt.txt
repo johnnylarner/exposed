@@ -1,0 +1,1 @@
+there are some inconsistencies in the design system. Most of the website uses purple for actions. But in the entity search the MPs are also purple. One of these needs to change. $pstack:poteto-mode what optinos do we have
