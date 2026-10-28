@@ -1,0 +1,67 @@
+<skill>
+<name>hexagonal-architecture</name>
+<path>/Users/jamie/dotfiles/.config/skillshare/skills/hexagonal-architecture/SKILL.md</path>
+---
+name: hexagonal-architecture
+description: Bootstrap new projects or migrate existing codebases to hexagonal architecture (ports and adapters). Use when the user asks to adopt this architecture, isolate business logic from infrastructure, or convert an application to domain-owned ports. Language-agnostic, with additional Rust guidance.
+---
+
+# Hexagonal architecture
+
+Build an application whose business behavior can run and be tested independently of its delivery mechanism and infrastructure. Produce working code for the user's domain, with explicit boundaries and replaceable adapters.
+
+## Choose the workflow
+
+Inspect repository instructions, manifests, entry points, tests, and existing architecture notes before choosing a structure. Preserve the user's language, tooling, and product scope.
+
+- **New project or new independent application:** read [bootstrap.md](references/bootstrap.md), then implement a runnable vertical slice.
+- **Existing application or feature:** read [migrate.md](references/migrate.md), then migrate the requested scope incrementally. A new feature in an existing application is not permission to rebuild the project.
+- **Rust:** also read [rust.md](references/rust.md) before designing ports or selecting async/dispatch patterns. For other languages, use their native interfaces, protocols, function types, and module visibility.
+
+Resolve consequential unknowns from the code and request first. Ask only for missing product requirements or decisions that materially change compatibility or scope. State routine defaults and proceed. If the user requests a plan or assessment, deliver that instead of changing code.
+
+## Architectural contract
+
+The **core** comprises business models, use cases, and their ports. A **port** is an application-owned contract. An **adapter** translates between that contract and a particular outside technology.
+
+| Part | Owns | Dependency direction |
+| --- | --- | --- |
+| Domain models | Invariants, business values, entities, business failures | Language primitives and suitable general-purpose value libraries |
+| Use cases / services | Business decisions, orchestration, required consistency | Domain models and outbound port contracts |
+| Inbound ports | The operations the application offers | Core input, output, and error types |
+| Outbound ports | Capabilities the core needs from its surroundings | Core-owned types and behavioral contracts |
+| Inbound adapters | HTTP, CLI, jobs, consumers; input/output translation | Inbound ports |
+| Outbound adapters | Storage, remote APIs, files; implementation and translation | Outbound ports |
+| Composition root | Configuration, construction, dependency injection, lifecycle | Concrete adapters and services |
+
+An outbound adapter implements a core-owned contract; the core never imports that implementation. Runtime calls can travel outward through a port while source dependencies point inward. Audit actual imports and exposed types: directory names alone establish no boundary.
+
+Apply these rules while implementing either workflow:
+
+1. **Model valid business states.** Define invariants once in domain constructors or operations. Route untrusted input and persistence rehydration through them. Keep transport DTOs and database records at adapter boundaries; conversions must preserve validation. Creation commands and existing entities may have different shapes.
+2. **Expose business capabilities.** Design ports from the caller's needs. Document meaningful outcomes, ordering, atomicity, and failure semantics. A port must not expose an ORM query builder, HTTP request object, vendor exception, or database transaction. An inbound port can be a function or concrete service API; introduce a separate interface when substitution or isolation needs it.
+3. **Keep policy in the core.** Inbound adapters decode input, invoke a use case, and encode its result. Outbound adapters handle implementation details. Multi-step business decisions belong in the use case. Authentication protocols stay at the edge; pass identity in core-owned terms and enforce business authorization where the decision is made.
+4. **Choose boundaries around consistency.** Begin with a cohesive business capability, often within one application. Keep changes that must succeed or fail together under an explicit atomic operation. Separate domains through their public APIs when their responsibilities justify it; a domain is neither a database table nor necessarily a deployed service.
+5. **Make failures part of the contract.** Distinguish invalid input, expected business outcomes, and unexpected dependency failures. Translate vendor failures inside their adapter; preserve diagnostic causes without requiring callers to inspect vendor types. Map public error messages/statuses separately, keeping internal details private.
+6. **Make side effects deliberate.** Define whether notifications and similar effects are required, best effort, or deferred, and what a failure after persistence means. Preserve retry and idempotency semantics. Use transactions, an outbox, or compensation when requirements justify them; sequential calls alone cannot guarantee atomicity.
+7. **Wire at the edge.** Construct concrete implementations in the composition root and inject the needed ports into services. Encapsulate framework setup in adapter factories reusable by tests. Load configuration at startup and pass values explicitly. Keep core imports free of connection setup, environment reads, and service locators.
+
+Use as much structure as the application needs. A small package with clear modules is a valid hexagonal application. Add interfaces at real boundaries and use ordinary functions internally. Existing libraries for identifiers, validation, or errors can be appropriate in the core when they preserve its semantics and independence. Honor an explicit request to use this architecture for learning even when the application is small.
+
+## Verify and finish
+
+Test the boundary that owns each behavior:
+
+- Domain tests exercise invariants without infrastructure.
+- Use-case tests inject fakes to exercise decisions, business failures, and significant dependency failures.
+- Inbound adapter tests check parsing and public response/exit behavior against a substituted use-case boundary.
+- Outbound adapter tests exercise the real local dependency where practical, including contract-critical constraints and rollback behavior. Fakes should satisfy the same contract; they do not establish database correctness.
+- A small end-to-end check exercises production wiring. Inspect or enforce the import/dependency graph with tools appropriate to the repository.
+
+Run the project's relevant formatting, type/build, and test commands. Report exactly what ran and any blocked checks. Finish with the run/test commands, a brief map of the resulting boundaries, and any remaining work inside the requested scope. Follow the workflow-specific completion criteria; passing unit tests or creating folders alone is insufficient.
+
+## Provenance
+
+Inspired by [How To Code It's Rust guide](https://www.howtocodeit.com/guides/master-hexagonal-architecture-in-rust) and [Alistair Cockburn's original ports-and-adapters article](https://alistair.cockburn.us/hexagonal-architecture). This is an independent, language-neutral implementation workflow. The bootstrap and migration procedures extend the articles; their illustrative frameworks, model names, and file layouts are not required. The Rust reference qualifies language-specific choices against official documentation. The guide's Part V was a placeholder when checked on 2026-09-16.
+
+</skill>
