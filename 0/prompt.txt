@@ -1,0 +1,3 @@
+Can we reduce the scope of this conversation to work on moving the member imports to the rust application and park the discussion on declarations. For now we need:
+- how to pull in the members from the API into parquets and how to version those files.
+- how to update the postgres DB as a second step
