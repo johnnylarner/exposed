@@ -1,0 +1,15 @@
+<environment_context>
+  <current_date>2026-10-22</current_date>
+  <timezone>Europe/Berlin</timezone>
+  <filesystem><workspace_roots><root>/Users/jamie/development/exposed</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/from_logging_comments_review" />
+    <agent name="/root/from_logging_implementation" />
+    <agent name="/root/preconversion_comments_review" />
+    <agent name="/root/callback_shape_astra" />
+    <agent name="/root/callback_shape_luna" />
+    <agent name="/root/comments_review" />
+    <agent name="/root/debate_astra" />
+    <agent name="/root/debate_judge" />
+  </subagents>
+</environment_context>
