@@ -1,0 +1,5 @@
+- remove the tick for selection
+
+The next thing. When i go to rankings i want nothing to be selected initially
+
+Also i like having the slices of the pie precoloured. We can use the rim of the slice to indicate selection
