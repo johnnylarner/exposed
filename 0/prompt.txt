@@ -1,0 +1,1 @@
+$pstack:poteto-mode add a show more paginator for all of the rankings
