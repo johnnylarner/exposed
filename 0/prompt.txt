@@ -1,0 +1,1 @@
+why do we need complex scripting in the job, aren't there actions we can use for these things
