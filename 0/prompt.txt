@@ -1,0 +1,1 @@
+the main file is bloated. The CLI should be an inbound port like the http layer. The service creation should happen there. Please refactor it
