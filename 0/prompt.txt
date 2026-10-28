@@ -1,0 +1,1 @@
+please review the cli commands for this project. Do not read any code, just run the cli and tell me what you intuit
