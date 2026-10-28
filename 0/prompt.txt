@@ -1,0 +1,1 @@
+we don't need that  development stuff, the cli has plenty of documentation
