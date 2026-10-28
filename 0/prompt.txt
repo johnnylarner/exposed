@@ -1,0 +1,1 @@
+i added more documentation for both members and declarations but the display is really ugly. Review the cli file and let me know how i can change it
