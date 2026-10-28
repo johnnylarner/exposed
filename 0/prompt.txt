@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"first we need to decide what to do about the ultimate payer vs donor stuff. For now its sufficient to use companies house IDs to resolve companies without fetching the data from teh API","question":"For this first resolver, should matching stay within the captured declarations, or also identify funders against an external register such as Companies House?","questionItemId":"[\"request_user_input_async\",\"REDACTED\",0]"}]
+</send_user_message_question_reply>
