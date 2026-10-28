@@ -1,0 +1,3 @@
+okay, lastly. Distinguish in the agents between two cases:
+- aesthetic changes (sizes, colours, postitions) -> these only require screenshots
+- functional changes and new features (anything which requires steps to test) -> these require videos
