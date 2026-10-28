@@ -1,0 +1,3 @@
+$pstack:poteto-mode  We need to improve the parsing of individual donors. This should include the following:
+- separation of name components: mrs/mr/lord/dame
+- extraction from braces: Lord (<first-name>) <surname> -> Lord <first-name> <surname>
