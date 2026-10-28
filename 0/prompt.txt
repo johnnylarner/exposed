@@ -1,0 +1,3 @@
+Okay, lets do the following:
+- revert the ApiError changes
+- debate the difference in approaches between using middleware vs instrument macros
