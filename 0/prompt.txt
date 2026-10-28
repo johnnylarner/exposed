@@ -1,0 +1,15 @@
+<environment_context>
+  <current_date>2026-10-23</current_date>
+  <timezone>Europe/Berlin</timezone>
+  <filesystem><workspace_roots><root>/Users/jamie/development/exposed</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/landing_colours" />
+    <agent name="/root/landing_review" />
+    <agent name="/root/yellow_review" />
+    <agent name="/root/colour_options" />
+    <agent name="/root/design_judge" />
+    <agent name="/root/final_review" />
+    <agent name="/root/implementation" />
+    <agent name="/root/neon_yellow" />
+  </subagents>
+</environment_context>
