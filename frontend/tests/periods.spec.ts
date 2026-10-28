@@ -7,7 +7,6 @@ import {
 } from "./details-fixtures";
 import { rankingFixture } from "./rankings-fixtures";
 import {
-  reportingPeriods,
   isReportingPeriod,
   type ReportingPeriod,
 } from "../src/lib/reporting-period";
@@ -91,20 +90,13 @@ for (const kind of ["member", "funder"] as const) {
     await page.goto(`${path}?q=Example`);
     const identityText = await page.locator(".member-identity").innerText();
     const identityBounds = await page.locator(".member-identity").boundingBox();
-    const selector = page.getByRole("navigation", { name: "Reporting period" });
-    await expect(
-      selector.getByRole("link", {
-        name: "This parliamentary term",
-        exact: true,
-      }),
-    ).toHaveAttribute("aria-current", "page");
+    const selector = page.getByRole("combobox", { name: "Reporting period" });
+    await expect(selector).toHaveValue("current-term");
     await expect(page.locator(".declared-totals .member-total")).toHaveText([
       "£0.00",
     ]);
     expect(reads.at(-1)).toBe("current-term");
-    await selector
-      .getByRole("link", { name: "Historical", exact: true })
-      .click();
+    await selector.selectOption("historical");
     await expect(page.locator(".declared-totals .member-total")).toHaveText([
       "£9,007,199,254,740,993.123456789",
     ]);
@@ -114,9 +106,7 @@ for (const kind of ["member", "funder"] as const) {
       "title",
       "Known GBP amounts only. Some amounts unavailable.",
     );
-    await selector
-      .getByRole("link", { name: "This year", exact: true })
-      .click();
+    await selector.selectOption("current-year");
     await expect(page.locator(".declared-totals .member-total")).toHaveText([
       "−£12.34",
     ]);
@@ -223,7 +213,7 @@ for (const kind of ["member", "funder"] as const) {
       await expect(
         page
           .locator(".member-identity")
-          .getByRole("navigation", { name: "Reporting period" }),
+          .getByRole("combobox", { name: "Reporting period" }),
       ).toHaveCount(0);
       const panel = page.getByRole("region", { name: "Summary", exact: true });
       await expect(panel.locator(".declared-totals")).toHaveCount(1);
@@ -238,16 +228,11 @@ for (const kind of ["member", "funder"] as const) {
         expect(controls!.y).toBeGreaterThanOrEqual(metric!.y + metric!.height);
       }
     }
-    const historical = selector.getByRole("link", {
-      name: "Historical",
-      exact: true,
-    });
-    await historical.focus();
-    await expect(historical).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(
-      selector.getByRole("link", { name: "Historical", exact: true }),
-    ).toHaveAttribute("aria-current", "page");
+    await selector.focus();
+    await expect(selector).toBeFocused();
+    await selector.selectOption("historical");
+    await expect(selector).toHaveValue("historical");
+    await expect(selector).toBeFocused();
   });
 }
 
@@ -319,8 +304,8 @@ test("a period mismatch or failure cannot display previous scope numbers", async
   await page.goto("/members/1");
   await expect(page.locator(".declared-totals")).toBeVisible();
   await page
-    .getByRole("link", { name: reportingPeriods["current-year"], exact: true })
-    .click();
+    .getByRole("combobox", { name: "Reporting period" })
+    .selectOption("current-year");
   await expect(page.getByRole("alert")).toContainText("unexpected response");
   await expect(page.locator(".declared-totals")).toHaveCount(0);
 });
@@ -435,10 +420,7 @@ for (const kind of ["member", "funder", "rankings"] as const) {
       kind === "rankings" ? ".ranking-list" : ".declared-totals",
     );
     const main = page.locator(kind === "rankings" ? "#rankings" : "#details");
-    const selector = page.getByRole(
-      kind === "rankings" ? "combobox" : "navigation",
-      { name: "Reporting period" },
-    );
+    const selector = page.getByRole("combobox", { name: "Reporting period" });
     await expect(selector).toBeVisible();
     const persistentSelector =
       kind === "member" ? ".member-summary-top" : ".content-change";
@@ -450,42 +432,21 @@ for (const kind of ["member", "funder", "rankings"] as const) {
     );
     await page.evaluate(() => scrollTo(0, 150));
     expect(await page.evaluate(() => scrollY)).toBe(150);
-    if (kind === "rankings") {
-      await selector.focus();
-      await selector.selectOption("current-year");
-    } else
-      await selector
-        .getByRole("link", { name: "This year", exact: true })
-        .click();
+    await selector.focus();
+    await selector.selectOption("current-year");
     try {
       await expect(main).toHaveAttribute("aria-busy", "true");
       await expect(content).toHaveCount(1);
-      if (kind === "rankings")
-        await expect(selector).toHaveValue("current-term");
-      else
-        await expect(
-          selector.getByRole("link", {
-            name: "This parliamentary term",
-            exact: true,
-          }),
-        ).toHaveAttribute("aria-current", "page");
+      await expect(selector).toHaveValue("current-term");
       expect(await page.evaluate(() => scrollY)).toBe(150);
       await expect(page.locator("html")).not.toHaveAttribute(
         "data-content-changes",
       );
-      await expect(
-        kind === "rankings"
-          ? selector
-          : selector.getByRole("link", { name: "This year", exact: true }),
-      ).toBeFocused();
+      await expect(selector).toBeFocused();
     } finally {
       response.resolve();
     }
-    if (kind === "rankings") await expect(selector).toHaveValue("current-year");
-    else
-      await expect(
-        selector.getByRole("link", { name: "This year", exact: true }),
-      ).toHaveAttribute("aria-current", "page");
+    await expect(selector).toHaveValue("current-year");
     await expect(main).toHaveAttribute("aria-busy", "false");
     if (kind === "member")
       await expect(page.locator("html")).not.toHaveAttribute(
@@ -502,29 +463,13 @@ for (const kind of ["member", "funder", "rankings"] as const) {
         persistentSelector,
       ),
     ).toBe(true);
-    await expect(
-      kind === "rankings"
-        ? selector
-        : selector.getByRole("link", { name: "This year", exact: true }),
-    ).toBeFocused();
+    await expect(selector).toBeFocused();
     expect(await page.evaluate(() => scrollY)).toBe(150);
     for (const width of [1440, 320]) {
       await page.setViewportSize({ width, height: 1000 });
-      const bounds = await selector.evaluate((nav) => ({
-        right: nav.getBoundingClientRect().right,
-        links: Array.from(nav.querySelectorAll("a"), (link) => ({
-          top: link.getBoundingClientRect().top,
-          right: link.getBoundingClientRect().right,
-        })),
-      }));
-      const lineEnds = new Map<number, number>();
-      for (const link of bounds.links)
-        lineEnds.set(
-          link.top,
-          Math.max(lineEnds.get(link.top) ?? 0, link.right),
-        );
-      for (const right of lineEnds.values())
-        expect(Math.abs(right - bounds.right)).toBeLessThan(1);
+      const bounds = await selector.boundingBox();
+      expect(bounds!.x).toBeGreaterThanOrEqual(0);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(width);
       expect(
         await page.evaluate(() => document.documentElement.scrollWidth),
       ).toBeLessThanOrEqual(width);
@@ -657,10 +602,8 @@ for (const kind of ["member", "funder"] as const) {
     await nav.getByRole("link", { name: "Summary", exact: true }).click();
     await expect(page).toHaveURL(`${canonicalPath}?period=current-year`);
     await expect(
-      page
-        .getByRole("navigation", { name: "Reporting period" })
-        .getByRole("link", { name: "This year", exact: true }),
-    ).toHaveAttribute("aria-current", "page");
+      page.getByRole("combobox", { name: "Reporting period" }),
+    ).toHaveValue("current-year");
     expect(await identity.boundingBox()).toEqual(bounds);
     await header!.dispose();
   });

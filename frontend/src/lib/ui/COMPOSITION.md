@@ -95,11 +95,13 @@ Actions and focus remain neutral in every entity context. Override `--accent` on
 
 `DataTable` supplies the caption, `thead`, `tbody` and neutral cell rules. Use actual `th`/`td` classes in the caller for widths and numeric alignment. [FunderSummary](../../FunderSummary.svelte) is the production example. It owns `.recipient-name` and `.recipient-total`; those classes are not reusable UI APIs.
 
-## Period or other native-link filters
+## Reporting period filters
 
-Use `<ViewLinks variant="filter" label="Reporting period">` with native `ViewLink` children. Set `aria-current="page"` on the selected destination. Features own URL state and labels; the wrapping presentation stays neutral in every entity context.
+Use the feature-owned `PeriodSelector` for the same native `Select` on member summaries, funder summaries and rankings. Features own typed period options, URL state and navigation; the select retains the committed value while navigation is pending. Keep the metric left and the select right in the feature-owned Summary grid, stacking at narrow widths.
 
-For right-aligned filters, set `align="end"` on ViewLinks. Keep the navigation at full available width so wrapped lines end at the same edge. Pass the committed period to `Metric` and `SignedBarList` as `changeKey` for value and bar entry motion. A feature-owned Summary grid can place the metric left and filters right, stacking at narrow widths. Put other committed results in `<ContentChange changeKey={period}>` after the controls. Keep rolling metrics and animated bars outside that fade. Keep the existing content and key while navigation is pending; update both together when server data arrives. Do not key or duplicate the child subtree.
+Pass the committed period to `Metric` and `SignedBarList` as `changeKey` for value and bar entry motion. Put other committed results in `<ContentChange changeKey={period}>` after the controls. Keep rolling metrics and animated bars outside that fade. Keep the existing content and key while navigation is pending; update both together when server data arrives. Do not key or duplicate the child subtree.
+
+For other native-link filters, use `<ViewLinks variant="filter">` with native `ViewLink` children and `aria-current="page"` on the selected destination. Set `align="end"` for right-aligned filters and keep navigation at full available width so wrapped lines end at the same edge.
 
 ## Category toolbar
 

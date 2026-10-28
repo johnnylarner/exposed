@@ -1260,10 +1260,13 @@ test("initial HTML renders search and detail views while browser traffic stays i
     ).toHaveCount(0);
     if (path.endsWith("/history")) {
       await expect(
-        plainPage.getByRole("navigation", { name: "Reporting period" }),
+        plainPage.getByRole("combobox", { name: "Reporting period" }),
       ).toHaveCount(0);
       await expect(plainPage.locator(".declared-totals")).toHaveCount(0);
     } else {
+      await expect(
+        plainPage.getByRole("combobox", { name: "Reporting period" }),
+      ).toHaveValue("current-term");
       await expect(
         plainPage
           .getByRole("region", { name: "Summary", exact: true })

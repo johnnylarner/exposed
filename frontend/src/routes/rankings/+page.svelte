@@ -47,7 +47,7 @@
             >
           {/each}
         </ViewLinks>
-        <PeriodSelector period={data.period} variant="dropdown" />
+        <PeriodSelector period={data.period} />
       </div>
       <ContentChange changeKey={data.period}>
         <div class="board">
