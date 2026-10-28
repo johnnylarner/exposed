@@ -1,0 +1,1 @@
+the publish step seems complicated to me. Surely there is a way to just use an action from the marketplace for this
