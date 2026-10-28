@@ -1,0 +1,1 @@
+so for a single funding entry there could be a ultimate payer and donor. Both names are parsed with the same rules and treated as individual rows in the cleaned parquet?
