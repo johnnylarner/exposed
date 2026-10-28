@@ -1,0 +1,3 @@
+can you help me do the following:
+- interpolate a separate .env.compose file for the compose file
+- write a script that finds 3 free ports and puts those in the .env.compose file
