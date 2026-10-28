@@ -1,0 +1,1 @@
+no i mean that the domain model , used as an input into the service method, should be the only thing that has a conversion to ApiError
