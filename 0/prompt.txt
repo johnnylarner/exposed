@@ -1,0 +1,1 @@
+i'd also like annotations on the video for things like clicks and simulated keyboard inputs
