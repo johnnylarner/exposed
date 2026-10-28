@@ -1,0 +1,1 @@
+i don't know how the API usage works. But i think one a day won't be a problem. Please go into the main postgres db here and remove the latest migration from the sqlx migrations table. THen we can revert the commit
