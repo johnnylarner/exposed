@@ -1,0 +1,2 @@
+$pstack:poteto-mode based on the ranking-page stack a PR that extends the verify skill to check:
+- totals are based on earnings onl yfrom this term
