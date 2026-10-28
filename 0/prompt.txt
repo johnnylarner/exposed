@@ -1,0 +1,1 @@
+$pstack:poteto-mode add a sqlx migration wrapper into the cli. use only the migrate run command with the option to pass a path for the migration files
