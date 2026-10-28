@@ -1,0 +1,2 @@
+- start up error with tracing is unnecessary. If the app cannot start, we will get the error in the docker container.
+- we can leave tracing as is. The main thing i want is to have the full error logged BEFORE the conversion to ApiError. This way the full error is emitted to us
