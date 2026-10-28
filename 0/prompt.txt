@@ -1,0 +1,2 @@
+- using anyhow as a source is a bad practice as it encourages the use of anyhow instead of error variants in other modules
+- why not use the tracing macros?
