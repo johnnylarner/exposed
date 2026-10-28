@@ -1,0 +1,1 @@
+in docker/Dockerfile how can i run run the frontend and expose the server command via CMD
