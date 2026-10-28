@@ -1,0 +1,7 @@
+<image name=[Image #1] path="/var/folders/cz/rswsvzmn2998q95j0r32bkyh0000gn/T/codex-clipboard-NjOSkw.png">
+
+</image>
+
+$pstack:poteto-mode the tool tips on the pie chart are janky. Clicking should not have this effect. The tooltip should be strictly on hover
+
+[Image #1]
