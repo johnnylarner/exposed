@@ -1,0 +1,1 @@
+i'm not an expert in frontend design but this behaivour seems weird to me. How do most dark applications work?
