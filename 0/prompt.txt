@@ -1,0 +1,1 @@
+don't count per registration day, weight each submission equally
