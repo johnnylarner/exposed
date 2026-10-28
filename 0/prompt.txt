@@ -1,0 +1,1 @@
+$pstack:poteto-mode replace earnings per month for mps to show who they receive their money from. I would suggest a pie chart but there is no logical colour scheme for a pie chart. So we need another kind of representation that doesn't require colours to be useful
