@@ -1,0 +1,1 @@
+please run the server in a terminal, query it and screenshot the logs in the terminal. Upload the screenshot to the pr
