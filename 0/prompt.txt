@@ -1,0 +1,1 @@
+but there are so many worktrees when i do wt list
