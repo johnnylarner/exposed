@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.12.2",
+  "checkpoint_id": "01M3WJB3MEJV2CY30S8DSCM9K1",
+  "strategy": "import",
+  "commit_sha": "5272264d3bb9b7b1516835431fdaab79b3e59092",
+  "checkpoints_count": 1,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/0/metadata.json",
+      "transcript": "/0/full.jsonl",
+      "compact_transcript": "/0/transcript.jsonl",
+      "content_hash": "/0/content_hash.txt",
+      "prompt": "/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 137247,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 5747840,
+    "output_tokens": 44564,
+    "api_call_count": 64
+  },
+  "redaction": {
+    "replacements": 211,
+    "layers": {
+      "betterleaks": 166,
+      "connection_string": 0,
+      "credential_key": 0,
+      "credential_value": 0,
+      "credentialed_uri": 161,
+      "entropy": 46,
+      "key_context": 0,
+      "provider_token": 0,
+      "shell_stdin": 0
+    }
+  },
+  "imported": true
+}

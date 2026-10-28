@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"Remove count summaries entirely","question":"Your “no summaries” comment is on the domain model file. Should the CLI keep its existing count output outside the domain models, or should count summaries be removed entirely?","questionItemId":"[\"request_user_input_async\",\"REDACTED\",0]"}]
+</send_user_message_question_reply>
