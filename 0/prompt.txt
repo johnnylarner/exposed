@@ -1,0 +1,1 @@
+I don't understand what is happening with the error conversion. The API error is not supposed to duplicate the domain errors but map them to http conventions. Now it just servers as an additional abstraction layer. As to the macro impleemntation, i meant that you could use the attribute macros #[instrumentation]. $pstack:why did you not do that?
