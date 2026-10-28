@@ -1,0 +1,1 @@
+$pstack:poteto-mode remove the recent declarations from the mps page
