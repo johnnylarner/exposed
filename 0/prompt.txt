@@ -1,0 +1,1 @@
+i'd say we track how the links are made so that we can display that later if we need. disclaimer is out of scope for now.  Please compact your context and implement the transitive matching. Use bbc, gb news and premier league as test cases
