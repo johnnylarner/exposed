@@ -1,0 +1,1 @@
+strange. dbvr works on my terminal. It is pointing to a macos application. Is that the problem, perhaps?
