@@ -1,0 +1,14 @@
+<environment_context>
+  <current_date>2026-10-16</current_date>
+  <timezone>Europe/Berlin</timezone>
+  <filesystem><workspace_roots><root>/Users/jamie/development/exposed</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/kit_design_judge" />
+    <agent name="/root/kit_design_sol" />
+    <agent name="/root/kit_implementation" />
+    <agent name="/root/docker_explanation" />
+    <agent name="/root/kit_design_astra" />
+    <agent name="/root/kit_design_luna" />
+    <agent name="/root/minimal_kit" />
+  </subagents>
+</environment_context>
