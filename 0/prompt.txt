@@ -1,0 +1,1 @@
+$pstack:poteto-mode i want users to be able to browse updates from the current month. They should be able to see which mps and companies declared/appeared in declartions this month
