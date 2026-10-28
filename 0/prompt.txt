@@ -1,0 +1,3 @@
+okay, so there is a problem here. i'd say in all these cases we should be matching the companies. We are relying on MPs and their assistants to put in correct addresses. But for example, BBC, GB News, and all of the councils are obviously one entity. We have two options here:
+1. loosen the rules to basically match purely on name
+2. defer judgement of shared aliases to an LLM
