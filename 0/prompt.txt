@@ -1,0 +1,4 @@
+By earnings i mean declared amounts.
+
+- Total declared (month/year) - this means the all data we have on them including the date of the very first declaration
+- This year - this means this calendar year. We can use In <YYYY> as in the table
