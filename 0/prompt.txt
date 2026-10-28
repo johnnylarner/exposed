@@ -1,0 +1,1 @@
+$pstack:poteto-mode can you merge the labour and labour coop parties in the pie charts in the frontend
