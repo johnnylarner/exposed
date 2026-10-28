@@ -1,0 +1,1 @@
+right now i have this issue: exposed-migrate 2026.10.15.15.38: image pull failed because the release supports AMD64, not ARM64. The migration never ran. Its Compose image reference was updated; PostgreSQL remained healthy.
