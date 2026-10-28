@@ -1,0 +1,1 @@
+$pstack:poteto-mode extend the totals at the top of the MP page to include a total for this calender year. If no data is available use: No declarations recorded
