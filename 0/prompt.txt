@@ -1,0 +1,1 @@
+i like the separation but rather than enforcing this with complex and slow CI, i'd rather document it AGENTS.md. In the future we can work on a verifaction skill for this.
