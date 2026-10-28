@@ -1,0 +1,1 @@
+i think there is a problem with the ui hierarchy. The totals and filters need to fall under the tab. Right now the tab changes elements outside of tiself
