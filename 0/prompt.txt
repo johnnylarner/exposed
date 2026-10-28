@@ -1,0 +1,5 @@
+<image name=[Image #1] path="/var/folders/cz/rswsvzmn2998q95j0r32bkyh0000gn/T/codex-clipboard-KSMb4m.png">
+
+</image>
+
+can you restyled the wheel to look like this: [Image #1]
