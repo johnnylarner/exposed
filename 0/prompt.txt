@@ -1,0 +1,1 @@
+$pstack:poteto-mode refactor the cli to use config as a named option
