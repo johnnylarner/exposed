@@ -29,7 +29,11 @@ export function updateDate(value: string): string {
 }
 
 export type UpdateCategory = "members" | "companies";
-export type UpdateSort = "newest" | "oldest";
+export const updateSortOptions = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+] as const;
+export type UpdateSort = (typeof updateSortOptions)[number]["value"];
 export interface UpdateView {
   category: UpdateCategory;
   sort: UpdateSort;

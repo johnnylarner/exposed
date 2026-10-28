@@ -48,3 +48,7 @@ UI-owned snippet classes are `.results-list` (list reset and divider), `.entity-
 `SignedBarList` accepts optional opaque committed `changeKey` to replay the rankings entry recipe: rows enter over 300ms and bars grow over 420ms, with 35ms row stagger and ease timing. Rows also animate on insertion; unchanged keys do not replay. Negative signed bars grow from the right baseline.
 
 Metric, SignedBarList, RankingList and ContentChange share internal finite motion presets. Reduced motion skips entry and cancels active animations immediately; skipped keys are remembered. Keep rolling metrics and animated bars outside ContentChange to avoid layering its fade.
+
+`Select` takes an accessible `label`, typed `options` with `value` and `label`, a committed `value`, and `onselect`. It resolves native values against the supplied options before emitting typed values. The displayed value remains committed until the caller updates it, including during navigation. Native attributes pass through.
+
+`ViewButtons` takes a group `label` and native `ViewButton` children. Each button requires `selected` and exposes `aria-pressed`. Use these for local category changes with the tab appearance; all buttons remain in the native Tab order. Use ViewLinks for navigation. ViewLinks defaults to `wrap={false}` and supports `wrap={true}` for wrapping category tabs without changing its default layout.

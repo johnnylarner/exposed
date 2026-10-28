@@ -4,12 +4,15 @@
   import {
     Button,
     ResultRow,
-    CategoryWheel,
+    ViewButtons,
+    ViewButton,
+    Select,
     Notice,
     IconIndicator,
   } from "../../lib/ui";
   import {
     updateMonth,
+    updateSortOptions,
     updateDate,
     updateCategories,
     sortUpdates,
@@ -55,37 +58,29 @@
   <main id="updates" tabindex="-1">
     {#if data.updates}
       <div class="updates-intro">
-        <div>
-          <h1>Latest declarations</h1>
-          <p class="month">
-            <time datetime={data.updates.monthStart.slice(0, 7)}
-              >{updateMonth(data.updates.monthStart)}</time
-            >
-          </p>
-        </div>
-        <div class="selector">
-          <CategoryWheel
-            options={Object.values(updateCategories)}
-            size={220}
-            selected={view.category}
-            label="Latest declarations category"
-            onselect={selectCategory}
-          />
-        </div>
+        <h1>Latest declarations</h1>
+        <p class="month">
+          <time datetime={data.updates.monthStart.slice(0, 7)}
+            >{updateMonth(data.updates.monthStart)}</time
+          >
+        </p>
       </div>
-      <div class="sort-order" role="group" aria-label="Sort order">
-        <Button
-          size="compact"
-          variant={view.sort === "newest" ? "primary" : "secondary"}
-          aria-pressed={view.sort === "newest"}
-          onclick={() => selectSort("newest")}>Newest first</Button
-        >
-        <Button
-          size="compact"
-          variant={view.sort === "oldest" ? "primary" : "secondary"}
-          aria-pressed={view.sort === "oldest"}
-          onclick={() => selectSort("oldest")}>Oldest first</Button
-        >
+      <div class="toolbar">
+        <ViewButtons label="Latest declarations category">
+          {#each Object.values(updateCategories) as category}
+            <ViewButton
+              selected={view.category === category.id}
+              onclick={() => selectCategory(category.id)}
+              >{category.label}</ViewButton
+            >
+          {/each}
+        </ViewButtons>
+        <Select
+          label="Sort order"
+          options={updateSortOptions}
+          value={view.sort}
+          onselect={selectSort}
+        />
       </div>
       {#key `${view.category}-${view.sort}`}
         <div
@@ -140,19 +135,13 @@
     line-height: 1.5;
   }
   .updates-intro {
+    margin-bottom: var(--space-6);
+  }
+  .toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-6);
-    margin-bottom: var(--space-6);
-  }
-  .selector {
-    flex: none;
-  }
-  .sort-order {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
+    gap: var(--space-4);
     margin-bottom: var(--space-4);
   }
   .show-more {
@@ -188,12 +177,9 @@
     color: var(--muted);
   }
   @media (max-width: 480px) {
-    .updates-intro {
+    .toolbar {
       flex-direction: column;
-      align-items: flex-start;
-    }
-    .selector {
-      align-self: center;
+      align-items: stretch;
     }
     .registered {
       grid-column: 2;

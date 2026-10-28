@@ -3,6 +3,9 @@
   import AppShell from "../../AppShell.svelte";
   import {
     ContentChange,
+    Select,
+    ViewButtons,
+    ViewButton,
     CategoryWheel,
     RankingList,
     Icon,
@@ -498,6 +501,26 @@
       <SectionHeading
         id="ranking-patterns-heading"
         title="Category selection and rankings"
+      />
+      <ViewButtons label="Example category buttons">
+        <ViewButton
+          selected={exampleUpdateCategory === "members"}
+          onclick={() => (exampleUpdateCategory = "members")}>MPs</ViewButton
+        >
+        <ViewButton
+          selected={exampleUpdateCategory === "companies"}
+          onclick={() => (exampleUpdateCategory = "companies")}
+          >Companies</ViewButton
+        >
+      </ViewButtons>
+      <Select
+        label="Example category select"
+        options={Object.values(updateCategories).map((category) => ({
+          value: category.id,
+          label: category.label,
+        }))}
+        value={exampleUpdateCategory}
+        onselect={(value) => (exampleUpdateCategory = value)}
       />
       <CategoryWheel
         options={wheelOptions}

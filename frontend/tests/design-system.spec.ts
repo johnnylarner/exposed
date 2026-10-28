@@ -843,3 +843,25 @@ test("committed values roll exactly while signed bars share the ranking recipe",
     "1",
   );
 });
+
+test("local category controls keep native semantics and shared state", async ({
+  page,
+}) => {
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const group = page.getByRole("group", { name: "Example category buttons" });
+  const select = page.getByRole("combobox", {
+    name: "Example category select",
+  });
+  const companies = group.getByRole("button", { name: "Companies" });
+  await companies.focus();
+  await page.keyboard.press("Space");
+  await expect(companies).toBeFocused();
+  await expect(companies).toHaveAttribute("aria-pressed", "true");
+  await expect(select).toHaveValue("companies");
+  await select.selectOption("members");
+  await expect(group.getByRole("button", { name: "MPs" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(select).toHaveValue("members");
+});

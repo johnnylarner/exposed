@@ -371,13 +371,18 @@
   display: flex;
   gap: 28px;
 }
-.member-tabs a {
-  padding: 12px 0;
+.member-tabs a,
+.member-tabs button {
+  padding: var(--space-3) 0;
+  background: transparent;
+  border: 0;
+  font: inherit;
   color: var(--muted);
   text-decoration: none;
   border-bottom: 3px solid transparent;
 }
-.member-tabs a[aria-current="page"] {
+.member-tabs a[aria-current="page"],
+.member-tabs button[aria-pressed="true"] {
   color: var(--text);
   border-color: var(--action);
 }
@@ -855,4 +860,9 @@ summary:focus-visible {
 .declarations-list .funding-value .amount {
   font-size: 1.15rem;
   font-weight: 650;
+}
+
+.category-tabs {
+  flex-wrap: wrap;
+  gap: var(--space-4);
 }

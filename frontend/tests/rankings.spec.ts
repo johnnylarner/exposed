@@ -28,24 +28,21 @@ test("rankings SSR includes exact top ten and category switching is URL backed",
   await expect(rows).toContainText("Incomplete");
   await expect(rows).toContainText("Example Party · Example constituency");
   const before = reads;
-  const individuals = page.getByRole("button", { name: "Individuals" });
+  const individuals = page.getByRole("link", {
+    name: "Individuals",
+    exact: true,
+  });
   await individuals.focus();
-  await page.keyboard.press("Space");
+  await page.keyboard.press("Enter");
 
-  await expect(individuals).toHaveAttribute("aria-pressed", "true");
-  await expect(page.locator(".category-wheel")).not.toContainText("✓");
+  await expect(individuals).toHaveAttribute("aria-current", "page");
   await expect(
     page.getByRole("list", { name: "Individuals rankings" }),
   ).toContainText("£0.00");
   await expect(
-    page.getByRole("link", { name: "This parliamentary term", exact: true }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Companies" })
-    .click({ position: { x: 55, y: 55 } });
-  await expect(
-    page.locator(".category-wheel path.sector-rim.selected"),
-  ).toHaveCSS("stroke", "rgb(100, 207, 181)");
+    page.getByRole("combobox", { name: "Reporting period" }),
+  ).toHaveValue("current-term");
+  await page.getByRole("link", { name: "Companies", exact: true }).click();
   await expect(
     page.getByRole("link", { name: "Example company" }),
   ).toHaveAttribute(
@@ -55,7 +52,7 @@ test("rankings SSR includes exact top ten and category switching is URL backed",
   await expect(
     page.getByRole("list", { name: "Companies rankings" }),
   ).toContainText("−£12.3456789");
-  await page.getByRole("button", { name: "Parties" }).click();
+  await page.getByRole("link", { name: "Parties", exact: true }).click();
   const parties = page.getByRole("list", { name: "Parties rankings" });
   await expect(parties).toContainText("Amount unavailable");
   await expect(parties.getByRole("link")).toHaveCount(0);
@@ -87,7 +84,7 @@ test("rankings fit narrow viewports and honor reduced motion", async ({
   );
   const row = page.getByRole("listitem").first();
   await expect(row).toHaveCSS("animation-name", "none");
-  await page.getByRole("button", { name: "Companies" }).click();
+  await page.getByRole("link", { name: "Companies", exact: true }).click();
   await expect(page.getByRole("listitem").first()).toHaveCSS(
     "animation-name",
     "none",
@@ -110,4 +107,45 @@ test("rankings report unavailable and empty snapshots", async ({
   );
   await page.reload();
   await expect(page.getByText("No declarations found.")).toBeVisible();
+});
+
+test("rankings keep committed scope during rapid toolbar changes", async ({
+  page,
+  backend,
+}) => {
+  const delayed = Promise.withResolvers<void>();
+  await backend.route("**/api/rankings?*", async (route) => {
+    const period = new URL(route.request().url()).searchParams.get("period");
+    if (period === "current-year") await delayed.promise;
+    await route.fulfill({ json: { ...rankingFixture, period } });
+  });
+  await page.setViewportSize({ width: 1280, height: 400 });
+  await page.goto("/rankings?q=Example&from=2020-01-01&page=2");
+  const select = page.getByRole("combobox", { name: "Reporting period" });
+  await page.evaluate(() => scrollTo(0, 150));
+  await select.focus();
+  await select.selectOption("current-year");
+  await expect(page.locator("#rankings")).toHaveAttribute("aria-busy", "true");
+  await expect(select).toHaveValue("current-term");
+  try {
+    await page.getByRole("link", { name: "Companies", exact: true }).click();
+    await expect(page).toHaveURL(/category=companies&period=current-term/);
+    await expect(select).toHaveValue("current-term");
+    expect(await page.evaluate(() => scrollY)).toBe(
+      await page.evaluate(() =>
+        Math.min(150, document.documentElement.scrollHeight - innerHeight),
+      ),
+    );
+  } finally {
+    delayed.resolve();
+  }
+  await expect(
+    page.getByRole("list", { name: "Companies rankings" }),
+  ).toBeVisible();
+  await select.selectOption("historical");
+  await expect(select).toHaveValue("historical");
+  await expect(page).toHaveURL(/q=Example.*period=historical/);
+  const url = new URL(page.url());
+  expect(url.searchParams.has("from")).toBe(false);
+  expect(url.searchParams.has("page")).toBe(false);
 });

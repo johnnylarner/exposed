@@ -100,3 +100,7 @@ Actions and focus remain neutral in every entity context. Override `--accent` on
 Use `<ViewLinks variant="filter" label="Reporting period">` with native `ViewLink` children. Set `aria-current="page"` on the selected destination. Features own URL state and labels; the wrapping presentation stays neutral in every entity context.
 
 For right-aligned filters, set `align="end"` on ViewLinks. Keep the navigation at full available width so wrapped lines end at the same edge. Pass the committed period to `Metric` and `SignedBarList` as `changeKey` for value and bar entry motion. A feature-owned Summary grid can place the metric left and filters right, stacking at narrow widths. Put other committed results in `<ContentChange changeKey={period}>` after the controls. Keep rolling metrics and animated bars outside that fade. Keep the existing content and key while navigation is pending; update both together when server data arrives. Do not key or duplicate the child subtree.
+
+## Category toolbar
+
+Use ViewLinks with `wrap={true}` and ViewLink for URL-backed category navigation, or ViewButtons and ViewButton for local category selection. Pair the category group with Select for a secondary choice. Features own a flex toolbar with categories first and the select at the opposite edge. Stack the select below the categories on narrow screens. Keep headings above and results below. Select options retain their feature-owned typed values; features own navigation and pending state.

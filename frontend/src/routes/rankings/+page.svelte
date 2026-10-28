@@ -1,10 +1,10 @@
 <script lang="ts">
   import PeriodSelector from "../../PeriodSelector.svelte";
   import { page, navigating } from "$app/state";
-  import { goto } from "$app/navigation";
   import AppShell from "../../AppShell.svelte";
   import {
-    CategoryWheel,
+    ViewLinks,
+    ViewLink,
     ContentChange,
     RankingList,
     Notice,
@@ -17,11 +17,11 @@
   import type { PageData } from "./$types";
   let { data }: { data: PageData } = $props();
   const selected = $derived(data.selected);
-  function selectCategory(category: RankingCategory) {
+  function categoryHref(category: RankingCategory) {
     const url = new URL(page.url.href);
     url.searchParams.set("category", category);
     url.searchParams.set("period", data.period);
-    void goto(url.pathname + url.search);
+    return url.pathname + url.search;
   }
   const rows = $derived(
     data.rankings ? rankingRows(data.rankings, selected) : [],
@@ -35,17 +35,20 @@
         Rankings
       </h1>
     {:else if data.rankings}
-      <div class="ranking-intro">
-        <h1>Rankings</h1>
-        <CategoryWheel
-          options={rankingCategories}
-          size={220}
-          {selected}
-          label="Ranking category"
-          onselect={selectCategory}
-        />
+      <h1>Rankings</h1>
+      <div class="toolbar">
+        <ViewLinks label="Ranking category" wrap>
+          {#each rankingCategories as category}
+            <ViewLink
+              href={categoryHref(category.id)}
+              data-sveltekit-reset={false}
+              aria-current={selected === category.id ? "page" : undefined}
+              >{category.label}</ViewLink
+            >
+          {/each}
+        </ViewLinks>
+        <PeriodSelector period={data.period} variant="dropdown" />
       </div>
-      <PeriodSelector period={data.period} />
       <ContentChange changeKey={data.period}>
         <div class="board">
           {#if selected === "parties"}<p class="party-context">
@@ -66,15 +69,12 @@
 </AppShell>
 
 <style>
-  .ranking-intro {
+  .toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: var(--space-6);
-    margin-bottom: var(--space-6);
-  }
-  .ranking-intro :global(.category-wheel) {
-    flex: none;
+    gap: var(--space-4);
+    margin-block: var(--space-6) var(--space-4);
   }
   .board {
     min-width: 0;
@@ -87,12 +87,9 @@
     line-height: 1.6;
   }
   @media (max-width: 480px) {
-    .ranking-intro {
+    .toolbar {
       flex-direction: column;
-      align-items: flex-start;
-    }
-    .ranking-intro :global(.category-wheel) {
-      align-self: center;
+      align-items: stretch;
     }
   }
 </style>

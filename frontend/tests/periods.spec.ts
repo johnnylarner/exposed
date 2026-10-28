@@ -272,9 +272,11 @@ test("rankings preserve period and independent category across reload, history a
     "href",
     "/funders/10000000-0000-0000-0000-000000000002?period=historical",
   );
-  await page.getByRole("link", { name: "This year", exact: true }).click();
+  await page
+    .getByRole("combobox", { name: "Reporting period" })
+    .selectOption("current-year");
   await expect(page).toHaveURL(/category=companies&period=current-year/u);
-  await page.getByRole("button", { name: "MPs", exact: true }).click();
+  await page.getByRole("link", { name: "MPs", exact: true }).click();
   await expect(page).toHaveURL(/category=members&period=current-year/u);
   await page.reload();
   await expect(page.getByRole("list", { name: "MPs rankings" })).toBeVisible();
@@ -433,7 +435,10 @@ for (const kind of ["member", "funder", "rankings"] as const) {
       kind === "rankings" ? ".ranking-list" : ".declared-totals",
     );
     const main = page.locator(kind === "rankings" ? "#rankings" : "#details");
-    const selector = page.getByRole("navigation", { name: "Reporting period" });
+    const selector = page.getByRole(
+      kind === "rankings" ? "combobox" : "navigation",
+      { name: "Reporting period" },
+    );
     await expect(selector).toBeVisible();
     const persistentSelector =
       kind === "member" ? ".member-summary-top" : ".content-change";
@@ -445,31 +450,42 @@ for (const kind of ["member", "funder", "rankings"] as const) {
     );
     await page.evaluate(() => scrollTo(0, 150));
     expect(await page.evaluate(() => scrollY)).toBe(150);
-    await selector
-      .getByRole("link", { name: "This year", exact: true })
-      .click();
+    if (kind === "rankings") {
+      await selector.focus();
+      await selector.selectOption("current-year");
+    } else
+      await selector
+        .getByRole("link", { name: "This year", exact: true })
+        .click();
     try {
       await expect(main).toHaveAttribute("aria-busy", "true");
       await expect(content).toHaveCount(1);
-      await expect(
-        selector.getByRole("link", {
-          name: "This parliamentary term",
-          exact: true,
-        }),
-      ).toHaveAttribute("aria-current", "page");
+      if (kind === "rankings")
+        await expect(selector).toHaveValue("current-term");
+      else
+        await expect(
+          selector.getByRole("link", {
+            name: "This parliamentary term",
+            exact: true,
+          }),
+        ).toHaveAttribute("aria-current", "page");
       expect(await page.evaluate(() => scrollY)).toBe(150);
       await expect(page.locator("html")).not.toHaveAttribute(
         "data-content-changes",
       );
       await expect(
-        selector.getByRole("link", { name: "This year", exact: true }),
+        kind === "rankings"
+          ? selector
+          : selector.getByRole("link", { name: "This year", exact: true }),
       ).toBeFocused();
     } finally {
       response.resolve();
     }
-    await expect(
-      selector.getByRole("link", { name: "This year", exact: true }),
-    ).toHaveAttribute("aria-current", "page");
+    if (kind === "rankings") await expect(selector).toHaveValue("current-year");
+    else
+      await expect(
+        selector.getByRole("link", { name: "This year", exact: true }),
+      ).toHaveAttribute("aria-current", "page");
     await expect(main).toHaveAttribute("aria-busy", "false");
     if (kind === "member")
       await expect(page.locator("html")).not.toHaveAttribute(
@@ -487,7 +503,9 @@ for (const kind of ["member", "funder", "rankings"] as const) {
       ),
     ).toBe(true);
     await expect(
-      selector.getByRole("link", { name: "This year", exact: true }),
+      kind === "rankings"
+        ? selector
+        : selector.getByRole("link", { name: "This year", exact: true }),
     ).toBeFocused();
     expect(await page.evaluate(() => scrollY)).toBe(150);
     for (const width of [1440, 320]) {
