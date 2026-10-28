@@ -1,0 +1,1 @@
+there is in consistency in teh tables. The recent declarations has a line between the first element and the heading. Your implementation does not. This inconsistency should not be allowed. Why is it occuring?
