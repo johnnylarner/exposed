@@ -1,0 +1,1 @@
+exactly, currenty we index heavily on the first word in the search term. Thus a typo ruines the result set. From what i can tell, 0.8 is a good threshold for search strictness. But jahn only returns results at around 0.4%
