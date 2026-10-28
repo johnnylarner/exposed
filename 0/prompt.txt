@@ -1,0 +1,1 @@
+$pstack:poteto-mode please change the way we display non-finanical entries. Currently we say "no funding entries". This is too abstract. Say the declaration included no monetary renumeration.
