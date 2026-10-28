@@ -1,0 +1,1 @@
+it makes the delta component completely redundant. Is there a way to make use of what is already in the database?
