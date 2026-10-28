@@ -1,0 +1,3 @@
+okay, i'm willing to try this. The main thing to test is:
+- company identity conflicts
+- hierarchical resolution of entity type and identifiers
