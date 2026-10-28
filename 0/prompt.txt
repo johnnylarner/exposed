@@ -1,0 +1,11 @@
+Most of this plan is good. The main thing we need still is to work out the data schema for the parquet and the testing:
+
+Data schema
+- The goal is to have a single dataset that contains: all declarations, mapped to member_id, with the fields required to build up the funding_entries and funder tables. Specifically we need the funder names, amount, currency and funding kind. Your suggestion is too generic to be useful.
+- We do not need to create a funders table. We will use the data in the declarations table for this. 
+- We could use two tables for declarations nad funding entries in the data layer. But perhaps it'd be easier to have one large table and then distill it in the cleaning step later
+- Remember, after this loading step we do not every want to call the API again. This makes it easy to change our business logic for the data without having to work with the API.
+
+
+Testing
+- Please just add another test function and imitate the setup necessary.
