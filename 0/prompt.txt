@@ -1,0 +1,3 @@
+- remove the tick for selection
+
+The next thing. When i go to rankings i want nothing to be selected initially
