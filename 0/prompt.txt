@@ -1,0 +1,1 @@
+the behaviour is janky. The hover only works when you move your cursor from the main page onto the pie. If you move the cursore between different chunks of the pie, the tooltip stops working
