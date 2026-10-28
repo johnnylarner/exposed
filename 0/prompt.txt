@@ -1,0 +1,1 @@
+$pstack:poteto-mode  is there a way to formulate the methododoly page as markdown and to embed that?
