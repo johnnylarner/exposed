@@ -1,0 +1,1 @@
+i would like a single integration test that uses the real code. It can use tmp files and DBs but having lots of mocked unit tests is not what i want
