@@ -1,0 +1,3 @@
+- makes sense
+- the import function will be internal to the application so there is no obvious way that this could be abused/misused. So let's just allow updates
+- a i don't think it's possible for the API to not have that data as an MP cannot exist without those things. We can validate before writing to the db, however
