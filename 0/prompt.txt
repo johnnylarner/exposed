@@ -1,0 +1,1 @@
+$pstack:poteto-mode now we need to work on fuzzy search. Did we agree on any points yet?
