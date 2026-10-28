@@ -1,0 +1,104 @@
+# AGENTS.md instructions for /Users/jamie/development/exposed
+
+<INSTRUCTIONS>
+# pstack model overrides
+
+Apply these model and reasoning-effort overrides when following pstack skills. A role's explicit effort suffix takes precedence over `default effort`. Pass the selected effort as `reasoning_effort` when spawning an agent. The aliases `inherit-parent` and `auto` omit the model override. The effort value `session` omits the effort override.
+
+Use one agent per panel entry. For `arena cross-judge pool`, select one judge according to the arena skill. When overriding a subagent's model or effort, use a fresh prompt or a limited context fork supported by the current tool.
+
+feature, refactoring: gpt-6.1-sol
+bug-fix: gpt-6-astra
+perf-issue: gpt-6-astra
+hillclimb: gpt-6-astra
+judgment and prose: gpt-6.1-sol
+strongest judgment: gpt-6-astra
+how explorer: gpt-6.1-sol
+how explainer: gpt-6.1-sol
+why investigators: gpt-6.1-sol
+why synthesizer: gpt-6.1-sol
+reflect tooling: gpt-6.1-sol
+reflect judgment, divergent, synthesizer: gpt-6.1-sol
+arena runners: gpt-6-astra, gpt-6.1-sol, gpt-6-luna
+arena cross-judge pool: gpt-6-astra, gpt-6.1-sol, gpt-6-luna
+swarm workers: gpt-6.1-sol
+architect runners: gpt-6-astra, gpt-6.1-sol, gpt-6-luna
+interrogate reviewers: gpt-6-astra, gpt-6.1-sol, gpt-6-luna
+
+default effort: session
+
+--- project-doc ---
+
+# Project summary and structure
+
+The goal of this project is to make declaration data easy to search, browse and interpret.
+
+- `exposed/` contains the rust application and CLI code that powers the project.
+- `frontend/` contains a simple Svelte application
+- `ingest/` contains the legacy Python scripts used to bootstrap this project.
+
+## Exposed coding policy
+
+- Follow with strict detail to the existing style of the application. This includes:
+  - Type driven design
+  - Domain modelling and parse-not-validate
+  - Consistent error handling
+  - Service layer abstractions
+
+- Use type driven development, $code-base-design and $hexagonal-architecture always.
+- Interactions with the database must use `sqlx` macros for compile-time query verification.
+
+## Frontend coding policy
+
+- The frontend is largely in a prototype stage so changes can be made freely without much guidance.
+
+
+## Ingest coding policy
+
+- When porting code from this project, do not replicate the style. Use it as an end to end guide for functionality.
+
+## Worktree policy
+
+- For read-only tasks (investigating, reading, summarizing, or describing code),
+  work on the current branch without creating a worktree.
+- For tasks that require changing code or other files, work in a dedicated Git
+  worktree before making changes. If a read-only task expands to require changes,
+  switch to a dedicated worktree first.
+- For such changes, reuse this chat's dedicated worktree if one already exists.
+  Otherwise, create a sibling worktree with a unique branch and perform all
+  edits, installs, and checks there.
+- Never modify the primary checkout.
+- Report the worktree path and branch when starting work in a dedicated worktree.
+
+## Git history
+
+- After completing and validating a task, commit its changes on the task's work
+  branch without waiting for a separate request.
+- Never commit directly on `main`.
+- When reporting completed and committed work, include a runnable command comparing
+  `main` with the latest commit on the work branch:
+  `git -C <worktree-path> diff <source-branch> <latest-commit-sha>`.
+  Resolve the commit SHA after committing the work. Put the command in its own
+  fenced `sh` code block with the copy-to-clipboard control.
+- Keep Git history linear. Rebase feature branches onto the target branch and
+  integrate changes with a fast-forward or squash; do not create merge commits.
+
+## Development database migrations
+
+- While the project is in development, keep one reversible baseline version in
+  `db/migrations/20260915000000_initial.up.sql` and its `.down.sql` counterpart.
+  Fold schema changes into this pair without adding migration versions.
+- For an existing database, inspect its applied schema and apply the necessary
+  changes in place to preserve imported data. SQLx rejects an edited baseline's
+  checksum; verify the live schema before updating its recorded checksum using
+  the procedure in `db/README.md` or reporting a migration complete.
+
+</INSTRUCTIONS>
+
+<environment_context>
+  <cwd>/Users/jamie/development/exposed</cwd>
+  <shell>zsh</shell>
+  <current_date>2026-10-06</current_date>
+  <timezone>Europe/Berlin</timezone>
+  <filesystem><workspace_roots><root>/Users/jamie/development/exposed</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+</environment_context>
