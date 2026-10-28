@@ -1,0 +1,1 @@
+exactly. A subpage can then provide a full paginated declaration history. This can have simple date filters on the svelte side for now
