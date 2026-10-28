@@ -1,0 +1,5 @@
+i think having versions makes things rather complicated. The hierarchy should be such:
+- declaration -> made by mp
+- declaration -> contains multiple funding entries
+- each funding entry -> is the latest version
+- the latest version -> has a captured id so that we can update it in the future
