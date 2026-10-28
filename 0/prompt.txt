@@ -1,0 +1,1 @@
+Yeah this is tricky, we need to think what will build the most confidence for the tool. I know for a fact, if i search BBC and see 10 different results, i will not be happy. If one entity is mismatched, i probably won't ever know. We could even use a confidence score on the alias
