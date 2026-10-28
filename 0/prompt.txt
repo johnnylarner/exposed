@@ -1,0 +1,1 @@
+why is this building a rust app when the only change was to frontend: https://github.com/johnnylarner/exposed/actions/runs/39585345666/job/119172789127
