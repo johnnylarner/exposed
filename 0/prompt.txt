@@ -1,0 +1,1 @@
+okay, i guess i'll have to keep an eye on this. I'd only like the job to run on merge to main.
