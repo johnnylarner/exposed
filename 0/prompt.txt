@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"ideally all of those","question":"Should resolved funders represent individual legal entities and people, or broader organisations such as the HSBC group?","questionItemId":"[\"request_user_input_async\",\"REDACTED\",1]"}]
+</send_user_message_question_reply>
