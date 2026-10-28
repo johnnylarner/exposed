@@ -1,0 +1,1 @@
+This filter doesn't make sense on the history tab. Also when i click on it, it resets page position
