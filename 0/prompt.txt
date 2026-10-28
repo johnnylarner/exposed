@@ -1,0 +1,1 @@
+make the config arg global for the data cli
