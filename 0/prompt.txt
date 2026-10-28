@@ -1,0 +1,3 @@
+amazing:
+- make the animation longer, we could have the names reveal more slowly or separately
+- remove the subheadings under rankings. INstead have a larger subheading text with: all donations for this parliamentary term
