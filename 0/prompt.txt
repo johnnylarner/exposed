@@ -1,0 +1,1 @@
+okay that doesn't make much sense. I'd prefer to have the domain errors in a single struct so we don't have to do invidivual implementatinos for every smmall domain error
