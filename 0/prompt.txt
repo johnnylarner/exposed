@@ -1,0 +1,1 @@
+lets descope publication for now. My plan had been to use parquet files for the storage. I wanted to work with you on implementation. Can you $grill-me specifically on how to implement the parliament API followed by storing in the raw layer
