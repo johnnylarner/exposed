@@ -1,0 +1,1 @@
+just delete the original function in the source sql file. We haven't merged this yet so no need for an additional file with the drop
