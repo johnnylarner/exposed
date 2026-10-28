@@ -1,0 +1,4 @@
+$pstack:poteto-mode i want to change the MP page. After the name and metadata I want a table that shows:
+- Total earnings (month/year): value
+- Earnings this term: value
+- Earnings this year: value
