@@ -1,0 +1,1 @@
+okay, and if i ask an agent to review a release to see what has been updated, what tages and options will it see
