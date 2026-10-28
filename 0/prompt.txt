@@ -1,0 +1,1 @@
+$pstack:poteto-mode please implement a response type around the CLI entrypoint. Similar to an axum/generic response type, this type should allow each cli command to return different things that can then be coerced into a generic response
