@@ -1,0 +1,1 @@
+please modify .agents/skills/setup-env/scripts/setup-compose.py to find free ports. Use this branch plaese
