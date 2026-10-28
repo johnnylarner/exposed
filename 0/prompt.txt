@@ -1,0 +1,1 @@
+this isn't a smart impleemntation. The objective here is to move the output to a json format. Please review the api handler code and use those practices to improve the cli entrypoint
