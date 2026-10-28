@@ -1,0 +1,1 @@
+right but this won't overwrite existing declarations so i need to rebuild the tables too
