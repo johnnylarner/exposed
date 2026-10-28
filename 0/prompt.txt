@@ -1,0 +1,1 @@
+i think the soundex thing would work for names of people which is the primary idea i have in mind right now. How should we trigger the need for this kind of search?
