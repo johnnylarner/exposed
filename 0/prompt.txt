@@ -1,0 +1,6 @@
+$pstack:poteto-mode i want to improve the useability of the members page. The user story should be:
+- I want to find out how much MP x has received in declarations
+- I want to find out recent donations declared by the MP
+- I want to look through MP x's donations to find patterns
+
+What needs to be done to achieve this?
