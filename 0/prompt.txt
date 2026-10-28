@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"i pull in the changes now","question":"The migration CLI exists on `codex/cli-migrate` but is not on main. Should I base these CI changes on that branch so the migration image can run `exposed migrate`?","questionItemId":"[\"request_user_input_async\",\"call_7a23ac30c94843caa8ed665f68be8a0d\",0]"}]
+</send_user_message_question_reply>
