@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"Adjust the test boundary","question":"The spec will test through the Rust command/service boundary using synthetic Parliament HTTP responses, real Parquet files, and temporary PostgreSQL databases. Does this match your expected test coverage?","questionItemId":"[\"request_user_input_async\",\"REDACTED\",0]"}]
+</send_user_message_question_reply>
