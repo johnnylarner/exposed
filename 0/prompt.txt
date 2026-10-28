@@ -1,0 +1,1 @@
+i like the idea of refactoring the python srcipts produce an offline dataset
