@@ -1,0 +1,7 @@
+<image name=[Image #1] path="/var/folders/cz/rswsvzmn2998q95j0r32bkyh0000gn/T/codex-clipboard-mrZd1q.png">
+
+</image>
+
+please also investigate why teh unite union still has several duplicates:
+
+[Image #1]
