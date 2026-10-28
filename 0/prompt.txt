@@ -1,0 +1,1 @@
+what happens to the existing state in the db when this occurs
