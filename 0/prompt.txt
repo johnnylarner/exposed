@@ -1,0 +1,1 @@
+that is a lot of stuff to do. I'd scrap the export for now. The main thing should be a clear summary page with better UI components and visualisation of the donations.
