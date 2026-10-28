@@ -1,0 +1,4 @@
+hey, i want you to work on a new ingestion feature. I want to extend the parliament API to scrape the declaration data. Declaration data ingestion requires member data from the database. It should ingest the data and write it to parquet files using a similar approach to what is already there. Please explain make a plan about this. Things to consider are:
+- how to extend existing services
+- when to introduce new abstractions
+- how to include an integration test
