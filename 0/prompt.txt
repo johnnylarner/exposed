@@ -1,0 +1,1 @@
+can you explain how i can change exposed/src/lib/inbound/cli.rs to not rely on public constructor methods in exposed/tests/integration.rs
