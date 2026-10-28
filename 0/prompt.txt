@@ -1,0 +1,1 @@
+how does this mechanism work if i'm building a new worktree with a db?
