@@ -1,0 +1,15 @@
+<environment_context>
+  <current_date>2026-10-28</current_date>
+  <timezone>Europe/Berlin</timezone>
+  <filesystem><workspace_roots><root>/Users/jamie/development/exposed</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/compact_motion_astra" />
+    <agent name="/root/compact_motion_comments" />
+    <agent name="/root/compact_motion_implementation" />
+    <agent name="/root/compact_motion_judge" />
+    <agent name="/root/compact_motion_luna" />
+    <agent name="/root/compact_motion_review" />
+    <agent name="/root/compact_motion_sol" />
+    <agent name="/root/filter_backend" />
+  </subagents>
+</environment_context>
