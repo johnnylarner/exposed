@@ -1,0 +1,1 @@
+so can you assert that changes to ./frontend will not cause a cache hit to fail for rust?
