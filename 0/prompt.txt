@@ -1,0 +1,1 @@
+I should be clear, the pattern exploration would be something the user does outside of the application. For now we just want to provide the data to enable them to do that.
