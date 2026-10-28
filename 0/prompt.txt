@@ -1,0 +1,2 @@
+- the empty real estate between the number and tab bar needs to go
+- the animation for the number should be a roll up, for the bars please follow the same thing as the rankings page
