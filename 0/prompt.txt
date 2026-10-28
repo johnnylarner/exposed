@@ -1,0 +1,4 @@
+- agree
+- this is a good question. There are several approaches here: the declaration uses the current members table from postgres, this is probably best. It would require the service to be able to fetch this data. This is also useful given the fact that members are rarely updated while declarations will be updated daily
+- agree, though we should log these cases. They are quite unlikely to happen, however
+- this is also difficult to know. I had initially wanted to do a time based versioning for teh filesystem. But given that each comamnd should be run separately, this won't work. I imagine that we more often modify the cleaning/resolution code and rerun those steps more often. This means there may be more newer versions of the processed data.
