@@ -1,0 +1,1 @@
+please refactor the data config to treat the database url as an env parameter. It should follow the same appraoch as the server config and use a .env file
