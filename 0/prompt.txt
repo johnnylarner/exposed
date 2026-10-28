@@ -1,0 +1,1 @@
+i had to reboot the db because changes to sql files meant sqlx couldn't do the migration. We should not store db uuids anywhere in teh parquet. Both members and declarationts come with their own source ids from the api. We use those until the db layer. Please refactor that
