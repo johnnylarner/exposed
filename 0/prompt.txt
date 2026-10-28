@@ -1,0 +1,8 @@
+i'll check that in a bit. So there are some important simplifications i need you to do:
+- the adapter can be much simpler. Please use json parsing like in the other adapters to deserialize the api response
+- remove all retry/low level error handling
+- remove logging
+
+The data we output should look like this:
+- a declaration can be declared by multiple mps
+- once exhausted, we can trust that the API has given all declarations for a given MP
