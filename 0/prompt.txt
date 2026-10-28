@@ -1,0 +1,10 @@
+i'd like it to work like this. Three raw output files:
+- members
+- declarations
+- funders
+
+The rows in these tabular files can relate to each other using the API ids (member_id, declaration_id) and should contain only rows with minimal valid data.
+
+From there we clean the data. This can be a simple polars script. That adds feature columns for entity resolution.
+
+Finally we have a resolved layer, this is where all funders are resolved
