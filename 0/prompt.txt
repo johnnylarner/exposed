@@ -1,0 +1,1 @@
+$pstack:poteto-mode i want to introduce tracing for the HTTP layer. please $pstack:architect this and tell me the decisino before implementing. SPecifically i want to know about module layout
