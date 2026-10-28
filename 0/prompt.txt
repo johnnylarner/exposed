@@ -1,0 +1,1 @@
+how would alias search work in theory? Give me an example to test
