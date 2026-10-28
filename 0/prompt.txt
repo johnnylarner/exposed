@@ -1,0 +1,1 @@
+$pstack:poteto-mode i want to remove the python dependency from the splik component. How can we do that?
