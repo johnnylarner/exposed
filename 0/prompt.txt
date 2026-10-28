@@ -1,0 +1,1 @@
+i'm fine with the memebrs behaviour. As to the declarations and its derived data, there is inconsistent behaviour. Please align the funder behaviour with the entries and declarations behaviour
