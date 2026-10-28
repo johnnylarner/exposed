@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"\"verifying exposed\"","question":"What does the window say, and what command do you run when it appears? Even a few words from its title or message would help identify it.","questionItemId":"[\"request_user_input_async\",\"call_983b7fec400c4b779f364b0dad431b4c\",0]"}]
+</send_user_message_question_reply>
