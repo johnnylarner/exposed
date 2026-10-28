@@ -1,0 +1,1 @@
+$pstack:poteto-mode add a conventional commit hook plesae
