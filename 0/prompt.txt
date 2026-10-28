@@ -1,0 +1,1 @@
+i think we can just remove it and replace it with a condensed top 5 recipient list. The important thing here is that the pie chart legend is currently too dynamic. The table height changes based on the number of labels. We want a consistent UI
