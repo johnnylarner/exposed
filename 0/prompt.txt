@@ -1,0 +1,1 @@
+obviously you aren't running from the main worktree. You are running from your worktree
