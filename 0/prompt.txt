@@ -1,0 +1,1 @@
+can you please simpfly the integration test. The individual row lookup is very hard to read and understand. This testing boundary should only test data that will eventually be exposed to the frontend. If you want to test record parsing, etc, then do that in unit tests in teh adapter.
