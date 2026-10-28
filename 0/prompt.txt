@@ -1,0 +1,11 @@
+<image name=[Image #1] path="/var/folders/cz/rswsvzmn2998q95j0r32bkyh0000gn/T/codex-clipboard-xwBL9g.png">
+
+</image>
+
+here is the current frontend: [Image #1]
+
+$pstack:poteto-mode make the following chanegs:
+- remove the currency concept, all donations are in gbp
+- move the total to the top right
+- add a second graph that shows earnings per week
+- remove info blocks like "across x declartions" and "n funding entries"
