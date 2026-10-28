@@ -1,0 +1,1 @@
+before starting, does those CLI semantics fit into the current service request model?
