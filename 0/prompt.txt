@@ -1,0 +1,1 @@
+why are the decoding options not baked into a domain model and how can this error be turned into a compile-time one?
