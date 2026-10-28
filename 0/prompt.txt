@@ -1,0 +1,1 @@
+okay, can you go thru and cleanup all those worktrees manually please. Anything using the exposed. or exposed- syntax is fine. Make sure not to delete this folder tho
