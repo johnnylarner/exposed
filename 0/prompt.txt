@@ -1,0 +1,1 @@
+$pstack:poteto-mode sizing of the two funder charts is off. The bar graph takes up much less space and therefore looks janky. What options do i have?
