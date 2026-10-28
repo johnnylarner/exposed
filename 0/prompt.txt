@@ -1,0 +1,3 @@
+- agree, lets use uuid v7 for this for easy identification of the "latest"
+- the capture must complete fully or not at all
+- we capture the file then we feed the id to a separate command that uploads to the db
