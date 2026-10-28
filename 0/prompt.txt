@@ -1,0 +1,4 @@
+- please use a semi circle for each one entitiy in the wheel
+- default sort by latest and then alphabetical
+- include inverted sort option (oldest first)
+- use a "show more" pagination every ten items
