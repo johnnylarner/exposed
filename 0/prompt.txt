@@ -1,0 +1,3 @@
+i need to understand better how you reason about the code base. When i read the declarations API implementation, i see a huge amount of verbosity that seems totally superfluosu. Can you explain why you:
+- introduced anyhow errors
+- check every single possible error outcome rather than keeping it simple?
