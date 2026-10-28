@@ -1,0 +1,4 @@
+i'm reviewing the parquet component. There are a few issues here:
+- the begin/finish mechanism is reliant on the caller for it to work. Much like with a DB TX, we don't want to expose that to the service.
+- second, i like how you used the decoder to create batch records. But finish_declaration_capture is hard to reason about. We don't need this level of complexity with manifests and anyhow errors.
+- generally we are overengineering this component. Simple is best. We don't need to hack solutions for very unlikely edge cases
