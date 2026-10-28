@@ -1,0 +1,6 @@
+it's really hard to read and understand the test. Can you describe the behaviour of updates:
+- what happens when a new version for an existing declaration is published?
+- what happens when a brand new declacation is published?
+
+I'm interested in:
+- how funders and their aliases are treated
