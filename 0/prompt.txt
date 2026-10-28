@@ -1,0 +1,1 @@
+please remove them entierly and document in AGENTS.md that changing NEW migrations within the scope of a PR is required. Migration files that exist before the PR must NEVER be changed
