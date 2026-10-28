@@ -1,0 +1,1 @@
+$pstack:poteto-mode what is the most minimal frontend rewrite we can do to introduce a svelte kit server
