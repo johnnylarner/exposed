@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"selected observation does not belong to this payment or its parent is the error from the declartions load","question":"What exact command did you run, and what was the full error output? Include any `Caused by` lines, but redact passwords, tokens, and the database URL.","questionItemId":"[\"request_user_input_async\",\"call_a269441c09df49289ae6fcaec79c4cd7\",0]"}]
+</send_user_message_question_reply>
