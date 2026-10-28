@@ -1,0 +1,1 @@
+$pstack:how does the funder name cleaning work and to why columns is it applied
