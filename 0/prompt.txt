@@ -1,0 +1,1 @@
+but this doesn't typciall happen. when i create a dummy project and run it, nothing pops up
