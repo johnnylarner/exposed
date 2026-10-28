@@ -1,0 +1,1 @@
+they jsut need to follow the up/down convention and be in the migrations folder
