@@ -161,13 +161,27 @@ required acceptance criteria for new UI and changes to existing UI.
 - Run `npm run check`, `npm run build`, and the affected Playwright tests from
   `frontend`. Gallery tests use a development server. Production tests use the
   built application.
-- Every PR that changes the UI must include desktop screenshots in its
-  description. Capture the affected views from the running application on
-  the PR branch after completing the changes.
-- Upload screenshots as GitHub attachments with `gh pr create --attach` or
+- Match the evidence in the PR description to the type of UI change:
+  - Aesthetic-only changes, such as sizes, colours, and positions, require
+    desktop screenshots of the affected views. No video is required.
+  - Functional changes and new features, including anything that requires
+    steps to test, require a short desktop usage video of the affected workflow.
+    Show the starting state, relevant actions, and resulting state, with
+    deliberate pauses so reviewers can follow. Screenshots are optional
+    supplements. PRs with both aesthetic and functional changes require video.
+  Capture evidence from the running application on the PR branch after
+  completing the changes.
+- For videos, use the [PR video recording skill](.agents/skills/record-pr-video/SKILL.md).
+  Show a visible cursor, a brief highlight at each click location, and readable
+  overlays for simulated keyboard inputs, including shortcuts and special keys.
+  Show entered text only when it is safe to disclose. Keep annotations synchronized
+  with actions and clear of the controls being demonstrated.
+- Upload screenshots and videos as GitHub attachments with `gh pr create --attach` or
   `gh pr edit --attach`. Use a GitHub CLI version that supports this flag. Never
-  commit PR screenshots to the repository. Verify that the attachments render
-  in the PR description before marking the PR ready for review.
+  commit PR screenshots or recordings to the repository. Verify that screenshots
+  render and videos play in the PR description before marking the PR ready for
+  review. If uploading or verification is unavailable, report the blocker and
+  provide the local evidence artifact.
 
 
 ## Git history
