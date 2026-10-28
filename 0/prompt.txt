@@ -1,0 +1,1 @@
+$pstack:poteto-mode when viewing a funder page for a legal entity i want to see aliases associated with it. $pstack:how does the current alias data model work?
