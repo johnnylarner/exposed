@@ -1,0 +1,1 @@
+$pstack:poteto-mode i added an about.md. Please create a page for this. Replace the methodoly footer with this. Please also add an email form at the end of the page.
