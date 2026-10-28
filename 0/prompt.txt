@@ -1,0 +1,1 @@
+hey, i want to work on the endpoints for my application. I'd like to serve individual member and funder pages, based on the search results
