@@ -1,0 +1,1 @@
+i want to capture approach to rust code development in a way that you won't make this mistake in the future. How would you recommend doing this?
