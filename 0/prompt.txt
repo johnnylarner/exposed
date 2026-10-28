@@ -1,0 +1,15 @@
+<environment_context>
+  <current_date>2026-10-07</current_date>
+  <timezone>Europe/Berlin</timezone>
+  <filesystem><workspace_roots><root>/Users/jamie/development/exposed</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/implement_splink" />
+    <agent name="/root/review_splink_comments" />
+    <agent name="/root/review_splink_correctness" />
+    <agent name="/root/design_attribution" />
+    <agent name="/root/design_mapping" />
+    <agent name="/root/design_relationships" />
+    <agent name="/root/judge_designs" />
+    <agent name="/root/resolution_rationale" />
+  </subagents>
+</environment_context>
