@@ -1,0 +1,1 @@
+$pstack:why does wt prune not remove any of the worktrees
