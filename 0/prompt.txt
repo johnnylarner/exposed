@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"Include those features and ambiguity flags","question":"The data includes explicit aliases such as `CSC Computer Sciences Limited (Trading as DXC Technology Ltd)`, acronym expansions such as `ASLEF (Associated Society...)`, and joint donors such as `Alan Milburn & Ruth Briel`. I recommend extracting explicit aliases and acronyms into additional features, keeping geographic qualifiers such as `(UK)`, and flagging joint or ambiguous names for resolution. Should that be part of this first cleaning step alongside normalized names, tokens, title removal and company s","questionItemId":"[\"request_user_input_async\",\"call_644ad4aa7d4c4d8ea11358e98640f399\",0]"}]
+</send_user_message_question_reply>
