@@ -1,0 +1,4 @@
+- agree, we can revise the name of the function to achieve this
+- partially agree. Remember with parquet is that we need an exact schema. The raw should just be translation of what we currently have. We should be able to add more fields to a future schema
+- yes, after the ingestion step, we explicitly no longer work with the API
+- yes, we can use a delta step upon publishing to calculate deltas
