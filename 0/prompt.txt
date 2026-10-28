@@ -1,0 +1,1 @@
+$pstack:poteto-mode please create a ci pipeline for a production docker build. Use best practices for rust build caching, and github releases with the a tagged image. Use cal ver yyyy.mm.dd.hh.mm for the tags. Include the pinned image in the release. i release should happen on any push to main where the exposed package is modified
