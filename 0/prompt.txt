@@ -1,0 +1,2 @@
+this isn't bad. But we need to change two things:
+- the command can just integrate directly with teh existing commands. No need for a new service or outbound adapter. The file system struct should be able to do most things
