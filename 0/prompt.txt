@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"Regression database snapshot","question":"Did you mean a fresh regression database snapshot, or an image of the application?","questionItemId":"[\"request_user_input_async\",\"call_5ead623fb731424eb57bbb63c56835c8\",0]"}]
+</send_user_message_question_reply>
