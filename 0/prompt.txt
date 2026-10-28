@@ -1,0 +1,1 @@
+$pstack:poteto-mode currently our cli only supports full ingestions of declarations. I want to change be able to update the declarations by a delta. In production we will need to run the declaration ingestion daily to keep the platform up to date. Please architect a solution. Tell me the options before implementing
