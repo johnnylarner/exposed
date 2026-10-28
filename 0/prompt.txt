@@ -1,0 +1,1 @@
+can you refactor my other parquet methods to use the decoder approach
