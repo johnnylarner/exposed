@@ -1,0 +1,1 @@
+okay, so lets integrate splink for those withouth a match. I fear this will be a common problem because many funders are not companies and so won't have company ids.
