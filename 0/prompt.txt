@@ -1,0 +1,1 @@
+can you first refactor the skill to move all the scripts into the skill itself
