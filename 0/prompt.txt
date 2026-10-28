@@ -1,0 +1,1 @@
+please clean up all the worktrees and their branches. All of them are redundant
