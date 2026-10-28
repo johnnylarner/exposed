@@ -1,0 +1,1 @@
+$Poteto Mode when i search entities i cannot view entity details. Plesae create a feature that allows me to do that. Views should visually differentiate MPs and funders. For MPs, display their most recent declarations, for funders show total donated to each party and top receipients
