@@ -1,0 +1,6 @@
+$pstack:poteto-mode please design a filtering system for the rankings and funder/mp pages. The filters should allow users to filter the data on the screen by:
+- historic data
+- data this parliamentary term
+- this year
+
+Filter UI components should consistent across pages
