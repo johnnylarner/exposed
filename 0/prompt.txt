@@ -1,0 +1,1 @@
+i get htis error: Error: error in ingestion pipeline: daily synchronization requires `declarations reconcile` to initialize complete evidence
