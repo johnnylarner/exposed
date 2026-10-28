@@ -1,0 +1,7 @@
+i want to create fun "rankings page" accessible from the main landing page. The purpose of this page is to have an animated leaderboard. The user has the option to pick what the board shows:
+- MPs with the most earnings
+- Individual funders with the most donations
+- Companies with the most donations
+- Parties receiving the most donations
+
+Before implementing, lets discuss the UI components and animation for this
