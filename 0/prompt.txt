@@ -1,0 +1,1 @@
+$pstack:poteto-mode please build a prototype using weldrs and compare the outcome with the existing splink pipeline
