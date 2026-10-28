@@ -1,0 +1,82 @@
+Address the review of feat/rust-import-ownership.
+
+Context
+- Repository: /Users/jamie/development/exposed
+- Existing feature worktree:
+  /Users/jamie/development/exposed-rust-import-ownership
+- Reviewed HEAD: 6aa57fdb4192ec995ee74bf3a45d2f8e6b542d8a
+- Comparison base: main at 933689069392c9a4a06d6546f73314f557e8293e
+- Read AGENTS.md before making changes. Follow its worktree and commit rules.
+- If HEAD has advanced, inspect subsequent changes before applying these findings.
+
+1. Standards: architectural integration — design recommendation
+
+The user explicitly challenged why imports live in a separate /imports
+subsystem when Rust already has domain/, inbound/, and outbound/.
+
+The PR introduces imports/core, imports/adapters, imports/admin, a separate
+PostgresStore, and its own runtime and database pool. The first review
+checked this subsystem internally but missed its fit with the application.
+
+Recommended direction:
+- Place import values, rules, use cases, and port interfaces under domain.
+- Place Parliament, PostgreSQL, and WhatsApp adapters under outbound.
+- Place operator HTTP handlers under inbound.
+- Compose their dependencies and lifetimes at application startup.
+- Assess whether a separate database wrapper/pool has an actual requirement.
+
+Preserve import-specific ports and draft types where their contracts differ
+from search. Existing search repositories do not provide import operations.
+
+Before editing, map the current imports modules to their intended locations
+and identify which types and infrastructure should be shared. This is a
+design judgment based on the existing layout, not a proven violation of
+an explicit directory rule. The PR's rewritten architecture document
+describes the new structure but does not justify introducing it.
+
+2. Standards: verified P2 cancellation bug
+
+Location: exposed/src/lib/imports/adapters/postgres.rs, acquire(), lines 34–43.
+
+close_on_drop() is set after awaiting pg_try_advisory_lock. Cancellation
+after PostgreSQL acquires the lock but before SQLx receives its response
+returns the locked connection to the pool. Other imports can remain blocked.
+
+Set close_on_drop() immediately after acquiring the pooled connection,
+before awaiting the lock query.
+
+A deterministic reproduction delayed the database response through a local
+TCP proxy. After cancellation, the connection returned idle but retained
+its advisory lock; closing the pool released it. Local probe artifacts
+are in target/review-lock-probe, if still available.
+
+Acceptance: cancellation during acquisition releases the lock without
+closing the entire pool.
+
+3. Spec: verified P2 configuration exit-code bug
+
+Location: ingest/src/exposed/cli.py, lines 64–70.
+
+Reproduction, from ingest/:
+.venv/bin/python -m exposed import-members --app-url http://127.0.0.1:not-a-port
+
+This produces an uncaught httpx.InvalidURL and exits 1. The agreed spec
+requires configuration errors to exit 2. Malformed IPv6 can also raise
+during urlsplit.
+
+Handle URL parsing/client-construction errors through parser.error.
+
+Acceptance: malformed operator URLs exit 2 with a useful stderr diagnostic
+and no traceback or network request.
+
+References and validation
+- Agreed spec: docs/specs/rust-import-ownership.md
+- Compatibility requirements: docs/specs/declaration-ingestion.md
+- Preserve atomic publication, stable IDs, duplicate detection, rejection
+  handling, cancellation, and refresh scheduling during restructuring.
+- At the reviewed commit, make check passed: 7 Python tests, 39 Rust tests,
+  lint, formatting, type checking, and build checks.
+- Add focused regression coverage for the two verified bugs; run make check.
+- Use isolated test databases and deterministic source fixtures.
+- Finish with the architecture decision, findings addressed, validation
+  results, and commit/comparison command required by AGENTS.md.
