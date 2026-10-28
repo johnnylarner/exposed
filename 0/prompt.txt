@@ -1,0 +1,6 @@
+For these totals I'd like the following components:
+- Heading: Earnings this parliamentary term || Historical earnings since <date>
+- Chart: Total in pounds
+
+In the case where no data exists, the space should be occupied by text saying:
+- No declaration data available
