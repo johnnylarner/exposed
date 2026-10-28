@@ -1,0 +1,5 @@
+$pstack:poteto-mode i want to extend the ci jobs. I want to the following:
+- build and publish an image containing the release of exposed binary
+- build and publish an image that runs the exposed frontend and the exposed binary in server mode
+- build and publish an image that runs the exposed binary in migration mode
+- build and publish an imag ethta runs the exposed binary in data mode.
