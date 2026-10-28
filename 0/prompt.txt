@@ -1,0 +1,1 @@
+$pstack:poteto-mode posthog tracking isn't workintg for my production server. At least not for searches. Help me understand why.
