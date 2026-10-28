@@ -1,0 +1,3 @@
+yes exactly and based on the docs it says this: This function returns a value that can be approximately understood as the greatest similarity between the first string and any substring of the second string. However, this function does not add padding to the boundaries of the extent. Thus, the number of additional characters present in the second string is not considered, except for the mismatched word boundaries.
+
+Thus my statement was accurate that a misspelled first word has bad impact
