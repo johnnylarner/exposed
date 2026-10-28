@@ -1,0 +1,1 @@
+$pstack:poteto-mode is sveltecheck included in the pre-commit hook?
