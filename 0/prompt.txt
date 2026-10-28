@@ -1,0 +1,1 @@
+$Poteto Mode the current cli implentation for declarations pulls all the data into one table. Work on a cleaning step that separates the funding entries and funders into separate parquet tables. We should discuss the cleaning steps for funder names
