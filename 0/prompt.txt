@@ -1,0 +1,1 @@
+$pstack:poteto-mode  i've seen repeated failures for the api where the response shows "no totalResults". In the case of this error, we need to be able to see the entire response. Please fix this
