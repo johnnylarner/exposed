@@ -1,0 +1,1 @@
+are there any other benefits to client side navigation that would be useful in teh future?
