@@ -1,0 +1,3 @@
+$pstack:poteto-mode rewrite the agents.md to include the following:
+- definition of terms: declarations, members, funding, earnings, rankings
+- stricter frontend rules, specifically around teh design system. Use the existing policies but make their adherence required
