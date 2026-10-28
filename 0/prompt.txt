@@ -1,0 +1,1 @@
+okay, what i want is a cli tool for you to use that has models that you can run easily on my machine
