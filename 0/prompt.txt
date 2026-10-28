@@ -1,0 +1,1 @@
+resize the timeseries bar graph to make full use of the space. Move the subheading into the main heading to give more space for the chart
