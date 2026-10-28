@@ -1,0 +1,3 @@
+please refactor the CLI interface:
+- config should be an option
+- fetch and load commands require ingestion key as an argument
