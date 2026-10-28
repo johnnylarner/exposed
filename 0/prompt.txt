@@ -1,0 +1,5 @@
+this implemenation doesnt make senes. Please simplify with the following:
+- use connection string through, not pg options
+- remove port key, parse the conn str and pull the port from there
+- keep errors simple
+- remove integration test. No server will work if the config is broken so testing this is superfluous
