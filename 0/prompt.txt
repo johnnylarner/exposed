@@ -1,0 +1,1 @@
+you said: "The median MP registers declarations about once every 52 days this term.". In this calculation three declarations on a single day are counted once. I'm say they should be counted thrice
