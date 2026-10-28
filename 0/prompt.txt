@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"i'm running cargo clippy","question":"Which exact `cargo clippy` command are you running, and can you paste one diagnostic that Neovim is missing?","questionItemId":"[\"request_user_input_async\",\"call_r7r9mukbIHOs8L5btW95wipm\",0]"}]
+</send_user_message_question_reply>
