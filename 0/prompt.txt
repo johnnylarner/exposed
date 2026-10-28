@@ -1,0 +1,4 @@
+$pstack:poteto-mode three graphs to the home page. The scope of this data is the current term.
+- Distribution of MP declartion totals in quartiles
+- Top 5 MPs by declarated amount
+- Pie chart for declared amount per party
