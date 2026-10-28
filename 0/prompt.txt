@@ -1,0 +1,1 @@
+i'm slightly confused. why did you add a bunch of custom postgres functions. I thought we were using the fuzzy extenios for that?
