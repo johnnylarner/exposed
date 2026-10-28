@@ -1,0 +1,1 @@
+$pstack:poteto-mode add a cmd/ctrl k (depeending on op system) shortcut so i can seacrh in the search bar without clicking
