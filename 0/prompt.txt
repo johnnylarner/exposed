@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"End-to-end CLI tests as the main coverage","question":"How should I adjust the testing boundary in the spec?","questionItemId":"[\"request_user_input_async\",\"call_y48lGPqj6w8sCQD8qZ1ktbFL\",0]"}]
+</send_user_message_question_reply>
