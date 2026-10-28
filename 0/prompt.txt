@@ -1,0 +1,1 @@
+$pstack:poteto-mode please use the design system to create a light mode for the application
