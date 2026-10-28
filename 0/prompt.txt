@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"i don't understand the question","question":"For “hierarchical resolution of entity type and identifiers,” do you mean precedence within identity resolution, such as company numbers and explicit entity types taking priority over name matches, or inheritance through parent and child declarations?","questionItemId":"[\"request_user_input_async\",\"call_f200b93d88914c0dba458171d6f21426\",0]"}]
+</send_user_message_question_reply>
