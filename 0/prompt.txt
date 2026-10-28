@@ -1,0 +1,1 @@
+okay, one additional thing. I want to use tracing to log errors. Each error should be logged exactly once. Propose how you'd guarantee that
