@@ -1,0 +1,1 @@
+$pstack:poteto-mode change mp declared amount by source to top amount and include the top 5
