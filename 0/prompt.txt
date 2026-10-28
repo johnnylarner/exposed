@@ -1,0 +1,5 @@
+not too bad. The sizing isn't coherent with the rest of the app. Also its important to remember that purple is the MP colour vs green for companies. It could be fun to style the buttons within a wheel. Also out of scope:
+
+- show more than 10
+- "all records"
+- "replay animation"
