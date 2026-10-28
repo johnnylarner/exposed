@@ -1,0 +1,1 @@
+$pstack:poteto-mode there is too much text in the mp summary page. Please use $design-taste-frontend to find a design more inline with authoratitve data visualisation
