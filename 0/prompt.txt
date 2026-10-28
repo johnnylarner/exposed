@@ -1,0 +1,1 @@
+can i not give you your own zshrc?
