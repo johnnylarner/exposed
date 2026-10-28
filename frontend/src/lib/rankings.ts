@@ -12,6 +12,7 @@ export interface RankingEntry {
   context: string | null;
   total: DeclaredGbpPeriodTotal;
 }
+/** Complete ordered boards from one reporting-period snapshot. */
 export interface Rankings {
   period: ReportingPeriod;
   currentTermStart: string;

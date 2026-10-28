@@ -108,7 +108,7 @@ async fn rankings_preserve_summary_parity_canonical_identity_and_party_attributi
 }
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("rankings"))]
-async fn http_rankings_expose_four_bounded_boards_with_exact_wire_totals(pool: PgPool) {
+async fn http_rankings_expose_four_complete_boards_with_exact_wire_totals(pool: PgPool) {
     use crate::{
         domain::services::entity_search,
         inbound::http::{routes::routes, state::AppState},
@@ -156,9 +156,6 @@ async fn http_rankings_expose_four_bounded_boards_with_exact_wire_totals(pool: P
         "10000000-0000-0000-0000-000000000001"
     );
     assert!(body["parties"][0].get("context").is_none());
-    for board in ["members", "individuals", "companies", "parties"] {
-        assert!(body[board].as_array().unwrap().len() <= 10);
-    }
 
     assert_eq!(body["period"], "current-term");
     for period in ["historical", "current-term", "current-year"] {
@@ -190,7 +187,7 @@ async fn http_rankings_expose_four_bounded_boards_with_exact_wire_totals(pool: P
 }
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("rankings"))]
-async fn windows_filter_database_rows_before_top_ten_and_keep_distinct_board_scopes(pool: PgPool) {
+async fn windows_filter_database_rows_before_ranking_and_keep_distinct_board_scopes(pool: PgPool) {
     use crate::domain::{
         models::{
             entity_details::DeclarationCategory,
@@ -278,8 +275,10 @@ async fn windows_filter_database_rows_before_top_ten_and_keep_distinct_board_sco
             rankings.members.len(),
             if period == ReportingPeriod::CurrentYear {
                 7
+            } else if period == ReportingPeriod::Historical {
+                19
             } else {
-                10
+                18
             }
         );
         let companies: Vec<_> = rankings
@@ -310,6 +309,61 @@ async fn windows_filter_database_rows_before_top_ten_and_keep_distinct_board_sco
             all.iter()
                 .filter(|s| s.declaration.category == DeclarationCategory::Other(987))
                 .all(|s| s.declaration.category.source_id() == 987)
+        );
+    }
+}
+
+#[sqlx::test(
+    migrations = "../db/migrations",
+    fixtures("rankings", "rankings_complete")
+)]
+async fn snapshot_retains_every_identity_in_all_four_ordered_boards(pool: PgPool) {
+    use crate::domain::models::reporting_period::ReportingPeriod;
+    let rankings = Service::new(ExposedDatabase::from(pool))
+        .rankings(ReportingPeriod::CurrentTerm)
+        .await
+        .unwrap();
+    assert_eq!(rankings.members.len(), 29);
+    assert_eq!(rankings.individuals.len(), 25);
+    assert_eq!(rankings.companies.len(), 26);
+    assert_eq!(rankings.parties.len(), 25);
+    assert_eq!(
+        rankings
+            .members
+            .iter()
+            .take(23)
+            .map(|row| row.identity.id.value())
+            .collect::<Vec<_>>(),
+        (100..=122).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        rankings
+            .parties
+            .iter()
+            .take(23)
+            .map(|row| row.identity.id)
+            .collect::<Vec<_>>(),
+        (100..=122).collect::<Vec<_>>()
+    );
+    for board in [&rankings.individuals, &rankings.companies] {
+        assert_eq!(
+            board
+                .iter()
+                .take(23)
+                .map(|row| row.total.amount.clone())
+                .collect::<Vec<_>>(),
+            (100..=122)
+                .map(|id| Some((1000 - id).to_string().parse().unwrap()))
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(
+            board
+                .iter()
+                .take(23)
+                .map(|row| row.identity.id.value())
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            23
         );
     }
 }

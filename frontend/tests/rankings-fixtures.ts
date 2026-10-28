@@ -33,3 +33,35 @@ export const rankingFixture = {
     },
   ],
 };
+
+export function completeRankingFixture(count = 23) {
+  const members = Array.from({ length: count }, (_, index) => ({
+    ...rankingFixture.members[0],
+    id: String(index + 1),
+    name: `Member ${index + 1}`,
+    total: {
+      amount:
+        index === 0 ? "9007199254740993.123456789" : String(count - index),
+      declaration_count: 2,
+      incomplete: index === 0,
+    },
+  }));
+  return {
+    ...rankingFixture,
+    members,
+    individuals: members.map((row, index) => ({
+      ...row,
+      id: `10000000-0000-0000-0000-${String(index + 1).padStart(12, "0")}`,
+      name: `Individual ${index + 1}`,
+    })),
+    companies: members.map((row, index) => ({
+      ...row,
+      id: `20000000-0000-0000-0000-${String(index + 1).padStart(12, "0")}`,
+      name: `Company ${index + 1}`,
+    })),
+    parties: members.map((row, index) => ({
+      ...row,
+      name: `Party ${index + 1}`,
+    })),
+  };
+}

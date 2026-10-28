@@ -3,7 +3,7 @@ import { searchEntities } from "../src/lib/server/search";
 import { loadDetails } from "../src/lib/server/entity-details";
 import { parseRankings, loadRankings } from "../src/lib/server/rankings";
 import { rankingRows } from "../src/lib/rankings";
-import { rankingFixture } from "./rankings-fixtures";
+import { completeRankingFixture, rankingFixture } from "./rankings-fixtures";
 import {
   funderId,
   funderDetails,
@@ -456,3 +456,44 @@ for (const period of [undefined, null, "", "other"]) {
     );
   });
 }
+
+test("rankings accept complete boards and validate identities beyond the first batch", () => {
+  const fixture = completeRankingFixture();
+  const parsed = parseRankings(fixture);
+  for (const category of [
+    "members",
+    "individuals",
+    "companies",
+    "parties",
+  ] as const) {
+    expect(parsed[category]).toHaveLength(23);
+    expect(parsed[category].map((row) => row.id)).toEqual(
+      fixture[category].map((row) => row.id),
+    );
+    expect(() =>
+      parseRankings({
+        ...fixture,
+        [category]: [...fixture[category], fixture[category][0]],
+      }),
+    ).toThrow();
+    expect(() =>
+      parseRankings({
+        ...fixture,
+        [category]: [
+          ...fixture[category],
+          { ...fixture[category][0], id: "bad" },
+        ],
+      }),
+    ).toThrow();
+  }
+});
+
+test("ranking bar scale includes negative extrema beyond the initial prefix", () => {
+  const fixture = completeRankingFixture();
+  fixture.members[0].total.amount = "10";
+  fixture.members[22].total.amount = "-100";
+  const rows = rankingRows(parseRankings(fixture), "members");
+  expect(rows[0].width).toBe(10);
+  expect(rows[22].width).toBe(100);
+  expect(rows[22].negative).toBe(true);
+});
