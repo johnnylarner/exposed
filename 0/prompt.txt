@@ -1,0 +1,1 @@
+I don't want to introduce this code to the codebase. I think a wrapper around DuckDB is more suitable. It's a shame that sqlx doesn't support duckdb, but it's acceptable to use this as duckdb is an easier dependency to manage than a python virtual environment
