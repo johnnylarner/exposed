@@ -1,0 +1,5 @@
+$pstack:poteto-mode please bring the funder page into alighnement with teh mp page:
+- total funded on the right
+- pie chart for per party
+- no currency mentions
+- separate tab with the funding history
