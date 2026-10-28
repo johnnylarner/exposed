@@ -1,0 +1,1 @@
+surely we can just extend an existing test file to cover the explicit case of a sync?
