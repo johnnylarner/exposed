@@ -1,0 +1,1 @@
+i changed my mind, can we do: exposed:<target>-<version> instead?
