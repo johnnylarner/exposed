@@ -1,0 +1,1 @@
+$pstack:poteto-mode make this work with the compose setup
