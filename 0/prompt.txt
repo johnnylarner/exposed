@@ -1,0 +1,1 @@
+$pstack:poteto-mode when i navigate between different pages the screen flashes white for an instant. $pstack:why is that
