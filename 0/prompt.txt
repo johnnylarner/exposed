@@ -1,0 +1,1 @@
+$pstack:how what does the integration and verification testing for the backend cover. Produce a HTML report that shows the behaviour covered
