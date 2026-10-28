@@ -1,0 +1,1 @@
+thats new for me. One question i have is: if i just update the frontend, can i run this pipeline without building the binary again?
