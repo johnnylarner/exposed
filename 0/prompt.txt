@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"Parquet — preserves types and works directly with Polars","question":"Which format would you like for the three raw tables?","questionItemId":"[\"request_user_input_async\",\"REDACTED\",0]"}]
+</send_user_message_question_reply>
