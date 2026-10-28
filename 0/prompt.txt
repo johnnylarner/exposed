@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"it should use a worktree specific compose setup. This is why it still needs to rely on the db snapshot","question":"What development URL should I compare against https://exposed.today? I found the local Compose app stopped; I can also launch this branch locally if that is your intended development instance.","questionItemId":"[\"request_user_input_async\",\"call_9768cdb055d04499b78539869c2aa33a\",0]"}]
+</send_user_message_question_reply>
