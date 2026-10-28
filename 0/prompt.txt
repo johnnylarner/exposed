@@ -1,0 +1,1 @@
+please make sure the outer rim is only highlighted when you have the section selected. The muted colours should stay regardless
