@@ -1,0 +1,2 @@
+okay, i don't really care about the internal ids changing but we should used name based routing for them. We can put this off for now. To be clear about one this:
+- deduplication runs on the entire data set every time?
