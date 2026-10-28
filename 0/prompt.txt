@@ -1,0 +1,1 @@
+$pstack:poteto-mode pr 108 is my second attempt at creating a light mode with you. I noticed that the attempts show that our custom components don't work well in light mode, in particular i mean the decalartion listings. The background shade of each element looks janky. Would it be worth introducitng a UI component library to manage many of these standard components?
