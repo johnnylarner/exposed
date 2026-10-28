@@ -1,0 +1,1 @@
+I think you've understood well what i'm trying to build. The idea behind this change is to make it easier experiment and work on the data, reducing the scope of the database to purely serve applications.
