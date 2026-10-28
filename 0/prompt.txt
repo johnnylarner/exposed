@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"API endpoints only","question":"Should this change add the API endpoints for member and funder details, or also build the pages and make search results open them?","questionItemId":"[\"request_user_input_async\",\"call_9MUIEbBQcy1KlRCwXBbwtisp\",0]"}]
+</send_user_message_question_reply>
