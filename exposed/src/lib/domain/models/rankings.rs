@@ -43,7 +43,7 @@ pub struct Ranking<I> {
     /// Exact declared GBP total and coverage.
     pub total: DeclaredGbpPeriodTotal,
 }
-/// Four top-ten boards from one snapshot for the selected period.
+/// Four complete ordered boards from one snapshot for the selected period.
 #[derive(Debug)]
 pub struct Rankings {
     /// Scope shared by all boards.

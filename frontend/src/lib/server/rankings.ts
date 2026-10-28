@@ -18,7 +18,7 @@ function board(
   value: unknown,
   kind: "member" | "funder" | "party",
 ): RankingEntry[] {
-  if (!Array.isArray(value) || value.length > 10) return malformed();
+  if (!Array.isArray(value)) return malformed();
   const seen = new Set<string>();
   return value.map((value: unknown) => {
     const row = record(value);

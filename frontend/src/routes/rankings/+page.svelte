@@ -1,8 +1,11 @@
 <script lang="ts">
+  import { tick } from "svelte";
+  import type { Rankings } from "../../lib/rankings";
   import PeriodSelector from "../../PeriodSelector.svelte";
   import { page, navigating } from "$app/state";
   import AppShell from "../../AppShell.svelte";
   import {
+    Button,
     ViewLinks,
     ViewLink,
     ContentChange,
@@ -26,6 +29,49 @@
   const rows = $derived(
     data.rankings ? rankingRows(data.rankings, selected) : [],
   );
+  const batchSize = 10;
+  let revealed = $state.raw<{
+    rankings: Rankings | null;
+    category: RankingCategory;
+    count: number;
+  }>({
+    rankings: null,
+    category: "members",
+    count: batchSize,
+  });
+  const visibleCount = $derived(
+    revealed.rankings === data.rankings && revealed.category === selected
+      ? revealed.count
+      : batchSize,
+  );
+  const visibleRows = $derived(rows.slice(0, visibleCount));
+  const boardLabel = $derived(
+    `${rankingCategories.find((category) => category.id === selected)?.label} rankings`,
+  );
+  let board = $state<HTMLDivElement>();
+  $effect(() => {
+    if (revealed.rankings !== data.rankings || revealed.category !== selected) {
+      revealed = {
+        rankings: data.rankings,
+        category: selected,
+        count: batchSize,
+      };
+    }
+  });
+  async function showMore(event: MouseEvent) {
+    if (navigating.to || visibleCount >= rows.length) return;
+    const rankings = data.rankings;
+    const category = selected;
+    const restoreFocus = event.currentTarget === document.activeElement;
+    const count = Math.min(visibleCount + batchSize, rows.length);
+    revealed = { rankings, category, count };
+    if (count === rows.length && restoreFocus) {
+      await tick();
+      if (data.rankings === rankings && selected === category) {
+        board?.focus({ preventScroll: true });
+      }
+    }
+  }
 </script>
 
 <svelte:head><title>Rankings | Exposed</title></svelte:head>
@@ -50,14 +96,24 @@
         <PeriodSelector period={data.period} />
       </div>
       <ContentChange changeKey={data.period}>
-        <div class="board">
+        <div
+          class="board"
+          bind:this={board}
+          tabindex="-1"
+          role="region"
+          aria-label={boardLabel}
+        >
           {#if selected === "parties"}<p class="party-context">
               Support declared by MPs, grouped by their latest party.
             </p>{/if}
-          <RankingList
-            {rows}
-            label={`${rankingCategories.find((category) => category.id === selected)?.label} rankings`}
-          />
+          <RankingList rows={visibleRows} label={boardLabel} />
+          {#if visibleCount < rows.length}
+            <div class="show-more">
+              <Button onclick={showMore} disabled={Boolean(navigating.to)}
+                >Show more</Button
+              >
+            </div>
+          {/if}
           {#if rows.length === 0}<p class="empty">
               No declarations found.
             </p>{/if}
@@ -76,8 +132,15 @@
     gap: var(--space-4);
     margin-block: var(--space-6) var(--space-4);
   }
+  .show-more {
+    margin-top: var(--space-4);
+  }
   .board {
     min-width: 0;
+  }
+  .board:focus-visible {
+    outline: var(--focus-width) solid var(--focus-color);
+    outline-offset: var(--focus-offset);
   }
   .party-context,
   .empty {

@@ -10,7 +10,7 @@ use crate::domain::{
     repositories::rankings::{RankingsError, RankingsRepo},
 };
 use std::collections::BTreeMap;
-/// Top-ten rankings for a selected registration period.
+/// Complete rankings for a selected registration period.
 pub trait RankingsService: Clone + Send + Sync + 'static {
     /// Returns all four boards from one snapshot.
     fn rankings(
@@ -29,7 +29,7 @@ impl<R> Service<R> {
         Self { repo }
     }
 }
-fn top<K: Ord, I>(groups: BTreeMap<K, (I, PeriodAggregate)>) -> Vec<Ranking<I>> {
+fn ordered<K: Ord, I>(groups: BTreeMap<K, (I, PeriodAggregate)>) -> Vec<Ranking<I>> {
     let mut rows: Vec<_> = groups
         .into_iter()
         .map(|(key, (identity, aggregate))| {
@@ -50,7 +50,7 @@ fn top<K: Ord, I>(groups: BTreeMap<K, (I, PeriodAggregate)>) -> Vec<Ranking<I>> 
             .cmp(&left.1.total.amount)
             .then_with(|| left.0.cmp(&right.0))
     });
-    rows.into_iter().take(10).map(|(_, row)| row).collect()
+    rows.into_iter().map(|(_, row)| row).collect()
 }
 impl<R: RankingsRepo> RankingsService for Service<R> {
     async fn rankings(&self, period: ReportingPeriod) -> Result<Rankings, RankingsError> {
@@ -123,10 +123,10 @@ pub(crate) fn summarize(
     Rankings {
         period,
         current_term_start: context.current_term_start(),
-        members: top(members),
-        individuals: top(individuals),
-        companies: top(companies),
-        parties: top(parties),
+        members: ordered(members),
+        individuals: ordered(individuals),
+        companies: ordered(companies),
+        parties: ordered(parties),
     }
 }
 
@@ -210,9 +210,9 @@ mod tests {
         }
     }
     #[test]
-    fn exact_sort_is_descending_null_last_stable_and_limited_to_ten() {
+    fn exact_sort_preserves_complete_board_with_precise_ties_zero_negative_and_null() {
         let mut groups = BTreeMap::new();
-        for id in 1..=15 {
+        for id in 1..=25 {
             let mut aggregate = PeriodAggregate::default();
             let declaration = crate::domain::models::entity_details::MemberDeclaration {
                 source_id: id,
@@ -223,8 +223,10 @@ mod tests {
                     funder: None,
                     payment_type: None,
                     amount: match id {
-                        15 => Some("9007199254740993.123456790".parse().unwrap()),
-                        14 => None,
+                        25 => Some("9007199254740993.123456790".parse().unwrap()),
+                        24 => None,
+                        23 => Some("-1".parse().unwrap()),
+                        22 => Some("0".parse().unwrap()),
                         _ => Some("9007199254740993.123456789".parse().unwrap()),
                     },
                     currency: Some("GBP".into()),
@@ -233,10 +235,13 @@ mod tests {
             aggregate.observe(&declaration);
             groups.insert(id, (id, aggregate));
         }
-        let rows = top(groups);
+        let rows = ordered(groups);
         assert_eq!(
             rows.iter().map(|row| row.identity).collect::<Vec<_>>(),
-            std::iter::once(15).chain(1..=9).collect::<Vec<_>>()
+            std::iter::once(25)
+                .chain(1..=21)
+                .chain([22, 23, 24])
+                .collect::<Vec<_>>()
         );
         let total: &DeclaredGbpPeriodTotal = &rows[0].total;
         assert_eq!(
