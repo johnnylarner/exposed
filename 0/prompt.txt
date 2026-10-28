@@ -1,0 +1,1 @@
+$pstack:poteto-mode i want to improve search results for misspelled words. For example jahn returns no results, labor ignores labour. do we have any features that would enable fuzzy/distance based searching?
