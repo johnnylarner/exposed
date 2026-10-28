@@ -1,0 +1,1 @@
+okay, but when i run the program, i see i little window pop up like when you update an ios app. I woulrdn't expect this running a rust binary
