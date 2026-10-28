@@ -1,0 +1,1 @@
+can you expain how aliases will be added, changed and removed
