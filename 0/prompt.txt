@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"Send directly from the site","question":"What email address should receive the form submissions, and should the form send directly from the site or open the visitor’s email app?","questionItemId":"[\"request_user_input_async\",\"call_46c6ed0c73f248969a06d81b474025d2\",0]"}]
+</send_user_message_question_reply>
