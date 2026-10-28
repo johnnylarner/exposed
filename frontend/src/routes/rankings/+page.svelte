@@ -133,6 +133,8 @@
     margin-block: var(--space-6) var(--space-4);
   }
   .show-more {
+    display: flex;
+    justify-content: center;
     margin-top: var(--space-4);
   }
   .board {
