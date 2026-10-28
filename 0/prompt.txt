@@ -1,0 +1,1 @@
+what verrsion of python does your shell run? On my machine taht command works
