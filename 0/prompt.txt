@@ -1,0 +1,1 @@
+hey, can you plesae refactor the server config to use environment variables. We should only need to provide DATABASE_URL via the environment.
