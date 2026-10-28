@@ -1,0 +1,1 @@
+how can i run the applicatoin from the cli like this/
