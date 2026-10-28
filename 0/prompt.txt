@@ -1,0 +1,1 @@
+i'm happy for you to do this but we are at a stage now where we need regression tests. Currently i have the database loaded with all the production data. I want to be able to run tests against this so that we can see how changing the search algo affects results. What ideas do you have for this?
