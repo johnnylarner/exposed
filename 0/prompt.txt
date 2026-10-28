@@ -1,0 +1,1 @@
+why not do a clean up at the end of the run. If an alias for a given funder does not exist in declarations associated with that funder then it is stale
