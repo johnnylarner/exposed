@@ -1,0 +1,1 @@
+is it possible to have it in the compose file as a one off job?
