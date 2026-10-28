@@ -1,0 +1,1 @@
+hey run the sqlx migrate command and help me understnad the error
