@@ -1,0 +1,1 @@
+the db/upgrades is not what sqlx expects. Please change it so it works for sqlx migratinso andt specify how this works in agents.md
