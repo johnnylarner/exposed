@@ -1,0 +1,1 @@
+$pstack:poteto-mode  please extend the release build to support running the images on macos
