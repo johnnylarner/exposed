@@ -1,0 +1,1 @@
+generally this looks good. Is it possible to implement this in a way that the cli response types can be included in the cli documentation to make it easy for agents to work with the cli?
