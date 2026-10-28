@@ -1,0 +1,9 @@
+great, please also change the colour scheme of the legend:
+- red for labour
+- blue for conservative
+- purple for reform
+- bright yellow for lib dem
+- green for green
+- darker yellow for snp
+
+Please get colour palette samples
