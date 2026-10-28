@@ -1,0 +1,1 @@
+please can you add a script that creates the regression db. When it runs it should delete the existing regression db and update it with a new snap shot.
