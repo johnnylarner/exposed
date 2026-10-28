@@ -1,0 +1,1 @@
+$pstack:poteto-mode make it possible to copy the latest raw layer to a newer ingestion key. The goal is to make it easier to test cleaning and resolutino logic in tests without api calls
