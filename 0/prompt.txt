@@ -1,0 +1,1 @@
+as far as i'm concerned, the deduplication work is far from complete. If we can't resolve those two differently spelled HSBC records or most of the unite unions then our pipeline is not working. We did a LOT of component extraction in the cleaning. What purpose does this serve?
