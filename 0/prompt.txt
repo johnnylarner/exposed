@@ -1,0 +1,1 @@
+$pstack:poteto-mode i don't want my development server to send events to posthog. $pstack:how does that work currently
