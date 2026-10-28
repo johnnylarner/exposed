@@ -1,0 +1,1 @@
+extend the cli to have a command that returns the latest ingestion key along with the data sets (members, declarations) and stage of the data
