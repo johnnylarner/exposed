@@ -1,0 +1,1 @@
+given that i'm vibecoding this application, the solution needs to make it difficult for agents to make these kinds of changes. If  users see changing totals, we will have a problem
