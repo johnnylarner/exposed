@@ -1,0 +1,1 @@
+$pstack:poteto-mode please rewrite the readme to be more oriented around the project goals
