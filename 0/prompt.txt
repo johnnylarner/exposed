@@ -1,0 +1,5 @@
+we can refactor the way the testing works. We now have a live application that we can use to verify the following:
+- search results for certain terms return the same as what production does
+- totals for certain orgs and MPs are the same on the development branch and production
+
+Production uses the following endpoint: https://exposed.today
