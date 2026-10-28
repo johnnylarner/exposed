@@ -1,0 +1,1 @@
+$pstack:poteto-mode please fix the error that runs when i run  cargo run -- data declarations load exposed/config/cli-dev.yaml --ingestion-key 01a11bda-b152-70bd-920c-202620bf6ffc. Then $pstack:teach me whta the solution was
