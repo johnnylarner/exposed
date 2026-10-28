@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"Show all declared amounts in the headline","question":"Which bug do you mean: the headline should include gifts and travel as well, or it incorrectly counts monthly employment agreements as money already earned?","questionItemId":"[\"request_user_input_async\",\"call_5c8fc686865e4afea39ca1277f27eb01\",0]"}]
+</send_user_message_question_reply>
