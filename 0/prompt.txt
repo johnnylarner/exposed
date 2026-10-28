@@ -1,0 +1,5 @@
+can name them as following:
+- VERSION-server
+- VERSION-app
+- VERSION-migrate
+- VERSION-cli
