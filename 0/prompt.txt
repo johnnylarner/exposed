@@ -1,0 +1,1 @@
+i'm confused. I just want the container to expose the frontend. Communication to the backend should happen within the containers local network
