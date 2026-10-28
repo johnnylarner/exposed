@@ -1,0 +1,6 @@
+> Which example searches should the regression check cover, and what should each return or deduplicate? Please include the query and the entities that should stay separate or collapse together.
+
+the current behaviour for the following search terms is correct:
+- "unite" -> unite union entity with several aliases
+- "west mid" -> unite union, submatching on an alias
+- "hsbc" -> HSBC UK Bank Plc with several aliases
