@@ -1,0 +1,1 @@
+$pstack:poteto-mode does the frontend need the location of the backend server for any vite or svelte kit stuff
