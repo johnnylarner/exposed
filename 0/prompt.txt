@@ -1,0 +1,1 @@
+$pstack:poteto-mode please use larger text for the numbers on the rankings page. Align them with the vertical bars too.
