@@ -1,0 +1,1 @@
+can you use actual screens from the web app in teh proto types. Generate them for both palettes plaese
