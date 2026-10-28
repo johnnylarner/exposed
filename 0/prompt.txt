@@ -1,0 +1,9 @@
+<environment_context>
+  <current_date>2026-10-23</current_date>
+  <timezone>Europe/Berlin</timezone>
+  <filesystem><workspace_roots><root>/Users/jamie/development/exposed</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/names_source" />
+    <agent name="/root/search_source" />
+  </subagents>
+</environment_context>
