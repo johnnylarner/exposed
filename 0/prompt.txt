@@ -1,0 +1,1 @@
+$pstack:poteto-mode check the development database and tell me how much money nigel farage has earned in total
