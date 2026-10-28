@@ -1,0 +1,15 @@
+<environment_context>
+  <current_date>2026-10-07</current_date>
+  <timezone>Europe/Berlin</timezone>
+  <filesystem><workspace_roots><root>/Users/jamie/development/exposed</root></workspace_roots><permission_profile type="managed"><file_system type="restricted"><entry access="read"><special>:root</special></entry><entry access="write"><path>/Users/jamie/development/exposed</path></entry><entry access="write"><special>:slash_tmp</special></entry><entry access="write"><special>:tmpdir</special></entry><entry access="read"><path>/Users/jamie/development/exposed/.git</path></entry><entry access="read"><path>/Users/jamie/development/exposed/.agents</path></entry><entry access="read"><path>/Users/jamie/development/exposed/.codex</path></entry><entry access="read"><path>/Users/jamie/development/exposed/.aws</path></entry></file_system></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/design_attribution" />
+    <agent name="/root/design_mapping" />
+    <agent name="/root/design_relationships" />
+    <agent name="/root/judge_designs" />
+    <agent name="/root/resolution_rationale" />
+    <agent name="/root/splink_data_fit" />
+    <agent name="/root/splink_design_native" />
+    <agent name="/root/splink_design_worker" />
+  </subagents>
+</environment_context>
