@@ -1,0 +1,3 @@
+As to processing, we could do something like this:
+- spelling and aliasing (ltd/limited, PLC/plc)
+- composite key resolution (name && address && company number && website). Note that most keys will be incomplete
