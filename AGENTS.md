@@ -161,13 +161,21 @@ required acceptance criteria for new UI and changes to existing UI.
 - Run `npm run check`, `npm run build`, and the affected Playwright tests from
   `frontend`. Gallery tests use a development server. Production tests use the
   built application.
-- Every PR that changes the UI must include desktop screenshots in its
-  description. Capture the affected views from the running application on
-  the PR branch after completing the changes.
-- Upload screenshots as GitHub attachments with `gh pr create --attach` or
+- Every PR that changes the UI must include a short desktop usage video in its
+  description. Record the affected workflow in the running application on the
+  PR branch after completing the changes. Show the starting state, relevant
+  actions, and resulting state, with deliberate pauses so reviewers can follow.
+- Use the [PR video recording skill](.agents/skills/record-pr-video/SKILL.md).
+  Show a visible cursor, a brief highlight at each click location, and readable
+  overlays for simulated keyboard inputs, including shortcuts and special keys.
+  Show entered text only when it is safe to disclose. Keep annotations synchronized
+  with actions and clear of the controls being demonstrated.
+- Upload videos as GitHub attachments with `gh pr create --attach` or
   `gh pr edit --attach`. Use a GitHub CLI version that supports this flag. Never
-  commit PR screenshots to the repository. Verify that the attachments render
-  in the PR description before marking the PR ready for review.
+  commit PR recordings to the repository. Verify playback in the PR description
+  before marking the PR ready for review. If uploading or playback verification
+  is unavailable, report the blocker and provide the local recording artifact.
+  Screenshots are optional supplements for visual changes.
 
 
 ## Git history
