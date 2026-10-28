@@ -1,0 +1,1 @@
+hey, i want you to help me finish this feature branch. I've added a new service that is supposed to replace the current python work. Can you review the ingestion service and tell me what you expect it to do.
