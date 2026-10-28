@@ -1,0 +1,15 @@
+<environment_context>
+  <current_date>2026-10-15</current_date>
+  <timezone>Europe/Berlin</timezone>
+  <filesystem><workspace_roots><root>/Users/jamie/development/exposed</root></workspace_roots><permission_profile type="disabled"><file_system type="unrestricted" /></permission_profile></filesystem>
+  <subagents>
+    <agent name="/root/simple_comments_review" />
+    <agent name="/root/simple_release_review" />
+    <agent name="/root/simplify_ci" />
+    <agent name="/root/batch_lookup_review" />
+    <agent name="/root/build_exploration" />
+    <agent name="/root/comments_review" />
+    <agent name="/root/design_a" />
+    <agent name="/root/design_b" />
+  </subagents>
+</environment_context>
