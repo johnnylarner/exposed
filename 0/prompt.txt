@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"Also add a light theme across the site","question":"The review also noted that the whole site ignores light-mode preference. Should this PR cover that too?","questionItemId":"[\"request_user_input_async\",\"call_b61fdfc3f7be4e50b880a23a8e6db1cc\",0]"}]
+</send_user_message_question_reply>
