@@ -1,0 +1,1 @@
+how can i extend the data cli to have better docs?
