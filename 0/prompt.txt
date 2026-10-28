@@ -1,0 +1,1 @@
+hey, i want to improve the entity resolution for the funders table. I have some ideas about how to resolve duplications but i realised that right now it's difficult to work on data design because it requires database schema migrations. Similarly, I don't like having to recreate the declarations dataset every time i changce the processing logic
