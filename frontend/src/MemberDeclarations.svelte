@@ -2,7 +2,7 @@
   import { DeclarationList, DeclarationCard, ValueRow } from "./lib/ui";
   import { page } from "$app/state";
   import { formatPounds } from "./lib/member-summary";
-  import { entityHref } from "./lib/search";
+  import { funderHref } from "./lib/entity-details";
   import {
     formatAmount,
     registrationDate,
@@ -36,11 +36,9 @@
             <ValueRow>
               {#snippet source()}
                 {#if entry.funder}<a
-                    href={entityHref(
-                      {
-                        kind: "Funder",
-                        id: entry.funder.id,
-                      },
+                    href={funderHref(
+                      entry.funder.id,
+                      "summary",
                       page.url.searchParams,
                     )}>{entry.funder.name}</a
                   >{:else}<span>Funder unavailable</span>{/if}<span

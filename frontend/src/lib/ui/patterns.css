@@ -371,13 +371,18 @@
   display: flex;
   gap: 28px;
 }
-.member-tabs a {
-  padding: 12px 0;
+.member-tabs a,
+.member-tabs button {
+  padding: var(--space-3) 0;
+  background: transparent;
+  border: 0;
+  font: inherit;
   color: var(--muted);
   text-decoration: none;
   border-bottom: 3px solid transparent;
 }
-.member-tabs a[aria-current="page"] {
+.member-tabs a[aria-current="page"],
+.member-tabs button[aria-pressed="true"] {
   color: var(--text);
   border-color: var(--action);
 }
@@ -390,6 +395,15 @@
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
+}
+.metric-value-clip {
+  display: block;
+  overflow: hidden;
+  width: max-content;
+  min-width: 100%;
+}
+.metric-value {
+  display: block;
 }
 .category-list {
   list-style: none;
@@ -427,10 +441,12 @@
 .signed-bar > span {
   position: absolute;
   left: var(--baseline);
+  transform-origin: left;
   height: 100%;
   background: var(--accent);
 }
 .signed-bar > span.negative {
+  transform-origin: right;
   left: auto;
   right: calc(100% - var(--baseline));
   opacity: 0.65;
@@ -844,4 +860,9 @@ summary:focus-visible {
 .declarations-list .funding-value .amount {
   font-size: 1.15rem;
   font-weight: 650;
+}
+
+.category-tabs {
+  flex-wrap: wrap;
+  gap: var(--space-4);
 }

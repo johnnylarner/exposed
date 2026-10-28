@@ -87,23 +87,3 @@ impl PeriodAggregate {
         self.currencies.into_values().collect()
     }
 }
-
-#[derive(Clone, Copy)]
-pub struct CurrentParliamentStart(chrono::DateTime<chrono::Utc>);
-impl CurrentParliamentStart {
-    pub(crate) const fn value(&self) -> chrono::DateTime<chrono::Utc> {
-        self.0
-    }
-    pub(crate) fn new() -> Self {
-        use chrono::TimeZone;
-        Self(
-            chrono::Utc
-                .with_ymd_and_hms(2024, 7, 9, 0, 0, 0)
-                .single()
-                .expect("valid parliament start"),
-        )
-    }
-    pub(crate) fn includes(&self, declaration: &MemberDeclaration) -> bool {
-        declaration.registered_at.is_some_and(|date| date >= self.0)
-    }
-}

@@ -43,10 +43,12 @@ pub struct Ranking<I> {
     /// Exact declared GBP total and coverage.
     pub total: DeclaredGbpPeriodTotal,
 }
-/// Four top-ten boards from one current-term snapshot.
+/// Four top-ten boards from one snapshot for the selected period.
 #[derive(Debug)]
 pub struct Rankings {
-    /// Inclusive registration cutoff shared with member summaries.
+    /// Scope shared by all boards.
+    pub period: super::reporting_period::ReportingPeriod,
+    /// Inclusive current-term boundary, independent of the selected period.
     pub current_term_start: chrono::DateTime<chrono::Utc>,
     /// All-category member totals.
     pub members: Vec<Ranking<RankedMember>>,

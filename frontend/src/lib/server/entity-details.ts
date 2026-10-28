@@ -13,6 +13,10 @@ import type {
   FunderDeclaration,
   FundingEntry,
 } from "../entity-details";
+import { isReportingPeriod, type ReportingPeriod } from "../reporting-period";
+function responsePeriod(value: unknown): ReportingPeriod {
+  return isReportingPeriod(value) ? value : malformed();
+}
 function malformed(): never {
   throw new Error("Details returned an unexpected response. Try again.");
 }
@@ -120,6 +124,7 @@ function readMember(value: unknown): MemberDetails {
   const row = record(value);
   const summary = record(row.summary);
   return {
+    period: responsePeriod(row.period),
     member: memberProfile(row.member),
     declarations: list(row.declarations).map(declaration),
     summary: {
@@ -160,6 +165,7 @@ function readFunder(value: unknown): FunderDetails {
   const row = record(value);
   const funder = record(row.funder);
   return {
+    period: responsePeriod(row.period),
     declaredTotals: declaredTotals(row.declared_totals),
     firstRegisteredAt: timestamp(row.first_registered_at),
     declarations: list(row.declarations).map((value) => {
@@ -207,6 +213,7 @@ export async function loadDetails(
   signal: AbortSignal,
   fetch: typeof globalThis.fetch,
   origin: string,
+  period: ReportingPeriod = "current-term",
 ): Promise<Exclude<DetailState, { kind: "loading" }>> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
@@ -219,7 +226,7 @@ export async function loadDetails(
   }, 10_000);
   try {
     const response = await fetch(
-      `${origin}/${route.kind === "member" ? "members" : "funders"}/${route.id}`,
+      `${origin}/${route.kind === "member" ? "members" : "funders"}/${route.id}?period=${period}`,
       { signal: controller.signal },
     );
     if (response.status === 404) return { kind: "not-found" };
@@ -232,6 +239,7 @@ export async function loadDetails(
       route.kind === "member"
         ? { kind: "member", details: readMember(body) }
         : { kind: "funder", details: readFunder(body) };
+    if (state.details.period !== period) return malformed();
     if (
       (state.kind === "member"
         ? state.details.member.id

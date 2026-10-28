@@ -315,7 +315,7 @@ export async function run(options) {
     return details(
       await get(
         base,
-        `/${spec.kind === "member" ? "members" : "funders"}/${selectedId}/__data.json`,
+        `/${spec.kind === "member" ? "members" : "funders"}/${selectedId}/__data.json?period=historical`,
       ),
       spec,
       selectedId,

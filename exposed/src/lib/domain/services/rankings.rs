@@ -1,18 +1,22 @@
-//! Exact current-term rankings use the same aggregate as member summaries.
+//! Exact rankings use the same aggregate as member summaries.
 //! Companies includes every canonical non-individual kind, including unclassified funders.
+use crate::domain::models::reporting_period::{ReportingContext, ReportingPeriod};
 use crate::domain::{
     models::{
-        declared_totals::{CurrentParliamentStart, PeriodAggregate},
+        declared_totals::PeriodAggregate,
         entity_details::DeclarationCategory,
         rankings::{Ranking, RankingDeclaration, Rankings},
     },
     repositories::rankings::{RankingsError, RankingsRepo},
 };
 use std::collections::BTreeMap;
-/// Fixed current-term top-ten operation.
+/// Top-ten rankings for a selected registration period.
 pub trait RankingsService: Clone + Send + Sync + 'static {
     /// Returns all four boards from one snapshot.
-    fn rankings(&self) -> impl Future<Output = Result<Rankings, RankingsError>> + Send;
+    fn rankings(
+        &self,
+        period: ReportingPeriod,
+    ) -> impl Future<Output = Result<Rankings, RankingsError>> + Send;
 }
 /// Rankings application service.
 #[derive(Clone)]
@@ -49,20 +53,27 @@ fn top<K: Ord, I>(groups: BTreeMap<K, (I, PeriodAggregate)>) -> Vec<Ranking<I>> 
     rows.into_iter().take(10).map(|(_, row)| row).collect()
 }
 impl<R: RankingsRepo> RankingsService for Service<R> {
-    async fn rankings(&self) -> Result<Rankings, RankingsError> {
-        let boundary = CurrentParliamentStart::new();
-        let sources = self.repo.ranking_declarations(boundary.value()).await?;
-        Ok(summarize(sources, boundary))
+    async fn rankings(&self, period: ReportingPeriod) -> Result<Rankings, RankingsError> {
+        let context = ReportingContext::at(chrono::Utc::now());
+        let sources = self
+            .repo
+            .ranking_declarations(context.window(period))
+            .await?;
+        Ok(summarize(sources, period, context))
     }
 }
-fn summarize(sources: Vec<RankingDeclaration>, boundary: CurrentParliamentStart) -> Rankings {
+pub(crate) fn summarize(
+    sources: Vec<RankingDeclaration>,
+    period: ReportingPeriod,
+    context: ReportingContext,
+) -> Rankings {
     let mut members = BTreeMap::new();
     let mut individuals = BTreeMap::new();
     let mut companies = BTreeMap::new();
     let mut parties = BTreeMap::new();
     for source in sources {
         let declaration = source.declaration;
-        if !boundary.includes(&declaration) {
+        if !context.window(period).includes(declaration.registered_at) {
             continue;
         }
         members
@@ -110,7 +121,8 @@ fn summarize(sources: Vec<RankingDeclaration>, boundary: CurrentParliamentStart)
         }
     }
     Rankings {
-        current_term_start: boundary.value(),
+        period,
+        current_term_start: context.current_term_start(),
         members: top(members),
         individuals: top(individuals),
         companies: top(companies),
@@ -145,7 +157,7 @@ mod tests {
             (FunderKind::RegisteredParty, false),
         ] {
             let id: FunderId = "10000000-0000-0000-0000-000000000001".parse().unwrap();
-            let boundary = CurrentParliamentStart::new();
+            let context = ReportingContext::at(chrono::Utc::now());
             let rankings = summarize(
                 vec![RankingDeclaration {
                     member: RankedMember {
@@ -162,7 +174,7 @@ mod tests {
                         source_id: 1,
                         category: DeclarationCategory::DonationSupport,
                         category_name: "Support".into(),
-                        registered_at: Some(boundary.value()),
+                        registered_at: Some(context.current_term_start()),
                         entries: vec![DeclaredFunding {
                             funder: Some(FunderReference {
                                 id,
@@ -182,7 +194,8 @@ mod tests {
                         },
                     )]),
                 }],
-                boundary,
+                ReportingPeriod::CurrentTerm,
+                context,
             );
             assert_eq!(
                 rankings.individuals.len(),
@@ -205,7 +218,7 @@ mod tests {
                 source_id: id,
                 category: DeclarationCategory::Other(987),
                 category_name: "Other".into(),
-                registered_at: Some(CurrentParliamentStart::new().value()),
+                registered_at: Some(ReportingContext::at(chrono::Utc::now()).current_term_start()),
                 entries: vec![crate::domain::models::entity_details::DeclaredFunding {
                     funder: None,
                     payment_type: None,

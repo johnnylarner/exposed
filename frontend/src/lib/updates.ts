@@ -29,7 +29,11 @@ export function updateDate(value: string): string {
 }
 
 export type UpdateCategory = "members" | "companies";
-export type UpdateSort = "newest" | "oldest";
+export const updateSortOptions = [
+  { value: "newest", label: "Newest first" },
+  { value: "oldest", label: "Oldest first" },
+] as const;
+export type UpdateSort = (typeof updateSortOptions)[number]["value"];
 export interface UpdateView {
   category: UpdateCategory;
   sort: UpdateSort;
@@ -68,13 +72,13 @@ export const updateCategories = {
     label: "MPs",
     icon: "parliament",
     accent: "member",
-    path: "M142 8 A134 134 0 0 0 142 276 L142 186 A44 44 0 0 1 142 98 Z",
-    rimPath: "M142 8 A134 134 0 0 0 142 276",
+    path: "M8 142 A134 134 0 0 1 276 142 L186 142 A44 44 0 0 0 98 142 Z",
+    rimPath: "M8 142 A134 134 0 0 1 276 142",
     left: 0,
     top: 0,
-    x: 52,
-    y: 142,
-    height: 284,
+    width: 284,
+    x: 142,
+    y: 58,
   },
   companies: {
     id: "companies",
@@ -83,13 +87,13 @@ export const updateCategories = {
     label: "Companies",
     icon: "building",
     accent: "funder",
-    path: "M0 8 A134 134 0 0 1 0 276 L0 186 A44 44 0 0 0 0 98 Z",
-    rimPath: "M0 8 A134 134 0 0 1 0 276",
-    left: 142,
-    top: 0,
-    x: 84,
-    y: 142,
-    height: 284,
+    path: "M276 0 A134 134 0 0 1 8 0 L98 0 A44 44 0 0 0 186 0 Z",
+    rimPath: "M276 0 A134 134 0 0 1 8 0",
+    left: 0,
+    top: 142,
+    width: 284,
+    x: 142,
+    y: 84,
   },
 } satisfies Record<
   UpdateCategory,

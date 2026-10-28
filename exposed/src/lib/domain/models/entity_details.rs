@@ -8,6 +8,7 @@ use thiserror::Error;
 use crate::domain::repositories::entity_details::EntityDetailsRepoError;
 use chrono::{DateTime, Utc};
 
+use super::reporting_period::{ReportingContext, ReportingPeriod};
 use super::{
     funder::{Funder, FunderId},
     parliament_member::{MemberId, MemberIdError},
@@ -34,9 +35,20 @@ pub enum EntityDetailsError {
 #[derive(Clone, Copy, Debug)]
 pub struct MemberDetailsRequest {
     id: MemberId,
+    period: ReportingPeriod,
 }
 
 impl MemberDetailsRequest {
+    /// Constructs a lookup with its selected registration scope.
+    #[must_use]
+    pub const fn new(id: MemberId, period: ReportingPeriod) -> Self {
+        Self { id, period }
+    }
+    /// Selected registration scope.
+    #[must_use]
+    pub const fn period(self) -> ReportingPeriod {
+        self.period
+    }
     /// Parliament identity to look up.
     #[must_use]
     pub const fn id(self) -> MemberId {
@@ -50,7 +62,7 @@ impl FromStr for MemberDetailsRequest {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         value
             .parse()
-            .map(|id| Self { id })
+            .map(|id| Self::new(id, ReportingPeriod::default()))
             .map_err(EntityDetailsError::InvalidMemberId)
     }
 }
@@ -59,9 +71,20 @@ impl FromStr for MemberDetailsRequest {
 #[derive(Clone, Copy, Debug)]
 pub struct FunderDetailsRequest {
     id: FunderId,
+    period: ReportingPeriod,
 }
 
 impl FunderDetailsRequest {
+    /// Constructs a lookup with its selected registration scope.
+    #[must_use]
+    pub const fn new(id: FunderId, period: ReportingPeriod) -> Self {
+        Self { id, period }
+    }
+    /// Selected registration scope.
+    #[must_use]
+    pub const fn period(self) -> ReportingPeriod {
+        self.period
+    }
     /// Persistent funder identity to look up.
     #[must_use]
     pub const fn id(self) -> FunderId {
@@ -75,7 +98,7 @@ impl FromStr for FunderDetailsRequest {
     fn from_str(value: &str) -> Result<Self, Self::Err> {
         value
             .parse()
-            .map(|id| Self { id })
+            .map(|id| Self::new(id, ReportingPeriod::default()))
             .map_err(EntityDetailsError::InvalidFunderId)
     }
 }
@@ -235,9 +258,17 @@ impl CalendarYear {
         self.0
     }
     /// Tests a known UTC registration against this calendar year.
+    ///
+    /// # Panics
+    /// Cannot panic for a year captured from a UTC instant.
     #[must_use]
     pub fn includes(self, registered_at: Option<DateTime<Utc>>) -> bool {
-        registered_at.is_some_and(|date| Self::containing(date).0 == self.0)
+        let instant = chrono::TimeZone::with_ymd_and_hms(&Utc, self.0, 1, 1, 0, 0, 0)
+            .single()
+            .expect("valid year");
+        ReportingContext::at(instant)
+            .window(ReportingPeriod::CurrentYear)
+            .includes(registered_at)
     }
 }
 
@@ -256,7 +287,7 @@ pub struct DeclaredGbpTotals {
     pub historical: DeclaredGbpPeriodTotal,
 }
 
-/// Coverage and exact totals across complete stored history.
+/// Coverage and exact totals in the selected registration period.
 #[derive(Clone, Debug)]
 pub struct MemberSummary {
     /// Authoritative declared GBP headlines.
@@ -275,14 +306,16 @@ pub struct MemberSummary {
     pub undated_declaration_count: usize,
 }
 
-/// Member summary and complete history from one consistent read.
+/// Member summary and selected history from one complete consistent read.
 #[derive(Clone, Debug)]
 pub struct MemberDetails {
+    /// Scope of declarations and ancillary summaries.
+    pub period: ReportingPeriod,
     /// Latest profile.
     pub member: MemberProfile,
-    /// Complete ordered declarations.
+    /// Ordered declarations in the selected period.
     pub declarations: Vec<MemberDeclaration>,
-    /// Exact complete-history totals.
+    /// Selected-period aggregates and mandatory complete-input headlines.
     pub summary: MemberSummary,
 }
 
@@ -384,7 +417,7 @@ pub struct PartyTotal {
 /// Independent totals and rankings for a single currency.
 #[derive(Clone, Debug)]
 pub struct CurrencyBreakdown {
-    /// Exact complete-history total before recipient ranking.
+    /// Exact selected-period total before recipient ranking.
     pub amount: Option<BigDecimal>,
     /// Source currency.
     pub currency: String,
@@ -397,11 +430,13 @@ pub struct CurrencyBreakdown {
 /// Funder summary without currency conversion or historical party inference.
 #[derive(Clone, Debug)]
 pub struct FunderDetails {
+    /// Scope of declarations and ancillary summaries.
+    pub period: ReportingPeriod,
     /// Authoritative declared GBP headlines for matching declarations.
     pub declared_totals: DeclaredGbpTotals,
     /// Earliest known registration timestamp among matching declarations.
     pub first_registered_at: Option<DateTime<Utc>>,
-    /// Complete source history with matching funding occurrences only.
+    /// Selected source history with matching funding occurrences only.
     pub declarations: Vec<FunderDeclaration>,
     /// Persistent funder identity.
     pub profile: FunderProfile,

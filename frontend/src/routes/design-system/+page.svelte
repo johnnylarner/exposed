@@ -2,6 +2,10 @@
   import { onMount } from "svelte";
   import AppShell from "../../AppShell.svelte";
   import {
+    ContentChange,
+    Select,
+    ViewButtons,
+    ViewButton,
     CategoryWheel,
     RankingList,
     Icon,
@@ -35,6 +39,7 @@
   } from "../../lib/ui";
   import { updateCategories, type UpdateCategory } from "../../lib/updates";
   let exampleUpdateCategory = $state<UpdateCategory>("members");
+  let examplePeriod = $state("This parliamentary term");
   let exampleCategory = $state("members");
   const wheelOptions = [
     {
@@ -385,6 +390,40 @@
           ><ViewLink href="#data-patterns">Declaration history</ViewLink
           ></ViewLinks
         >
+        <ViewLinks variant="filter" align="end" label="Example periods">
+          <ViewLink
+            href="#patterns"
+            aria-current={examplePeriod === "Historical" ? "page" : undefined}
+            onclick={(event) => {
+              event.preventDefault();
+              examplePeriod = "Historical";
+            }}>Historical</ViewLink
+          >
+          <ViewLink
+            href="#patterns"
+            aria-current={examplePeriod === "This parliamentary term"
+              ? "page"
+              : undefined}
+            onclick={(event) => {
+              event.preventDefault();
+              examplePeriod = "This parliamentary term";
+            }}>This parliamentary term</ViewLink
+          >
+          <ViewLink
+            href="#patterns"
+            aria-current={examplePeriod === "This year" ? "page" : undefined}
+            onclick={(event) => {
+              event.preventDefault();
+              examplePeriod = "This year";
+            }}>This year</ViewLink
+          >
+        </ViewLinks>
+        <ContentChange changeKey={examplePeriod}
+          ><Metric
+            label="Declared amounts"
+            value={examplePeriod === "Historical" ? "£1,234.56" : "£234.56"}
+          /></ContentChange
+        >
         <div class="entity-legend">
           <Badge variant="legend"><Icon name="parliament" size={16} />MP</Badge
           ><Badge variant="legend" class="result-palette-example"
@@ -462,6 +501,26 @@
       <SectionHeading
         id="ranking-patterns-heading"
         title="Category selection and rankings"
+      />
+      <ViewButtons label="Example category buttons">
+        <ViewButton
+          selected={exampleUpdateCategory === "members"}
+          onclick={() => (exampleUpdateCategory = "members")}>MPs</ViewButton
+        >
+        <ViewButton
+          selected={exampleUpdateCategory === "companies"}
+          onclick={() => (exampleUpdateCategory = "companies")}
+          >Companies</ViewButton
+        >
+      </ViewButtons>
+      <Select
+        label="Example category select"
+        options={Object.values(updateCategories).map((category) => ({
+          value: category.id,
+          label: category.label,
+        }))}
+        value={exampleUpdateCategory}
+        onselect={(value) => (exampleUpdateCategory = value)}
       />
       <CategoryWheel
         options={wheelOptions}
@@ -555,23 +614,43 @@
           ></tr
         ></DataTable
       >
+      <Metric
+        label="Animated declared amounts"
+        changeKey={examplePeriod}
+        value={examplePeriod === "Historical"
+          ? "£9,007,199,254,740,993.123456789"
+          : "£234.56"}
+      />
       <SignedBarList
+        changeKey={examplePeriod}
         baseline={25}
-        bars={[
-          {
-            label: "Employment",
-            value: "£12,345.67",
-            width: 75,
-            negative: false,
-          },
-          {
-            label: "Adjustment",
-            value: "-£1,000",
-            width: 25,
-            negative: true,
-            note: "Some amounts unavailable",
-          },
-        ]}
+        bars={examplePeriod === "This year"
+          ? []
+          : [
+              ...(examplePeriod === "Historical"
+                ? [
+                    {
+                      label: "New category",
+                      value: "£10",
+                      width: 10,
+                      negative: false,
+                    },
+                  ]
+                : []),
+              {
+                label: "Employment",
+                value: "£12,345.67",
+                width: 75,
+                negative: false,
+              },
+              {
+                label: "Adjustment",
+                value: "-£1,000",
+                width: 25,
+                negative: true,
+                note: "Some amounts unavailable",
+              },
+            ]}
       />
       {#each ["member", "funder"] as tone}<div
           class:funder-page={tone === "funder"}

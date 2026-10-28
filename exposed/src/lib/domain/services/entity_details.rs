@@ -4,9 +4,10 @@ mod interface;
 pub use interface::EntityDetailsService;
 
 pub use crate::domain::models::entity_details::EntityDetailsError;
+use crate::domain::models::reporting_period::{ReportingContext, ReportingPeriod};
 use crate::domain::{
     models::{
-        declared_totals::{CurrentParliamentStart, PeriodAggregate, add_known},
+        declared_totals::{PeriodAggregate, add_known},
         entity_details::{
             CalendarYear, CurrencyBreakdown, DeclaredGbpTotals, FunderDetails,
             FunderDetailsRequest, FunderFunding, MemberDeclaration, MemberDetails,
@@ -41,7 +42,13 @@ impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
         self.repo
             .member(request.id())
             .await?
-            .map(|history| summarize_member(history, CalendarYear::containing(chrono::Utc::now())))
+            .map(|history| {
+                summarize_member(
+                    history,
+                    request.period(),
+                    ReportingContext::at(chrono::Utc::now()),
+                )
+            })
             .ok_or(EntityDetailsError::NotFound)
     }
     async fn funder(
@@ -51,7 +58,13 @@ impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
         self.repo
             .funder_funding(request.id())
             .await?
-            .map(|funding| summarize_funder(funding, CalendarYear::containing(chrono::Utc::now())))
+            .map(|funding| {
+                summarize_funder(
+                    funding,
+                    request.period(),
+                    ReportingContext::at(chrono::Utc::now()),
+                )
+            })
             .ok_or(EntityDetailsError::NotFound)
     }
 }
@@ -61,26 +74,34 @@ struct DeclaredTotalsAggregate {
     current_term: PeriodAggregate,
     current_year: PeriodAggregate,
     calendar_year: CalendarYear,
-    boundary: CurrentParliamentStart,
+    context: ReportingContext,
 }
 
 impl DeclaredTotalsAggregate {
-    fn new(calendar_year: CalendarYear) -> Self {
+    fn new(context: ReportingContext) -> Self {
         Self {
             historical: PeriodAggregate::default(),
             current_term: PeriodAggregate::default(),
             current_year: PeriodAggregate::default(),
-            calendar_year,
-            boundary: CurrentParliamentStart::new(),
+            calendar_year: context.calendar_year(),
+            context,
         }
     }
 
     fn observe(&mut self, declaration: &MemberDeclaration) {
         self.historical.observe(declaration);
-        if self.calendar_year.includes(declaration.registered_at) {
+        if self
+            .context
+            .window(ReportingPeriod::CurrentYear)
+            .includes(declaration.registered_at)
+        {
             self.current_year.observe(declaration);
         }
-        if self.boundary.includes(declaration) {
+        if self
+            .context
+            .window(ReportingPeriod::CurrentTerm)
+            .includes(declaration.registered_at)
+        {
             self.current_term.observe(declaration);
         }
     }
@@ -89,20 +110,39 @@ impl DeclaredTotalsAggregate {
         DeclaredGbpTotals {
             calendar_year: self.calendar_year,
             current_year: self.current_year.gbp_total(),
-            current_term_start: self.boundary.value(),
+            current_term_start: self.context.current_term_start(),
             historical: self.historical.gbp_total(),
             current_term: self.current_term.gbp_total(),
         }
     }
 }
 
-fn summarize_member(history: MemberHistory, calendar_year: CalendarYear) -> MemberDetails {
-    let mut aggregate = DeclaredTotalsAggregate::new(calendar_year);
+fn complete_totals<'a>(
+    declarations: impl Iterator<Item = &'a MemberDeclaration>,
+    context: ReportingContext,
+) -> DeclaredGbpTotals {
+    let mut aggregate = DeclaredTotalsAggregate::new(context);
+    for declaration in declarations {
+        aggregate.observe(declaration);
+    }
+    aggregate.totals()
+}
+
+fn summarize_member(
+    mut history: MemberHistory,
+    period: ReportingPeriod,
+    context: ReportingContext,
+) -> MemberDetails {
+    let declared_totals = complete_totals(history.declarations.iter(), context);
+    history
+        .declarations
+        .retain(|declaration| context.window(period).includes(declaration.registered_at));
+    let mut selected = PeriodAggregate::default();
     let mut first_registered_at = None;
     let mut last_registered_at = None;
     let mut undated_declaration_count = 0;
     for declaration in &history.declarations {
-        aggregate.observe(declaration);
+        selected.observe(declaration);
         if let Some(date) = declaration.registered_at {
             first_registered_at = Some(
                 first_registered_at
@@ -117,15 +157,16 @@ fn summarize_member(history: MemberHistory, calendar_year: CalendarYear) -> Memb
         }
     }
     let summary = MemberSummary {
-        declared_totals: aggregate.totals(),
-        entry_count: aggregate.historical.entry_count,
-        unknown_currency_count: aggregate.historical.unknown_currency_count,
-        currencies: aggregate.historical.finish(),
+        declared_totals,
+        entry_count: selected.entry_count,
+        unknown_currency_count: selected.unknown_currency_count,
+        currencies: selected.finish(),
         first_registered_at,
         last_registered_at,
         undated_declaration_count,
     };
     MemberDetails {
+        period,
         member: history.member,
         declarations: history.declarations,
         summary,
@@ -140,15 +181,28 @@ fn compare_allocations(left: &RecipientAllocation, right: &RecipientAllocation) 
         .then_with(|| left.member.name.cmp(&right.member.name))
 }
 
-fn summarize_funder(funding: FunderFunding, calendar_year: CalendarYear) -> FunderDetails {
-    let mut aggregate = DeclaredTotalsAggregate::new(calendar_year);
+fn summarize_funder(
+    mut funding: FunderFunding,
+    period: ReportingPeriod,
+    context: ReportingContext,
+) -> FunderDetails {
+    let declared_totals = complete_totals(
+        funding
+            .declarations
+            .iter()
+            .map(|source| &source.declaration),
+        context,
+    );
+    funding.declarations.retain(|source| {
+        context
+            .window(period)
+            .includes(source.declaration.registered_at)
+    });
     let mut first_registered_at = None;
     let mut entry_count = 0;
     let mut unknown_currency_count = 0;
-    let mut currencies: BTreeMap<String, Vec<RecipientAllocation>> = BTreeMap::new();
     let mut recipients: BTreeMap<(String, u32), RecipientAllocation> = BTreeMap::new();
     for source in &funding.declarations {
-        aggregate.observe(&source.declaration);
         if let Some(date) = source.declaration.registered_at {
             first_registered_at = Some(
                 first_registered_at
@@ -175,10 +229,28 @@ fn summarize_funder(funding: FunderFunding, calendar_year: CalendarYear) -> Fund
             allocation.unknown_amount_count += i64::from(entry.amount.is_none());
         }
     }
+    let currencies = currency_breakdowns(recipients);
+    FunderDetails {
+        period,
+        declared_totals,
+        first_registered_at,
+        declarations: funding.declarations,
+        profile: funding.profile,
+        currencies,
+        entry_count,
+        unknown_currency_count,
+        recipient_limit: TOP_RECIPIENTS,
+    }
+}
+
+fn currency_breakdowns(
+    recipients: BTreeMap<(String, u32), RecipientAllocation>,
+) -> Vec<CurrencyBreakdown> {
+    let mut currencies: BTreeMap<String, Vec<RecipientAllocation>> = BTreeMap::new();
     for ((currency, _), allocation) in recipients {
         currencies.entry(currency).or_default().push(allocation);
     }
-    let currencies = currencies
+    currencies
         .into_iter()
         .map(|(currency, mut allocations)| {
             let mut amount = None;
@@ -224,17 +296,7 @@ fn summarize_funder(funding: FunderFunding, calendar_year: CalendarYear) -> Fund
                 top_recipients: allocations,
             }
         })
-        .collect();
-    FunderDetails {
-        declared_totals: aggregate.totals(),
-        first_registered_at,
-        declarations: funding.declarations,
-        profile: funding.profile,
-        currencies,
-        entry_count,
-        unknown_currency_count,
-        recipient_limit: TOP_RECIPIENTS,
-    }
+        .collect()
 }
 
 #[cfg(test)]
@@ -318,8 +380,14 @@ mod tests {
     }
 
     fn summarize_both(history: MemberHistory, year: CalendarYear) -> MemberDetails {
-        let funder = summarize_funder(funder_history(history.clone()), year);
-        let member = summarize_member(history, year);
+        let context =
+            ReportingContext::at(format!("{}-06-01T00:00:00Z", year.value()).parse().unwrap());
+        let funder = summarize_funder(
+            funder_history(history.clone()),
+            ReportingPeriod::Historical,
+            context,
+        );
+        let member = summarize_member(history, ReportingPeriod::Historical, context);
         assert_periods_equal(&member.summary.declared_totals, &funder.declared_totals);
         assert_eq!(
             member.summary.first_registered_at,
@@ -503,5 +571,152 @@ mod tests {
         assert!(year.includes(Some("2024-12-31T23:00:00-02:00".parse().unwrap())));
         assert!(!year.includes(None));
         assert!(!year.includes(Some("2025-12-31T23:00:00-02:00".parse().unwrap())));
+    }
+    #[test]
+    fn selected_projection_scopes_every_ancillary_field_without_changing_headlines() {
+        let context = ReportingContext::at("2025-01-01T00:00:00Z".parse().unwrap());
+        let mut duplicate =
+            declaration(Some("2025-12-31T23:59:59.999999Z"), Some("0"), Some("GBP"));
+        duplicate.entries.push(duplicate.entries[0].clone());
+        let source = history(vec![
+            declaration(None, Some("100"), None),
+            declaration(Some("2024-07-08T23:59:59.999999Z"), None, Some("GBP")),
+            declaration(Some("2024-07-09T01:00:00+01:00"), Some("-2"), Some("GBP")),
+            declaration(Some("2025-01-01T00:30:00+01:00"), Some("10"), Some("EUR")),
+            declaration(
+                Some("2024-12-31T23:00:00-02:00"),
+                Some("9007199254740993.123456789"),
+                Some("GBP"),
+            ),
+            duplicate,
+            declaration(Some("2026-01-01T00:00:00Z"), Some("3"), Some("GBP")),
+        ]);
+        let complete = summarize_member(source.clone(), ReportingPeriod::Historical, context);
+        for (period, declarations, entries, unknown, undated) in [
+            (ReportingPeriod::Historical, 7, 8, 1, 1),
+            (ReportingPeriod::CurrentTerm, 5, 6, 0, 0),
+            (ReportingPeriod::CurrentYear, 2, 3, 0, 0),
+        ] {
+            let member = summarize_member(source.clone(), period, context);
+            let funder = summarize_funder(funder_history(source.clone()), period, context);
+            assert_eq!(member.period, period);
+            assert_eq!(funder.period, period);
+            assert_eq!(member.declarations.len(), declarations);
+            assert_eq!(funder.declarations.len(), declarations);
+            assert_eq!(member.summary.entry_count, entries);
+            assert_eq!(funder.entry_count, i64::try_from(entries).unwrap());
+            assert_eq!(member.summary.unknown_currency_count, unknown);
+            assert_eq!(
+                funder.unknown_currency_count,
+                i64::try_from(unknown).unwrap()
+            );
+            assert_eq!(member.summary.undated_declaration_count, undated);
+            assert_periods_equal(
+                &complete.summary.declared_totals,
+                &member.summary.declared_totals,
+            );
+            assert_periods_equal(&complete.summary.declared_totals, &funder.declared_totals);
+            let selected = context.window(period);
+            assert!(
+                member
+                    .declarations
+                    .iter()
+                    .all(|d| selected.includes(d.registered_at))
+            );
+            let gbp = member
+                .summary
+                .currencies
+                .iter()
+                .find(|group| group.currency == "GBP")
+                .unwrap();
+            let funder_gbp = funder
+                .currencies
+                .iter()
+                .find(|group| group.currency == "GBP")
+                .unwrap();
+            assert_eq!(gbp.amount, funder_gbp.amount);
+            assert_eq!(gbp.categories[0].category, DeclarationCategory::Other(987));
+            assert_eq!(
+                funder_gbp.parties[0].entry_count,
+                i64::try_from(gbp.entry_count).unwrap()
+            );
+            assert_eq!(
+                funder_gbp.top_recipients[0].entry_count,
+                i64::try_from(gbp.entry_count).unwrap()
+            );
+            assert_eq!(
+                member.summary.first_registered_at,
+                funder.first_registered_at
+            );
+            if period == ReportingPeriod::CurrentYear {
+                assert_eq!(member.summary.currencies.len(), 1);
+                assert_eq!(
+                    gbp.amount,
+                    Some("9007199254740993.123456789".parse().unwrap())
+                );
+                assert_eq!(
+                    member.summary.last_registered_at,
+                    Some("2025-12-31T23:59:59.999999Z".parse().unwrap())
+                );
+            }
+        }
+    }
+    #[test]
+    fn funder_filters_before_recipient_limit_and_party_aggregation() {
+        let context = ReportingContext::at("2025-06-01T00:00:00Z".parse().unwrap());
+        let mut source = funder_history(history(Vec::new()));
+        for id in 1..=12 {
+            let mut member = history(Vec::new()).member;
+            member.id = id.to_string().parse().unwrap();
+            member.party_id = id;
+            member.party_name = format!("Party {id}");
+            source
+                .declarations
+                .push(crate::domain::models::entity_details::FunderDeclaration {
+                    member: member.clone(),
+                    declaration: declaration(
+                        Some("2024-08-01T00:00:00Z"),
+                        Some("100"),
+                        Some("GBP"),
+                    ),
+                });
+            if id == 12 {
+                source.declarations.push(
+                    crate::domain::models::entity_details::FunderDeclaration {
+                        member,
+                        declaration: declaration(
+                            Some("2025-12-31T23:59:59Z"),
+                            Some("1"),
+                            Some("GBP"),
+                        ),
+                    },
+                );
+            }
+        }
+        source.declarations.last_mut().unwrap().declaration.entries[0].amount =
+            Some("-1000".parse().unwrap());
+        source
+            .declarations
+            .iter_mut()
+            .find(|d| d.member.id.value() == 12)
+            .unwrap()
+            .declaration
+            .entries[0]
+            .amount = Some("-2000".parse().unwrap());
+        let term = summarize_funder(source.clone(), ReportingPeriod::CurrentTerm, context);
+        assert_eq!(term.currencies[0].top_recipients.len(), 10);
+        assert!(
+            term.currencies[0]
+                .top_recipients
+                .iter()
+                .all(|r| r.member.id.value() != 12)
+        );
+        let year = summarize_funder(source, ReportingPeriod::CurrentYear, context);
+        assert_eq!(year.currencies[0].top_recipients.len(), 1);
+        assert_eq!(year.currencies[0].top_recipients[0].member.id.value(), 12);
+        assert_eq!(year.currencies[0].amount, Some("-1000".parse().unwrap()));
+        assert_eq!(year.currencies[0].parties.len(), 1);
+        assert_eq!(year.currencies[0].parties[0].party_id, 12);
+        assert_periods_equal(&term.declared_totals, &year.declared_totals);
     }
 }

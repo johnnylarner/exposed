@@ -1,4 +1,5 @@
-import { redirect } from "@sveltejs/kit";
+import { error, redirect } from "@sveltejs/kit";
+import { readPeriod } from "../../lib/reporting-period";
 import { readDetailRoute } from "../../lib/entity-details";
 import { searchConfiguration } from "../../lib/search";
 import { loadDetails } from "../../lib/server/entity-details";
@@ -25,13 +26,26 @@ export const load = (async ({ url, fetch, request, depends }) => {
   ).replace(/\/$/, "");
   let model: PageModel;
   if (route.kind !== "search") {
+    let period;
+    try {
+      period = readPeriod(url.searchParams);
+    } catch {
+      error(400, "Invalid reporting period");
+    }
     model = {
       kind: "detail",
+      period,
       route,
       result:
         route.kind === "invalid"
           ? { kind: "not-found" }
-          : await loadDetails(route, request.signal, fetch, origin),
+          : await loadDetails(
+              route,
+              request.signal,
+              fetch,
+              origin,
+              route.view === "history" ? "historical" : period,
+            ),
     };
   } else {
     const query = url.searchParams.get("q") ?? "";

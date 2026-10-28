@@ -9,7 +9,10 @@ use crate::{
     },
     inbound::http::{error::ApiError, state::AppState, success::ApiSuccess},
 };
-use axum::{extract::State, http::StatusCode};
+use axum::{
+    extract::{Query, State},
+    http::StatusCode,
+};
 use serde::Serialize;
 #[derive(Serialize)]
 pub struct RankingResponse {
@@ -21,6 +24,7 @@ pub struct RankingResponse {
 }
 #[derive(Serialize)]
 pub struct RankingsResponse {
+    period: crate::domain::models::reporting_period::ReportingPeriod,
     current_term_start: chrono::DateTime<chrono::Utc>,
     members: Vec<RankingResponse>,
     individuals: Vec<RankingResponse>,
@@ -39,6 +43,7 @@ fn response<I>(row: Ranking<I>, identity: impl FnOnce(I) -> (String, String)) ->
 impl From<Rankings> for RankingsResponse {
     fn from(rankings: Rankings) -> Self {
         Self {
+            period: rankings.period,
             current_term_start: rankings.current_term_start,
             members: rankings
                 .members
@@ -88,10 +93,15 @@ pub async fn rankings<
     U: UpdatesService,
 >(
     State(state): State<AppState<E, D, R, U>>,
+    Query(query): Query<super::entity_details::PeriodQuery>,
 ) -> Result<ApiSuccess<RankingsResponse>, ApiError> {
-    let rankings = state.rankings_service.rankings().await.map_err(|error| {
-        tracing::error!(?error, "rankings failed");
-        ApiError::InternalServerError
-    })?;
+    let rankings = state
+        .rankings_service
+        .rankings(query.period)
+        .await
+        .map_err(|error| {
+            tracing::error!(?error, "rankings failed");
+            ApiError::InternalServerError
+        })?;
     Ok(ApiSuccess::new(StatusCode::OK, rankings.into()))
 }

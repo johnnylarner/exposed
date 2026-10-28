@@ -391,3 +391,68 @@ for (const patch of [
     );
   });
 }
+
+for (const period of ["historical", "current-term", "current-year"] as const) {
+  test(`SSR adapters forward ${period} and reject mismatched scope`, async () => {
+    const urls: string[] = [];
+    const fetchDetails: typeof fetch = async (input) => {
+      urls.push(String(input));
+      return Response.json({ ...memberDetails, period });
+    };
+    const route = { kind: "member", id: "1", view: "summary" } as const;
+    const result = await loadDetails(
+      route,
+      signal(),
+      fetchDetails,
+      "http://api",
+      period,
+    );
+    expect(result.kind).toBe("member");
+    expect(urls).toEqual([`http://api/members/1?period=${period}`]);
+    const mismatched = period === "historical" ? "current-term" : "historical";
+    expect(
+      (
+        await loadDetails(
+          route,
+          signal(),
+          reply({ ...memberDetails, period: mismatched }),
+          "http://api",
+          period,
+        )
+      ).kind,
+    ).toBe("error");
+    await expect(
+      loadRankings(
+        reply({ ...rankingFixture, period }),
+        signal(),
+        "http://api",
+        period,
+      ),
+    ).resolves.toHaveProperty("period", period);
+    await expect(
+      loadRankings(
+        reply({ ...rankingFixture, period: mismatched }),
+        signal(),
+        "http://api",
+        period,
+      ),
+    ).rejects.toThrow("unexpected response");
+  });
+}
+for (const period of [undefined, null, "", "other"]) {
+  test(`detail and ranking parsers require recognized scope ${String(period)}`, async () => {
+    expect(
+      (
+        await loadDetails(
+          funderRoute,
+          signal(),
+          reply({ ...funderDetails, period }),
+          "http://api",
+        )
+      ).kind,
+    ).toBe("error");
+    expect(() => parseRankings({ ...rankingFixture, period })).toThrow(
+      "unexpected response",
+    );
+  });
+}

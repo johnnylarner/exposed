@@ -24,6 +24,7 @@ function declaration(
 }
 function details(declarations: MemberDeclaration[]): MemberDetails {
   return {
+    period: "historical",
     member: {
       id: "1",
       name: "Example",

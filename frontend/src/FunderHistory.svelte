@@ -38,8 +38,12 @@
 
 <section aria-labelledby="history-heading">
   <SectionHeading id="history-heading" title="Funding history">
+    <p class="entry-count">
+      {details.entryCount}
+      {details.entryCount === 1 ? "funding entry" : "funding entries"}
+    </p>
     <p>
-      All {details.declarations.length} stored funding declarations, most recent registration
+      {details.declarations.length} funding declarations, most recent registration
       first.
     </p>
   </SectionHeading>
@@ -61,7 +65,7 @@
     >
   </div>
   <p class="filter-context">
-    Filter by registration date. Both dates are included.{#if from || to}
+    Filter by registration date. Both dates are included.{" "}{#if from || to}
       Declarations without a registration date are excluded.{:else}
       Declarations without a registration date appear last.{/if}
   </p>
@@ -70,7 +74,7 @@
     </Notice>
   {:else if filtered.length === 0}<p class="empty-details">
       {details.declarations.length === 0
-        ? "No funding history is stored for this funder."
+        ? "No funding history is recorded."
         : "No declarations match these dates. Clear or change the dates."}
     </p>
   {:else}<p class="history-result-count">

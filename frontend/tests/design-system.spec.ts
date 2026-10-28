@@ -442,6 +442,10 @@ test("category wheel retains keyboard focus and neutral focus without a tick", a
   const members = selector.getByRole("button", { name: "MPs" });
   const individuals = selector.getByRole("button", { name: "Individuals" });
   const parties = selector.getByRole("button", { name: "Parties" });
+  for (const button of await selector.getByRole("button").all()) {
+    await expect(button).toHaveCSS("width", "142px");
+    await expect(button).toHaveCSS("height", "142px");
+  }
   await expect(members).toHaveCSS("left", "0px");
   await expect(individuals).toHaveCSS("left", "142px");
   await expect(parties).toHaveCSS("left", "0px");
@@ -539,7 +543,7 @@ test("ranking amounts are larger and align with bars while retaining mobile stac
   }
 });
 
-test("semicircle buttons cover both lower halves and retain keyboard focus", async ({
+test("horizontal halves cover both sides with upright labels and native keyboard focus", async ({
   page,
 }) => {
   await page.goto("/design-system", { waitUntil: "networkidle" });
@@ -547,15 +551,35 @@ test("semicircle buttons cover both lower halves and retain keyboard focus", asy
   await wheel.scrollIntoViewIfNeeded();
   const members = wheel.getByRole("button", { name: "MPs" });
   const companies = wheel.getByRole("button", { name: "Companies" });
-  await expect(members).toHaveCSS("height", "284px");
+  for (const button of [members, companies]) {
+    await expect(button).toHaveCSS("width", "284px");
+    await expect(button).toHaveCSS("height", "142px");
+    expect(
+      await button.locator(".sector-label").evaluate((label) => {
+        const matrix = new DOMMatrix(getComputedStyle(label).transform);
+        return [matrix.a, matrix.b, matrix.c, matrix.d];
+      }),
+    ).toEqual([1, 0, 0, 1]);
+  }
   const bounds = await wheel.boundingBox();
   if (!bounds) throw new Error("Missing semicircle bounds");
-  await page.mouse.click(bounds.x + 230, bounds.y + 210);
-  await expect(companies).toHaveAttribute("aria-pressed", "true");
-  await page.mouse.click(bounds.x + 54, bounds.y + 210);
-  await expect(members).toHaveAttribute("aria-pressed", "true");
+  for (const x of [54, 230]) {
+    await page.mouse.click(bounds.x + x, bounds.y + 210);
+    await expect(companies).toHaveAttribute("aria-pressed", "true");
+    await page.mouse.click(bounds.x + 142, bounds.y + 132);
+    await expect(companies).toHaveAttribute("aria-pressed", "true");
+    await page.mouse.click(bounds.x + x, bounds.y + 74);
+    await expect(members).toHaveAttribute("aria-pressed", "true");
+    await page.mouse.click(bounds.x + 142, bounds.y + 152);
+    await expect(members).toHaveAttribute("aria-pressed", "true");
+  }
+  await members.focus();
   await page.keyboard.press("Tab");
   await expect(companies).toBeFocused();
+  await expect(wheel.locator("path.focus-outline")).toHaveCSS(
+    "stroke",
+    "rgb(240, 240, 237)",
+  );
   await page.keyboard.press("Enter");
   await expect(companies).toBeFocused();
   await expect(companies).toHaveAttribute("aria-pressed", "true");
@@ -603,4 +627,241 @@ test("email and multiline fields retain native semantics, descriptions and reset
   await page.getByRole("button", { name: "Restore message" }).click();
   await expect(message).toHaveValue("Example feedback");
   await expect(email).toHaveValue("");
+});
+
+test("native filter links wrap and keep selected state and neutral keyboard focus", async ({
+  page,
+}) => {
+  await page.goto("/design-system");
+  const filters = page.getByRole("navigation", { name: "Example periods" });
+  const current = filters.getByRole("link", {
+    name: "This parliamentary term",
+    exact: true,
+  });
+  await expect(current).toHaveAttribute("aria-current", "page");
+  await expect(current).toHaveCSS("background-color", "rgb(240, 240, 237)");
+  await expect(current).toHaveCSS("color", "rgb(17, 17, 17)");
+  await expect(
+    filters.getByRole("link", { name: "Historical", exact: true }),
+  ).toHaveCSS("color", "rgb(240, 240, 237)");
+  await current.focus();
+  await expect(current).toBeFocused();
+  await expect(current).toHaveCSS("outline-color", "rgb(240, 240, 237)");
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#patterns$/u);
+  await page.setViewportSize({ width: 320, height: 900 });
+  expect(
+    await filters.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  await expect(filters.getByRole("link")).toHaveCount(3);
+});
+
+test("content changes preserve their root and respect live reduced motion", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      if (this.classList.contains("content-change")) {
+        const data = document.documentElement.dataset;
+        data.contentChanges = String(Number(data.contentChanges ?? 0) + 1);
+        data.contentFrames = JSON.stringify(args[0]);
+        animation.addEventListener("cancel", () => {
+          data.contentCancellations = String(
+            Number(data.contentCancellations ?? 0) + 1,
+          );
+        });
+        animation.pause();
+      }
+      return animation;
+    };
+  });
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const html = page.locator("html");
+  const content = page.locator(".content-change");
+  const root = await content.elementHandle();
+  const metric = await content.locator(".member-value").elementHandle();
+  await expect(html).not.toHaveAttribute("data-content-changes");
+  const selector = page.getByRole("navigation", { name: "Example periods" });
+  await selector.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(html).toHaveAttribute("data-content-changes", "1");
+  await expect(html).toHaveAttribute(
+    "data-content-frames",
+    '[{"opacity":0.65},{"opacity":1}]',
+  );
+  await expect(content).toContainText("£1,234.56");
+  await selector.getByRole("link", { name: "This year", exact: true }).click();
+  await expect(html).toHaveAttribute("data-content-changes", "2");
+  await expect(html).toHaveAttribute("data-content-cancellations", "1");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(html).toHaveAttribute("data-content-cancellations", "2");
+  await expect
+    .poll(() => content.evaluate((element) => element.getAnimations().length))
+    .toBe(0);
+  await expect(content).toHaveCSS("opacity", "1");
+  await selector.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(content).toContainText("£1,234.56");
+  await expect(html).toHaveAttribute("data-content-changes", "2");
+  expect(
+    await root?.evaluate(
+      (element) => element === document.querySelector(".content-change"),
+    ),
+  ).toBe(true);
+  expect(await metric?.evaluate((element) => element.isConnected)).toBe(true);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await selector.getByRole("link", { name: "This year", exact: true }).click();
+  await expect(html).toHaveAttribute("data-content-changes", "3");
+});
+
+test("committed values roll exactly while signed bars share the ranking recipe", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    const animate = Element.prototype.animate;
+    Element.prototype.animate = function (...args) {
+      const animation = animate.apply(this, args);
+      if (
+        this instanceof HTMLElement &&
+        this.matches(
+          ".metric-value, .category-list li, .signed-bar > span, .ranking-list li, .bar-track > span",
+        )
+      ) {
+        const data = this.dataset;
+        data.entries = String(Number(data.entries ?? 0) + 1);
+        animation.pause();
+        animation.currentTime = 0;
+      }
+      return animation;
+    };
+  });
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const metric = page.getByRole("region", {
+    name: "Animated declared amounts",
+    exact: true,
+  });
+  const value = metric.locator(".metric-value");
+  await expect(value).not.toHaveAttribute("data-entries");
+  const region = await metric.elementHandle();
+  const filters = page.getByRole("navigation", { name: "Example periods" });
+  await filters.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(value).toHaveText("£9,007,199,254,740,993.123456789");
+  await expect(value).toHaveAttribute("data-entries", "1");
+  await expect(page.locator(".category-list li")).toHaveCount(3);
+  await expect(page.locator(".category-list li").last()).toHaveAttribute(
+    "data-entries",
+    "1",
+  );
+  const frames = await value.evaluate((element) => {
+    const effect = element.getAnimations()[0]?.effect;
+    if (!(effect instanceof KeyframeEffect))
+      throw new Error("Missing roll effect");
+    return effect.getKeyframes().map((frame) => frame.transform);
+  });
+  expect(frames).toEqual(["translateY(100%)", "translateY(0px)"]);
+  expect(
+    await metric.evaluate((element) => getComputedStyle(element).transform),
+  ).toBe("none");
+  expect(
+    await value.evaluate((element) => getComputedStyle(element).transform),
+  ).not.toBe("none");
+  await value.evaluate((element) => {
+    element.getAnimations()[0].currentTime = 100;
+  });
+  const middle = await value.evaluate(
+    (element) => new DOMMatrixReadOnly(getComputedStyle(element).transform).m42,
+  );
+  expect(middle).toBeGreaterThan(0);
+  expect(middle).toBeLessThan(
+    await value.evaluate((element) => element.getBoundingClientRect().height),
+  );
+  const recipe = async (selector: string) =>
+    page
+      .locator(selector)
+      .first()
+      .evaluate((element) => {
+        const effect = element.getAnimations()[0]?.effect;
+        if (!(effect instanceof KeyframeEffect))
+          throw new Error("Missing entry effect");
+        const timing = effect.getTiming();
+        return {
+          duration: timing.duration,
+          easing: timing.easing,
+          fill: timing.fill,
+          frames: effect
+            .getKeyframes()
+            .map(({ opacity, transform }) => ({ opacity, transform })),
+        };
+      });
+  expect(await recipe(".category-list li")).toEqual(
+    await recipe(".ranking-list li"),
+  );
+  expect(await recipe(".signed-bar > span")).toEqual(
+    await recipe(".bar-track > span"),
+  );
+  const negative = page.locator(".signed-bar > span.negative");
+  expect(
+    await negative.evaluate(
+      (element) => getComputedStyle(element).transformOrigin.split(" ")[0],
+    ),
+  ).toBe(
+    await negative.evaluate((element) => `${getComputedStyle(element).width}`),
+  );
+  await filters.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(value).toHaveAttribute("data-entries", "1");
+  await page.setViewportSize({ width: 320, height: 900 });
+  await metric.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect
+    .poll(() => metric.evaluate((element) => element.scrollLeft))
+    .toBeGreaterThan(0);
+  await expect(metric).toBeFocused();
+  await metric.evaluate((element) => {
+    element.scrollLeft = 20;
+  });
+  const scroll = await metric.evaluate((element) => element.scrollLeft);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect
+    .poll(() => value.evaluate((element) => element.getAnimations().length))
+    .toBe(0);
+  await filters.getByRole("link", { name: "This year", exact: true }).click();
+  await expect(value).toHaveAttribute("data-entries", "1");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await filters.getByRole("link", { name: "This year", exact: true }).click();
+  await expect(value).toHaveAttribute("data-entries", "1");
+  expect(await region?.evaluate((element) => element.isConnected)).toBe(true);
+  expect(
+    await metric.evaluate((element) => element.scrollLeft),
+  ).toBeLessThanOrEqual(scroll);
+  await expect(page.locator(".category-list li")).toHaveCount(0);
+  await filters.getByRole("link", { name: "Historical", exact: true }).click();
+  await expect(page.locator(".category-list li")).toHaveCount(3);
+  await expect(page.locator(".category-list li").last()).toHaveAttribute(
+    "data-entries",
+    "1",
+  );
+});
+
+test("local category controls keep native semantics and shared state", async ({
+  page,
+}) => {
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const group = page.getByRole("group", { name: "Example category buttons" });
+  const select = page.getByRole("combobox", {
+    name: "Example category select",
+  });
+  const companies = group.getByRole("button", { name: "Companies" });
+  await companies.focus();
+  await page.keyboard.press("Space");
+  await expect(companies).toBeFocused();
+  await expect(companies).toHaveAttribute("aria-pressed", "true");
+  await expect(select).toHaveValue("companies");
+  await select.selectOption("members");
+  await expect(group.getByRole("button", { name: "MPs" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(select).toHaveValue("members");
 });

@@ -83,6 +83,32 @@ test("updates default to ten MPs and switch locally with profile links and UTC d
   expect(requests).toBe(initialRequests);
 });
 
+test("updates toolbar stacks below tabs on narrow screens", async ({
+  page,
+  backend,
+}) => {
+  await backend.route("**/api/updates", (route) =>
+    route.fulfill({ json: updatesFixture }),
+  );
+  await page.goto("/updates");
+  const categories = page.getByRole("group", {
+    name: "Latest declarations category",
+  });
+  const sort = page.getByRole("combobox", { name: "Sort order" });
+  for (const width of [1280, 320]) {
+    await page.setViewportSize({ width, height: 900 });
+    const tabs = await categories.boundingBox();
+    const dropdown = await sort.boundingBox();
+    if (!tabs || !dropdown) throw new Error("Missing toolbar controls");
+    if (width === 320)
+      expect(dropdown.y).toBeGreaterThanOrEqual(tabs.y + tabs.height);
+    else expect(dropdown.x).toBeGreaterThan(tabs.x + tabs.width);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBe(width);
+  }
+});
+
 test("updates show unavailable and empty states", async ({ page, backend }) => {
   await backend.route("**/api/updates", (route) =>
     route.fulfill({ status: 503 }),
@@ -177,8 +203,7 @@ test("updates browse sorted batches locally and restore focus after the last bat
     name: "Companies",
     exact: true,
   });
-  const oldestButton = page.getByRole("button", { name: "Oldest first" });
-  const newestButton = page.getByRole("button", { name: "Newest first" });
+  const sort = page.getByRole("combobox", { name: "Sort order" });
   await expect(links).toHaveText(newest.slice(0, 10).map((row) => row.name));
   await page
     .locator(".board")
@@ -187,21 +212,21 @@ test("updates browse sorted batches locally and restore focus after the last bat
   await expect(links).toHaveCount(20);
   await expect(more).toBeFocused();
   await expect(page.locator(".board")).toHaveAttribute("data-retained", "yes");
-  await newestButton.click();
+  await sort.selectOption("newest");
   await mps.click();
   await expect(links).toHaveCount(20);
   await more.click();
   await expect(links).toHaveText(newest.map((row) => row.name));
   await expect(more).toHaveCount(0);
   await expect(links.nth(20)).toBeFocused();
-  await oldestButton.click();
-  await expect(oldestButton).toHaveAttribute("aria-pressed", "true");
+  await sort.selectOption("oldest");
+  await expect(sort).toHaveValue("oldest");
   await expect(links).toHaveText(oldest.slice(0, 10).map((row) => row.name));
   await more.click();
-  await oldestButton.click();
+  await sort.selectOption("oldest");
   await expect(links).toHaveCount(20);
   await companies.click();
-  await expect(oldestButton).toHaveAttribute("aria-pressed", "true");
+  await expect(sort).toHaveValue("oldest");
   await expect(
     page
       .getByRole("list", { name: "Companies latest declarations" })
@@ -209,7 +234,7 @@ test("updates browse sorted batches locally and restore focus after the last bat
   ).toHaveCount(10);
   await mps.click();
   await expect(links).toHaveText(oldest.slice(0, 10).map((row) => row.name));
-  await newestButton.click();
+  await sort.selectOption("newest");
   await expect(links).toHaveText(newest.slice(0, 10).map((row) => row.name));
   expect(requests).toBe(initialRequests);
 });

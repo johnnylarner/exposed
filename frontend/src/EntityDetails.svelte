@@ -7,7 +7,11 @@
   import FunderIdentity from "./FunderIdentity.svelte";
   import FunderSummary from "./FunderSummary.svelte";
   import FunderHistory from "./FunderHistory.svelte";
-  import { backToSearch, type DetailState } from "./lib/entity-details";
+  import {
+    backToSearch,
+    readDetailRoute,
+    type DetailState,
+  } from "./lib/entity-details";
   import { page, navigating } from "$app/state";
   import { invalidate } from "$app/navigation";
   import type { PageModel } from "./lib/page";
@@ -22,8 +26,20 @@
       retrying = false;
     }
   }
+  const destination = $derived(
+    navigating.to ? readDetailRoute(navigating.to.url.pathname) : null,
+  );
+  const sameEntity = $derived.by(() => {
+    if (!destination) return true;
+    if (
+      (destination.kind === "member" && route.kind === "member") ||
+      (destination.kind === "funder" && route.kind === "funder")
+    )
+      return destination.id.toLowerCase() === route.id.toLowerCase();
+    return false;
+  });
   const detailState = $derived<DetailState>(
-    navigating.to || retrying ? { kind: "loading" } : model.result,
+    !sameEntity || retrying ? { kind: "loading" } : model.result,
   );
   const backHref = $derived(backToSearch(page.url.searchParams));
 </script>
@@ -33,7 +49,7 @@
   class="detail-page"
   class:member-page={route.kind === "member"}
   class:funder-page={route.kind === "funder"}
-  aria-busy={detailState.kind === "loading"}
+  aria-busy={Boolean(navigating.to) || retrying}
 >
   <ButtonLink variant="quiet" size="inline" class="back-link" href={backHref}
     >Back to search</ButtonLink
@@ -70,16 +86,15 @@
     {@const summary = summarizeMember(details)}
     <MemberIdentity
       member={details.member}
-      {summary}
       view={route.kind === "member" ? route.view : "summary"}
     />
     {#if route.kind === "member" && route.view === "history"}<MemberHistory
         {details}
-      />{:else}<MemberSummary {summary} />{/if}
+      />{:else}<MemberSummary {summary} period={details.period} />{/if}
   {:else}
     {@const details = detailState.details}
     <FunderIdentity
-      {details}
+      funder={details.funder}
       view={route.kind === "funder" ? route.view : "summary"}
     />
     {#if route.kind === "funder" && route.view === "history"}

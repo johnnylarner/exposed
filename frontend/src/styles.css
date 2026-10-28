@@ -209,6 +209,7 @@ h1 {
   display: grid;
   grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
   gap: 48px;
+  margin-top: var(--space-6);
   padding-bottom: 32px;
   margin-bottom: 32px;
   border-bottom: 1px solid var(--line);
@@ -301,8 +302,18 @@ h1 {
   margin-top: 12px;
 }
 
+.summary-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-4);
+}
+@media (max-width: 600px) {
+  .summary-header {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .declared-totals {
-  grid-column: 1 / -1;
   min-width: 0;
 }
 

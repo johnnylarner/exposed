@@ -60,7 +60,7 @@ Actions and focus remain neutral in every entity context. Override `--accent` on
 
 ## Identity and metric
 
-`IdentityHeader` owns its title, metadata paragraph and grid. Supply inline metadata and a native navigation composition. `.identity-totals` is caller-owned grid placement. `Metric` takes exact formatted strings without interpreting money.
+`IdentityHeader` owns its title, metadata paragraph and grid. Supply inline metadata and a native navigation composition. View-specific controls and metrics belong after identity navigation, inside the active view. The optional `values` snippet remains available for standalone identities without view navigation. `Metric` takes exact formatted strings without interpreting money.
 
 ```svelte
 <script lang="ts">
@@ -78,11 +78,6 @@ Actions and focus remain neutral in every entity context. Override `--accent` on
   {#snippet kind()}<Badge variant="profile"><Icon name="parliament" />MP</Badge
     >{/snippet}
   {#snippet metadata()}Example Party<span>Example constituency</span>{/snippet}
-  {#snippet values()}
-    <div class="identity-totals">
-      <Metric variant="expanded" label="Declared amounts" value="£1,234.56" />
-    </div>
-  {/snippet}
   {#snippet navigation()}
     <ViewLinks label="Example views">
       <ViewLink href="/members/1" aria-current="page">Summary</ViewLink>
@@ -91,14 +86,23 @@ Actions and focus remain neutral in every entity context. Override `--accent` on
   {/snippet}
 </IdentityHeader>
 
-<style>
-  .identity-totals {
-    grid-column: 1 / -1;
-    min-width: 0;
-  }
-</style>
+<section aria-label="Summary">
+  <Metric variant="expanded" label="Declared amounts" value="£1,234.56" />
+</section>
 ```
 
 ## Native table columns
 
 `DataTable` supplies the caption, `thead`, `tbody` and neutral cell rules. Use actual `th`/`td` classes in the caller for widths and numeric alignment. [FunderSummary](../../FunderSummary.svelte) is the production example. It owns `.recipient-name` and `.recipient-total`; those classes are not reusable UI APIs.
+
+## Reporting period filters
+
+Use the feature-owned `PeriodSelector` for the same native `Select` on member summaries, funder summaries and rankings. Features own typed period options, URL state and navigation; the select retains the committed value while navigation is pending. Keep the metric left and the select right in the feature-owned Summary grid, stacking at narrow widths.
+
+Pass the committed period to `Metric` and `SignedBarList` as `changeKey` for value and bar entry motion. Put other committed results in `<ContentChange changeKey={period}>` after the controls. Keep rolling metrics and animated bars outside that fade. Keep the existing content and key while navigation is pending; update both together when server data arrives. Do not key or duplicate the child subtree.
+
+For other native-link filters, use `<ViewLinks variant="filter">` with native `ViewLink` children and `aria-current="page"` on the selected destination. Set `align="end"` for right-aligned filters and keep navigation at full available width so wrapped lines end at the same edge.
+
+## Category toolbar
+
+Use ViewLinks with `wrap={true}` and ViewLink for URL-backed category navigation, or ViewButtons and ViewButton for local category selection. Pair the category group with Select for a secondary choice. Features own a flex toolbar with categories first and the select at the opposite edge. Stack the select below the categories on narrow screens. Keep headings above and results below. Select options retain their feature-owned typed values; features own navigation and pending state.

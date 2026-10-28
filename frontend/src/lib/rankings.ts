@@ -1,3 +1,4 @@
+import { withPeriod, type ReportingPeriod } from "./reporting-period";
 import { categoryBars } from "./entity-details";
 import { formatPounds } from "./member-summary";
 import type { DeclaredGbpPeriodTotal } from "./entity-details";
@@ -12,6 +13,7 @@ export interface RankingEntry {
   total: DeclaredGbpPeriodTotal;
 }
 export interface Rankings {
+  period: ReportingPeriod;
   currentTermStart: string;
   members: RankingEntry[];
   individuals: RankingEntry[];
@@ -87,7 +89,10 @@ export function rankingRows(
     href:
       category === "parties"
         ? undefined
-        : `/${category === "members" ? "members" : "funders"}/${entry.id}`,
+        : withPeriod(
+            `/${category === "members" ? "members" : "funders"}/${entry.id}`,
+            rankings.period,
+          ),
     amount: formatPounds(entry.total.amount),
     incomplete: entry.total.incomplete,
     width: bars[index].width,

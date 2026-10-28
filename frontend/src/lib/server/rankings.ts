@@ -1,5 +1,6 @@
 import { memberIdPattern, funderIdPattern } from "../entity-details";
 import type { RankingEntry, Rankings } from "../rankings";
+import { isReportingPeriod, type ReportingPeriod } from "../reporting-period";
 function malformed(): never {
   throw new Error("Rankings returned an unexpected response. Try again.");
 }
@@ -59,6 +60,8 @@ function board(
 }
 export function parseRankings(value: unknown): Rankings {
   const row = record(value);
+  const period = row.period;
+  if (!isReportingPeriod(period)) return malformed();
   const currentTermStart = text(row.current_term_start);
   if (
     !/^\d{4}-\d{2}-\d{2}T.*(?:Z|[+-]\d{2}:\d{2})$/u.test(currentTermStart) ||
@@ -66,6 +69,7 @@ export function parseRankings(value: unknown): Rankings {
   )
     return malformed();
   return {
+    period,
     currentTermStart,
     members: board(row.members, "member"),
     individuals: board(row.individuals, "funder"),
@@ -77,11 +81,14 @@ export async function loadRankings(
   fetch: typeof globalThis.fetch,
   signal: AbortSignal,
   origin: string,
+  period: ReportingPeriod = "current-term",
 ): Promise<Rankings> {
-  const response = await fetch(`${origin}/rankings`, {
+  const response = await fetch(`${origin}/rankings?period=${period}`, {
     signal: AbortSignal.any([signal, AbortSignal.timeout(10_000)]),
   });
   if (!response.ok) throw new Error("Rankings couldn’t load. Try again.");
   const body: unknown = await response.json();
-  return parseRankings(body);
+  const result = parseRankings(body);
+  if (result.period !== period) return malformed();
+  return result;
 }

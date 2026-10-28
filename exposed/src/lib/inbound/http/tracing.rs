@@ -188,6 +188,7 @@ mod tests {
     impl crate::domain::services::rankings::RankingsService for Details {
         fn rankings(
             &self,
+            _period: crate::domain::models::reporting_period::ReportingPeriod,
         ) -> impl Future<
             Output = Result<
                 crate::domain::models::rankings::Rankings,

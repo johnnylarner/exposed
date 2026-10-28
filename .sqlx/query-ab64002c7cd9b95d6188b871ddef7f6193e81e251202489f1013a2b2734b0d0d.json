@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.latest_membership_from,\n                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $2), '') AS currency,\n                f.id AS \"funder_id?\", COALESCE(n.preferred_name, f.funder_name) AS funder_name, f.funder_kind\n             FROM exposed.declarations d\n             JOIN exposed.members m ON m.id = d.member_id\n             LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id\n             LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = e.funder_id\n             LEFT JOIN exposed.funders f ON f.id = COALESCE(g.group_id, e.funder_id)\n             LEFT JOIN exposed.funder_group_names n ON n.group_id = f.id\n             WHERE d.registration_date >= $1\n             ORDER BY d.source_declaration_id, e.id",
+  "query": "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.latest_membership_from,\n                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $3), '') AS currency,\n                f.id AS \"funder_id?\", COALESCE(n.preferred_name, f.funder_name) AS funder_name, f.funder_kind\n             FROM exposed.declarations d\n             JOIN exposed.members m ON m.id = d.member_id\n             LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id\n             LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = e.funder_id\n             LEFT JOIN exposed.funders f ON f.id = COALESCE(g.group_id, e.funder_id)\n             LEFT JOIN exposed.funder_group_names n ON n.group_id = f.id\n             WHERE ($1::timestamptz IS NULL OR d.registration_date >= $1)\n               AND ($2::timestamptz IS NULL OR d.registration_date < $2)\n             ORDER BY d.source_declaration_id, e.id",
   "describe": {
     "columns": [
       {
@@ -162,6 +162,7 @@
     "parameters": {
       "Left": [
         "Timestamptz",
+        "Timestamptz",
         "Text"
       ]
     },
@@ -183,5 +184,5 @@
       true
     ]
   },
-  "hash": "f7c56ef22fce0c8955c30e706cdc629d9ceb010df862a2077c60c1cb15406d74"
+  "hash": "ab64002c7cd9b95d6188b871ddef7f6193e81e251202489f1013a2b2734b0d0d"
 }

@@ -39,8 +39,7 @@
 <section aria-labelledby="history-heading">
   <SectionHeading id="history-heading" title="Declaration history">
     <p>
-      All {details.declarations.length} stored declarations, most recent registration
-      first.
+      {details.declarations.length} declarations, most recent registration first.
     </p>
   </SectionHeading>
   <div class="history-filters">
@@ -61,7 +60,7 @@
     >
   </div>
   <p class="filter-context">
-    Filter by registration date. Both dates are included.{#if from || to}
+    Filter by registration date. Both dates are included.{" "}{#if from || to}
       Declarations without a registration date are excluded.{:else}
       Declarations without a registration date appear last.{/if}
   </p>
@@ -70,7 +69,7 @@
     </Notice>
   {:else if filtered.length === 0}<p class="empty-details">
       {details.declarations.length === 0
-        ? "No declarations are stored for this MP."
+        ? "No declarations are recorded."
         : "No declarations match these dates. Clear or change the dates."}
     </p>
   {:else}<p class="history-result-count">
