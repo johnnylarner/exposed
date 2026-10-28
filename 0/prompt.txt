@@ -1,0 +1,1 @@
+i want to $pstack:create-verification-skill. Before doing that I need you to review the current testing approach as we need to do some pruning
