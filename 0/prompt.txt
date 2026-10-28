@@ -1,0 +1,1 @@
+we shouldn't store json files in the source code, this bloats the binary. Use constants or add it as an input
