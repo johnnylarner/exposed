@@ -1,0 +1,1 @@
+$pstack:poteto-mode i want to give the cli tool to an agent. Without investigating the code, review the commands and tell me what you inuit from them
