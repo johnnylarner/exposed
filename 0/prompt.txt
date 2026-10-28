@@ -1,0 +1,3 @@
+<send_user_message_question_reply>
+[{"answer":"Separate Dockerfile only","question":"I’m interpreting “separate file” as a separate frontend GitHub Actions workflow, so frontend changes can build and publish without running Rust. Did you mean that, or only a separate frontend Dockerfile?","questionItemId":"[\"request_user_input_async\",\"call_39443331ae404da0b80bd74bd5fc43a7\",0]"}]
+</send_user_message_question_reply>
