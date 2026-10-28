@@ -1,0 +1,1 @@
+i think using transitive matches for aliases is okay because in most cases it builds confidence in the product. We can add a disclaimer about the entity dedup
