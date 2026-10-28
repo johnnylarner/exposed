@@ -1,0 +1,1 @@
+use 0.8 for all tests pleases and document this is the default strictness
