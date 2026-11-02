@@ -1,0 +1,84 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT funder.id, funder.resolution_identity_id, funder.funder_name, funder.funder_kind, funder.company_number,\n            ARRAY(SELECT alias.funder_alias FROM exposed.funder_aliases AS alias WHERE alias.funder_id = funder.id ORDER BY alias.funder_alias) AS \"aliases!\"\n        FROM exposed.funders AS funder\n        WHERE funder.resolution_identity_id = ANY($1)\n            OR EXISTS (SELECT 1 FROM exposed.funding_entries AS entry WHERE entry.funder_id = funder.id AND entry.source_funding_entry_id = ANY($2))",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "resolution_identity_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "resolution_identity_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "funder_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "funder_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "funder_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "funder_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "company_number",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funders",
+            "name": "company_number"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "aliases!",
+        "type_info": "TextArray",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "400a505d90d3eb652fcecdefeda56888d8f9d14df29d5b04785754cb202160f3"
+}

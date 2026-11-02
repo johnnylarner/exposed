@@ -1,0 +1,113 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT entry.funder_id, entry.source_declaration_id, entry.source_funding_entry_id, entry.selected_observation_id, entry.attribution_basis, entry.selected_parent_declaration_id, entry.attribution_issues, entry.unavailable_reason FROM exposed.funding_entries AS entry WHERE entry.funder_id = ANY($1) AND NOT EXISTS (SELECT 1 FROM exposed.funders AS funder WHERE funder.id = entry.funder_id AND funder.resolution_identity_id = ANY($2))",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "funder_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "funder_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "source_declaration_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "source_declaration_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "source_funding_entry_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "source_funding_entry_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "selected_observation_id",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "selected_observation_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "attribution_basis",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "attribution_basis"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "selected_parent_declaration_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "selected_parent_declaration_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "attribution_issues",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "attribution_issues"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "unavailable_reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "funding_entries",
+            "name": "unavailable_reason"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "7280adcc24133d2ce5308dd916ac2dfdd5d73675b08fbbc89e82cbbb10c62587"
+}

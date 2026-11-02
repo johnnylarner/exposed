@@ -102,7 +102,7 @@ pub struct PairDecision {
     pub(crate) reason: PairReason,
 }
 /// Source role used for one payment's reporting decision.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, AsRefStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, AsRefStr)]
 #[serde(rename_all = "snake_case")]
 #[strum(serialize_all = "snake_case")]
 #[cfg_attr(test, derive(strum::EnumIter))]
@@ -115,6 +115,14 @@ pub enum AttributionBasis {
     Donor,
     /// The local payer when no donor or ultimate-payer flag is supplied.
     Payer,
+}
+impl AttributionBasis {
+    pub(crate) const fn requires_parent(self) -> bool {
+        match self {
+            Self::ParentPayer => true,
+            Self::ExplicitUltimatePayer | Self::Donor | Self::Payer => false,
+        }
+    }
 }
 /// Evidence that prevents supported reporting attribution.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, AsRefStr)]
@@ -142,7 +150,7 @@ pub enum UnavailableReason {
     NoSupportedAttribution,
 }
 /// A disagreement between source fields, without an entity-distinction claim.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AttributionIssue {
     /// A named ultimate role occurs with the same-parent-payer flag.
