@@ -458,11 +458,13 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
         .await?,
         Some(shared.id)
     );
-    assert!(
-        sqlx::query!("SELECT id FROM exposed.funders WHERE id = $1", old_local)
-            .fetch_optional(&pool)
-            .await?
-            .is_none()
+    assert_eq!(
+        sqlx::query_scalar!(
+            "SELECT funder_id FROM exposed.funding_entries WHERE source_declaration_id = 1"
+        )
+        .fetch_one(&pool)
+        .await?,
+        Some(old_local)
     );
     assert_eq!(
         sqlx::query_scalar!(
@@ -604,5 +606,322 @@ async fn loader_groups_retained_identities_and_exact_retry_refreshes_without_rep
         .await?,
         old_id
     );
+    Ok(())
+}
+
+async fn seed_load_member(pool: &sqlx::PgPool) -> sqlx::Result<()> {
+    sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES (4613, 'Test member', 1, 'Test party', 1, 'Test constituency', true)").execute(pool).await?;
+    Ok(())
+}
+
+fn fresh_identity_keys(load: &mut DeclarationLoad) {
+    load.ingestion_key = IngestionKey::default();
+    load.fingerprint = load.ingestion_key.to_string();
+    for funder in &mut load.funders {
+        if funder.company_number.is_some() {
+            continue;
+        }
+        let old = std::mem::replace(&mut funder.identity_id, Uuid::new_v4().to_string());
+        for entry in &mut load.funding_entries {
+            if entry.identity_id.as_deref() == Some(old.as_str()) {
+                entry.identity_id = Some(funder.identity_id.clone());
+            }
+        }
+    }
+}
+
+async fn profile_ids(pool: &sqlx::PgPool) -> sqlx::Result<BTreeMap<i32, (Uuid, Uuid)>> {
+    let rows = sqlx::query!(
+        r#"SELECT entry.source_declaration_id, entry.funder_id AS "funder_id!", grouping.group_id
+        FROM exposed.funding_entries AS entry JOIN exposed.funder_alias_groups AS grouping ON grouping.funder_id = entry.funder_id
+        ORDER BY entry.source_declaration_id"#
+    ).fetch_all(pool).await?;
+    Ok(rows
+        .into_iter()
+        .map(|row| (row.source_declaration_id, (row.funder_id, row.group_id)))
+        .collect())
+}
+
+async fn funding_values(pool: &sqlx::PgPool) -> sqlx::Result<serde_json::Value> {
+    sqlx::query_scalar!(
+        r#"SELECT jsonb_agg(to_jsonb(entry) - 'id' - 'created_at' - 'updated_at' ORDER BY source_funding_entry_id) AS "values!" FROM exposed.funding_entries AS entry"#
+    ).fetch_one(pool).await
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn fresh_resolution_preserves_funder_and_profile_ids_and_prior_retry(
+    pool: sqlx::PgPool,
+) -> anyhow::Result<()> {
+    seed_load_member(&pool).await?;
+    let (_old_artifacts, old) = resolved_test_run().await?;
+    let repository = ExposedDatabase::from(pool.clone());
+    repository.load_declarations(&old).await?;
+    let original_ids = profile_ids(&pool).await?;
+    let original_values = funding_values(&pool).await?;
+    let (_fresh_artifacts, mut fresh) = resolved_test_run().await?;
+    assert_ne!(old.ingestion_key.uuid(), fresh.ingestion_key.uuid());
+    for (old_row, fresh_row) in old.declarations.iter().zip(&fresh.declarations) {
+        assert!(fresh_row.fetched_at > old_row.fetched_at);
+    }
+    repository.load_declarations(&fresh).await?;
+    assert_eq!(profile_ids(&pool).await?, original_ids);
+    assert_eq!(funding_values(&pool).await?, original_values);
+    let before_retry = database_snapshot(&pool).await?;
+    assert!(matches!(
+        repository.load_declarations(&old).await?.outcome,
+        DeclarationLoadOutcome::AlreadyLoaded
+    ));
+    assert_eq!(database_snapshot(&pool).await?, before_retry);
+
+    fresh_identity_keys(&mut fresh);
+    fresh
+        .funding_entries
+        .iter_mut()
+        .find(|entry| entry.source_declaration_id.value() == 1)
+        .unwrap()
+        .amount = Some("123.4567890123456789".parse()?);
+    for funder in &mut fresh.funders {
+        funder.aliases.push(funder.name.clone());
+        funder.aliases.reverse();
+    }
+    repository.load_declarations(&fresh).await?;
+    assert_eq!(profile_ids(&pool).await?, original_ids);
+    assert_eq!(
+        sqlx::query_scalar!(
+            "SELECT amount::text FROM exposed.funding_entries WHERE source_declaration_id = 1"
+        )
+        .fetch_one(&pool)
+        .await?
+        .as_deref(),
+        Some("123.4567890123456789")
+    );
+
+    fresh_identity_keys(&mut fresh);
+    let changed = fresh
+        .funding_entries
+        .iter()
+        .find(|entry| entry.source_declaration_id.value() == 2)
+        .unwrap()
+        .identity_id
+        .as_ref()
+        .unwrap()
+        .clone();
+    fresh
+        .funders
+        .iter_mut()
+        .find(|funder| funder.identity_id == changed)
+        .unwrap()
+        .name = "Changed unrelated funder".to_owned();
+    repository.load_declarations(&fresh).await?;
+    let changed_ids = profile_ids(&pool).await?;
+    for declaration in [1, 3, 4] {
+        assert_eq!(changed_ids[&declaration], original_ids[&declaration]);
+    }
+    assert_ne!(changed_ids[&2].0, original_ids[&2].0);
+    Ok(())
+}
+
+fn keep_declarations(load: &mut DeclarationLoad, declarations: &[u32]) {
+    load.declarations
+        .retain(|row| declarations.contains(&row.source_declaration_id.value()));
+    load.funding_entries
+        .retain(|row| declarations.contains(&row.source_declaration_id.value()));
+    let keys = load
+        .funding_entries
+        .iter()
+        .filter_map(|entry| entry.identity_id.as_deref())
+        .collect::<BTreeSet<_>>();
+    load.funders
+        .retain(|row| keys.contains(row.identity_id.as_str()));
+}
+
+fn copy_funder(funder: &LoadFunder, identity_id: String) -> LoadFunder {
+    LoadFunder {
+        identity_id,
+        name: funder.name.clone(),
+        aliases: funder.aliases.clone(),
+        kind: funder.kind.clone(),
+        company_number: funder.company_number.clone(),
+    }
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn splits_merges_and_same_name_identities_do_not_inherit_ids(
+    pool: sqlx::PgPool,
+) -> anyhow::Result<()> {
+    seed_load_member(&pool).await?;
+    let (_artifacts, mut load) = resolved_test_run().await?;
+    keep_declarations(&mut load, &[1, 2]);
+    let first_key = load.funding_entries[0].identity_id.clone().unwrap();
+    load.funders
+        .retain(|funder| funder.identity_id == first_key);
+    for entry in &mut load.funding_entries {
+        entry.identity_id = Some(first_key.clone());
+    }
+    let repository = ExposedDatabase::from(pool.clone());
+    repository.load_declarations(&load).await?;
+    let merged = profile_ids(&pool).await?[&1].0;
+    assert_eq!(profile_ids(&pool).await?[&2].0, merged);
+
+    fresh_identity_keys(&mut load);
+    let split_key = Uuid::new_v4().to_string();
+    load.funders
+        .push(copy_funder(&load.funders[0], split_key.clone()));
+    load.funding_entries[1].identity_id = Some(split_key);
+    repository.load_declarations(&load).await?;
+    let split = profile_ids(&pool).await?;
+    assert_ne!(split[&1].0, merged);
+    assert_ne!(split[&2].0, merged);
+    assert_ne!(split[&1].0, split[&2].0);
+
+    fresh_identity_keys(&mut load);
+    repository.load_declarations(&load).await?;
+    assert_eq!(profile_ids(&pool).await?, split);
+
+    fresh_identity_keys(&mut load);
+    let merged_key = load.funders[0].identity_id.clone();
+    for entry in &mut load.funding_entries {
+        entry.identity_id = Some(merged_key.clone());
+    }
+    load.funders.truncate(1);
+    repository.load_declarations(&load).await?;
+    let remerged = profile_ids(&pool).await?;
+    assert_eq!(remerged[&1].0, remerged[&2].0);
+    assert_ne!(remerged[&1].0, split[&1].0);
+    assert_ne!(remerged[&1].0, split[&2].0);
+    Ok(())
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn partial_refresh_refuses_shared_old_identity_but_reuses_complete_identity(
+    pool: sqlx::PgPool,
+) -> anyhow::Result<()> {
+    seed_load_member(&pool).await?;
+    let (_artifacts, mut load) = resolved_test_run().await?;
+    keep_declarations(&mut load, &[1, 2]);
+    let first_key = load.funding_entries[0].identity_id.clone().unwrap();
+    load.funders
+        .retain(|funder| funder.identity_id == first_key);
+    for entry in &mut load.funding_entries {
+        entry.identity_id = Some(first_key.clone());
+    }
+    let repository = ExposedDatabase::from(pool.clone());
+    repository.load_declarations(&load).await?;
+    let original = profile_ids(&pool).await?[&1].0;
+    keep_declarations(&mut load, &[1]);
+    fresh_identity_keys(&mut load);
+    repository.load_declarations(&load).await?;
+    let partial = profile_ids(&pool).await?;
+    assert_ne!(partial[&1].0, original);
+    assert_eq!(partial[&2].0, original);
+    fresh_identity_keys(&mut load);
+    repository.load_declarations(&load).await?;
+    assert_eq!(profile_ids(&pool).await?, partial);
+    Ok(())
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn legacy_incomplete_provenance_cannot_reuse_identity(
+    pool: sqlx::PgPool,
+) -> anyhow::Result<()> {
+    seed_load_member(&pool).await?;
+    let (_artifacts, mut load) = resolved_test_run().await?;
+    let repository = ExposedDatabase::from(pool.clone());
+    repository.load_declarations(&load).await?;
+    let original = profile_ids(&pool).await?;
+    sqlx::query!("UPDATE exposed.funding_entries SET selected_observation_id = NULL WHERE source_declaration_id = 1").execute(&pool).await?;
+    fresh_identity_keys(&mut load);
+    repository.load_declarations(&load).await?;
+    let refreshed = profile_ids(&pool).await?;
+    assert_ne!(refreshed[&1].0, original[&1].0);
+    for declaration in [2, 3, 4] {
+        assert_eq!(refreshed[&declaration], original[&declaration]);
+    }
+    Ok(())
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn exact_keys_take_priority_over_continuity_even_outside_source_candidates(
+    pool: sqlx::PgPool,
+) -> anyhow::Result<()> {
+    seed_load_member(&pool).await?;
+    let (_artifacts, mut load) = resolved_test_run().await?;
+    keep_declarations(&mut load, &[1, 2]);
+    let key1 = load.funding_entries[0].identity_id.clone().unwrap();
+    let key2 = load.funding_entries[1].identity_id.clone().unwrap();
+    let first = load
+        .funders
+        .iter()
+        .find(|funder| funder.identity_id == key1)
+        .unwrap();
+    load.funders = vec![
+        copy_funder(first, key1.clone()),
+        copy_funder(first, key2.clone()),
+    ];
+    let repository = ExposedDatabase::from(pool.clone());
+    repository.load_declarations(&load).await?;
+    let original = profile_ids(&pool).await?;
+    sqlx::query!("UPDATE exposed.funding_entries SET attribution_basis = 'legacy-unsupported' WHERE source_declaration_id = 2").execute(&pool).await?;
+    let key3 = Uuid::new_v4().to_string();
+    load.ingestion_key = IngestionKey::default();
+    load.funding_entries[0].identity_id = Some(key2.clone());
+    load.funding_entries[1].identity_id = Some(key3.clone());
+    load.funders = vec![
+        copy_funder(&load.funders[0], key2),
+        copy_funder(&load.funders[0], key3.clone()),
+    ];
+    repository.load_declarations(&load).await?;
+    let competed = profile_ids(&pool).await?;
+    assert_eq!(competed[&1].0, original[&2].0);
+    assert_ne!(competed[&2].0, original[&2].0);
+    assert_ne!(competed[&2].0, original[&1].0);
+
+    keep_declarations(&mut load, &[1]);
+    load.ingestion_key = IngestionKey::default();
+    load.funding_entries[0].identity_id = Some(key3.clone());
+    load.funders = vec![copy_funder(&load.funders[0], key3)];
+    repository.load_declarations(&load).await?;
+    let partial = profile_ids(&pool).await?;
+    assert_eq!(partial[&1].0, competed[&2].0);
+    assert_eq!(partial[&2].0, competed[&2].0);
+    Ok(())
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn changed_selected_provenance_and_alias_membership_require_new_ids(
+    pool: sqlx::PgPool,
+) -> anyhow::Result<()> {
+    seed_load_member(&pool).await?;
+    let (_artifacts, mut load) = resolved_test_run().await?;
+    keep_declarations(&mut load, &[1]);
+    let repository = ExposedDatabase::from(pool.clone());
+    repository.load_declarations(&load).await?;
+    let original = profile_ids(&pool).await?[&1].0;
+    fresh_identity_keys(&mut load);
+    load.funders[0]
+        .aliases
+        .push("Additional source spelling".to_owned());
+    repository.load_declarations(&load).await?;
+    let alias_changed = profile_ids(&pool).await?[&1].0;
+    assert_ne!(alias_changed, original);
+
+    fresh_identity_keys(&mut load);
+    load.funding_entries[0].selected_observation_id =
+        Some("another-selected-observation".to_owned());
+    repository.load_declarations(&load).await?;
+    let observation_changed = profile_ids(&pool).await?[&1].0;
+    assert_ne!(observation_changed, alias_changed);
+
+    fresh_identity_keys(&mut load);
+    load.funding_entries[0].attribution_basis = Some(AttributionBasis::ParentPayer);
+    load.funding_entries[0].selected_parent_declaration_id = Some(DeclarationId::new(900)?);
+    repository.load_declarations(&load).await?;
+    let basis_changed = profile_ids(&pool).await?[&1].0;
+    assert_ne!(basis_changed, observation_changed);
+
+    fresh_identity_keys(&mut load);
+    load.funding_entries[0].selected_parent_declaration_id = Some(DeclarationId::new(901)?);
+    repository.load_declarations(&load).await?;
+    assert_ne!(profile_ids(&pool).await?[&1].0, basis_changed);
     Ok(())
 }

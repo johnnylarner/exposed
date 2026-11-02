@@ -190,3 +190,24 @@ their transaction. Keep the original artifacts available for future retries.
 
 The alias evidence table uses a generated ID so long recorded names can be stored
 without exceeding an index key limit.
+
+## Funder identity continuity on declaration refresh
+
+A fresh resolved load preserves existing funder UUIDs when the complete nonempty
+set of selected source funding occurrences, observation IDs, attribution bases,
+parent references, issues, name, kind, company number, and alias set is unchanged.
+Existing resolution-key matches always take priority. Matching uses persisted
+attribution evidence before replacing rows, so existing URLs can survive the
+first refresh after upgrading without a migration. An unchanged profile component
+keeps its existing minimum-UUID profile ID.
+
+Amounts, currencies, and capture timestamps do not participate in identity
+continuity. Funding values are still replaced from the incoming load without
+conversion or changed totals rules. Changed source versions or occurrence
+membership, changed identity evidence, splits, and merges may receive new UUIDs.
+Distinct same-name identities are never matched by name alone. A partial refresh
+cannot reuse a shared old identity unless all its references are included and
+match. Legacy rows missing complete selected provenance receive no continuity
+fallback. The loader transaction and advisory lock cover snapshot reads, UUID
+reuse, replacement, pruning, grouping, and run recording; failed loads roll back
+and successful ingestion-key retries retain their existing behavior.

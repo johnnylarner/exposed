@@ -24,6 +24,9 @@ use crate::domain::{
         declaration_loading::{
             DeclarationLoad, DeclarationLoadOutcome, DeclarationLoadSummary, LoadDeclaration,
             LoadFunder, LoadFundingEntry,
+            continuity::{
+                FunderPresentation, FunderReusePlan, SelectedOccurrence, StoredFunderContinuity,
+            },
         },
         declaration_resolution::{
             AttributionBasis, AttributionDecision, IdentityBasis, ObservationResolution,
@@ -726,7 +729,9 @@ impl DeclarationLoadRepository for ExposedDatabase {
             });
         }
 
-        let funder_ids = replace_funders(&mut tx, &load.funders).await?;
+        let stored = read_funder_continuity(&mut tx, load).await?;
+        let reuse = FunderReusePlan::for_load(&stored, load)?;
+        let funder_ids = replace_funders(&mut tx, &load.funders, &reuse).await?;
         replace_declarations(&mut tx, &load.declarations).await?;
         for entry in &load.funding_entries {
             let funder_id = entry
@@ -849,9 +854,20 @@ async fn replace_declarations(
 async fn replace_funders<'a>(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     funders: &'a [LoadFunder],
+    reuse: &FunderReusePlan,
 ) -> Result<BTreeMap<&'a str, uuid::Uuid>, EntityIngestionError> {
     let mut funder_ids = BTreeMap::new();
     for funder in funders {
+        if let Some(id) = reuse.reused_id(&funder.identity_id) {
+            sqlx::query!(
+                "UPDATE exposed.funders SET resolution_identity_id = $1 WHERE id = $2",
+                funder.identity_id,
+                id
+            )
+            .execute(&mut **tx)
+            .await
+            .map_err(db_error)?;
+        }
         let id = sqlx::query!(
                 "INSERT INTO exposed.funders (funder_name, funder_kind, company_number, resolution_identity_id) VALUES ($1, $2, $3, $4) ON CONFLICT (resolution_identity_id) DO UPDATE SET funder_name = EXCLUDED.funder_name, funder_kind = EXCLUDED.funder_kind, company_number = EXCLUDED.company_number RETURNING id",
                 funder.name,
@@ -879,4 +895,105 @@ async fn replace_funders<'a>(
         }
     }
     Ok(funder_ids)
+}
+
+async fn read_funder_continuity(
+    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
+    load: &DeclarationLoad,
+) -> Result<Vec<StoredFunderContinuity>, EntityIngestionError> {
+    let identities = load
+        .funders
+        .iter()
+        .map(|row| row.identity_id.clone())
+        .collect::<Vec<_>>();
+    let source_ids = load
+        .funding_entries
+        .iter()
+        .map(|row| row.source_id.clone())
+        .collect::<Vec<_>>();
+    let rows = sqlx::query!(
+        r#"SELECT funder.id, funder.resolution_identity_id, funder.funder_name, funder.funder_kind, funder.company_number,
+            ARRAY(SELECT alias.funder_alias FROM exposed.funder_aliases AS alias WHERE alias.funder_id = funder.id ORDER BY alias.funder_alias) AS "aliases!"
+        FROM exposed.funders AS funder
+        WHERE funder.resolution_identity_id = ANY($1)
+            OR EXISTS (SELECT 1 FROM exposed.funding_entries AS entry WHERE entry.funder_id = funder.id AND entry.source_funding_entry_id = ANY($2))"#,
+        &identities,
+        &source_ids
+    ).fetch_all(&mut **tx).await.map_err(db_error)?;
+    let mut stored = rows
+        .into_iter()
+        .map(|row| {
+            (
+                row.id,
+                StoredFunderContinuity {
+                    id: row.id,
+                    identity: row.resolution_identity_id,
+                    presentation: FunderPresentation {
+                        name: row.funder_name,
+                        kind: row.funder_kind,
+                        company_number: row.company_number,
+                        aliases: row.aliases.into_iter().collect(),
+                    },
+                    complete_occurrences: Some(BTreeMap::new()),
+                },
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let ids = stored.keys().copied().collect::<Vec<_>>();
+    let references = sqlx::query!(
+        "SELECT entry.funder_id, entry.source_declaration_id, entry.source_funding_entry_id, entry.selected_observation_id, entry.attribution_basis, entry.selected_parent_declaration_id, entry.attribution_issues, entry.unavailable_reason FROM exposed.funding_entries AS entry WHERE entry.funder_id = ANY($1) AND NOT EXISTS (SELECT 1 FROM exposed.funders AS funder WHERE funder.id = entry.funder_id AND funder.resolution_identity_id = ANY($2))",
+        &ids,
+        &identities
+    ).fetch_all(&mut **tx).await.map_err(db_error)?;
+    for row in references {
+        let funder = stored
+            .get_mut(&row.funder_id.expect("selected funder reference"))
+            .expect("selected snapshot funder");
+        let basis = row
+            .attribution_basis
+            .map(|value| {
+                serde_json::from_value::<AttributionBasis>(serde_json::Value::String(value))
+            })
+            .transpose()
+            .map_err(db_error)?;
+        let issues = serde_json::from_value(row.attribution_issues).map_err(db_error)?;
+        let parent = row
+            .selected_parent_declaration_id
+            .map(|id| {
+                u32::try_from(id)
+                    .map_err(db_error)
+                    .and_then(DeclarationId::new)
+            })
+            .transpose()?;
+        let parent_complete =
+            basis.is_some_and(|basis| basis.requires_parent() == parent.is_some());
+        if let (Some(source), Some(observation), Some(basis)) = (
+            row.source_funding_entry_id,
+            row.selected_observation_id,
+            basis,
+        ) && !source.is_empty()
+            && !observation.is_empty()
+            && parent_complete
+            && row.unavailable_reason.is_none()
+        {
+            if let Some(occurrences) = &mut funder.complete_occurrences {
+                occurrences.insert(
+                    serde_json::from_value(serde_json::Value::String(source)).map_err(db_error)?,
+                    SelectedOccurrence {
+                        declaration: DeclarationId::new(
+                            u32::try_from(row.source_declaration_id).map_err(db_error)?,
+                        )?,
+                        observation: serde_json::from_value(serde_json::Value::String(observation))
+                            .map_err(db_error)?,
+                        basis,
+                        parent,
+                        issues,
+                    },
+                );
+            }
+        } else {
+            funder.complete_occurrences = None;
+        }
+    }
+    Ok(stored.into_values().collect())
 }

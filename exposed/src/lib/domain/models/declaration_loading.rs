@@ -1,5 +1,7 @@
 //! A checked current-database projection of one resolved declaration run.
 
+pub(crate) mod continuity;
+
 use bigdecimal::BigDecimal;
 use chrono::{DateTime, NaiveDate, Utc};
 use schemars::JsonSchema;
@@ -140,15 +142,9 @@ impl DeclarationLoad {
                 || row.attribution_basis.is_some() != selected
                 || row.unavailable_reason.is_some() == selected
                 || row.selected_parent_declaration_id.is_some()
-                    != match row.attribution_basis {
-                        Some(AttributionBasis::ParentPayer) => true,
-                        Some(
-                            AttributionBasis::ExplicitUltimatePayer
-                            | AttributionBasis::Donor
-                            | AttributionBasis::Payer,
-                        )
-                        | None => false,
-                    }
+                    != row
+                        .attribution_basis
+                        .is_some_and(AttributionBasis::requires_parent)
             {
                 return Err(invalid(
                     "incoherent funding attribution in declaration load",
