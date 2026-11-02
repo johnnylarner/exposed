@@ -12,11 +12,14 @@ test("rankings SSR includes exact top ten and category switching is URL backed",
     reads += 1;
     await route.fulfill({ json: rankingFixture });
   });
-  const ssr = await request.get(`${baseURL}/rankings`);
+  const ssr = await request.get(`${baseURL}/ranking/mps`);
   const html = await ssr.text();
   expect(html).toContain("£9,007,199,254,740,993.123456789");
   expect(html).toContain("Member 10");
   await page.goto("/");
+  await expect(
+    page.getByRole("link", { name: "Rankings", exact: true }),
+  ).toHaveAttribute("href", "/ranking/mps");
   await page.getByRole("link", { name: "Rankings", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Rankings");
   const rows = page.getByRole("list", { name: "MPs rankings" });
@@ -60,7 +63,7 @@ test("rankings SSR includes exact top ten and category switching is URL backed",
     page.getByText("Support declared by MPs, grouped by their latest party."),
   ).toBeVisible();
   expect(reads).toBe(before);
-  await expect(page).toHaveURL(/category=parties/u);
+  await expect(page).toHaveURL(/ranking\/parties/u);
   await expect(
     page.getByRole("button", { name: /All records|Show more|Replay/u }),
   ).toHaveCount(0);
@@ -75,7 +78,7 @@ test("rankings fit narrow viewports and honor reduced motion", async ({
   );
   await page.setViewportSize({ width: 320, height: 900 });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/rankings");
+  await page.goto("/ranking/mps");
   await expect(
     page.getByRole("list", { name: "MPs rankings" }).getByRole("listitem"),
   ).toHaveCount(10);
@@ -103,7 +106,7 @@ test("rankings report unavailable and empty snapshots", async ({
   await backend.route("**/api/rankings?*", async (route) =>
     route.fulfill({ status: 503 }),
   );
-  await page.goto("/rankings");
+  await page.goto("/ranking/mps");
   await expect(page.getByRole("alert")).toContainText(
     "Rankings couldn’t load. Try again.",
   );
@@ -125,7 +128,7 @@ test("rankings keep committed scope during rapid toolbar changes", async ({
     await route.fulfill({ json: { ...rankingFixture, period } });
   });
   await page.setViewportSize({ width: 1280, height: 400 });
-  await page.goto("/rankings?q=Example&from=2020-01-01&page=2");
+  await page.goto("/ranking/mps?q=Example&from=2020-01-01&page=2");
   const select = page.getByRole("combobox", { name: "Reporting period" });
   await page.evaluate(() => scrollTo(0, 150));
   await select.focus();
@@ -141,7 +144,7 @@ test("rankings keep committed scope during rapid toolbar changes", async ({
   await expect(select).toHaveValue("current-term");
   try {
     await page.getByRole("link", { name: "Companies", exact: true }).click();
-    await expect(page).toHaveURL(/category=companies/);
+    await expect(page).toHaveURL(/ranking\/companies/);
     expect(new URL(page.url()).searchParams.has("period")).toBe(false);
     await expect(select).toHaveValue("current-term");
     expect(await page.evaluate(() => scrollY)).toBe(
@@ -162,7 +165,7 @@ test("rankings keep committed scope during rapid toolbar changes", async ({
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       ),
   );
-  await expect(page).toHaveURL(/category=companies/);
+  await expect(page).toHaveURL(/ranking\/companies/);
   expect(new URL(page.url()).searchParams.has("period")).toBe(false);
   await expect(select).toHaveValue("current-term");
   await expect(
@@ -193,7 +196,7 @@ for (const [category, label, name] of [
     });
     const requests: string[] = [];
     page.on("request", (request) => requests.push(request.url()));
-    await page.goto(`/rankings?category=${category}`);
+    await page.goto(`/ranking/${category === "members" ? "mps" : category}`);
     const list = page.getByRole("list", { name: `${label} rankings` });
     const items = list.getByRole("listitem");
     const more = page.getByRole("button", { name: "Show more", exact: true });
@@ -245,7 +248,7 @@ for (const count of [0, 7, 10, 20]) {
     await backend.route("**/api/rankings?*", async (route) =>
       route.fulfill({ json: completeRankingFixture(count) }),
     );
-    await page.goto("/rankings");
+    await page.goto("/ranking/mps");
     const items = page
       .getByRole("list", { name: "MPs rankings" })
       .getByRole("listitem");
@@ -271,20 +274,20 @@ test("revealed prefixes reset on committed category, history, period and refresh
       },
     }),
   );
-  await page.goto("/rankings");
+  await page.goto("/ranking/mps");
   const items = page.getByRole("listitem");
   const more = page.getByRole("button", { name: "Show more" });
   await more.click();
   await expect(items).toHaveCount(20);
   await page.getByRole("link", { name: "Companies", exact: true }).click();
-  await expect(page).toHaveURL(/category=companies/);
+  await expect(page).toHaveURL(/ranking\/companies/);
   await expect(items).toHaveCount(10);
   await page.goBack();
-  await expect(page).not.toHaveURL(/category=companies/);
+  await expect(page).not.toHaveURL(/ranking\/companies/);
   await expect(items).toHaveCount(10);
   await more.click();
   await page.goForward();
-  await expect(page).toHaveURL(/category=companies/);
+  await expect(page).toHaveURL(/ranking\/companies/);
   await expect(items).toHaveCount(10);
   await more.click();
   await page
@@ -307,7 +310,7 @@ test("pending period navigation keeps the committed prefix and disables reveal",
     if (period === "historical") await delayed.promise;
     await route.fulfill({ json: { ...completeRankingFixture(), period } });
   });
-  await page.goto("/rankings");
+  await page.goto("/ranking/mps");
   const more = page.getByRole("button", { name: "Show more" });
   await more.click();
   await page
@@ -331,7 +334,7 @@ test("complete snapshots SSR renders only the initial prefix", async ({
   await backend.route("**/api/rankings?*", async (route) =>
     route.fulfill({ json: completeRankingFixture() }),
   );
-  const response = await request.get(`${baseURL}/rankings`);
+  const response = await request.get(`${baseURL}/ranking/mps`);
   expect(response.ok()).toBe(true);
   const html = await response.text();
   expect(html).toContain('href="/members/10?period=current-term"');
@@ -339,7 +342,7 @@ test("complete snapshots SSR renders only the initial prefix", async ({
   expect(html).toContain("Show more");
 });
 
-for (const period of [null, "current-term", "historical"]) {
+for (const period of [null, "current-term", "current-year", "historical"]) {
   test(`category links reuse the loaded snapshot with period ${period ?? "omitted"}`, async ({
     page,
     backend,
@@ -359,7 +362,7 @@ for (const period of [null, "current-term", "historical"]) {
       if (new URL(request.url()).pathname.endsWith("/__data.json"))
         dataRequests.push(request.url());
     });
-    await page.goto(`/rankings${period ? `?period=${period}` : ""}`);
+    await page.goto(`/ranking/mps${period ? `?period=${period}` : ""}`);
     const items = page.getByRole("listitem");
     await expect(items).toHaveCount(10);
     const before = reads;
@@ -414,7 +417,7 @@ test("direct category links render without JavaScript and reject invalid URL val
   try {
     const page = await context.newPage();
     const response = await page.goto(
-      `${baseURL}/rankings?category=companies&period=historical`,
+      `${baseURL}/ranking/companies?period=historical`,
     );
     expect(response?.status()).toBe(200);
     await expect(
@@ -438,11 +441,98 @@ test("direct category links render without JavaScript and reject invalid URL val
     await context.close();
   }
   for (const [query, message] of [
-    ["category=unknown", "Invalid ranking category"],
     ["period=unknown", "Invalid reporting period"],
   ]) {
-    const response = await request.get(`${baseURL}/rankings?${query}`);
+    const response = await request.get(`${baseURL}/ranking/mps?${query}`);
     expect(response.status()).toBe(400);
     expect(await response.text()).toContain(message);
   }
 });
+
+for (const [category, entity] of [
+  ["members", "mps"],
+  ["individuals", "individuals"],
+  ["companies", "companies"],
+  ["parties", "parties"],
+]) {
+  test(`legacy ${category} links redirect permanently and preserve queries`, async ({
+    request,
+  }) => {
+    for (const period of [null, "current-term", "current-year", "historical"]) {
+      const params = new URLSearchParams({ category, q: "Example", page: "2" });
+      if (period) params.set("period", period);
+      const response = await request.get(`/rankings?${params}`, {
+        maxRedirects: 0,
+      });
+      expect(response.status()).toBe(308);
+      params.delete("category");
+      expect(response.headers().location).toBe(`/ranking/${entity}?${params}`);
+    }
+  });
+}
+
+test("legacy default redirects without adding a period or reading the API", async ({
+  request,
+  backend,
+}) => {
+  let reads = 0;
+  await backend.route("**/api/*", async (route) => {
+    reads += 1;
+    await route.fulfill({ status: 500 });
+  });
+  const response = await request.get("/rankings", { maxRedirects: 0 });
+  expect(response.status()).toBe(308);
+  expect(response.headers().location).toBe("/ranking/mps");
+  for (const query of [
+    "category=unknown",
+    "category=",
+    "period=unknown",
+    "period=",
+  ]) {
+    const invalid = await request.get(`/rankings?${query}`, {
+      maxRedirects: 0,
+    });
+    expect(invalid.status()).toBe(400);
+  }
+  expect(reads).toBe(0);
+});
+
+test("unknown ranking paths return 404", async ({ request }) => {
+  for (const entity of ["members", "unknown", "MPs"]) {
+    const response = await request.get(`/ranking/${entity}`);
+    expect(response.status()).toBe(404);
+    expect(await response.text()).toContain("Invalid ranking entity");
+  }
+});
+
+for (const [entity, label, name] of [
+  ["mps", "MPs", "Member"],
+  ["individuals", "Individuals", "Individual"],
+  ["companies", "Companies", "Company"],
+  ["parties", "Parties", "Party"],
+]) {
+  for (const period of ["current-term", "current-year", "historical"]) {
+    test(`${entity} SSR selects ${period} directly`, async ({
+      request,
+      backend,
+    }) => {
+      const reads: string[] = [];
+      await backend.route("**/api/rankings?*", async (route) => {
+        const requested = new URL(route.request().url()).searchParams.get(
+          "period",
+        );
+        reads.push(requested ?? "");
+        await route.fulfill({
+          json: { ...completeRankingFixture(), period: requested },
+        });
+      });
+      const response = await request.get(`/ranking/${entity}?period=${period}`);
+      expect(response.status()).toBe(200);
+      const html = await response.text();
+      expect(html).toContain(`aria-label="${label} rankings"`);
+      expect(html).toContain(`${name} 10`);
+      expect(html).toContain(`href="/ranking/${entity}?period=${period}"`);
+      expect(reads).toEqual([period]);
+    });
+  }
+}

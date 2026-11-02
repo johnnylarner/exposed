@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { searchEntities } from "../src/lib/server/search";
 import { loadDetails } from "../src/lib/server/entity-details";
 import { parseRankings, loadRankings } from "../src/lib/server/rankings";
-import { rankingRows } from "../src/lib/rankings";
+import { rankingHref, rankingRows } from "../src/lib/rankings";
 import { completeRankingFixture, rankingFixture } from "./rankings-fixtures";
 import {
   funderId,
@@ -496,4 +496,15 @@ test("ranking bar scale includes negative extrema beyond the initial prefix", ()
   expect(rows[0].width).toBe(10);
   expect(rows[22].width).toBe(100);
   expect(rows[22].negative).toBe(true);
+});
+
+test("ranking destinations retain queries and remove legacy category", () => {
+  const params = new URLSearchParams(
+    "category=members&q=Example&q=Other&period=historical",
+  );
+  expect(rankingHref("members")).toBe("/ranking/mps");
+  expect(rankingHref("companies", params)).toBe(
+    "/ranking/companies?q=Example&q=Other&period=historical",
+  );
+  expect(params.get("category")).toBe("members");
 });

@@ -4,8 +4,6 @@ import { formatPounds } from "./member-summary";
 import type { DeclaredGbpPeriodTotal } from "./entity-details";
 import type { CategoryWheelOption, RankingRow } from "./ui";
 
-export type RankingCategory =
-  "members" | "individuals" | "companies" | "parties";
 export interface RankingEntry {
   id: string;
   name: string;
@@ -24,6 +22,7 @@ export interface Rankings {
 export const rankingCategories = [
   {
     id: "members",
+    slug: "mps",
     label: "MPs",
     icon: "parliament",
     accent: "member",
@@ -36,6 +35,7 @@ export const rankingCategories = [
   },
   {
     id: "individuals",
+    slug: "individuals",
     label: "Individuals",
     icon: "person",
     accent: "funder",
@@ -48,6 +48,7 @@ export const rankingCategories = [
   },
   {
     id: "companies",
+    slug: "companies",
     label: "Companies",
     icon: "building",
     accent: "funder",
@@ -60,6 +61,7 @@ export const rankingCategories = [
   },
   {
     id: "parties",
+    slug: "parties",
     label: "Parties",
     icon: "group",
     accent: "neutral",
@@ -70,7 +72,21 @@ export const rankingCategories = [
     x: 88,
     y: 55,
   },
-] satisfies CategoryWheelOption<RankingCategory>[];
+] as const satisfies readonly (CategoryWheelOption<string> & {
+  slug: string;
+})[];
+export type RankingCategory = (typeof rankingCategories)[number]["id"];
+
+export function rankingHref(
+  category: RankingCategory,
+  searchParams?: Pick<URLSearchParams, "toString">,
+): string {
+  const option = rankingCategories.find((option) => option.id === category)!;
+  const params = new URLSearchParams(searchParams?.toString());
+  params.delete("category");
+  const search = params.toString();
+  return `/ranking/${option.slug}${search ? `?${search}` : ""}`;
+}
 
 export function rankingRows(
   rankings: Rankings,

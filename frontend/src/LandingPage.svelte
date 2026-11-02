@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { rankingHref } from "./lib/rankings";
   import { ButtonLink } from "./lib/ui";
 </script>
 
@@ -14,7 +15,9 @@
         >Search MPs and funders</ButtonLink
       >
       <ButtonLink size="large" href="/updates">Latest declarations</ButtonLink>
-      <ButtonLink size="large" href="/rankings">Rankings</ButtonLink>
+      <ButtonLink size="large" href={rankingHref("members")}
+        >Rankings</ButtonLink
+      >
       <ButtonLink size="large" href="/methodology">Methodology</ButtonLink>
     </nav>
   </div>

@@ -247,7 +247,7 @@ test("rankings preserve period and independent category across reload, history a
     reads.push(period);
     return route.fulfill({ json: { ...rankingFixture, period } });
   });
-  await page.goto("/rankings?category=companies&period=historical");
+  await page.goto("/ranking/companies?period=historical");
   await expect(
     page.getByRole("list", { name: "Companies rankings" }),
   ).toBeVisible();
@@ -260,9 +260,9 @@ test("rankings preserve period and independent category across reload, history a
   await page
     .getByRole("combobox", { name: "Reporting period" })
     .selectOption("current-year");
-  await expect(page).toHaveURL(/category=companies&period=current-year/u);
+  await expect(page).toHaveURL(/ranking\/companies\?period=current-year/u);
   await page.getByRole("link", { name: "MPs", exact: true }).click();
-  await expect(page).toHaveURL(/category=members&period=current-year/u);
+  await expect(page).toHaveURL(/ranking\/mps\?period=current-year/u);
   await page.reload();
   await expect(page.getByRole("list", { name: "MPs rankings" })).toBeVisible();
   expect(reads.at(-1)).toBe("current-year");
@@ -282,7 +282,7 @@ test("invalid explicit periods reject before API reads on every route", async ({
     return route.fulfill({ status: 500 });
   });
   for (const path of [
-    "/rankings",
+    "/ranking/mps",
     "/members/1",
     `/funders/${funderId}/history`,
   ]) {
@@ -387,22 +387,27 @@ for (const kind of ["member", "funder", "rankings"] as const) {
         ? "/members/1"
         : kind === "funder"
           ? `/funders/${funderId}`
-          : "/rankings";
+          : "/ranking/mps";
     const response = Promise.withResolvers<void>();
-    await backend.route(`**/api${path}?*`, async (route) => {
-      const period = new URL(route.request().url()).searchParams.get("period");
-      if (period === "current-year") await response.promise;
-      await route.fulfill({
-        json: {
-          ...(kind === "member"
-            ? memberDetails
-            : kind === "funder"
-              ? funderDetails
-              : rankingFixture),
-          period,
-        },
-      });
-    });
+    await backend.route(
+      `**/api${kind === "rankings" ? "/rankings" : path}?*`,
+      async (route) => {
+        const period = new URL(route.request().url()).searchParams.get(
+          "period",
+        );
+        if (period === "current-year") await response.promise;
+        await route.fulfill({
+          json: {
+            ...(kind === "member"
+              ? memberDetails
+              : kind === "funder"
+                ? funderDetails
+                : rankingFixture),
+            period,
+          },
+        });
+      },
+    );
     await page.setViewportSize({ width: 1280, height: 400 });
     await page.addInitScript(() => {
       const animate = Element.prototype.animate;

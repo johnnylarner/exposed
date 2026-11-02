@@ -1,9 +1,9 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import type { Rankings } from "../../lib/rankings";
-  import PeriodSelector from "../../PeriodSelector.svelte";
+  import type { Rankings } from "../../../lib/rankings";
+  import PeriodSelector from "../../../PeriodSelector.svelte";
   import { page, navigating } from "$app/state";
-  import AppShell from "../../AppShell.svelte";
+  import AppShell from "../../../AppShell.svelte";
   import {
     Button,
     ViewLinks,
@@ -11,20 +11,16 @@
     ContentChange,
     RankingList,
     Notice,
-  } from "../../lib/ui";
+  } from "../../../lib/ui";
   import {
     rankingCategories,
     rankingRows,
+    rankingHref,
     type RankingCategory,
-  } from "../../lib/rankings";
+  } from "../../../lib/rankings";
   import type { PageData } from "./$types";
   let { data }: { data: PageData } = $props();
   const selected = $derived(data.selected);
-  function categoryHref(category: RankingCategory) {
-    const url = new URL(page.url.href);
-    url.searchParams.set("category", category);
-    return url.pathname + url.search;
-  }
   const rows = $derived(
     data.rankings ? rankingRows(data.rankings, selected) : [],
   );
@@ -76,7 +72,7 @@
 <svelte:head><title>Rankings | Exposed</title></svelte:head>
 <AppShell target="rankings" current="rankings">
   <main id="rankings" tabindex="-1" aria-busy={Boolean(navigating.to)}>
-    {#if navigating.to && navigating.to.url.pathname !== page.url.pathname}<h1>
+    {#if navigating.to && navigating.to.route.id !== page.route.id}<h1>
         Rankings
       </h1>
     {:else if data.rankings}
@@ -85,7 +81,7 @@
         <ViewLinks label="Ranking category" wrap>
           {#each rankingCategories as category}
             <ViewLink
-              href={categoryHref(category.id)}
+              href={rankingHref(category.id, page.url.searchParams)}
               data-sveltekit-reset={false}
               aria-current={selected === category.id ? "page" : undefined}
               >{category.label}</ViewLink
