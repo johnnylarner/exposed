@@ -23,7 +23,6 @@
   function categoryHref(category: RankingCategory) {
     const url = new URL(page.url.href);
     url.searchParams.set("category", category);
-    url.searchParams.set("period", data.period);
     return url.pathname + url.search;
   }
   const rows = $derived(
