@@ -59,7 +59,7 @@ test("rankings SSR includes exact top ten and category switching is URL backed",
   await expect(
     page.getByText("Support declared by MPs, grouped by their latest party."),
   ).toBeVisible();
-  expect(reads).toBeGreaterThan(before);
+  expect(reads).toBe(before);
   await expect(page).toHaveURL(/category=parties/u);
   await expect(
     page.getByRole("button", { name: /All records|Show more|Replay/u }),
