@@ -59,7 +59,7 @@ test("rankings SSR includes exact top ten and category switching is URL backed",
   await expect(
     page.getByText("Support declared by MPs, grouped by their latest party."),
   ).toBeVisible();
-  expect(reads).toBeGreaterThan(before);
+  expect(reads).toBe(before);
   await expect(page).toHaveURL(/category=parties/u);
   await expect(
     page.getByRole("button", { name: /All records|Show more|Replay/u }),
@@ -129,12 +129,20 @@ test("rankings keep committed scope during rapid toolbar changes", async ({
   const select = page.getByRole("combobox", { name: "Reporting period" });
   await page.evaluate(() => scrollTo(0, 150));
   await select.focus();
+  const lateResponse = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return (
+      url.pathname.endsWith("/__data.json") &&
+      url.searchParams.get("period") === "current-year"
+    );
+  });
   await select.selectOption("current-year");
   await expect(page.locator("#rankings")).toHaveAttribute("aria-busy", "true");
   await expect(select).toHaveValue("current-term");
   try {
     await page.getByRole("link", { name: "Companies", exact: true }).click();
-    await expect(page).toHaveURL(/category=companies&period=current-term/);
+    await expect(page).toHaveURL(/category=companies/);
+    expect(new URL(page.url()).searchParams.has("period")).toBe(false);
     await expect(select).toHaveValue("current-term");
     expect(await page.evaluate(() => scrollY)).toBe(
       await page.evaluate(() =>
@@ -147,6 +155,19 @@ test("rankings keep committed scope during rapid toolbar changes", async ({
   await expect(
     page.getByRole("list", { name: "Companies rankings" }),
   ).toBeVisible();
+  await (await lateResponse).finished();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(page).toHaveURL(/category=companies/);
+  expect(new URL(page.url()).searchParams.has("period")).toBe(false);
+  await expect(select).toHaveValue("current-term");
+  await expect(
+    page.getByRole("link", { name: "Companies", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
   await select.selectOption("historical");
   await expect(select).toHaveValue("historical");
   await expect(page).toHaveURL(/q=Example.*period=historical/);
@@ -316,4 +337,112 @@ test("complete snapshots SSR renders only the initial prefix", async ({
   expect(html).toContain('href="/members/10?period=current-term"');
   expect(html).not.toContain('href="/members/11?period=current-term"');
   expect(html).toContain("Show more");
+});
+
+for (const period of [null, "current-term", "historical"]) {
+  test(`category links reuse the loaded snapshot with period ${period ?? "omitted"}`, async ({
+    page,
+    backend,
+  }) => {
+    let reads = 0;
+    await backend.route("**/api/rankings?*", async (route) => {
+      reads += 1;
+      await route.fulfill({
+        json: {
+          ...completeRankingFixture(),
+          period: new URL(route.request().url()).searchParams.get("period"),
+        },
+      });
+    });
+    const dataRequests: string[] = [];
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname.endsWith("/__data.json"))
+        dataRequests.push(request.url());
+    });
+    await page.goto(`/rankings${period ? `?period=${period}` : ""}`);
+    const items = page.getByRole("listitem");
+    await expect(items).toHaveCount(10);
+    const before = reads;
+    const beforeData = dataRequests.length;
+    await page.getByRole("button", { name: "Show more" }).click();
+    await expect(items).toHaveCount(20);
+    for (const label of ["Companies", "Individuals", "Parties"]) {
+      const link = page.getByRole("link", { name: label, exact: true });
+      expect(
+        new URL(
+          (await link.getAttribute("href")) ?? "",
+          page.url(),
+        ).searchParams.get("period"),
+      ).toBe(period);
+      await link.focus();
+      await page.keyboard.press("Enter");
+      await expect(link).toHaveAttribute("aria-current", "page");
+      await expect(items).toHaveCount(10);
+      await page.getByRole("button", { name: "Show more" }).click();
+      await expect(items).toHaveCount(20);
+    }
+    await page.goBack();
+    await expect(
+      page.getByRole("link", { name: "Individuals", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(items).toHaveCount(10);
+    await page.goForward();
+    await expect(
+      page.getByRole("link", { name: "Parties", exact: true }),
+    ).toHaveAttribute("aria-current", "page");
+    await expect(items).toHaveCount(10);
+    expect(reads).toBe(before);
+    expect(dataRequests).toHaveLength(beforeData);
+  });
+}
+
+test("direct category links render without JavaScript and reject invalid URL values", async ({
+  browser,
+  backend,
+  request,
+  baseURL,
+}) => {
+  await backend.route("**/api/rankings?*", async (route) =>
+    route.fulfill({
+      json: {
+        ...completeRankingFixture(),
+        period: new URL(route.request().url()).searchParams.get("period"),
+      },
+    }),
+  );
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  try {
+    const page = await context.newPage();
+    const response = await page.goto(
+      `${baseURL}/rankings?category=companies&period=historical`,
+    );
+    expect(response?.status()).toBe(200);
+    await expect(
+      page
+        .getByRole("list", { name: "Companies rankings" })
+        .getByRole("listitem"),
+    ).toHaveCount(10);
+    await expect(
+      page.getByRole("link", { name: "Company 1", exact: true }),
+    ).toHaveAttribute("href", /period=historical/);
+    await page.getByRole("link", { name: "Individuals", exact: true }).click();
+    await expect(
+      page
+        .getByRole("list", { name: "Individuals rankings" })
+        .getByRole("listitem"),
+    ).toHaveCount(10);
+    await expect(
+      page.getByRole("combobox", { name: "Reporting period" }),
+    ).toHaveValue("historical");
+  } finally {
+    await context.close();
+  }
+  for (const [query, message] of [
+    ["category=unknown", "Invalid ranking category"],
+    ["period=unknown", "Invalid reporting period"],
+  ]) {
+    const response = await request.get(`${baseURL}/rankings?${query}`);
+    expect(response.status()).toBe(400);
+    expect(await response.text()).toContain(message);
+  }
 });
