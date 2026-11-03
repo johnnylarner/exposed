@@ -4,7 +4,6 @@ use crate::domain::models::reporting_period::{ReportingContext, ReportingPeriod}
 use crate::domain::{
     models::{
         declared_totals::PeriodAggregate,
-        entity_details::DeclarationCategory,
         rankings::{Ranking, RankingDeclaration, Rankings},
     },
     repositories::rankings::{RankingsError, RankingsRepo},
@@ -81,9 +80,6 @@ pub(crate) fn summarize(
             .or_insert_with(|| (source.member, PeriodAggregate::default()))
             .1
             .observe(&declaration);
-        if declaration.category != DeclarationCategory::DonationSupport {
-            continue;
-        }
         let party = parties
             .entry(source.party.id)
             .or_insert_with(|| (source.party.clone(), PeriodAggregate::default()));
@@ -133,80 +129,100 @@ pub(crate) fn summarize(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::models::entity_details::DeclaredGbpPeriodTotal;
+    use crate::domain::models::entity_details::{DeclarationCategory, DeclaredGbpPeriodTotal};
     use crate::domain::models::funder::FunderKind;
     #[test]
-    fn companies_include_every_non_individual_kind() {
+    fn all_categories_have_matching_member_party_and_funder_totals() {
         use crate::domain::models::{
             entity_details::{DeclaredFunding, FunderReference, MemberDeclaration},
             funder::FunderId,
             parliament_member::MemberId,
             rankings::{RankedFunder, RankedMember, RankedParty},
         };
-        for (kind, individual) in [
-            (FunderKind::Individual, true),
-            (FunderKind::Company, false),
-            (FunderKind::Trust, false),
-            (FunderKind::TradeUnion, false),
-            (FunderKind::Other, false),
-            (FunderKind::NotSpecified, false),
-            (FunderKind::BuildingSociety, false),
-            (FunderKind::LimitedLiabilityPartnership, false),
-            (FunderKind::UnincorporatedAssociation, false),
-            (FunderKind::FriendlySociety, false),
-            (FunderKind::RegisteredParty, false),
-        ] {
-            let id: FunderId = "10000000-0000-0000-0000-000000000001".parse().unwrap();
-            let context = ReportingContext::at(chrono::Utc::now());
-            let rankings = summarize(
-                vec![RankingDeclaration {
-                    member: RankedMember {
-                        id: MemberId::new(1).unwrap(),
-                        name: "Member".into(),
-                        party_name: "Party".into(),
-                        membership_from: "Constituency".into(),
-                    },
-                    party: RankedParty {
-                        id: 1,
-                        name: "Party".into(),
-                    },
-                    declaration: MemberDeclaration {
-                        source_id: 1,
-                        category: DeclarationCategory::DonationSupport,
-                        category_name: "Support".into(),
-                        registered_at: Some(context.current_term_start()),
-                        entries: vec![DeclaredFunding {
-                            funder: Some(FunderReference {
+        for category_id in (1..=12).chain([987]) {
+            for (kind, individual) in [
+                (FunderKind::Individual, true),
+                (FunderKind::Company, false),
+                (FunderKind::Trust, false),
+                (FunderKind::TradeUnion, false),
+                (FunderKind::Other, false),
+                (FunderKind::NotSpecified, false),
+                (FunderKind::BuildingSociety, false),
+                (FunderKind::LimitedLiabilityPartnership, false),
+                (FunderKind::UnincorporatedAssociation, false),
+                (FunderKind::FriendlySociety, false),
+                (FunderKind::RegisteredParty, false),
+            ] {
+                let id: FunderId = "10000000-0000-0000-0000-000000000001".parse().unwrap();
+                let context = ReportingContext::at(chrono::Utc::now());
+                let rankings = summarize(
+                    vec![RankingDeclaration {
+                        member: RankedMember {
+                            id: MemberId::new(1).unwrap(),
+                            name: "Member".into(),
+                            party_name: "Party".into(),
+                            membership_from: "Constituency".into(),
+                        },
+                        party: RankedParty {
+                            id: 1,
+                            name: "Party".into(),
+                        },
+                        declaration: MemberDeclaration {
+                            source_id: 1,
+                            category: DeclarationCategory::from_source_id(category_id),
+                            category_name: "Support".into(),
+                            registered_at: Some(context.current_term_start()),
+                            entries: vec![DeclaredFunding {
+                                funder: Some(FunderReference {
+                                    id,
+                                    name: "Funder".into(),
+                                }),
+                                amount: Some("1".parse().unwrap()),
+                                currency: Some("GBP".into()),
+                                payment_type: None,
+                            }],
+                        },
+                        funders: BTreeMap::from([(
+                            id.value(),
+                            RankedFunder {
                                 id,
                                 name: "Funder".into(),
-                            }),
-                            amount: Some("1".parse().unwrap()),
-                            currency: Some("GBP".into()),
-                            payment_type: None,
-                        }],
-                    },
-                    funders: BTreeMap::from([(
-                        id.value(),
-                        RankedFunder {
-                            id,
-                            name: "Funder".into(),
-                            kind: kind.clone(),
-                        },
-                    )]),
-                }],
-                ReportingPeriod::CurrentTerm,
-                context,
-            );
-            assert_eq!(
-                rankings.individuals.len(),
-                usize::from(individual),
-                "{kind:?}"
-            );
-            assert_eq!(
-                rankings.companies.len(),
-                usize::from(!individual),
-                "{kind:?}"
-            );
+                                kind: kind.clone(),
+                            },
+                        )]),
+                    }],
+                    ReportingPeriod::CurrentTerm,
+                    context,
+                );
+                assert_eq!(
+                    rankings.individuals.len(),
+                    usize::from(individual),
+                    "{kind:?}"
+                );
+                assert_eq!(
+                    rankings.companies.len(),
+                    usize::from(!individual),
+                    "{kind:?}"
+                );
+                let member = &rankings.members[0].total;
+                let party = &rankings.parties[0].total;
+                let funder = &rankings
+                    .individuals
+                    .iter()
+                    .chain(&rankings.companies)
+                    .next()
+                    .unwrap()
+                    .total;
+                for total in [member, party, funder] {
+                    assert_eq!(
+                        total.amount,
+                        Some("1".parse().unwrap()),
+                        "category {category_id}, {kind:?}"
+                    );
+                    assert_eq!(total.declaration_count, 1);
+                    assert!(!total.incomplete);
+                }
+            }
         }
     }
     #[test]
