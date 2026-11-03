@@ -14,9 +14,8 @@ Require the following results:
   declaration counts. Retain those declarations in historical totals.
 - Use registration dates, not payment dates, fetch dates, calendar-year starts,
   or the MP's membership start.
-- For MPs, include every category, including unknown IDs. For the Individuals,
-  Companies, and Parties ranking boards, retain the existing donation-support
-  category scope. Apply the same term cutoff to every board.
+- For MPs, Individuals, Companies, and Parties, include every declaration
+  category, including unknown IDs. Apply the same term cutoff to every board.
 - Preserve exact GBP decimal amounts, null versus zero, counts, and completeness.
   Missing GBP amounts and unknown currencies make totals incomplete. Known
   foreign currencies do not contribute to GBP amounts or make totals incomplete.

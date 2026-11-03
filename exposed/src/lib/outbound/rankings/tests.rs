@@ -12,6 +12,7 @@ use sqlx::PgPool;
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("rankings"))]
 async fn rankings_preserve_summary_parity_canonical_identity_and_party_attribution(pool: PgPool) {
+    use crate::domain::models::reporting_period::ReportingPeriod;
     let db = ExposedDatabase::from(pool);
     let rankings = Service::new(db.clone())
         .rankings(crate::domain::models::reporting_period::ReportingPeriod::CurrentTerm)
@@ -28,6 +29,27 @@ async fn rankings_preserve_summary_parity_canonical_identity_and_party_attributi
         assert_eq!(row.total.amount, expected.amount);
         assert_eq!(row.total.declaration_count, expected.declaration_count);
         assert_eq!(row.total.incomplete, expected.incomplete);
+    }
+    for period in [
+        ReportingPeriod::Historical,
+        ReportingPeriod::CurrentTerm,
+        ReportingPeriod::CurrentYear,
+    ] {
+        let boards = Service::new(db.clone()).rankings(period).await.unwrap();
+        for row in boards.companies.iter().chain(&boards.individuals) {
+            let funder = details
+                .funder(row.identity.id.value().to_string().parse().unwrap())
+                .await
+                .unwrap();
+            let expected = match period {
+                ReportingPeriod::Historical => funder.declared_totals.historical,
+                ReportingPeriod::CurrentTerm => funder.declared_totals.current_term,
+                ReportingPeriod::CurrentYear => funder.declared_totals.current_year,
+            };
+            assert_eq!(row.total.amount, expected.amount);
+            assert_eq!(row.total.declaration_count, expected.declaration_count);
+            assert_eq!(row.total.incomplete, expected.incomplete);
+        }
     }
     let first = &rankings.members[0];
     assert_eq!(first.identity.id.value(), 1);
@@ -51,21 +73,21 @@ async fn rankings_preserve_summary_parity_canonical_identity_and_party_attributi
     assert_eq!(rankings.members[5].identity.id.value(), 5);
     assert!(!rankings.members[5].total.incomplete);
     assert_eq!(rankings.companies.len(), 3);
-    assert_eq!(rankings.companies[0].identity.name, "Trust root");
+    assert_eq!(rankings.companies[1].identity.name, "Trust root");
     assert_eq!(
-        rankings.companies[0].total.amount,
+        rankings.companies[1].total.amount,
         Some("8".parse().unwrap())
     );
-    assert_eq!(rankings.companies[1].identity.name, "Unclassified funder");
+    assert_eq!(rankings.companies[2].identity.name, "Unclassified funder");
     assert_eq!(
-        rankings.companies[1].identity.kind,
+        rankings.companies[2].identity.kind,
         crate::domain::models::funder::FunderKind::NotSpecified
     );
     assert_eq!(
-        rankings.companies[1].total.amount,
+        rankings.companies[2].total.amount,
         Some("4".parse().unwrap())
     );
-    let company = &rankings.companies[2];
+    let company = &rankings.companies[0];
     assert_eq!(
         company.identity.id,
         "10000000-0000-0000-0000-000000000001"
@@ -75,9 +97,9 @@ async fn rankings_preserve_summary_parity_canonical_identity_and_party_attributi
     assert_eq!(company.identity.name, "Preferred company");
     assert_eq!(
         company.total.amount,
-        Some("2.56913578246913578".parse().unwrap())
+        Some("52.56913578246913578".parse().unwrap())
     );
-    assert_eq!(company.total.declaration_count, 2);
+    assert_eq!(company.total.declaration_count, 3);
     assert!(company.total.incomplete);
     assert_eq!(rankings.individuals.len(), 2);
     assert_eq!(rankings.individuals[0].identity.name, "Individual");
@@ -92,19 +114,19 @@ async fn rankings_preserve_summary_parity_canonical_identity_and_party_attributi
         Some("-2".parse().unwrap())
     );
     assert_eq!(rankings.parties.len(), 2);
-    assert_eq!(rankings.parties[0].identity.id, 2);
-    assert_eq!(rankings.parties[0].identity.name, "Latest Party");
-    assert_eq!(
-        rankings.parties[0].total.amount,
-        Some("10".parse().unwrap())
-    );
-    assert_eq!(rankings.parties[0].total.declaration_count, 2);
+    assert_eq!(rankings.parties[1].identity.id, 2);
+    assert_eq!(rankings.parties[1].identity.name, "Latest Party");
     assert_eq!(
         rankings.parties[1].total.amount,
-        Some("1.56913578246913578".parse().unwrap())
+        Some("10".parse().unwrap())
     );
-    assert_eq!(rankings.parties[1].total.declaration_count, 5);
-    assert!(rankings.parties[1].total.incomplete);
+    assert_eq!(rankings.parties[1].total.declaration_count, 2);
+    assert_eq!(
+        rankings.parties[0].total.amount,
+        Some("51.56913578246913578".parse().unwrap())
+    );
+    assert_eq!(rankings.parties[0].total.declaration_count, 6);
+    assert!(rankings.parties[0].total.incomplete);
 }
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("rankings"))]
@@ -145,15 +167,15 @@ async fn http_rankings_expose_four_complete_boards_with_exact_wire_totals(pool: 
     assert_eq!(body["individuals"][0]["total"]["amount"], "0");
     assert_eq!(
         body["companies"][0]["id"],
-        "10000000-0000-0000-0000-000000000004"
+        "10000000-0000-0000-0000-000000000001"
     );
     assert_eq!(
         body["companies"][1]["id"],
-        "10000000-0000-0000-0000-000000000007"
+        "10000000-0000-0000-0000-000000000004"
     );
     assert_eq!(
         body["companies"][2]["id"],
-        "10000000-0000-0000-0000-000000000001"
+        "10000000-0000-0000-0000-000000000007"
     );
     assert!(body["parties"][0].get("context").is_none());
 
@@ -170,7 +192,7 @@ async fn http_rankings_expose_four_complete_boards_with_exact_wire_totals(pool: 
             assert_eq!(selected["members"][0]["total"]["declaration_count"], 4);
             assert_eq!(
                 selected["companies"][0]["total"]["amount"],
-                "2000002.56913578246913578"
+                "2000052.56913578246913578"
             );
         }
     }
@@ -187,7 +209,9 @@ async fn http_rankings_expose_four_complete_boards_with_exact_wire_totals(pool: 
 }
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("rankings"))]
-async fn windows_filter_database_rows_before_ranking_and_keep_distinct_board_scopes(pool: PgPool) {
+async fn windows_filter_all_boards_and_unresolved_funders_stay_in_member_and_party_totals(
+    pool: PgPool,
+) {
     use crate::domain::{
         models::{
             entity_details::DeclarationCategory,
@@ -271,6 +295,30 @@ async fn windows_filter_database_rows_before_ranking_and_keep_distinct_board_sco
         }
         let rankings = crate::domain::services::rankings::summarize(sources, period, context);
         assert_eq!(rankings.members[0].identity.id.value(), expected_leader);
+        let member_total: bigdecimal::BigDecimal = rankings
+            .members
+            .iter()
+            .filter_map(|row| row.total.amount.clone())
+            .sum();
+        let party_total: bigdecimal::BigDecimal = rankings
+            .parties
+            .iter()
+            .filter_map(|row| row.total.amount.clone())
+            .sum();
+        assert_eq!(party_total, member_total);
+        assert_eq!(
+            rankings
+                .parties
+                .iter()
+                .map(|row| row.total.declaration_count)
+                .sum::<usize>(),
+            rankings
+                .members
+                .iter()
+                .map(|row| row.total.declaration_count)
+                .sum::<usize>()
+        );
+
         assert_eq!(
             rankings.members.len(),
             if period == ReportingPeriod::CurrentYear {

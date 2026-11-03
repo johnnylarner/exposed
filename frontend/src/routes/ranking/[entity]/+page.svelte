@@ -99,7 +99,7 @@
           aria-label={boardLabel}
         >
           {#if selected === "parties"}<p class="party-context">
-              Support declared by MPs, grouped by their latest party.
+              Funding declared by MPs, grouped by their latest party.
             </p>{/if}
           <RankingList rows={visibleRows} label={boardLabel} />
           {#if visibleCount < rows.length}

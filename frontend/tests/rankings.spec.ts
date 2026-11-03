@@ -60,7 +60,7 @@ test("rankings SSR includes exact top ten and category switching is URL backed",
   await expect(parties).toContainText("Amount unavailable");
   await expect(parties.getByRole("link")).toHaveCount(0);
   await expect(
-    page.getByText("Support declared by MPs, grouped by their latest party."),
+    page.getByText("Funding declared by MPs, grouped by their latest party."),
   ).toBeVisible();
   expect(reads).toBe(before);
   await expect(page).toHaveURL(/ranking\/parties/u);
