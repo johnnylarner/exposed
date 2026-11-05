@@ -19,27 +19,27 @@ export const pagePresentation = {
   landing: {
     target: "landing",
     label: "content",
-    title: "Exposed",
+    title: "declair",
     description:
       "Explore MPs' declared financial interests and the people and organisations behind them.",
   },
   methodology: {
     target: "methodology",
     label: "methodology",
-    title: "Methodology · Exposed",
-    description: "Sources and methodology for Exposed.",
+    title: "Methodology · declair",
+    description: "Sources and methodology for declair.",
   },
   search: {
     target: "search",
     label: "search",
-    title: "Search MPs and funders · Exposed",
+    title: "Search MPs and funders · declair",
     description:
       "Find MPs and funders in the Register of Members' Financial Interests.",
   },
   detail: {
     target: "details",
     label: "details",
-    title: "Financial interests · Exposed",
+    title: "Financial interests · declair",
     description:
       "Explore declared financial interests in the Register of Members' Financial Interests.",
   },

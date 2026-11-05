@@ -53,7 +53,7 @@
   }
 </script>
 
-<svelte:head><title>Latest declarations | Exposed</title></svelte:head>
+<svelte:head><title>Latest declarations | declair</title></svelte:head>
 <AppShell target="updates" current="updates">
   <main id="updates" tabindex="-1">
     {#if data.updates}

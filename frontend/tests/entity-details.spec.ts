@@ -1241,7 +1241,7 @@ test("initial HTML renders search and detail views while browser traffic stays i
   const html = await request.get("/search?q=Example&strictness=0.42");
   const rendered = await html.text();
   expect(rendered).toContain('class="entity-name"');
-  expect(rendered).toContain("<title>Search MPs and funders · Exposed</title>");
+  expect(rendered).toContain("<title>Search MPs and funders · declair</title>");
   expect(rendered).toContain('name="description"');
   const context = await browser.newContext({
     baseURL,

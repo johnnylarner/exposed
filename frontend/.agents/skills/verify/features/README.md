@@ -1,4 +1,4 @@
-# Exposed search verification map
+# declair search verification map
 
 Read this index before driving the app. These recipes describe the current search UI. Member and funder pages use native links. Pagination and feedback submission are not implemented.
 

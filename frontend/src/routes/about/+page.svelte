@@ -9,10 +9,10 @@
 </script>
 
 <svelte:head>
-  <title>About · Exposed</title>
+  <title>About · declair</title>
   <meta
     name="description"
-    content="About Exposed and the team behind the project."
+    content="About declair and the team behind the project."
   />
 </svelte:head>
 

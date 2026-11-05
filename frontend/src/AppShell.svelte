@@ -18,7 +18,7 @@
 <a class="skip-link" href={`#${target}`}>Skip to {label}</a>
 <div class="app-shell">
   <header class="app-header">
-    <a class="wordmark" href="/" aria-label="Exposed home">exposed</a>
+    <a class="wordmark" href="/" aria-label="declair home">declair</a>
     <span class="header-context">UK Parliament</span>
   </header>
 

@@ -10,7 +10,7 @@
       <span class="funder-text">financial interests</span> and the people and organisations
       behind them.
     </h1>
-    <nav aria-label="Explore Exposed">
+    <nav aria-label="Explore declair">
       <ButtonLink variant="primary" size="large" href="/search"
         >Search MPs and funders</ButtonLink
       >

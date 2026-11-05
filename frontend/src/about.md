@@ -1,7 +1,7 @@
 <header class="article-intro">
 <h1 id="about-heading">About the project</h1>
 
-At Exposed we believe that governments perform better when held accountable. This project makes exploring and interpreting data about our democratic representatives easy. Our goal is to build useful open source tools for journalists and NGOs and, perhaps in the future, the UK government and civil service.
+At declair we believe that governments perform better when held accountable. This project makes exploring and interpreting data about our democratic representatives easy. Our goal is to build useful open source tools for journalists and NGOs and, perhaps in the future, the UK government and civil service.
 
 </header>
 

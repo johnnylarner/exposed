@@ -77,7 +77,7 @@ export async function sendFeedback(
         from: "onboarding@resend.dev",
         to: [recipient],
         reply_to: input.email,
-        subject: "Exposed product feedback",
+        subject: "declair product feedback",
         text: input.message,
       }),
       signal: AbortSignal.timeout(10000),

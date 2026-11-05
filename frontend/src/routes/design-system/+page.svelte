@@ -162,9 +162,9 @@
 </script>
 
 <svelte:head
-  ><title>Design system · Exposed</title><meta
+  ><title>Design system · declair</title><meta
     name="description"
-    content="The foundations and accessible controls used to explore parliamentary declarations on Exposed."
+    content="The foundations and accessible controls used to explore parliamentary declarations on declair."
   /></svelte:head
 >
 <AppShell target="design-system" current="design-system">
@@ -173,7 +173,7 @@
       <h1>Design system</h1>
       <p>
         Clear controls for exploring public interests. A working reference for
-        the interface behind Exposed's parliamentary data.
+        the interface behind declair's parliamentary data.
       </p>
       <nav aria-label="Design system sections">
         <a href="#foundations">Foundations</a><a href="#type">Typography</a><a
@@ -186,7 +186,7 @@
     <section id="foundations" aria-labelledby="foundations-heading">
       <h2 id="foundations-heading">Foundations</h2>
       <p>
-        Black keeps the focus on declarations. The Exposed wordmark is white.
+        Black keeps the focus on declarations. The declair wordmark is white.
         Purple identifies MPs; teal identifies funders and the landing page's
         financial interests phrase.
       </p>

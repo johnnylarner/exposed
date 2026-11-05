@@ -25,7 +25,7 @@ test("updates default to ten MPs and switch locally with profile links and UTC d
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Latest declarations",
   );
-  await expect(page).toHaveTitle("Latest declarations | Exposed");
+  await expect(page).toHaveTitle("Latest declarations | declair");
   await expect(page.getByText("October 2026", { exact: true })).toBeVisible();
   const members = page.getByRole("list", { name: "MPs latest declarations" });
   await expect(members.getByRole("listitem")).toHaveCount(10);

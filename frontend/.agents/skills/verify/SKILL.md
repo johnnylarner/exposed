@@ -1,9 +1,9 @@
 ---
 name: verify
-description: Drive the Exposed Svelte search UI against its Rust API and PostgreSQL database. Use after changes to search, result display, keyboard controls, URL state, or frontend/API integration to capture browser and database evidence.
+description: Drive the declair Svelte search UI against its Rust API and PostgreSQL database. Use after changes to search, result display, keyboard controls, URL state, or frontend/API integration to capture browser and database evidence.
 ---
 
-# Verify Exposed search
+# Verify declair search
 
 Read the [feature map](features/README.md), then the affected feature files. The primary user path is the search page. The Rust `/search` endpoint supports it. Data ingestion commands and the legacy Python importer are separate workflows described in the repository README.
 

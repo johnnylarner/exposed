@@ -42,11 +42,11 @@ try {
   });
   page.on("pageerror", (error) => pageErrors.push(error.message));
   try {
-    console.log("Open Exposed and focus search with the slash shortcut.");
+    console.log("Open declair and focus search with the slash shortcut.");
     await page.goto("/?strictness=1");
     await page.waitForLoadState("networkidle");
     await expect(
-      page.getByRole("link", { name: "Exposed home" }),
+      page.getByRole("link", { name: "declair home" }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Start with a name" }),

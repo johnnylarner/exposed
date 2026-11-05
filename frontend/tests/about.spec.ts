@@ -12,9 +12,9 @@ test("about renders authored content on the server without declarations API", as
   });
   const response = await request.get("/about");
   expect(response.status()).toBe(200);
-  expect(await response.text()).toContain("At Exposed we believe");
+  expect(await response.text()).toContain("At declair we believe");
   await page.goto("/about", { waitUntil: "networkidle" });
-  await expect(page).toHaveTitle("About · Exposed");
+  await expect(page).toHaveTitle("About · declair");
   await expect(
     page.getByRole("heading", { name: "About the project", level: 1 }),
   ).toBeVisible();
