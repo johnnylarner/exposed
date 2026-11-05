@@ -9,7 +9,7 @@ Users find MPs and funders by entering a name or choosing an example. Keyboard c
 - `search-examples` starts searches from both idle example buttons.
 - `search-keyboard` reaches search through `/` and the skip link.
 - `search-clear` clears through the button or Escape and restores the idle state.
-- `search-home` returns to the initial page through the Exposed wordmark.
+- `search-home` returns to the initial page through the declair wordmark.
 
 ## How to get to it (user POV)
 
@@ -17,7 +17,7 @@ Users find MPs and funders by entering a name or choosing an example. Keyboard c
 - Press `/` outside a text control, or Tab to **Skip to search** and press Enter.
 - Choose **John** or **HSBC** below **Start with a name**.
 - Press Enter with a valid query in the input.
-- Choose **Clear search**, press Escape in the input, or choose the **Exposed home** link.
+- Choose **Clear search**, press Escape in the input, or choose the **declair home** link.
 
 ## Driving it with Playwright
 
@@ -28,7 +28,7 @@ Preconditions: Launch and Doctor passed with the fixture database. Use a fresh b
 - From `/`, run `await page.getByRole("button", { name: "John", exact: true }).click();`. Require both fixture MPs and a focused searchbox. Repeat from `/` with the **HSBC** button and require the empty state for `HSBC`.
 - After typing `John`, run `await page.getByRole("searchbox").press("Escape");`. Require an empty, focused input, no `.entity-row`, no `q` URL parameter, and **Start with a name**.
 - From a fresh `/` load, run `await page.keyboard.press("Tab"); await expect(page.getByRole("link", { name: "Skip to search" })).toBeFocused(); await page.keyboard.press("Enter");`. Require the `#search` fragment and the main search section in view.
-- From populated results, run `await page.getByRole("link", { name: "Exposed home" }).click();`. Require `/`, an empty input, and **Start with a name**.
+- From populated results, run `await page.getByRole("link", { name: "declair home" }).click();`. Require `/`, an empty input, and **Start with a name**.
 - Capture screenshots and ARIA snapshots after the action, alongside the trace. Compare the database snapshots from the skill's Drive section.
 
 ## Gotchas

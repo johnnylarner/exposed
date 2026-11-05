@@ -65,7 +65,7 @@ test("accepted feedback uses the configured recipient, onboarding sender and vis
     from: "onboarding@resend.dev",
     to: [config.FEEDBACK_TO_EMAIL],
     reply_to: "visitor@example.com",
-    subject: "Exposed product feedback",
+    subject: "declair product feedback",
     text: "Please add more filters.",
   });
 });

@@ -69,7 +69,7 @@
   }
 </script>
 
-<svelte:head><title>Rankings | Exposed</title></svelte:head>
+<svelte:head><title>Rankings | declair</title></svelte:head>
 <AppShell target="rankings" current="rankings">
   <main id="rankings" tabindex="-1" aria-busy={Boolean(navigating.to)}>
     {#if navigating.to && navigating.to.route.id !== page.route.id}<h1>

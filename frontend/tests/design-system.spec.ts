@@ -27,11 +27,11 @@ test("reference has shared navigation and needs no declarations API", async ({
     await route.fulfill({ status: 500 });
   });
   await page.goto("/design-system", { waitUntil: "networkidle" });
-  await expect(page).toHaveTitle("Design system · Exposed");
+  await expect(page).toHaveTitle("Design system · declair");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
     "Design system",
   );
-  await expect(page.getByRole("link", { name: "Exposed home" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "declair home" })).toBeVisible();
   await expect(
     page.getByRole("contentinfo").getByRole("link", { name: "Design system" }),
   ).toHaveAttribute("aria-current", "page");

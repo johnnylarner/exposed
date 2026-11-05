@@ -27,7 +27,7 @@ test("search uses funder teal and member purple for results and legend", async (
     }),
   );
   await page.goto("/search?q=Example");
-  await expect(page.getByRole("link", { name: "Exposed home" })).toHaveCSS(
+  await expect(page.getByRole("link", { name: "declair home" })).toHaveCSS(
     "color",
     "rgb(240, 237, 243)",
   );
@@ -458,7 +458,7 @@ for (const platform of ["MacIntel", "Win32"]) {
     );
     await page.goto("/search");
     const input = page.getByRole("searchbox");
-    const otherControl = page.getByRole("link", { name: "Exposed home" });
+    const otherControl = page.getByRole("link", { name: "declair home" });
     await expect(page.locator(".search-shortcut")).toHaveText(
       mac ? "⌘ K" : "Ctrl K",
     );
@@ -543,7 +543,7 @@ for (const platform of ["MacIntel", "Win32"]) {
     await page.keyboard.press(`${modifier}+k`);
     await page.keyboard.press("Escape");
     await expect(input).toHaveValue("");
-    await page.getByRole("link", { name: "Exposed home" }).focus();
+    await page.getByRole("link", { name: "declair home" }).focus();
     await page.waitForLoadState("networkidle");
     await page.keyboard.press("/");
     await expect(input).toBeFocused();
