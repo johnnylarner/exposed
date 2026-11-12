@@ -1,0 +1,49 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT source_document, captured_at, exposed.word_similarity($1, name) AS similarity\n             FROM exposed.lords_members\n             WHERE name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, name) >= $2\n             ORDER BY similarity DESC, parliament_member_id LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "source_document",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "lords_members",
+            "name": "source_document"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "captured_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "lords_members",
+            "name": "captured_at"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "similarity",
+        "type_info": "Float4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      null
+    ]
+  },
+  "hash": "7578fc77c3e37010b31c6aecba509801b7e35238ac6419afc849ba1c168e9d3b"
+}

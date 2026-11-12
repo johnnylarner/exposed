@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT capture_digest FROM exposed.lords_imports WHERE ingestion_key = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "capture_digest",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "lords_imports",
+            "name": "capture_digest"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f8744ef05f9f07c8ef828c1286865cc3f3c1264b8ecfc6edf135d255256505a7"
+}
