@@ -1,0 +1,80 @@
+# Lords registered interests
+
+`exposed lords` imports the full Lords register from the Parliament Members API.
+The source request is `GET /api/LordsInterests/Register?page=1&includeDeleted=true`.
+Subsequent requests increment `page`. The source treats page zero as page one.
+
+## CLI
+
+Both stages use a YAML configuration containing `data_dir`.
+
+```yaml
+data_dir: ./data
+```
+
+```sh
+exposed lords fetch --config lords.yaml
+exposed lords load --config lords.yaml --ingestion-key <capture-uuid>
+```
+
+Fetch accepts an optional `--ingestion-key` and otherwise creates a UUID-v7.
+Its response contains `ingestion_key`, `path`, `members`, and `pages`.
+Load requires the captured key and the `DATABASE_URL` environment variable.
+Its response contains `ingestion_key`, `members`, and `outcome`.
+The outcome is `loaded` or `already_loaded`.
+
+Both stages accept `--schema` without configuration, network, files, or a database.
+Success produces one JSON document on stdout with exit code zero.
+Execution failures produce `{"error":{"message":"..."}}` on stderr with exit code one.
+
+## Capture and persistence
+
+The artifact directory is `<data_dir>/<ingestion-key>/raw/lords`.
+It contains the exact response bytes in `page-1.json`, `page-2.json`, and subsequent pages.
+`manifest.json` records the capture time, source, member count, page lengths, and SHA-256 digests.
+
+Fetch verifies contiguous offsets, stable totals, full intermediate pages, forward progress,
+and unique member identities. Only a complete capture is published, through an atomic rename
+that rejects an existing destination. A failed fetch leaves no published Lords artifact.
+Load verifies the manifest and every page before opening its database transaction.
+
+`exposed.lords_imports` records each committed capture and its digest.
+An exact retry returns `already_loaded`. Reusing a key with different evidence fails.
+`exposed.lords_members` retains the full source `item.value` JSON document, the search name,
+capture time, and import key. One transaction writes both tables.
+The member row changes only when the incoming `(captured_at, ingestion_key)` pair is greater.
+The UUID breaks ties between captures at the same database timestamp.
+Imports lock member rows in Parliament ID order.
+Members omitted from a later capture retain their latest stored document.
+
+The Lords importer does not write Commons members, declarations, funders, or funding entries.
+The same Parliament ID can have separate Commons and Lords profiles.
+Lords interests do not enter financial totals or rankings.
+
+## HTTP and search
+
+`GET /lords/{id}` returns `member`, `captured_at`, and `categories`, without a wrapper.
+The member ID is a positive Parliament identity serialized as a string.
+The member includes the source display name and nullable party, membership description,
+membership status, and membership end date.
+
+Every category occurrence retains its `source_id`, nullable `name`, `sort_order`,
+`placement`, and `interests`. Shareholding IDs 4, 12, 31, 1002, 1003, 1004, and 1005
+have placement `shareholdings`. Every other ID has placement `other`, including Nil
+and unknown categories. The backend owns this classification.
+
+Each interest retains `source_id`, nullable `text`, nullable `created_when`,
+nullable `last_amended_when`, nullable `deleted_when`, `is_correction`, and `children`.
+Category and interest occurrences remain in source order, including repeated IDs and text.
+Children retain the same recursive shape. Nullable source collections become empty arrays.
+The raw document still preserves those source nulls.
+Only `deleted_when` identifies deletion. A deleted parent does not mark its children deleted.
+The API preserves text and validated lifecycle timestamp strings verbatim.
+Offset-free source times do not acquire an inferred timezone.
+`captured_at` is UTC capture provenance.
+
+There is no reporting-period filter or history endpoint for Lords.
+Absent profiles return 404, malformed IDs return 422, and unexpected failures return a sanitized 500.
+Search returns `kind: "Lords"`, the string Parliament ID, `funder_kind: null`,
+and `match_source: {"kind":"name"}`. Lords primary name matches join the existing
+score ordering. They do not change MP or funder phonetic fallback eligibility.

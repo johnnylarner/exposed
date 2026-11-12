@@ -3,12 +3,18 @@
 use crate::domain::models::{
     entity_details::{FunderFunding, MemberHistory},
     funder::FunderId,
+    lords::LordRegister,
     parliament_member::MemberId,
 };
 use thiserror::Error;
 
 /// Stored entity detail reads.
 pub trait EntityDetailsRepo: Clone + Send + Sync + 'static {
+    /// Complete Lords register, independent of Commons declarations.
+    fn lord(
+        &self,
+        id: MemberId,
+    ) -> impl Future<Output = Result<Option<LordRegister>, EntityDetailsRepoError>> + Send;
     /// All declarations for a member, or absent identity.
     fn member(
         &self,

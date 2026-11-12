@@ -7,9 +7,11 @@ mod interface;
 
 use crate::domain::models::entity_search::FunderSearchMatch;
 use crate::domain::models::entity_search::{Entity, EntitySearchError, EntitySearchRequest};
+use crate::domain::models::lords::LordProfile;
 use crate::domain::models::parliament_member::ParliamentMember;
 use crate::domain::models::search_similarity::SearchSimilarity;
 use crate::domain::repositories::funder_repository::FunderRepo;
+use crate::domain::repositories::lords::LordsRepository;
 use crate::domain::repositories::parliament_member_repository::ParliamentMemberRepo;
 pub use crate::domain::services::entity_search::interface::EntitySearchService;
 
@@ -32,10 +34,10 @@ impl<P, F> Service<P, F> {
 
 impl<P, F> EntitySearchService for Service<P, F>
 where
-    P: ParliamentMemberRepo,
+    P: ParliamentMemberRepo + LordsRepository,
     F: FunderRepo,
 {
-    /// Returns text search results for MPs and Funder entities.
+    /// Returns text search results for MPs, funders, and Lords.
     ///
     /// This function expects the repositories to return their results
     /// in order where a higher score means a higher similarity.
@@ -49,7 +51,8 @@ where
             .get_funders_by_text_search_score(req)
             .await?;
 
-        let mut results = merge_scores(&mps, &funders.matches);
+        let lords = self.mp_repo.search_lords(req).await?;
+        let mut results = merge_with_lords(&mps, &funders.matches, &lords);
         if mps.is_empty() && !funders.has_qualifying_individual {
             let fallback_mps = self.mp_repo.get_members_by_phonetic_search(req).await?;
             let fallback_funders = self.funder_repo.get_funders_by_phonetic_search(req).await?;
@@ -80,6 +83,13 @@ where
                     }
                     (Entity::ParliamentMember(_), Entity::Funder(_)) => std::cmp::Ordering::Less,
                     (Entity::Funder(_), Entity::ParliamentMember(_)) => std::cmp::Ordering::Greater,
+                    (Entity::Lord(a), Entity::Lord(b)) => a.id.cmp(&b.id),
+                    (Entity::Lord(_), Entity::ParliamentMember(_) | Entity::Funder(_)) => {
+                        std::cmp::Ordering::Greater
+                    }
+                    (Entity::ParliamentMember(_) | Entity::Funder(_), Entity::Lord(_)) => {
+                        std::cmp::Ordering::Less
+                    }
                 })
             });
             results.extend(fallback.into_iter().map(|(entity, _)| entity));
@@ -88,50 +98,63 @@ where
     }
 }
 
-/// Uses two-pointer technique to merge to pre-sorted
-/// search results together.
+fn merge_with_lords(
+    mps: &[(ParliamentMember, SearchSimilarity)],
+    funders: &[(FunderSearchMatch, SearchSimilarity)],
+    lords: &[(LordProfile, SearchSimilarity)],
+) -> Vec<Entity> {
+    let mut results = Vec::new();
+    let (mut mp, mut funder, mut lord) = (0, 0, 0);
+    while mp < mps.len() || funder < funders.len() || lord < lords.len() {
+        if let Some((profile, score)) = lords.get(lord)
+            && mps
+                .get(mp)
+                .is_none_or(|(_, candidate)| score.value() > candidate.value())
+            && funders
+                .get(funder)
+                .is_none_or(|(_, candidate)| score.value() > candidate.value())
+        {
+            results.push(Entity::Lord(profile.clone()));
+            lord += 1;
+            continue;
+        }
+        match (mps.get(mp), funders.get(funder)) {
+            (Some((member, a)), Some((source, b))) => match a.value().total_cmp(&b.value()) {
+                std::cmp::Ordering::Equal => {
+                    results.push(Entity::from(member));
+                    results.push(Entity::from(source));
+                    mp += 1;
+                    funder += 1;
+                }
+                std::cmp::Ordering::Greater => {
+                    results.push(Entity::from(member));
+                    mp += 1;
+                }
+                std::cmp::Ordering::Less => {
+                    results.push(Entity::from(source));
+                    funder += 1;
+                }
+            },
+            (Some((member, _)), None) => {
+                results.push(Entity::from(member));
+                mp += 1;
+            }
+            (None, Some((source, _))) => {
+                results.push(Entity::from(source));
+                funder += 1;
+            }
+            (None, None) => unreachable!("remaining Lords match was emitted above"),
+        }
+    }
+    results
+}
+
+#[cfg(test)]
 fn merge_scores(
     mps: &[(ParliamentMember, SearchSimilarity)],
     funders: &[(FunderSearchMatch, SearchSimilarity)],
 ) -> Vec<Entity> {
-    let mut scores = Vec::new();
-
-    let (mut l, mut r) = (0, 0);
-    // Unwrap acceptable as index check in
-    // while function
-    while l < mps.len() && r < funders.len() {
-        let mp: &(ParliamentMember, SearchSimilarity) = mps.get(l).unwrap();
-        let fund: &(FunderSearchMatch, SearchSimilarity) = funders.get(r).unwrap();
-
-        match &mp.1.value().total_cmp(&fund.1.value()) {
-            std::cmp::Ordering::Equal => {
-                scores.push(Entity::from(&mp.0));
-                scores.push(Entity::from(&fund.0));
-                l += 1;
-                r += 1;
-            }
-            std::cmp::Ordering::Greater => {
-                scores.push(Entity::from(&mp.0));
-                l += 1;
-            }
-            std::cmp::Ordering::Less => {
-                scores.push(Entity::from(&fund.0));
-                r += 1;
-            }
-        }
-    }
-    if l < mps.len() {
-        for mp in &mps[l..] {
-            scores.push(Entity::from(&mp.0));
-        }
-    }
-    if r < funders.len() {
-        for fund in &funders[r..] {
-            scores.push(Entity::from(&fund.0));
-        }
-    }
-
-    scores
+    merge_with_lords(mps, funders, &[])
 }
 
 #[cfg(test)]

@@ -1,5 +1,6 @@
 //! Contains search entity models
 
+use crate::domain::models::lords::LordProfile;
 use serde::Serialize;
 use thiserror::Error;
 
@@ -52,6 +53,18 @@ impl FunderSearchMatch {
     }
 }
 
+/// Canonical public entity vocabulary.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum EntityKind {
+    /// Commons member.
+    MP,
+    /// Funding source.
+    Funder,
+    /// Lords member.
+    #[serde(rename = "Lords")]
+    Lord,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 /// Search entity kind
 pub enum Entity {
@@ -59,6 +72,8 @@ pub enum Entity {
     Funder(FunderSearchMatch),
     /// Member entitiy
     ParliamentMember(ParliamentMember),
+    /// Lords-specific identity.
+    Lord(LordProfile),
 }
 
 impl Entity {
@@ -68,15 +83,17 @@ impl Entity {
         match self {
             Self::Funder(kind) => kind.funder().name(),
             Self::ParliamentMember(mp) => mp.name(),
+            Self::Lord(lord) => &lord.name,
         }
     }
 
     #[must_use]
     /// Entity kind
-    pub const fn kind(&self) -> &str {
+    pub const fn kind(&self) -> EntityKind {
         match self {
-            Self::Funder(_) => "Funder",
-            Self::ParliamentMember(_) => "MP",
+            Self::Funder(_) => EntityKind::Funder,
+            Self::ParliamentMember(_) => EntityKind::MP,
+            Self::Lord(_) => EntityKind::Lord,
         }
     }
 
@@ -85,7 +102,7 @@ impl Entity {
     pub fn funder_kind(&self) -> Option<&str> {
         match self {
             Self::Funder(kind) => Some(kind.funder().kind()),
-            Self::ParliamentMember(_) => None,
+            Self::ParliamentMember(_) | Self::Lord(_) => None,
         }
     }
 }

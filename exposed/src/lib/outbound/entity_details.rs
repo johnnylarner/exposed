@@ -7,6 +7,7 @@ use crate::{
                 MemberHistory, MemberProfile,
             },
             funder::{Funder, FunderId, FunderKind},
+            lords::LordRegister,
             parliament_member::MemberId,
         },
         repositories::entity_details::{EntityDetailsRepo, EntityDetailsRepoError},
@@ -18,6 +19,11 @@ use std::str::FromStr;
 use super::currency::CURRENCY_WHITESPACE;
 
 impl EntityDetailsRepo for ExposedDatabase {
+    async fn lord(&self, id: MemberId) -> Result<Option<LordRegister>, EntityDetailsRepoError> {
+        self.lord_register(id)
+            .await
+            .map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))
+    }
     async fn member(&self, id: MemberId) -> Result<Option<MemberHistory>, EntityDetailsRepoError> {
         let mut tx = self.pool().begin().await?;
         sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")

@@ -27,3 +27,5 @@ pub(crate) mod declared_totals;
 pub mod updates;
 
 pub mod reporting_period;
+
+pub mod lords;

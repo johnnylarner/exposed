@@ -1,0 +1,147 @@
+{
+  "items": [
+    {
+      "value": {
+        "member": {
+          "id": 2175,
+          "nameDisplayAs": "Lord Example",
+          "latestParty": {
+            "name": "Crossbench"
+          },
+          "latestHouseMembership": {
+            "house": 2,
+            "membershipFrom": "Life peer",
+            "membershipStatus": {
+              "statusDescription": "Current Member"
+            },
+            "membershipEndDate": null
+          },
+          "unmappedSourceField": "retained"
+        },
+        "interestCategories": [
+          {
+            "id": 1002,
+            "name": "Category 2: Shareholdings etc. (a)",
+            "sortOrder": 1042,
+            "interests": [
+              {
+                "id": 10016,
+                "interest": "Original <script>alert(1)</script>\nline two",
+                "createdWhen": "2012-06-14T12:49:14",
+                "lastAmendedWhen": "2025-04-05T00:00:00.123456",
+                "deletedWhen": "2025-04-06T00:00:00+01:00",
+                "isCorrection": false,
+                "childInterests": [
+                  {
+                    "id": 10016,
+                    "interest": null,
+                    "createdWhen": "2012-06-14T12:49:14",
+                    "lastAmendedWhen": "2025-04-05T00:00:00.123456",
+                    "deletedWhen": null,
+                    "isCorrection": true,
+                    "childInterests": [
+                      {
+                        "id": 10018,
+                        "interest": "Ceased but not deleted",
+                        "createdWhen": "2012-06-14T12:49:14",
+                        "lastAmendedWhen": "2025-04-05T00:00:00.123456",
+                        "deletedWhen": null,
+                        "isCorrection": false,
+                        "childInterests": []
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": 10016,
+                "interest": "Original <script>alert(1)</script>\nline two",
+                "createdWhen": "2012-06-14T12:49:14",
+                "lastAmendedWhen": "2025-04-05T00:00:00.123456",
+                "deletedWhen": "2025-04-06T00:00:00+01:00",
+                "isCorrection": false,
+                "childInterests": [
+                  {
+                    "id": 10016,
+                    "interest": null,
+                    "createdWhen": "2012-06-14T12:49:14",
+                    "lastAmendedWhen": "2025-04-05T00:00:00.123456",
+                    "deletedWhen": null,
+                    "isCorrection": true,
+                    "childInterests": [
+                      {
+                        "id": 10018,
+                        "interest": "Ceased but not deleted",
+                        "createdWhen": "2012-06-14T12:49:14",
+                        "lastAmendedWhen": "2025-04-05T00:00:00.123456",
+                        "deletedWhen": null,
+                        "isCorrection": false,
+                        "childInterests": []
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": 1002,
+            "name": "Category 2: Shareholdings etc. (a)",
+            "sortOrder": 1042,
+            "interests": [
+              {
+                "id": 10017,
+                "interest": "Repeated category",
+                "createdWhen": "2012-06-14T12:49:14",
+                "lastAmendedWhen": "2025-04-05T00:00:00.123456",
+                "deletedWhen": null,
+                "isCorrection": false,
+                "childInterests": []
+              }
+            ]
+          },
+          {
+            "id": 9999,
+            "name": "Unknown source category",
+            "sortOrder": 2000,
+            "interests": [
+              {
+                "id": 10019,
+                "interest": null,
+                "createdWhen": "2012-06-14T12:49:14",
+                "lastAmendedWhen": "2025-04-05T00:00:00.123456",
+                "deletedWhen": null,
+                "isCorrection": false,
+                "childInterests": []
+              }
+            ]
+          },
+          {
+            "id": 11,
+            "name": "Nil",
+            "sortOrder": 0,
+            "interests": [
+              {
+                "id": 10020,
+                "interest": "No registrable interests",
+                "createdWhen": "2012-06-14T12:49:14",
+                "lastAmendedWhen": "2025-04-05T00:00:00.123456",
+                "deletedWhen": null,
+                "isCorrection": false,
+                "childInterests": []
+              }
+            ]
+          }
+        ],
+        "unmappedRegisterField": {
+          "retained": true
+        }
+      },
+      "links": null
+    }
+  ],
+  "totalResults": 1,
+  "skip": 0,
+  "take": 20,
+  "links": []
+}
