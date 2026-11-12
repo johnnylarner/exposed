@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT parliament_member_id, name, party_id, party_name, latest_membership_from, is_current_commons\n             FROM exposed.members m JOIN exposed.commons_member_profiles p ON p.member_id = m.id WHERE parliament_member_id = $1",
+  "query": "SELECT parliament_member_id, name, party_id AS \"party_id!\", party_name AS \"party_name!\", latest_membership_from AS \"latest_membership_from!\", is_current_commons AS \"is_current_commons!\"\n             FROM exposed.members m JOIN exposed.member_profiles p ON p.member_id = m.id AND p.chamber = 'commons' WHERE parliament_member_id = $1",
   "describe": {
     "columns": [
       {
@@ -20,51 +20,51 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "name"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "party_id",
+        "name": "party_id!",
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "party_id"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "party_name",
+        "name": "party_name!",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "party_name"
           }
         }
       },
       {
         "ordinal": 4,
-        "name": "latest_membership_from",
+        "name": "latest_membership_from!",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "latest_membership_from"
           }
         }
       },
       {
         "ordinal": 5,
-        "name": "is_current_commons",
+        "name": "is_current_commons!",
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "is_current_commons"
           }
         }
@@ -78,11 +78,11 @@
     "nullable": [
       false,
       false,
-      false,
-      false,
-      false,
-      false
+      true,
+      true,
+      true,
+      true
     ]
   },
-  "hash": "89a8564790f5caedfb3d97ebbfa312f4984f3afceb9a370ab7031fdd3c52eccf"
+  "hash": "027366a9df55e1a8c2d7bb34a18e9446e846a48c3d6c6eaf8b57fe91a76ff097"
 }

@@ -7,8 +7,8 @@ WITH input (id, parliament_member_id, name, party_id, party_name, latest_house, 
     INSERT INTO exposed.members (id, parliament_member_id)
     SELECT input.id::uuid, input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
 )
-INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
+SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
 FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id;
 WITH input (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
     VALUES (16, 'Former MP Example', 1, 'Party A', 2, 'Life peer', false)
@@ -16,8 +16,8 @@ WITH input (parliament_member_id, name, party_id, party_name, latest_house, late
     INSERT INTO exposed.members (parliament_member_id)
     SELECT input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
 )
-INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
+SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
 FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id;
 INSERT INTO exposed.funders (id, funder_name, funder_kind, company_number) VALUES
 ('10000000-0000-0000-0000-000000000001', 'Exact Funder', 'Company', '00123456'),

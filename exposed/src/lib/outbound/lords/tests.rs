@@ -161,7 +161,7 @@ async fn load_is_idempotent_monotonic_and_isolated_from_commons(pool: PgPool) {
         "John McDonnell"
     );
     let row = sqlx::query!(
-        "SELECT source_document FROM exposed.lords_member_profiles p JOIN exposed.members m ON m.id = p.member_id WHERE parliament_member_id = 1"
+        "SELECT source_document AS \"source_document!\" FROM exposed.member_profiles p JOIN exposed.members m ON m.id = p.member_id AND p.chamber = 'lords' WHERE parliament_member_id = 1"
     )
     .fetch_one(&pool)
     .await
@@ -207,7 +207,7 @@ async fn failed_member_write_rolls_back_every_document_and_the_ledger(pool: PgPo
     );
     db.load_lords(&initial).await.unwrap();
     sqlx::query!(
-        "ALTER TABLE exposed.lords_member_profiles ADD CONSTRAINT reject_test_name CHECK (name <> 'Reject')"
+        "ALTER TABLE exposed.member_profiles ADD CONSTRAINT reject_test_name CHECK (name <> 'Reject')"
     )
     .execute(&pool)
     .await
@@ -295,7 +295,7 @@ async fn concurrent_imports_resolve_against_the_locked_row_and_break_timestamp_t
             expected
         );
         let stored = sqlx::query!(
-            "SELECT source_document, ingestion_key FROM exposed.lords_member_profiles"
+            "SELECT source_document AS \"source_document!\", ingestion_key AS \"ingestion_key!\" FROM exposed.member_profiles WHERE chamber = 'lords'"
         )
         .fetch_one(&pool)
         .await
@@ -435,10 +435,12 @@ async fn relational_occurrences_preserve_source_values_without_json_reads(pool: 
         &db.lord_register(expected.member.id).await.unwrap().unwrap(),
         expected
     );
-    sqlx::query!("UPDATE exposed.lords_member_profiles SET source_document = '{}'::jsonb")
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query!(
+        "UPDATE exposed.member_profiles SET source_document = '{}'::jsonb WHERE chamber = 'lords'"
+    )
+    .execute(&pool)
+    .await
+    .unwrap();
     assert_eq!(
         &db.lord_register(expected.member.id).await.unwrap().unwrap(),
         expected

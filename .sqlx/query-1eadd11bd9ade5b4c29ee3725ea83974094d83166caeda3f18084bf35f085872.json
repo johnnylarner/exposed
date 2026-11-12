@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.parliament_member_id, p.name, p.party_id, p.party_name,\n                p.latest_membership_from, p.is_current_commons,\n                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type\n             FROM exposed.funding_entries e\n             JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id\n             JOIN exposed.members m ON m.id = d.member_id\n             JOIN exposed.commons_member_profiles p ON p.member_id = m.id\n             WHERE e.funder_id = ANY($1)\n             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
+  "query": "SELECT m.parliament_member_id, p.name, p.party_id AS \"party_id!\", p.party_name AS \"party_name!\",\n                p.latest_membership_from AS \"latest_membership_from!\", p.is_current_commons AS \"is_current_commons!\",\n                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type\n             FROM exposed.funding_entries e\n             JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id\n             JOIN exposed.members m ON m.id = d.member_id\n             JOIN exposed.member_profiles p ON p.member_id = m.id AND p.chamber = 'commons'\n             WHERE e.funder_id = ANY($1)\n             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
   "describe": {
     "columns": [
       {
@@ -20,51 +20,51 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "name"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "party_id",
+        "name": "party_id!",
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "party_id"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "party_name",
+        "name": "party_name!",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "party_name"
           }
         }
       },
       {
         "ordinal": 4,
-        "name": "latest_membership_from",
+        "name": "latest_membership_from!",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "latest_membership_from"
           }
         }
       },
       {
         "ordinal": 5,
-        "name": "is_current_commons",
+        "name": "is_current_commons!",
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "commons_member_profiles",
+            "table": "member_profiles",
             "name": "is_current_commons"
           }
         }
@@ -151,10 +151,10 @@
     "nullable": [
       false,
       false,
-      false,
-      false,
-      false,
-      false,
+      true,
+      true,
+      true,
+      true,
       false,
       false,
       false,
@@ -164,5 +164,5 @@
       true
     ]
   },
-  "hash": "1a9e9d241b9ff06f7787222a74b9dd95075cd1e245b6c8c1314f0c4c784cbef9"
+  "hash": "1eadd11bd9ade5b4c29ee3725ea83974094d83166caeda3f18084bf35f085872"
 }

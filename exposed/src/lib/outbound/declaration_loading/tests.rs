@@ -299,7 +299,7 @@ async fn supporting_name_resolution_loads_and_rejects_unknown_labels() -> anyhow
 async fn database_snapshot(pool: &sqlx::PgPool) -> sqlx::Result<serde_json::Value> {
     sqlx::query_scalar!(
         r#"SELECT jsonb_build_object(
-            'commons_profiles', (SELECT jsonb_agg(to_jsonb(row) ORDER BY member_id) FROM exposed.commons_member_profiles AS row),
+            'commons_profiles', (SELECT jsonb_agg(to_jsonb(row) ORDER BY member_id) FROM exposed.member_profiles AS row WHERE chamber = 'commons'),
             'members', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.members AS row),
             'declarations', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.declarations AS row),
             'funders', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.funders AS row),
@@ -324,8 +324,8 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
     INSERT INTO exposed.members (id, parliament_member_id)
     SELECT input.id::uuid, input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
 )
-INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
+SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
 FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id",
         Uuid::from_u128(1)
     )
@@ -551,8 +551,8 @@ async fn loader_groups_retained_identities_and_exact_retry_refreshes_without_rep
     INSERT INTO exposed.members (parliament_member_id)
     SELECT input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
 )
-INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
+SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
 FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id").execute(&pool).await?;
     let old_id = Uuid::from_u128(1);
     sqlx::query!(
@@ -568,7 +568,7 @@ FROM input JOIN identities ON identities.parliament_member_id = input.parliament
     )
     .execute(&pool)
     .await?;
-    sqlx::query!("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at) SELECT 9000, member_id, 1, 'Retained', now() FROM exposed.commons_member_profiles LIMIT 1").execute(&pool).await?;
+    sqlx::query!("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at) SELECT 9000, member_id, 1, 'Retained', now() FROM exposed.member_profiles WHERE chamber = 'commons' LIMIT 1").execute(&pool).await?;
     sqlx::query!("INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency) VALUES (9000, $1, 7, 'GBP')", old_id).execute(&pool).await?;
     let repository = ExposedDatabase::from(pool.clone());
     repository.load_declarations(&load).await?;
@@ -633,8 +633,8 @@ async fn seed_load_member(pool: &sqlx::PgPool) -> sqlx::Result<()> {
     INSERT INTO exposed.members (parliament_member_id)
     SELECT input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
 )
-INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
+SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
 FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id").execute(pool).await?;
     Ok(())
 }

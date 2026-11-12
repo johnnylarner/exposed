@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT parliament_member_id\n            FROM exposed.members m JOIN exposed.commons_member_profiles p ON p.member_id = m.id\n            ORDER BY parliament_member_id\n            ",
+  "query": "\n            SELECT parliament_member_id\n            FROM exposed.members m JOIN exposed.member_profiles p ON p.member_id = m.id AND p.chamber = 'commons'\n            ORDER BY parliament_member_id\n            ",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "140498c11c6dbce4ca166e706d2b309fc472aaf79671b0761e6b01e7621b30a4"
+  "hash": "63e87b20e856a9127ad70bada7cf177e07c50a522419fabfba4455d1e212e6e8"
 }

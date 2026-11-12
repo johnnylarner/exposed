@@ -41,7 +41,10 @@ Load verifies the manifest and every page before opening its database transactio
 `exposed.lords_imports` records each committed capture and its digest.
 An exact retry returns `already_loaded`. Reusing a key with different evidence fails.
 `exposed.members` owns the shared UUID and Parliament identity. Commons and Lords
-fields belong to `commons_member_profiles` and `lords_member_profiles` respectively.
+profiles are separate rows in `exposed.member_profiles`, keyed by `(member_id, chamber)`.
+The database chamber enum and source-shape check enforce each profile's required fields.
+Commons writes supply their creation and update clocks explicitly; Lords rows have
+only their source capture clock. The migration preserves existing Commons clocks.
 The Lords profile retains the full source `item.value` JSON document as evidence,
 alongside typed profile fields, capture time, and import key. Ordered categories and
 interest trees live in `lords_categories` and `lords_interests`. Positional composite
@@ -55,7 +58,8 @@ Members omitted from a later capture retain their latest stored document.
 Both importers acquire the same identity in stable Parliament ID order. The Lords importer
 never changes Commons profile fields, declarations, funders, or funding entries.
 A Parliament ID can have both profiles. Commons cohorts require a Commons profile,
-including former MPs, and declarations require that profile through a foreign key.
+including former MPs. Generated chamber columns and composite foreign keys attach
+declarations only to Commons profiles and categories only to Lords profiles.
 Lords interests do not enter financial totals or rankings.
 
 ## HTTP and search

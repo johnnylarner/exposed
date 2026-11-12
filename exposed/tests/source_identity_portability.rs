@@ -136,8 +136,8 @@ async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
     INSERT INTO exposed.members (id, parliament_member_id)
     SELECT input.id::uuid, input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
 )
-INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
+SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
 FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id",
         id
     )
@@ -148,7 +148,7 @@ FROM input JOIN identities ON identities.parliament_member_id = input.parliament
 
 async fn clear_import(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query!(
-        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.lords_interests, exposed.lords_categories, exposed.lords_member_profiles, exposed.commons_member_profiles, exposed.members"
+        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.lords_interests, exposed.lords_categories, exposed.member_profiles, exposed.members"
     )
     .execute(pool)
     .await?;

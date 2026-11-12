@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT p.member_id, m.parliament_member_id, p.name, p.party_name,\n                    p.membership_from, p.membership_status, p.membership_end_date, p.captured_at,\n                    NULL::real AS similarity\n             FROM exposed.lords_member_profiles p JOIN exposed.members m ON m.id = p.member_id\n             WHERE m.parliament_member_id = $1",
+  "query": "SELECT p.member_id, m.parliament_member_id, p.name, p.party_name,\n                    p.membership_from, p.membership_status, p.membership_end_date, p.captured_at AS \"captured_at!\",\n                    exposed.word_similarity($1, p.name) AS similarity\n             FROM exposed.member_profiles p JOIN exposed.members m ON m.id = p.member_id AND p.chamber = 'lords'\n             WHERE p.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, p.name) >= $2\n             ORDER BY similarity DESC, m.parliament_member_id LIMIT $3",
   "describe": {
     "columns": [
       {
@@ -9,7 +9,7 @@
         "type_info": "Uuid",
         "origin": {
           "Table": {
-            "table": "lords_member_profiles",
+            "table": "member_profiles",
             "name": "member_id"
           }
         }
@@ -31,7 +31,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "lords_member_profiles",
+            "table": "member_profiles",
             "name": "name"
           }
         }
@@ -42,7 +42,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "lords_member_profiles",
+            "table": "member_profiles",
             "name": "party_name"
           }
         }
@@ -53,7 +53,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "lords_member_profiles",
+            "table": "member_profiles",
             "name": "membership_from"
           }
         }
@@ -64,7 +64,7 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "lords_member_profiles",
+            "table": "member_profiles",
             "name": "membership_status"
           }
         }
@@ -75,18 +75,18 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "lords_member_profiles",
+            "table": "member_profiles",
             "name": "membership_end_date"
           }
         }
       },
       {
         "ordinal": 7,
-        "name": "captured_at",
+        "name": "captured_at!",
         "type_info": "Timestamptz",
         "origin": {
           "Table": {
-            "table": "lords_member_profiles",
+            "table": "member_profiles",
             "name": "captured_at"
           }
         }
@@ -100,7 +100,9 @@
     ],
     "parameters": {
       "Left": [
-        "Int4"
+        "Text",
+        "Float4",
+        "Int8"
       ]
     },
     "nullable": [
@@ -111,9 +113,9 @@
       true,
       true,
       true,
-      false,
+      true,
       null
     ]
   },
-  "hash": "e966ab811801eb031fbe9dca4fa37b0547281b4497531b84dbbea7e5a824cb72"
+  "hash": "34c517b48bf9c4b80b50db9217db0e05ec8420bdca4f4ae0a22fddd9064bd776"
 }

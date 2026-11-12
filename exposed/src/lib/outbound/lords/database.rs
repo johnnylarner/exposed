@@ -62,18 +62,18 @@ impl LordsRepository for ExposedDatabase {
             let profile = &member.register().member;
             let member_id = crate::outbound::member_identity::acquire(&mut tx, profile.id).await?;
             let won = sqlx::query!(
-                "INSERT INTO exposed.lords_member_profiles
-                 (member_id, name, party_name, membership_from, membership_status, membership_end_date,
+                "INSERT INTO exposed.member_profiles
+                 (member_id, chamber, name, party_name, membership_from, membership_status, membership_end_date,
                   source_document, captured_at, ingestion_key)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-                 ON CONFLICT (member_id) DO UPDATE SET
+                 VALUES ($1, 'lords', $2, $3, $4, $5, $6, $7, $8, $9)
+                 ON CONFLICT (member_id, chamber) DO UPDATE SET
                      name = EXCLUDED.name, party_name = EXCLUDED.party_name,
                      membership_from = EXCLUDED.membership_from,
                      membership_status = EXCLUDED.membership_status,
                      membership_end_date = EXCLUDED.membership_end_date,
                      source_document = EXCLUDED.source_document,
                      captured_at = EXCLUDED.captured_at, ingestion_key = EXCLUDED.ingestion_key
-                 WHERE (exposed.lords_member_profiles.captured_at, exposed.lords_member_profiles.ingestion_key)
+                 WHERE (exposed.member_profiles.captured_at, exposed.member_profiles.ingestion_key)
                      < (EXCLUDED.captured_at, EXCLUDED.ingestion_key)
                  RETURNING member_id",
                 member_id, profile.name, profile.party_name, profile.membership_from,
@@ -104,9 +104,9 @@ impl LordsRepository for ExposedDatabase {
         let rows = sqlx::query_as!(
             ProfileRow,
             "SELECT p.member_id, m.parliament_member_id, p.name, p.party_name,
-                    p.membership_from, p.membership_status, p.membership_end_date, p.captured_at,
+                    p.membership_from, p.membership_status, p.membership_end_date, p.captured_at AS \"captured_at!\",
                     exposed.word_similarity($1, p.name) AS similarity
-             FROM exposed.lords_member_profiles p JOIN exposed.members m ON m.id = p.member_id
+             FROM exposed.member_profiles p JOIN exposed.members m ON m.id = p.member_id AND p.chamber = 'lords'
              WHERE p.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, p.name) >= $2
              ORDER BY similarity DESC, m.parliament_member_id LIMIT $3",
             request.term(),
@@ -139,9 +139,9 @@ impl ExposedDatabase {
         let row = sqlx::query_as!(
             ProfileRow,
             "SELECT p.member_id, m.parliament_member_id, p.name, p.party_name,
-                    p.membership_from, p.membership_status, p.membership_end_date, p.captured_at,
+                    p.membership_from, p.membership_status, p.membership_end_date, p.captured_at AS \"captured_at!\",
                     NULL::real AS similarity
-             FROM exposed.lords_member_profiles p JOIN exposed.members m ON m.id = p.member_id
+             FROM exposed.member_profiles p JOIN exposed.members m ON m.id = p.member_id AND p.chamber = 'lords'
              WHERE m.parliament_member_id = $1",
             id
         )

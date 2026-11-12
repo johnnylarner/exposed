@@ -8,7 +8,7 @@ INSERT INTO exposed.declarations (
 ) VALUES 
 	(
 	    1,
-	    (SELECT member_id FROM exposed.commons_member_profiles WHERE name='John McDonnell'),
+	    (SELECT member_id FROM exposed.member_profiles WHERE chamber = 'commons' AND name='John McDonnell'),
 	    12,
 	    'Employment and earnings',
 	    now(),
@@ -16,7 +16,7 @@ INSERT INTO exposed.declarations (
 	),
 	(
 	    2,
-	    (SELECT member_id FROM exposed.commons_member_profiles WHERE name='John Humphries'),
+	    (SELECT member_id FROM exposed.member_profiles WHERE chamber = 'commons' AND name='John Humphries'),
 	    10,
 	    'Family members employed',
 	    now(),

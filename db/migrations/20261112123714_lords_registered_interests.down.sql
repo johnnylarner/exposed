@@ -1,10 +1,11 @@
 DROP TABLE exposed.lords_interests;
 DROP TABLE exposed.lords_categories;
-DROP TABLE exposed.lords_member_profiles;
-DROP TABLE exposed.lords_imports;
-ALTER TABLE exposed.declarations DROP CONSTRAINT declarations_commons_profile_fkey;
+ALTER TABLE exposed.declarations
+    DROP CONSTRAINT declarations_commons_profile_fkey,
+    DROP COLUMN profile_chamber;
+DELETE FROM exposed.member_profiles WHERE chamber = 'lords';
 DELETE FROM exposed.members m
-WHERE NOT EXISTS (SELECT 1 FROM exposed.commons_member_profiles p WHERE p.member_id = m.id);
+WHERE NOT EXISTS (SELECT 1 FROM exposed.member_profiles p WHERE p.member_id = m.id AND p.chamber = 'commons');
 ALTER TABLE exposed.members
     ADD COLUMN name TEXT,
     ADD COLUMN party_id INTEGER,
@@ -22,8 +23,10 @@ UPDATE exposed.members m SET
     is_current_commons = p.is_current_commons,
     created_at = p.created_at,
     updated_at = p.updated_at
-FROM exposed.commons_member_profiles p WHERE p.member_id = m.id;
-DROP TABLE exposed.commons_member_profiles;
+FROM exposed.member_profiles p WHERE p.member_id = m.id AND p.chamber = 'commons';
+DROP TABLE exposed.member_profiles;
+DROP TABLE exposed.lords_imports;
+DROP TYPE exposed.profile_chamber;
 ALTER TABLE exposed.members
     ALTER COLUMN name SET NOT NULL,
     ALTER COLUMN party_id SET NOT NULL,
