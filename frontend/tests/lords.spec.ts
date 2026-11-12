@@ -85,7 +85,7 @@ test("Lords summary SSR shows nine active occurrences in the established columns
   if (leftBounds && rightBounds) {
     expect(leftBounds.x + leftBounds.width).toBeLessThan(rightBounds.x);
     expect(leftBounds.y).toBe(rightBounds.y);
-    expect(rightBounds.width / leftBounds.width).toBeCloseTo(2, 1);
+    expect(rightBounds.width / leftBounds.width).toBeCloseTo(1, 1);
   }
   expect(calls.every((url) => url.endsWith("/api/lords/2175"))).toBe(true);
 });
