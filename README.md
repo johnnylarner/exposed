@@ -2,10 +2,9 @@
 
 Where do MPs get their money from?
 
-Exposed makes UK parliamentary declarations of financial interests easier to
-search, browse, and interpret. The goal is to help people understand what MPs
-declare and who provides their financial support, without having to piece
-together individual register entries by hand.
+Exposed makes MPs' declarations and Lords' registered interests easier to
+search, browse, and interpret. It connects MP declarations to their financial
+support and preserves Lords' register entries as supplied by Parliament.
 
 ## What the project is working towards
 
@@ -23,12 +22,17 @@ source information and the limits of what it tells us.
 
 ## What you can explore today
 
-Search for an MP or funder by name, then open their detail page. Search supports
+Search for an MP, Lord, or funder by name, then open their detail page. Search supports
 approximate name matching to help with misspellings and recorded name variants.
 
 An MP's page brings together their profile, declared amounts, category
 breakdowns, and recent declarations. Their declaration history lets you browse
 all stored declarations and filter by registration date.
+
+A Lord's page places shareholdings on the left and other registered interests
+on the right, grouped by category. Deleted interests remain visible with their
+deletion dates. Nested interests stay with their parent. Lords have no history
+tab or declared-amount totals, and their register does not feed financial rankings.
 
 A funder's page shows recorded names and declared support across recipients.
 Recipient and party summaries help you explore how that support is distributed.
@@ -67,6 +71,11 @@ The declaration pipeline runs through `fetch`, `clean`, `resolve`, and `load`.
 Keeping these stages separate lets contributors reprocess captured data without
 fetching it again.
 
+The separate `exposed lords fetch` and `exposed lords load` commands capture and
+import the Members API's Lords register with deleted interests included. The
+import retains source text and lifecycle dates without extracting monetary
+values. Its persistence is separate from MP declarations and funding.
+
 ## Git hooks
 
 Enable the repository hooks after cloning:
@@ -91,6 +100,7 @@ These references explain the data and deployment:
 - [Funder resolution](docs/funder-resolution-design.md) explains the identity and evidence policy.
 - [Resolution guide](resolution/README.md) covers configuration and execution.
 - [Entity details](docs/entity-details.md) describes API responses and detail views.
+- [Lords register](docs/lords.md) describes the separate import and registered-interest API.
 - [Database guide](db/README.md) covers schema migrations.
 - [Production image](docs/production-image.md) covers builds and deployment.
 - [Verification skill](.agents/skills/verify/SKILL.md) compares snapshot-backed worktrees with live production.

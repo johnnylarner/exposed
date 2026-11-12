@@ -1,7 +1,5 @@
 import { searchQueryString } from "./search-query";
 
-// Search defaults live here. The API applies
-// max_entries independently to MPs, Lords and funders, then merges by similarity.
 export const searchConfiguration = {
   minimumCharacters: 3,
   debounceMs: 250,
