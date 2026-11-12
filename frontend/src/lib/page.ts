@@ -8,7 +8,7 @@ export type SearchResult =
 export type PageModel =
   | { kind: "landing" }
   | { kind: "methodology" }
-  | { kind: "lord"; id: string; result: LordsState }
+  | (Extract<DetailRoute, { kind: "lord" }> & { result: LordsState })
   | { kind: "search"; query: string; result: SearchResult }
   | {
       kind: "detail";
@@ -42,8 +42,7 @@ export const pagePresentation = {
     target: "lords",
     label: "registered interests",
     title: "Lords registered interests · declair",
-    description:
-      "Explore Lords’ registered interests, including deleted interests.",
+    description: "Explore Lords’ registered interests and interest history.",
   },
   detail: {
     target: "details",

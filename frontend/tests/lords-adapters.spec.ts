@@ -2,9 +2,14 @@ import { expect, test } from "@playwright/test";
 import { searchEntities } from "../src/lib/server/search";
 
 import { loadLords, parseLordsDetails } from "../src/lib/server/lords";
-import { groupLordsCategories, sourceCalendarDate } from "../src/lib/lords";
+import {
+  currentLordsCategories,
+  groupLordsCategories,
+  sourceCalendarDate,
+  type RegisteredInterest,
+} from "../src/lib/lords";
 import { shareholdingSummary } from "../src/lib/lords-shareholdings";
-import { readDetailRoute } from "../src/lib/entity-details";
+import { lordHref, readDetailRoute } from "../src/lib/entity-details";
 import { entityHref } from "../src/lib/search";
 import { lordsFixture, sourceInterest } from "./lords-fixtures";
 
@@ -241,8 +246,31 @@ test("Lords search uses its own route and accepts only name provenance", async (
   expect(entityHref(entities[0], new URLSearchParams("q=Example"))).toBe(
     "/lords/2175?q=Example",
   );
-  expect(readDetailRoute("/lords/2175")).toEqual({ kind: "lord", id: "2175" });
-  expect(readDetailRoute("/lords/2175/history")).toEqual({ kind: "invalid" });
+  expect(readDetailRoute("/lords/2175")).toEqual({
+    kind: "lord",
+    id: "2175",
+    view: "summary",
+  });
+  expect(readDetailRoute("/lords/2175/history/")).toEqual({
+    kind: "lord",
+    id: "2175",
+    view: "history",
+  });
+  expect(
+    lordHref("2175", "history", new URLSearchParams("q=A%26B&period=invalid")),
+  ).toBe("/lords/2175/history?q=A%26B");
+  expect(lordHref("2175", "summary", new URLSearchParams())).toBe(
+    "/lords/2175",
+  );
+  for (const path of [
+    "/lords/0",
+    "/lords/2147483648/history",
+    "/lords/no/history",
+    "/lords/2175/other",
+    "/lords/2175/history/extra",
+  ]) {
+    expect(readDetailRoute(path)).toEqual({ kind: "invalid" });
+  }
   for (const fields of [
     { match_source: { kind: "alias", name: "Example" } },
     { funder_kind: "Company" },
@@ -281,4 +309,78 @@ test("Lords category grouping distinguishes source names and preserves stable ca
     first.interests[1],
   ]);
   expect(grouped[1].interests).toEqual([first.interests[0]]);
+});
+
+test("current Lords summary retains nine active occurrences without mutating the twelve source occurrences", () => {
+  const details = parseLordsDetails(lordsFixture);
+  const original = structuredClone(details);
+  const summary = currentLordsCategories(details.categories);
+  function flatten(interests: RegisteredInterest[]): RegisteredInterest[] {
+    return interests.flatMap((interest) => [
+      interest,
+      ...flatten(interest.children),
+    ]);
+  }
+  const all = details.categories.flatMap((category) =>
+    flatten(category.interests),
+  );
+  const active = summary.flatMap((category) => flatten(category.interests));
+  expect(all).toHaveLength(12);
+  expect(active).toHaveLength(9);
+  expect(active.every((interest) => interest.deletedWhen === null)).toBe(true);
+  expect(
+    active.filter((interest) => interest.text === "Repeated holding"),
+  ).toHaveLength(2);
+  expect(new Set(active.map((interest) => interest.sourceId)).size).toBe(1);
+  expect(summary[0].interests.map((interest) => interest.text)).toEqual([
+    "Active parent",
+    "Active child",
+    "Interest ceased on 1 January 2026",
+  ]);
+  expect(details).toEqual(original);
+  expect(summary[0]).not.toBe(details.categories[0]);
+  expect(summary[0].interests[0]).not.toBe(details.categories[0].interests[0]);
+});
+
+test("summary promotes across multiple deleted ancestors while preserving active nesting, source order and duplicate occurrences", () => {
+  const category = parseLordsDetails(lordsFixture).categories[0];
+  const active = category.interests[0];
+  const deleted = category.interests[1];
+  const survivor = {
+    ...active,
+    text: "survivor",
+    children: [{ ...active, text: "nested", children: [] }],
+  };
+  const source = [
+    {
+      ...category,
+      interests: [
+        { ...active, text: "before", children: [] },
+        {
+          ...deleted,
+          children: [{ ...deleted, children: [survivor, survivor] }],
+        },
+        { ...active, text: "after", children: [] },
+      ],
+    },
+    {
+      ...category,
+      name: "deleted only",
+      interests: [{ ...deleted, children: [] }],
+    },
+    { ...category, interests: [] },
+  ];
+  const original = structuredClone(source);
+  const summary = currentLordsCategories(source);
+  expect(summary).toHaveLength(1);
+  expect(summary[0].interests.map((interest) => interest.text)).toEqual([
+    "before",
+    "survivor",
+    "survivor",
+    "after",
+  ]);
+  expect(
+    summary[0].interests[1].children.map((interest) => interest.text),
+  ).toEqual(["nested"]);
+  expect(source).toEqual(original);
 });

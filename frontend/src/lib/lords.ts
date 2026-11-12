@@ -53,6 +53,27 @@ export function groupLordsCategories(
   );
 }
 
+export function currentLordsCategories(
+  categories: LordsCategory[],
+): LordsCategory[] {
+  function currentInterests(
+    interests: RegisteredInterest[],
+  ): RegisteredInterest[] {
+    return interests.flatMap((interest) => {
+      const children = currentInterests(interest.children);
+      return interest.deletedWhen === null
+        ? [{ ...interest, children }]
+        : children;
+    });
+  }
+  return categories
+    .map((category) => ({
+      ...category,
+      interests: currentInterests(category.interests),
+    }))
+    .filter((category) => category.interests.length > 0);
+}
+
 export function sourceCalendarDate(value: string): string {
   const [year, month, day] = value.slice(0, 10).split("-").map(Number);
   const date = new Date(0);

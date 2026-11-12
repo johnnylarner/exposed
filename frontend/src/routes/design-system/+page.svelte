@@ -595,7 +595,6 @@
         <ul class="interest-example-list">
           <RegisteredInterestItem
             text={"Example shareholding\n<Company & Partners>"}
-            presentation={{ kind: "compact", summary: "Example Company Ltd" }}
             status={{
               kind: "deleted",
               date: "12 Nov 2026",
@@ -609,14 +608,12 @@
             <ul class="interest-example-list">
               <RegisteredInterestItem
                 text="Active child interest"
-                presentation={{ kind: "full" }}
                 status={{ kind: "active" }}
               />
             </ul>
           </RegisteredInterestItem>
           <RegisteredInterestItem
             text="Active registered interest"
-            presentation={{ kind: "full" }}
             status={{ kind: "active" }}
           >
             {#snippet metadata()}Amended <time datetime="2026-01-20T09:00:00"

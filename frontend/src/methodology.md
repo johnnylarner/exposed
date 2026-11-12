@@ -8,7 +8,7 @@ declair makes MPs’ and Lords’ registered interests easier to search and expl
 <section aria-labelledby="interpretation">
 <h2 id="interpretation">Reading the data</h2>
 
-MP records are declarations. Lords records are registered interests, including deleted interests marked with their source deletion date. Some records are not monetary. Lords interests do not contribute to declared GBP totals, funder groupings, rankings or latest declarations.
+MP records are declarations. Lords records are registered interests. Their summary omits deleted interests, while interest history includes them with their source deletion date. Some records are not monetary. Lords interests do not contribute to declared GBP totals, funder groupings, rankings or latest declarations.
 
 We are a small team and while we do our best to test our data we may miss some things!
 
@@ -19,7 +19,7 @@ We are a small team and while we do our best to test our data we may miss some t
 
 declair uses the UK Parliament’s [Interests API](https://interests-api.parliament.uk/index.html) for MPs’ declarations and the [Members API](https://members-api.parliament.uk/index.html) Lords register with deleted interests included. Records are associated with each Parliament member ID. Lords interests retain the source categories, text and nested entries. Shareholdings appear separately from other registered interests.
 
-MP declaration history includes records designated as expired by the Parliament API. Lords interests remain visible when deleted; deletion is recorded independently for each entry. Registration and amendment dates are source lifecycle dates, not payment dates.
+MP declaration history includes records designated as expired by the Parliament API. Lords interest history preserves every occurrence supplied by the latest capture, including deleted entries, full source text and lifecycle timestamps. Deletion is independent for each entry. Surviving children of deleted entries remain in the summary. This history is not a sequence of previous text versions. Creation and amendment dates are source lifecycle dates, not payment dates.
 
 </section>
 

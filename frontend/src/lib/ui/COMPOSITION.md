@@ -109,7 +109,7 @@ Use ViewLinks with `wrap={true}` and ViewLink for URL-backed category navigation
 
 ## Registered interests
 
-Features own source category grouping, column placement, summary derivation, lifecycle date formatting and recursive tree composition. `RegisteredInterestItem` renders an unboxed `li` inside a feature-owned unordered list. Use `{ kind: "compact", summary }` for a source disclosure or `{ kind: "full" }` for a plain source bullet with metadata in Details. Keep compact lists unmarked in the caller. Pass each node’s own status. Children stay outside the parent disclosure and deletion treatment.
+Features own source category grouping, column placement, summary derivation, lifecycle date formatting and recursive tree composition. `RegisteredInterestItem` renders an unboxed `li` inside a feature-owned unordered list. Pass plain company labels or complete source text as `text`. Keep company lists unmarked in the caller. Optional metadata stays visible. Pass each node’s own status. Children stay outside the parent deletion treatment.
 
 ```svelte
 <script lang="ts">
@@ -119,7 +119,6 @@ Features own source category grouping, column placement, summary derivation, lif
 <ul class="compact-interests">
   <RegisteredInterestItem
     text="Example Company Ltd (consultancy)"
-    presentation={{ kind: "compact", summary: "Example Company Ltd" }}
     status={{
       kind: "deleted",
       date: "12 Nov 2026",
@@ -130,7 +129,6 @@ Features own source category grouping, column placement, summary derivation, lif
     <ul>
       <RegisteredInterestItem
         text="Active child interest"
-        presentation={{ kind: "full" }}
         status={{ kind: "active" }}
       />
     </ul>

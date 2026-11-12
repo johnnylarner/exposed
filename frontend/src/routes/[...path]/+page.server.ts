@@ -30,6 +30,7 @@ export const load = (async ({ url, fetch, request, depends }) => {
     model = {
       kind: "lord",
       id: route.id,
+      view: route.view,
       result: await loadLords(route.id, request.signal, fetch, origin),
     };
   } else if (route.kind !== "search") {

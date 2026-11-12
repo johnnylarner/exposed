@@ -73,9 +73,16 @@ The API preserves text and validated lifecycle timestamp strings verbatim.
 Offset-free source times do not acquire an inferred timezone.
 `captured_at` is UTC capture provenance.
 
-There is no reporting-period filter or history endpoint for Lords.
-The page derives compact shareholding labels from supported source syntax and otherwise shows a short source preview.
-Each occurrence keeps its complete source and lifecycle details in a disclosure.
+The frontend routes `/lords/{id}` and `/lords/{id}/history` use the same API response.
+There is no reporting-period filter or separate history API endpoint for Lords.
+The summary omits occurrences with their own deletion date, promoting surviving descendants past deleted ancestors without changing source order.
+It derives plain shareholding labels from supported source syntax and otherwise shows a short source preview.
+Other interests retain their full source text.
+Interest history preserves every supplied category occurrence and complete root subtree, including repeated IDs and text.
+It shows ten root cards per page, with empty source categories retained as empty cards.
+Each item shows its full source text, source ID, available lifecycle timestamps verbatim, and its own deletion and correction status.
+The capture timestamp is provenance, not a registration date.
+History represents the latest captured register, not a sequence of previous text versions.
 Absent profiles return 404, malformed IDs return 422, and unexpected failures return a sanitized 500.
 Search returns `kind: "Lords"`, the string Parliament ID, `funder_kind: null`,
 and `match_source: {"kind":"name"}`. Lords primary name matches join the existing

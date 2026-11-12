@@ -7,7 +7,7 @@ import { searchQueryString } from "./search-query";
 
 export type DetailRoute =
   | { kind: "search" }
-  | { kind: "lord"; id: string }
+  | { kind: "lord"; id: string; view: "summary" | "history" }
   | { kind: "member"; id: string; view: "summary" | "history" }
   | { kind: "funder"; id: string; view: "summary" | "history" }
   | { kind: "invalid" };
@@ -18,9 +18,9 @@ export const memberIdPattern = /^[1-9]\d*$/u;
 
 export function readDetailRoute(path: string): DetailRoute {
   if (path === "/search") return { kind: "search" };
-  const lord = /^\/lords\/([^/]+)\/?$/u.exec(path);
+  const lord = /^\/lords\/([^/]+)(?:\/(history))?\/?$/u.exec(path);
   if (lord && memberIdPattern.test(lord[1]) && Number(lord[1]) <= 2147483647)
-    return { kind: "lord", id: lord[1] };
+    return { kind: "lord", id: lord[1], view: lord[2] ? "history" : "summary" };
   const member = /^\/members\/([^/]+)(?:\/(history))?\/?$/u.exec(path);
   if (
     member &&
@@ -157,6 +157,14 @@ export function registrationDate(value: string): string {
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(value));
+}
+
+export function lordHref(
+  id: string,
+  view: Extract<DetailRoute, { kind: "lord" }>["view"],
+  params: Pick<URLSearchParams, "get">,
+): string {
+  return `/lords/${id}${view === "history" ? "/history" : ""}${searchQueryString(params)}`;
 }
 
 export function memberHref(

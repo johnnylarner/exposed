@@ -30,9 +30,11 @@ breakdowns, and recent declarations. Their declaration history lets you browse
 all stored declarations and filter by registration date.
 
 A Lord's page places shareholdings on the left and other registered interests
-on the right, grouped by category. Deleted interests remain visible with their
-deletion dates. Nested interests stay with their parent. Lords have no history
-tab or declared-amount totals, and their register does not feed financial rankings.
+on the right, grouped by category. The summary omits deleted interests and retains
+their surviving children. Interest history shows every supplied source occurrence,
+including deleted interests, full source text, and lifecycle dates. Nested interests
+stay with their parent in history. Lords have no declared-amount totals, and their
+register does not feed financial rankings.
 
 A funder's page shows recorded names and declared support across recipients.
 Recipient and party summaries help you explore how that support is distributed.

@@ -1,8 +1,13 @@
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { navigating, page } from "$app/state";
-  import { backToSearch } from "./lib/entity-details";
   import {
+    backToSearch,
+    lordHref,
+    readDetailRoute,
+  } from "./lib/entity-details";
+  import {
+    currentLordsCategories,
     groupLordsCategories,
     sourceCalendarDate,
     type RegisteredInterest,
@@ -17,22 +22,31 @@
     IdentityHeader,
     MessageState,
     RegisteredInterestItem,
-    type RegisteredInterestPresentation,
     SectionHeading,
     Spinner,
+    ViewLinks,
+    ViewLink,
   } from "./lib/ui";
+  import posthog from "posthog-js";
+  import LordsHistory from "./LordsHistory.svelte";
   let { model }: { model: Extract<PageModel, { kind: "lord" }> } = $props();
   let retrying = $state(false);
   const backHref = $derived(backToSearch(page.url.searchParams));
+  const destination = $derived(
+    navigating.to ? readDetailRoute(navigating.to.url.pathname) : null,
+  );
   const loading = $derived(
     retrying ||
       Boolean(
-        navigating.to && navigating.to.url.pathname !== `/lords/${model.id}`,
+        destination &&
+        (destination.kind !== "lord" || destination.id !== model.id),
       ),
   );
   const groups = $derived(
     model.result.kind === "lord"
-      ? groupLordsCategories(model.result.details.categories)
+      ? groupLordsCategories(
+          currentLordsCategories(model.result.details.categories),
+        )
       : [],
   );
   const shareholdings = $derived(
@@ -53,52 +67,18 @@
 
 {#snippet interestItems(
   interests: RegisteredInterest[],
-  presentation: RegisteredInterestPresentation["kind"],
-  category: string,
+  companyLabels: boolean,
 )}
   {#each interests as interest}
-    {#snippet metadata()}
-      {#if presentation === "compact"}<span class="source-detail"
-          >{category}</span
-        >{/if}
-      {#if interest.createdWhen !== null}<span class="source-detail"
-          >Created <time datetime={interest.createdWhen}
-            >{sourceCalendarDate(interest.createdWhen)}</time
-          ></span
-        >{/if}
-      {#if interest.lastAmendedWhen !== null}<span class="source-detail"
-          >Amended <time datetime={interest.lastAmendedWhen}
-            >{sourceCalendarDate(interest.lastAmendedWhen)}</time
-          ></span
-        >{/if}
-    {/snippet}
     <RegisteredInterestItem
-      text={interest.text?.trim() ? interest.text : "Interest text unavailable"}
-      presentation={presentation === "compact"
-        ? { kind: "compact", summary: shareholdingSummary(interest.text).text }
-        : { kind: "full" }}
-      status={interest.deletedWhen === null
-        ? { kind: "active" }
-        : {
-            kind: "deleted",
-            datetime: interest.deletedWhen,
-            date: sourceCalendarDate(interest.deletedWhen),
-          }}
-      correction={interest.isCorrection}
-      metadata={presentation === "compact" ||
-      interest.createdWhen !== null ||
-      interest.lastAmendedWhen !== null
-        ? metadata
-        : undefined}
+      text={companyLabels
+        ? shareholdingSummary(interest.text).text
+        : (interest.text ?? "Interest text unavailable")}
+      status={{ kind: "active" }}
     >
       {#if interest.children.length}
-        <ul
-          class={[
-            "interest-list",
-            presentation === "compact" && "compact-list",
-          ]}
-        >
-          {@render interestItems(interest.children, presentation, category)}
+        <ul class={["interest-list", companyLabels && "compact-list"]}>
+          {@render interestItems(interest.children, companyLabels)}
         </ul>
       {/if}
     </RegisteredInterestItem>
@@ -160,55 +140,69 @@
             >{:else}{@render ended(member.membershipEndDate)}{/if}
         {/if}
       {/snippet}
+      {#snippet navigation()}
+        <ViewLinks label="Lords views">
+          <ViewLink
+            href={lordHref(model.id, "summary", page.url.searchParams)}
+            aria-current={model.view === "summary" ? "page" : undefined}
+            onclick={() =>
+              posthog.capture("entity_view_selected", {
+                entity_type: "lord",
+                selected_view: "summary",
+              })}>Summary</ViewLink
+          >
+          <ViewLink
+            href={lordHref(model.id, "history", page.url.searchParams)}
+            aria-current={model.view === "history" ? "page" : undefined}
+            onclick={() =>
+              posthog.capture("entity_view_selected", {
+                entity_type: "lord",
+                selected_view: "history",
+              })}>Interest history</ViewLink
+          >
+        </ViewLinks>
+      {/snippet}
     </IdentityHeader>
-    <div class="interest-columns">
-      <section aria-labelledby="shareholdings">
-        <SectionHeading id="shareholdings" title="Shareholdings" />
-        {#if shareholdings.every((category) => category.interests.length === 0)}<p
-            class="empty-category"
-          >
-            No interests supplied.
-          </p>{:else}
-          <ul class="interest-list compact-list">
-            {#each shareholdings as category}
-              {@render interestItems(
-                category.interests,
-                "compact",
-                category.name ?? `Category ${category.sourceId}`,
-              )}
-            {/each}
-          </ul>
-        {/if}
-      </section>
-      <section aria-labelledby="registered-interests">
-        <SectionHeading
-          id="registered-interests"
-          title="Registered interests"
-        />
-        {#if otherInterests.length === 0}<p class="empty-category">
-            No interests supplied.
-          </p>{/if}
-        {#each otherInterests as category, index}
-          <section
-            class="interest-category"
-            aria-labelledby={`registered-interests-category-${index}`}
-          >
-            <h3 id={`registered-interests-category-${index}`}>
-              {category.name ?? `Category ${category.sourceId}`}
-            </h3>
-            {#if category.interests.length}
+    {#if model.view === "history"}
+      <LordsHistory details={model.result.details} />
+    {:else}
+      <div class="interest-columns">
+        <section aria-labelledby="shareholdings">
+          <SectionHeading id="shareholdings" title="Shareholdings" />
+          {#if shareholdings.length === 0}<p class="empty-category">
+              No interests supplied.
+            </p>{:else}
+            <ul class="interest-list compact-list">
+              {#each shareholdings as category}
+                {@render interestItems(category.interests, true)}
+              {/each}
+            </ul>
+          {/if}
+        </section>
+        <section aria-labelledby="registered-interests">
+          <SectionHeading
+            id="registered-interests"
+            title="Registered interests"
+          />
+          {#if otherInterests.length === 0}<p class="empty-category">
+              No interests supplied.
+            </p>{/if}
+          {#each otherInterests as category, index}
+            <section
+              class="interest-category"
+              aria-labelledby={`registered-interests-category-${index}`}
+            >
+              <h3 id={`registered-interests-category-${index}`}>
+                {category.name ?? `Category ${category.sourceId}`}
+              </h3>
               <ul class="interest-list">
-                {@render interestItems(
-                  category.interests,
-                  "full",
-                  category.name ?? `Category ${category.sourceId}`,
-                )}
+                {@render interestItems(category.interests, false)}
               </ul>
-            {:else}<p class="empty-category">No interests supplied.</p>{/if}
-          </section>
-        {/each}
-      </section>
-    </div>
+            </section>
+          {/each}
+        </section>
+      </div>
+    {/if}
   {/if}
 </main>
 
@@ -251,9 +245,6 @@
   .interest-list .interest-list {
     margin-top: var(--space-3);
     padding-left: var(--space-4);
-  }
-  .source-detail + .source-detail {
-    margin-left: var(--space-3);
   }
   .empty-category {
     color: var(--muted);
