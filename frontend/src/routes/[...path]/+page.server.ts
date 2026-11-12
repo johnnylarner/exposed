@@ -2,6 +2,7 @@ import { error, redirect } from "@sveltejs/kit";
 import { readPeriod } from "../../lib/reporting-period";
 import { readDetailRoute } from "../../lib/entity-details";
 import { searchConfiguration } from "../../lib/search";
+import { loadLords } from "../../lib/server/lords";
 import { loadDetails } from "../../lib/server/entity-details";
 import { searchEntities } from "../../lib/server/search";
 import type { PageModel } from "../../lib/page";
@@ -25,7 +26,13 @@ export const load = (async ({ url, fetch, request, depends }) => {
     process.env.EXPOSED_API_ORIGIN || "http://127.0.0.1:6999"
   ).replace(/\/$/, "");
   let model: PageModel;
-  if (route.kind !== "search") {
+  if (route.kind === "lord") {
+    model = {
+      kind: "lord",
+      id: route.id,
+      result: await loadLords(route.id, request.signal, fetch, origin),
+    };
+  } else if (route.kind !== "search") {
     let period;
     try {
       period = readPeriod(url.searchParams);

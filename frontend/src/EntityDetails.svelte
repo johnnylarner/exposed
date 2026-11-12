@@ -64,11 +64,11 @@
   {:else if detailState.kind === "not-found"}
     <MessageState title="Entity not found" level={1} variant="detail">
       <p>
-        This MP or funder is not in the stored register. Search for another
-        name.
+        This MP, Lord or funder is not in the stored register. Search for
+        another name.
       </p>
       <ButtonLink variant="quiet" href={backHref}
-        >Search MPs and funders</ButtonLink
+        >Search MPs, Lords and funders</ButtonLink
       >
     </MessageState>
   {:else if detailState.kind === "error"}

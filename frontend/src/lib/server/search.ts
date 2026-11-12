@@ -17,7 +17,9 @@ function readEntities(body: unknown): Entity[] {
       !isRecord(value) ||
       typeof value.name !== "string" ||
       typeof value.id !== "string" ||
-      (value.kind !== "MP" && value.kind !== "Funder") ||
+      (value.kind !== "MP" &&
+        value.kind !== "Lords" &&
+        value.kind !== "Funder") ||
       (value.funder_kind !== null && typeof value.funder_kind !== "string")
     ) {
       throw new Error("Search returned an unexpected response. Try again.");
@@ -42,7 +44,7 @@ function readEntities(body: unknown): Entity[] {
           "Search returned an unexpected match source. Try again.",
         );
     }
-    if (value.kind === "MP") {
+    if (value.kind === "MP" || value.kind === "Lords") {
       if (
         !/^[1-9]\d*$/u.test(value.id) ||
         Number(value.id) > 2147483647 ||
@@ -50,12 +52,12 @@ function readEntities(body: unknown): Entity[] {
         matchSource.kind !== "name"
       )
         throw new Error(
-          "Search returned an unexpected MP identity. Try again.",
+          `Search returned an unexpected ${value.kind} identity. Try again.`,
         );
       return {
         id: value.id,
         name: value.name,
-        kind: "MP",
+        kind: value.kind,
         funderKind: null,
         matchSource,
       };

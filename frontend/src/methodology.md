@@ -1,14 +1,14 @@
 <header class="article-intro">
 <h1 id="methodology-heading">Methodology</h1>
 
-declair makes MPs' registered interests easier to search and explore. To build trust in our data we explain below where it comes from and how its processed.
+declair makes MPs’ and Lords’ registered interests easier to search and explore. To build trust in our data we explain below where it comes from and how its processed.
 
 </header>
 
 <section aria-labelledby="interpretation">
 <h2 id="interpretation">Reading the data</h2>
 
-declair provides all declarations for sitting MPs. Until now all declarations have been made in GBP, so currency conversion has not been necessary. Some declarations are not monetary but are still shown here.
+MP records are declarations. Lords records are registered interests, including deleted interests marked with their source deletion date. Some records are not monetary. Lords interests do not contribute to declared GBP totals, funder groupings, rankings or latest declarations.
 
 We are a small team and while we do our best to test our data we may miss some things!
 
@@ -17,9 +17,9 @@ We are a small team and while we do our best to test our data we may miss some t
 <section aria-labelledby="sources">
 <h2 id="sources">How we source and update our data</h2>
 
-declair uses from the UK Parliament's [Members API](https://members-api.parliament.uk/index.html) and [Interests API](https://interests-api.parliament.uk/index.html). For every sitting member in parliament we pull all declarations associated with them via the parliament member ID. Our data is updated daily which means new declarations will appear on the site within 24 hours.
+declair uses the UK Parliament’s [Interests API](https://interests-api.parliament.uk/index.html) for MPs’ declarations and the [Members API](https://members-api.parliament.uk/index.html) Lords register with deleted interests included. Records are associated with each Parliament member ID. Lords interests retain the source categories, text and nested entries. Shareholdings appear separately from other registered interests.
 
-The Parliament API designates declarations older than 12 months as 'expired'. We don't acknowledge this distinction in our datal as ignoring expired declarations only serves to obscure the full view over an MPs interests and earnings.
+MP declaration history includes records designated as expired by the Parliament API. Lords interests remain visible when deleted; deletion is recorded independently for each entry. Registration and amendment dates are source lifecycle dates, not payment dates.
 
 </section>
 

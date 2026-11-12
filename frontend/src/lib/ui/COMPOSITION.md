@@ -106,3 +106,34 @@ For other native-link filters, use `<ViewLinks variant="filter">` with native `V
 ## Category toolbar
 
 Use ViewLinks with `wrap={true}` and ViewLink for URL-backed category navigation, or ViewButtons and ViewButton for local category selection. Pair the category group with Select for a secondary choice. Features own a flex toolbar with categories first and the select at the opposite edge. Stack the select below the categories on narrow screens. Keep headings above and results below. Select options retain their feature-owned typed values; features own navigation and pending state.
+
+## Registered interests
+
+Features own source category grouping, column placement, lifecycle date formatting and recursive tree composition. `RegisteredInterestCard` renders `li` inside a feature-owned list. Pass each node’s own status; do not inherit deletion from ancestors. Place nested lists in `children`, outside the card’s deleted-content treatment.
+
+```svelte
+<script lang="ts">
+  import { RegisteredInterestCard } from "./lib/ui";
+</script>
+
+<ol>
+  <RegisteredInterestCard
+    text="Example shareholding"
+    status={{
+      kind: "deleted",
+      date: "12 Nov 2026",
+      datetime: "2026-11-12T10:00:00",
+    }}
+  >
+    {#snippet metadata()}Created <time datetime="2025-01-10T09:00:00"
+        >10 Jan 2025</time
+      >{/snippet}
+    <ol>
+      <RegisteredInterestCard
+        text="Active child interest"
+        status={{ kind: "active" }}
+      />
+    </ol>
+  </RegisteredInterestCard>
+</ol>
+```

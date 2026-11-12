@@ -865,3 +865,40 @@ test("local category controls keep native semantics and shared state", async ({
   );
   await expect(select).toHaveValue("members");
 });
+
+test("registered interest cards preserve escaped text and independent child status in Lords context", async ({
+  page,
+}) => {
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const example = page.getByRole("region", {
+    name: "Lords registered interests example",
+  });
+  await expect(example.locator(".profile-type svg")).toHaveCSS(
+    "color",
+    "rgb(229, 138, 123)",
+  );
+  await expect(example.locator(".registered-interest")).toHaveCount(3);
+  await expect(
+    example.locator('.interest-content[data-deleted="true"]'),
+  ).toHaveCount(1);
+  await expect(example.locator(".interest-text").first()).toHaveText(
+    "Example shareholding\n<Company & Partners>",
+  );
+  await expect(example.locator(".interest-text").first()).toHaveCSS(
+    "white-space",
+    "pre-wrap",
+  );
+  await expect(example.locator(".interest-status")).toHaveText(
+    "Deleted 12 Nov 2026",
+  );
+  await expect(example.locator(".interest-correction")).toHaveText(
+    "Correction",
+  );
+  await expect(
+    example.getByText("Active child interest", { exact: true }),
+  ).toHaveCSS("color", "rgb(240, 237, 243)");
+  const action = example.getByRole("link", { name: "Find a Lord" });
+  await expect(action).toHaveCSS("background-color", "rgb(240, 240, 237)");
+  await action.focus();
+  await expect(action).toHaveCSS("outline-color", "rgb(240, 240, 237)");
+});

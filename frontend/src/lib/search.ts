@@ -1,7 +1,7 @@
 import { searchQueryString } from "./search-query";
 
 // Search defaults live here. The API applies
-// max_entries independently to MPs and funders, then merges by similarity.
+// max_entries independently to MPs, Lords and funders, then merges by similarity.
 export const searchConfiguration = {
   minimumCharacters: 3,
   debounceMs: 250,
@@ -17,7 +17,7 @@ export type Entity =
   | {
       id: string;
       name: string;
-      kind: "MP";
+      kind: "MP" | "Lords";
       funderKind: null;
       matchSource: { kind: "name" };
     }
@@ -34,11 +34,16 @@ export function entityHref(
   params: Pick<URLSearchParams, "get">,
 ): string {
   const query = searchQueryString(params);
-  return `/${entity.kind === "MP" ? "members" : "funders"}/${encodeURIComponent(entity.id)}${query}`;
+  const paths = {
+    MP: "members",
+    Lords: "lords",
+    Funder: "funders",
+  } satisfies Record<Entity["kind"], string>;
+  return `/${paths[entity.kind]}/${encodeURIComponent(entity.id)}${query}`;
 }
 
 export function entityType(entity: Entity): string {
-  if (entity.kind === "MP") return "MP";
+  if (entity.kind === "MP" || entity.kind === "Lords") return entity.kind;
   return `Funder: ${funderKindLabel(entity.funderKind)}`;
 }
 

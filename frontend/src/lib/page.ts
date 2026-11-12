@@ -1,5 +1,6 @@
 import type { DetailRoute, DetailState } from "./entity-details";
 import type { Entity } from "./search";
+import type { LordsState } from "./lords";
 export type SearchResult =
   | { status: "idle" }
   | { status: "success"; term: string; entities: Entity[] }
@@ -7,11 +8,12 @@ export type SearchResult =
 export type PageModel =
   | { kind: "landing" }
   | { kind: "methodology" }
+  | { kind: "lord"; id: string; result: LordsState }
   | { kind: "search"; query: string; result: SearchResult }
   | {
       kind: "detail";
       period: import("./reporting-period").ReportingPeriod;
-      route: Exclude<DetailRoute, { kind: "search" }>;
+      route: Exclude<DetailRoute, { kind: "search" | "lord" }>;
       result: Exclude<DetailState, { kind: "loading" }>;
     };
 
@@ -21,7 +23,7 @@ export const pagePresentation = {
     label: "content",
     title: "declair",
     description:
-      "Explore MPs' declared financial interests and the people and organisations behind them.",
+      "Explore MPs’ and Lords’ financial interests and the people and organisations behind them.",
   },
   methodology: {
     target: "methodology",
@@ -32,9 +34,16 @@ export const pagePresentation = {
   search: {
     target: "search",
     label: "search",
-    title: "Search MPs and funders · declair",
+    title: "Search MPs, Lords and funders · declair",
     description:
-      "Find MPs and funders in the Register of Members' Financial Interests.",
+      "Find MPs, Lords and funders in Parliament’s registers of interests.",
+  },
+  lord: {
+    target: "lords",
+    label: "registered interests",
+    title: "Lords registered interests · declair",
+    description:
+      "Explore Lords’ registered interests, including deleted interests.",
   },
   detail: {
     target: "details",

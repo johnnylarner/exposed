@@ -4,6 +4,7 @@
   import MethodologyPage from "./MethodologyPage.svelte";
   import { pagePresentation } from "./lib/page";
   import SearchPage from "./SearchPage.svelte";
+  import LordsPage from "./LordsPage.svelte";
   import EntityDetails from "./EntityDetails.svelte";
   import type { PageModel } from "./lib/page";
   let { model }: { model: PageModel } = $props();
@@ -25,6 +26,8 @@
     <MethodologyPage />
   {:else if model.kind === "search"}
     <SearchPage {model} />
+  {:else if model.kind === "lord"}
+    <LordsPage {model} />
   {:else if model.kind === "detail"}
     <EntityDetails {model} />
   {/if}

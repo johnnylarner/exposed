@@ -7,6 +7,7 @@ import { searchQueryString } from "./search-query";
 
 export type DetailRoute =
   | { kind: "search" }
+  | { kind: "lord"; id: string }
   | { kind: "member"; id: string; view: "summary" | "history" }
   | { kind: "funder"; id: string; view: "summary" | "history" }
   | { kind: "invalid" };
@@ -17,6 +18,9 @@ export const memberIdPattern = /^[1-9]\d*$/u;
 
 export function readDetailRoute(path: string): DetailRoute {
   if (path === "/search") return { kind: "search" };
+  const lord = /^\/lords\/([^/]+)\/?$/u.exec(path);
+  if (lord && memberIdPattern.test(lord[1]) && Number(lord[1]) <= 2147483647)
+    return { kind: "lord", id: lord[1] };
   const member = /^\/members\/([^/]+)(?:\/(history))?\/?$/u.exec(path);
   if (
     member &&

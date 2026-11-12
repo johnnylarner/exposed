@@ -400,7 +400,10 @@ test("errors allow retry and missing or invalid routes offer search navigation",
     page.getByRole("heading", { name: "Entity not found" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("link", { name: "Search MPs and funders", exact: true }),
+    page.getByRole("link", {
+      name: "Search MPs, Lords and funders",
+      exact: true,
+    }),
   ).toHaveAttribute("href", "/search?q=Example");
   const callsBeforeInvalidRoute = calls;
   await page.goto("/members/0");
@@ -1241,7 +1244,9 @@ test("initial HTML renders search and detail views while browser traffic stays i
   const html = await request.get("/search?q=Example&strictness=0.42");
   const rendered = await html.text();
   expect(rendered).toContain('class="entity-name"');
-  expect(rendered).toContain("<title>Search MPs and funders · declair</title>");
+  expect(rendered).toContain(
+    "<title>Search MPs, Lords and funders · declair</title>",
+  );
   expect(rendered).toContain('name="description"');
   const context = await browser.newContext({
     baseURL,
