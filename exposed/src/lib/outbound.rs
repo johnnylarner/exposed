@@ -6,6 +6,7 @@ mod declaration_source;
 mod entity_ingestion;
 mod file_system;
 mod funder;
+mod member_identity;
 mod parliament_api;
 mod parliament_member;
 mod postgres;

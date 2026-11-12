@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.id FROM exposed.members m JOIN exposed.commons_member_profiles p ON p.member_id = m.id WHERE m.parliament_member_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "42c6746f6b853a3c6dc75cf5110f82cd3fe2907a4387c2bf7a605eba34a28cec"
+}

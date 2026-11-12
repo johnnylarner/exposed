@@ -1,7 +1,14 @@
-INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT ('70000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i,
+WITH input (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
+    SELECT ('70000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i,
        'Contract Member ' || i, 1, 'Contract Party', 1, 'Contract constituency', true
-FROM generate_series(7001, 7007) i;
+FROM generate_series(7001, 7007) i
+), identities AS (
+    INSERT INTO exposed.members (id, parliament_member_id)
+    SELECT input.id::uuid, input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
+)
+INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
+SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id;
 INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) VALUES
 (7101, '70000000-0000-0000-0000-000000007001', 1, 'Employment', '2026-01-01Z', '2024-07-08T23:59:59.999999Z'),
 (7102, '70000000-0000-0000-0000-000000007001', 3, 'Support', '2026-01-01Z', '2024-07-09T00:00:00Z'),

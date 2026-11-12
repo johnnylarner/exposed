@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exposed.lords_member_profiles\n                 (member_id, name, party_name, membership_from, membership_status, membership_end_date,\n                  source_document, captured_at, ingestion_key)\n                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)\n                 ON CONFLICT (member_id) DO UPDATE SET\n                     name = EXCLUDED.name, party_name = EXCLUDED.party_name,\n                     membership_from = EXCLUDED.membership_from,\n                     membership_status = EXCLUDED.membership_status,\n                     membership_end_date = EXCLUDED.membership_end_date,\n                     source_document = EXCLUDED.source_document,\n                     captured_at = EXCLUDED.captured_at, ingestion_key = EXCLUDED.ingestion_key\n                 WHERE (exposed.lords_member_profiles.captured_at, exposed.lords_member_profiles.ingestion_key)\n                     < (EXCLUDED.captured_at, EXCLUDED.ingestion_key)\n                 RETURNING member_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "member_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "lords_member_profiles",
+            "name": "member_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Jsonb",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f998469f2af5de693e145458ddc5324700ffde74c780f1fe1d41c62e62433494"
+}

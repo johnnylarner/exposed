@@ -31,7 +31,7 @@ impl EntityDetailsRepo for ExposedDatabase {
             .await?;
         let row = sqlx::query!(
             "SELECT parliament_member_id, name, party_id, party_name, latest_membership_from, is_current_commons
-             FROM exposed.members m WHERE parliament_member_id = $1", i32::try_from(id.value()).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?
+             FROM exposed.members m JOIN exposed.commons_member_profiles p ON p.member_id = m.id WHERE parliament_member_id = $1", i32::try_from(id.value()).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?
         ).fetch_optional(&mut *tx).await?;
         let Some(row) = row else {
             return Ok(None);
@@ -49,6 +49,7 @@ impl EntityDetailsRepo for ExposedDatabase {
                 e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $2), '') AS currency,
                 e.payment_type, f.id AS \"funder_id?\", f.funder_name AS \"funder_name?\"
              FROM exposed.declarations d JOIN exposed.members m ON m.id = d.member_id
+             JOIN exposed.commons_member_profiles p ON p.member_id = m.id
              LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id
              LEFT JOIN exposed.funders f ON f.id = e.funder_id
              WHERE m.parliament_member_id = $1
@@ -222,13 +223,14 @@ async fn funder_declarations(
     funder: &Funder,
 ) -> Result<Vec<FunderDeclaration>, EntityDetailsRepoError> {
     let rows = sqlx::query!(
-        "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name,
-                m.latest_membership_from, m.is_current_commons,
+        "SELECT m.parliament_member_id, p.name, p.party_id, p.party_name,
+                p.latest_membership_from, p.is_current_commons,
                 d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
                 e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type
              FROM exposed.funding_entries e
              JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id
              JOIN exposed.members m ON m.id = d.member_id
+             JOIN exposed.commons_member_profiles p ON p.member_id = m.id
              WHERE e.funder_id = ANY($1)
              ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
         stored_member_ids,

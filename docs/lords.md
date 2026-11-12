@@ -40,18 +40,29 @@ Load verifies the manifest and every page before opening its database transactio
 
 `exposed.lords_imports` records each committed capture and its digest.
 An exact retry returns `already_loaded`. Reusing a key with different evidence fails.
-`exposed.lords_members` retains the full source `item.value` JSON document, the search name,
-capture time, and import key. One transaction writes both tables.
-The member row changes only when the incoming `(captured_at, ingestion_key)` pair is greater.
+`exposed.members` owns the shared UUID and Parliament identity. Commons and Lords
+fields belong to `commons_member_profiles` and `lords_member_profiles` respectively.
+The Lords profile retains the full source `item.value` JSON document as evidence,
+alongside typed profile fields, capture time, and import key. Ordered categories and
+interest trees live in `lords_categories` and `lords_interests`. Positional composite
+keys preserve repeated source IDs, identical interests, and empty categories.
+One transaction writes the ledger, identities, profiles, and complete occurrence trees.
+The profile and its tree change only when the incoming `(captured_at, ingestion_key)` pair is greater.
 The UUID breaks ties between captures at the same database timestamp.
 Imports lock member rows in Parliament ID order.
 Members omitted from a later capture retain their latest stored document.
 
-The Lords importer does not write Commons members, declarations, funders, or funding entries.
-The same Parliament ID can have separate Commons and Lords profiles.
+Both importers acquire the same identity in stable Parliament ID order. The Lords importer
+never changes Commons profile fields, declarations, funders, or funding entries.
+A Parliament ID can have both profiles. Commons cohorts require a Commons profile,
+including former MPs, and declarations require that profile through a foreign key.
 Lords interests do not enter financial totals or rankings.
 
 ## HTTP and search
+
+Detail reads reconstruct the ordered tree from relational rows in one repeatable-read
+snapshot. Search reads the Lords profile. Neither public path parses the retained JSON.
+Invalid stored positions or source values produce a database error rather than a partial tree.
 
 `GET /lords/{id}` returns `member`, `captured_at`, and `categories`, without a wrapper.
 The member ID is a positive Parliament identity serialized as a string.

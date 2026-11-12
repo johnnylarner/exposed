@@ -130,7 +130,15 @@ fn parquet_rows(path: &Path) -> anyhow::Result<Vec<Value>> {
 
 async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
     sqlx::query!(
-        "INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES ($1, 4483, 'Example member', 1, 'Party', 1, 'Constituency', true)",
+        "WITH input (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
+    VALUES ($1::uuid, 4483, 'Example member', 1, 'Party', 1, 'Constituency', true)
+), identities AS (
+    INSERT INTO exposed.members (id, parliament_member_id)
+    SELECT input.id::uuid, input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
+)
+INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
+SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id",
         id
     )
     .execute(pool)
@@ -140,7 +148,7 @@ async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
 
 async fn clear_import(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query!(
-        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.members"
+        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.lords_interests, exposed.lords_categories, exposed.lords_member_profiles, exposed.commons_member_profiles, exposed.members"
     )
     .execute(pool)
     .await?;

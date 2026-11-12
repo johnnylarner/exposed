@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT id FROM exposed.members WHERE parliament_member_id = $1",
+  "query": "INSERT INTO exposed.members (parliament_member_id) VALUES ($1)\n         ON CONFLICT (parliament_member_id) DO UPDATE\n         SET parliament_member_id = EXCLUDED.parliament_member_id RETURNING id",
   "describe": {
     "columns": [
       {
@@ -24,5 +24,5 @@
       false
     ]
   },
-  "hash": "14a6c54e0b174729e6f32a3808739d52948c3103c229e13c3d6cc318ea5dcdeb"
+  "hash": "26634241a73333d214e0e9dcabfff4db7a08592933e9319b2b122dee9bfb1e25"
 }

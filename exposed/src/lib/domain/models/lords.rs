@@ -16,6 +16,14 @@ use super::{entity_ingestion::IngestionKey, parliament_member::MemberId};
 #[serde(transparent)]
 pub struct SourceTimestamp(String);
 
+impl SourceTimestamp {
+    /// Original spelling retained from the source.
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 impl TryFrom<String> for SourceTimestamp {
     type Error = LordsError;
 
@@ -36,10 +44,46 @@ impl TryFrom<String> for SourceTimestamp {
 #[serde(transparent)]
 pub struct LordsCategoryId(std::num::NonZeroU32);
 
+impl LordsCategoryId {
+    /// Nonzero source identity, distinct from a stored occurrence position.
+    #[must_use]
+    pub const fn value(self) -> u32 {
+        self.0.get()
+    }
+}
+
+impl TryFrom<u32> for LordsCategoryId {
+    type Error = LordsError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        std::num::NonZeroU32::new(value)
+            .map(Self)
+            .ok_or_else(|| LordsError::Source("source identity must be nonzero".into()))
+    }
+}
+
 /// Source interest identity. Repeated occurrences remain separate tree nodes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(transparent)]
 pub struct RegisteredInterestId(std::num::NonZeroU32);
+
+impl RegisteredInterestId {
+    /// Nonzero source identity, distinct from a stored occurrence position.
+    #[must_use]
+    pub const fn value(self) -> u32 {
+        self.0.get()
+    }
+}
+
+impl TryFrom<u32> for RegisteredInterestId {
+    type Error = LordsError;
+
+    fn try_from(value: u32) -> Result<Self, Self::Error> {
+        std::num::NonZeroU32::new(value)
+            .map(Self)
+            .ok_or_else(|| LordsError::Source("source identity must be nonzero".into()))
+    }
+}
 
 /// The backend owns the category placement vocabulary and classification.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

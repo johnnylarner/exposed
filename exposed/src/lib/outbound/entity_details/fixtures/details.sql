@@ -1,10 +1,24 @@
-INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i,
+WITH input (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
+    SELECT ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i,
        CASE i WHEN 1 THEN 'Ava Example' WHEN 2 THEN 'Bea Example' WHEN 3 THEN 'Empty Member' ELSE 'Recipient ' || i END,
        CASE WHEN i = 2 THEN 2 ELSE 1 END, CASE WHEN i = 2 THEN 'Party B' ELSE 'Party A' END,
-       1, 'Example constituency', true FROM generate_series(1, 15) i;
-INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-VALUES (16, 'Former MP Example', 1, 'Party A', 2, 'Life peer', false);
+       1, 'Example constituency', true FROM generate_series(1, 15) i
+), identities AS (
+    INSERT INTO exposed.members (id, parliament_member_id)
+    SELECT input.id::uuid, input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
+)
+INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
+SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id;
+WITH input (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
+    VALUES (16, 'Former MP Example', 1, 'Party A', 2, 'Life peer', false)
+), identities AS (
+    INSERT INTO exposed.members (parliament_member_id)
+    SELECT input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
+)
+INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
+SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id;
 INSERT INTO exposed.funders (id, funder_name, funder_kind, company_number) VALUES
 ('10000000-0000-0000-0000-000000000001', 'Exact Funder', 'Company', '00123456'),
 ('10000000-0000-0000-0000-000000000002', 'Empty Funder', NULL, NULL),

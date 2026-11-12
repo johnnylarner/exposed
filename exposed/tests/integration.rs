@@ -145,12 +145,16 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
 #[ignore = "requires live Parliament interests API access and an isolated PostgreSQL test database"]
 async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Result<()> {
     sqlx::query!(
-        "INSERT INTO exposed.members
-            (parliament_member_id, name, party_id, party_name, latest_house,
-             latest_membership_from, is_current_commons)
-         VALUES (4613, 'Alex Burghart', 4, 'Conservative', 1, 'Brentwood and Ongar', true),
+        "WITH input (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
+    VALUES (4613, 'Alex Burghart', 4, 'Conservative', 1, 'Brentwood and Ongar', true),
                 (5030, 'Dr Simon Opher', 15, 'Labour', 1, 'Stroud', true)
-"
+), identities AS (
+    INSERT INTO exposed.members (parliament_member_id)
+    SELECT input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
+)
+INSERT INTO exposed.commons_member_profiles (member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
+SELECT identities.id, input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons
+FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id"
     )
     .execute(&pool)
     .await?;

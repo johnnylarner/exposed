@@ -1,6 +1,7 @@
 //! Lords source, immutable artifacts, and isolated PostgreSQL projection.
 
 mod database;
+mod relational;
 mod storage;
 
 pub use storage::LordsCaptureFiles;

@@ -19,7 +19,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
         sqlx::query!(
             "
             SELECT parliament_member_id
-            FROM exposed.members
+            FROM exposed.members m JOIN exposed.commons_member_profiles p ON p.member_id = m.id
             ORDER BY parliament_member_id
             "
         )
@@ -55,14 +55,14 @@ impl ParliamentMemberRepo for ExposedDatabase {
         let rows = sqlx::query!(
             "
             SELECT  
-                m.name,
+                p.name,
                 m.parliament_member_id,
-                m.party_name,
-                m.party_id,
-                m.latest_membership_from as constituency,
-                 exposed.word_similarity($1, m.name) as similarity_score
-            FROM exposed.members m
-            WHERE m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
+                p.party_name,
+                p.party_id,
+                p.latest_membership_from as constituency,
+                 exposed.word_similarity($1, p.name) as similarity_score
+            FROM exposed.members m JOIN exposed.commons_member_profiles p ON p.member_id = m.id
+            WHERE p.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, p.name) >= $2
             ORDER BY similarity_score DESC, m.id
             LIMIT $3
             ",
@@ -102,11 +102,11 @@ impl ParliamentMemberRepo for ExposedDatabase {
     ) -> Result<Vec<(ParliamentMember, PhoneticRank)>, ParliamentMemberRepoError> {
         let rows = sqlx::query!(
             r#"
-            SELECT m.name, m.parliament_member_id, m.party_name, m.party_id,
-                   m.latest_membership_from AS constituency,
+            SELECT p.name, m.parliament_member_id, p.party_name, p.party_id,
+                   p.latest_membership_from AS constituency,
                    correction.distance AS "distance!",
-                   exposed.word_similarity(correction.corrected_query, m.name) AS similarity_score
-            FROM exposed.members m
+                   exposed.word_similarity(correction.corrected_query, p.name) AS similarity_score
+            FROM exposed.members m JOIN exposed.commons_member_profiles p ON p.member_id = m.id
             CROSS JOIN LATERAL (
                 SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,
                        sum(best.distance)::integer AS distance
@@ -117,15 +117,15 @@ impl ParliamentMemberRepo for ExposedDatabase {
                         THEN exposed.levenshtein_less_equal(q.word, cw.word, 1)
                         ELSE 2
                     END AS distance
-                    FROM unnest(exposed.person_name_words(m.name)) AS cw(word)
+                    FROM unnest(exposed.person_name_words(p.name)) AS cw(word)
                     WHERE exposed.soundex(cw.word) = exposed.soundex(q.word)
                     ORDER BY distance, cw.word COLLATE "C"
                     LIMIT 1
                 ) best ON best.distance <= 1
                 HAVING count(best.word) = count(*) AND count(*) > 0
             ) correction
-            WHERE exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
-              AND exposed.word_similarity(correction.corrected_query, m.name) >= $2
+            WHERE exposed.person_name_codes(p.name) @> exposed.person_name_codes($1)
+              AND exposed.word_similarity(correction.corrected_query, p.name) >= $2
             ORDER BY correction.distance, similarity_score DESC, m.parliament_member_id
             LIMIT $3
             "#,
@@ -170,12 +170,17 @@ impl ParliamentMemberRepo for ExposedDatabase {
             .await
             .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
 
+        let mut members: Vec<_> = members.iter().collect();
+        members.sort_by_key(|member| member.member_id());
         for m in members {
+            let member_id = super::member_identity::acquire(&mut tx, m.member_id())
+                .await
+                .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
             sqlx::query!(
                 "
             INSERT INTO 
-                exposed.members (
-                    parliament_member_id, 
+                exposed.commons_member_profiles (
+                    member_id,
                     name, 
                     party_id,
                     party_name,
@@ -184,14 +189,14 @@ impl ParliamentMemberRepo for ExposedDatabase {
                     is_current_commons
            ) 
             VALUES ($1,$2,$3,$4,1,$5,true)
-           ON CONFLICT (parliament_member_id) DO UPDATE SET
+           ON CONFLICT (member_id) DO UPDATE SET
                name = EXCLUDED.name, party_id = EXCLUDED.party_id,
                party_name = EXCLUDED.party_name, latest_house = EXCLUDED.latest_house,
                latest_membership_from = EXCLUDED.latest_membership_from,
                is_current_commons = EXCLUDED.is_current_commons
-           RETURNING id
+           RETURNING member_id
             ",
-                m.member_id().value().cast_signed(),
+                member_id,
                 m.name(),
                 m.party_id().cast_signed(),
                 m.party_name(),

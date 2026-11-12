@@ -1,0 +1,119 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.member_id, m.parliament_member_id, p.name, p.party_name,\n                    p.membership_from, p.membership_status, p.membership_end_date, p.captured_at,\n                    NULL::real AS similarity\n             FROM exposed.lords_member_profiles p JOIN exposed.members m ON m.id = p.member_id\n             WHERE m.parliament_member_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "member_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "lords_member_profiles",
+            "name": "member_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "parliament_member_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliament_member_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "lords_member_profiles",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "party_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "lords_member_profiles",
+            "name": "party_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "membership_from",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "lords_member_profiles",
+            "name": "membership_from"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "membership_status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "lords_member_profiles",
+            "name": "membership_status"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "membership_end_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "lords_member_profiles",
+            "name": "membership_end_date"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "captured_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "lords_member_profiles",
+            "name": "captured_at"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "similarity",
+        "type_info": "Float4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "e966ab811801eb031fbe9dca4fa37b0547281b4497531b84dbbea7e5a824cb72"
+}

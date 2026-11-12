@@ -161,7 +161,7 @@ async fn load_is_idempotent_monotonic_and_isolated_from_commons(pool: PgPool) {
         "John McDonnell"
     );
     let row = sqlx::query!(
-        "SELECT source_document FROM exposed.lords_members WHERE parliament_member_id = 1"
+        "SELECT source_document FROM exposed.lords_member_profiles p JOIN exposed.members m ON m.id = p.member_id WHERE parliament_member_id = 1"
     )
     .fetch_one(&pool)
     .await
@@ -207,7 +207,7 @@ async fn failed_member_write_rolls_back_every_document_and_the_ledger(pool: PgPo
     );
     db.load_lords(&initial).await.unwrap();
     sqlx::query!(
-        "ALTER TABLE exposed.lords_members ADD CONSTRAINT reject_test_name CHECK (name <> 'Reject')"
+        "ALTER TABLE exposed.lords_member_profiles ADD CONSTRAINT reject_test_name CHECK (name <> 'Reject')"
     )
     .execute(&pool)
     .await
@@ -252,12 +252,14 @@ async fn concurrent_imports_resolve_against_the_locked_row_and_break_timestamp_t
     ))
     .await
     .unwrap();
-    for (round, older_date, newer_date) in [
-        (0, "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z"),
-        (1, "2027-01-01T00:00:00Z", "2027-01-01T00:00:00Z"),
+    for (round, older_date, newer_date, newest_first) in [
+        (0, "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z", false),
+        (1, "2027-01-01T00:00:00Z", "2027-02-01T00:00:00Z", true),
+        (2, "2028-01-01T00:00:00Z", "2028-01-01T00:00:00Z", false),
+        (3, "2029-01-01T00:00:00Z", "2029-01-01T00:00:00Z", true),
     ] {
         let mut lock = pool.begin().await.unwrap();
-        sqlx::query!("SELECT parliament_member_id FROM exposed.lords_members WHERE parliament_member_id = 1 FOR UPDATE").fetch_one(&mut *lock).await.unwrap();
+        sqlx::query!("SELECT parliament_member_id FROM exposed.members WHERE parliament_member_id = 1 FOR UPDATE").fetch_one(&mut *lock).await.unwrap();
         let older = capture(
             IngestionKey::new(uuid::Uuid::from_u128(10 + round * 2)),
             older_date,
@@ -268,33 +270,42 @@ async fn concurrent_imports_resolve_against_the_locked_row_and_break_timestamp_t
             newer_date,
             &[(1, "Lord Newer")],
         );
+        let expected = newer.members()[0].register().clone();
+        let expected_evidence = newer.members()[0].raw().clone();
+        let expected_key = newer.key().uuid();
+        let (first, second) = if newest_first {
+            (newer, older)
+        } else {
+            (older, newer)
+        };
         let left = db.clone();
         let right = db.clone();
-        let older = tokio::spawn(async move { left.load_lords(&older).await });
-        let newer = tokio::spawn(async move { right.load_lords(&newer).await });
-        tokio::time::timeout(std::time::Duration::from_secs(10), async {
-            loop {
-                let waiting = sqlx::query_scalar!("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'INSERT INTO exposed.lords_members%'").fetch_one(&pool).await.unwrap().unwrap();
-                if waiting == 2 { break; }
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-            }
-        }).await.expect("both imports wait on the same stored row");
+        let first = tokio::spawn(async move { left.load_lords(&first).await });
+        wait_for_identity_locks(&pool, 1).await;
+        let second = tokio::spawn(async move { right.load_lords(&second).await });
+        wait_for_identity_locks(&pool, 2).await;
         lock.commit().await.unwrap();
-        assert_eq!(older.await.unwrap().unwrap(), LordsLoadOutcome::Loaded);
-        assert_eq!(newer.await.unwrap().unwrap(), LordsLoadOutcome::Loaded);
+        assert_eq!(first.await.unwrap().unwrap(), LordsLoadOutcome::Loaded);
+        assert_eq!(second.await.unwrap().unwrap(), LordsLoadOutcome::Loaded);
         assert_eq!(
             db.lord_register("1".parse().unwrap())
                 .await
                 .unwrap()
-                .unwrap()
-                .member
-                .name,
-            "Lord Newer"
+                .unwrap(),
+            expected
         );
+        let stored = sqlx::query!(
+            "SELECT source_document, ingestion_key FROM exposed.lords_member_profiles"
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_eq!(stored.source_document, expected_evidence);
+        assert_eq!(stored.ingestion_key, expected_key);
     }
     let capture = capture(
         IngestionKey::default(),
-        "2028-01-01T00:00:00Z",
+        "2030-01-01T00:00:00Z",
         &[(1, "Lord Retry")],
     );
     let (left, right) = tokio::join!(db.load_lords(&capture), db.load_lords(&capture));
@@ -388,4 +399,66 @@ async fn public_lords_response_and_search_keep_the_frozen_contract(pool: PgPool)
         public["entities"][0],
         json!({"id":"2175", "name":"Lord Example", "kind":"Lords", "funder_kind":null, "match_source":{"kind":"name"}})
     );
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn relational_occurrences_preserve_source_values_without_json_reads(pool: PgPool) {
+    use crate::domain::models::lords::LordsCaptureBuilder;
+    let mut source = fixture();
+    let value = &mut source["items"][0]["value"];
+    value["member"]["latestHouseMembership"]["membershipEndDate"] =
+        json!("2024-03-02T01:02:03.123400+03:30");
+    let node = json!({
+        "id": u32::MAX, "interest": "  ", "isCorrection": true,
+        "createdWhen": "2020-01-01T00:00:00",
+        "lastAmendedWhen": "2020-01-02T00:00:00.1200Z",
+        "deletedWhen": "2020-01-03T00:00:00-04:00",
+        "childInterests": [{"id": u32::MAX, "interest": null,
+            "isCorrection": false, "deletedWhen": "2020-01-01T00:00:00Z"}]
+    });
+    value["interestCategories"] = json!([
+        {"id":u32::MAX,"name":null,"sortOrder":-10,"interests":[node.clone(),node]},
+        {"id":u32::MAX,"name":"","sortOrder":-10,"interests":[]}
+    ]);
+    let mut builder = LordsCaptureBuilder::new(
+        IngestionKey::default(),
+        "2026-11-12T00:00:00Z".parse().unwrap(),
+    );
+    builder
+        .push_page(serde_json::to_vec(&source).unwrap())
+        .unwrap();
+    let capture = builder.finish().unwrap();
+    let expected = capture.members()[0].register();
+    let db = ExposedDatabase::from(pool.clone());
+    db.load_lords(&capture).await.unwrap();
+    assert_eq!(
+        &db.lord_register(expected.member.id).await.unwrap().unwrap(),
+        expected
+    );
+    sqlx::query!("UPDATE exposed.lords_member_profiles SET source_document = '{}'::jsonb")
+        .execute(&pool)
+        .await
+        .unwrap();
+    assert_eq!(
+        &db.lord_register(expected.member.id).await.unwrap().unwrap(),
+        expected
+    );
+    let search =
+        EntitySearchRequest::new_with_strictness(expected.member.name.clone(), 10, 1.0).unwrap();
+    assert_eq!(
+        db.search_lords(&search).await.unwrap()[0].0,
+        expected.member
+    );
+}
+
+mod relational;
+
+async fn wait_for_identity_locks(pool: &PgPool, count: i64) {
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            let waiting = sqlx::query_scalar!("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'INSERT INTO exposed.members%'").fetch_one(pool).await.unwrap().unwrap();
+            if waiting == count { break; }
+            tokio::task::yield_now().await;
+        }
+    }).await.expect("imports reached the identity lock barrier");
 }
