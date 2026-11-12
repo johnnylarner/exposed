@@ -1,3 +1,5 @@
+import type { Page } from "@playwright/test";
+import { lordsFixture } from "./lords-fixtures";
 import { gunzipSync } from "node:zlib";
 import { expect, test } from "./backend";
 
@@ -7,10 +9,7 @@ test.use({
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
 });
 
-test("each executed search emits one event, including typeahead, examples, Enter and retry", async ({
-  backend,
-  page,
-}) => {
+async function captureEvents(page: Page) {
   const events: { event: string; properties: Record<string, unknown> }[] = [];
   await page.route("https://posthog.test/**", async (route) => {
     const request = route.request();
@@ -33,6 +32,18 @@ test("each executed search emits one event, including typeahead, examples, Enter
     }
     await route.fulfill({ json: {} });
   });
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => false });
+    Object.defineProperty(navigator, "userAgentData", { get: () => undefined });
+  });
+  return events;
+}
+
+test("each executed search emits one event, including typeahead, examples, Enter and retry", async ({
+  backend,
+  page,
+}) => {
+  const events = await captureEvents(page);
   let fail = false;
   const searches: string[] = [];
   await backend.route("**/api/search?*", (route) => {
@@ -40,10 +51,6 @@ test("each executed search emits one event, including typeahead, examples, Enter
     return fail
       ? route.fulfill({ status: 503, body: "service unavailable" })
       : route.fulfill({ json: { entities: [] } });
-  });
-  await page.addInitScript(() => {
-    Object.defineProperty(navigator, "webdriver", { get: () => false });
-    Object.defineProperty(navigator, "userAgentData", { get: () => undefined });
   });
   await page.goto("/search?q=First");
   const input = page.getByRole("searchbox");
@@ -105,4 +112,40 @@ test("each executed search emits one event, including typeahead, examples, Enter
     "Retry",
     "Retry",
   ]);
+});
+
+test("Lords identity captures one view event per executed action in the shared detail shell", async ({
+  backend,
+  page,
+}) => {
+  const events = await captureEvents(page);
+  await backend.route("**/api/lords/2175", (route) =>
+    route.fulfill({ json: lordsFixture }),
+  );
+  await page.goto("/lords/2175?q=Example");
+  await page
+    .getByRole("link", { name: "Interest history", exact: true })
+    .click();
+  await expect(
+    page.getByRole("link", { name: "Interest history", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await page.getByRole("link", { name: "Summary", exact: true }).click();
+  await expect(
+    page.getByRole("link", { name: "Summary", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await expect
+    .poll(
+      () =>
+        events
+          .filter(({ event }) => event === "entity_view_selected")
+          .map(({ properties }) => ({
+            entity_type: properties.entity_type,
+            selected_view: properties.selected_view,
+          })),
+      { timeout: 10000 },
+    )
+    .toEqual([
+      { entity_type: "lord", selected_view: "history" },
+      { entity_type: "lord", selected_view: "summary" },
+    ]);
 });

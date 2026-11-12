@@ -28,9 +28,9 @@ export const load = (async ({ url, fetch, request, depends }) => {
   let model: PageModel;
   if (route.kind === "lord") {
     model = {
-      kind: "lord",
-      id: route.id,
-      view: route.view,
+      kind: "detail",
+      entity: "lord",
+      route,
       result: await loadLords(route.id, request.signal, fetch, origin),
     };
   } else if (route.kind !== "search") {
@@ -40,21 +40,46 @@ export const load = (async ({ url, fetch, request, depends }) => {
     } catch {
       error(400, "Invalid reporting period");
     }
-    model = {
-      kind: "detail",
-      period,
-      route,
-      result:
-        route.kind === "invalid"
-          ? { kind: "not-found" }
-          : await loadDetails(
-              route,
-              request.signal,
-              fetch,
-              origin,
-              route.view === "history" ? "historical" : period,
-            ),
-    };
+    switch (route.kind) {
+      case "invalid":
+        model = {
+          kind: "detail",
+          entity: "invalid",
+          route,
+          result: { kind: "not-found" },
+        };
+        break;
+      case "member":
+        model = {
+          kind: "detail",
+          entity: "member",
+          period,
+          route,
+          result: await loadDetails(
+            route,
+            request.signal,
+            fetch,
+            origin,
+            route.view === "history" ? "historical" : period,
+          ),
+        };
+        break;
+      case "funder":
+        model = {
+          kind: "detail",
+          entity: "funder",
+          period,
+          route,
+          result: await loadDetails(
+            route,
+            request.signal,
+            fetch,
+            origin,
+            route.view === "history" ? "historical" : period,
+          ),
+        };
+        break;
+    }
   } else {
     const query = url.searchParams.get("q") ?? "";
     const term = query.trim();

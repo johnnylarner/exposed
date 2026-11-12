@@ -1,21 +1,43 @@
-import type { DetailRoute, DetailState } from "./entity-details";
+import type { DetailRoute, DetailResult } from "./entity-details";
 import type { Entity } from "./search";
 import type { LordsState } from "./lords";
+import type { ReportingPeriod } from "./reporting-period";
 export type SearchResult =
   | { status: "idle" }
   | { status: "success"; term: string; entities: Entity[] }
   | { status: "error"; term: string; message: string };
+export type DetailPage =
+  | {
+      kind: "detail";
+      entity: "member";
+      route: Extract<DetailRoute, { kind: "member" }>;
+      period: ReportingPeriod;
+      result: DetailResult<"member">;
+    }
+  | {
+      kind: "detail";
+      entity: "funder";
+      route: Extract<DetailRoute, { kind: "funder" }>;
+      period: ReportingPeriod;
+      result: DetailResult<"funder">;
+    }
+  | {
+      kind: "detail";
+      entity: "lord";
+      route: Extract<DetailRoute, { kind: "lord" }>;
+      result: LordsState;
+    }
+  | {
+      kind: "detail";
+      entity: "invalid";
+      route: Extract<DetailRoute, { kind: "invalid" }>;
+      result: { kind: "not-found" };
+    };
 export type PageModel =
   | { kind: "landing" }
   | { kind: "methodology" }
-  | (Extract<DetailRoute, { kind: "lord" }> & { result: LordsState })
   | { kind: "search"; query: string; result: SearchResult }
-  | {
-      kind: "detail";
-      period: import("./reporting-period").ReportingPeriod;
-      route: Exclude<DetailRoute, { kind: "search" | "lord" }>;
-      result: Exclude<DetailState, { kind: "loading" }>;
-    };
+  | DetailPage;
 
 export const pagePresentation = {
   landing: {
@@ -52,6 +74,6 @@ export const pagePresentation = {
       "Explore declared financial interests in the Register of Members' Financial Interests.",
   },
 } satisfies Record<
-  PageModel["kind"],
+  PageModel["kind"] | "lord",
   { target: string; label: string; title: string; description: string }
 >;

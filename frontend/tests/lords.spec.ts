@@ -1,5 +1,6 @@
 import { expect, test } from "./backend";
 import { lordsFixture, sourceInterest } from "./lords-fixtures";
+import { memberDetails, funderDetails, funderId } from "./details-fixtures";
 
 const lordEntity = {
   id: "2175",
@@ -557,3 +558,153 @@ for (const view of ["summary", "history"]) {
     ).toBeVisible();
   });
 }
+
+test("shared detail shell switches entity identity, skip target and presentation after pending navigation", async ({
+  backend,
+  page,
+  request,
+}) => {
+  await backend.route("**/api/lords/2175", (route) =>
+    route.fulfill({ json: lordsFixture }),
+  );
+  await page.goto("/lords/2175?q=Example");
+  await expect(
+    page.getByRole("link", { name: "Skip to registered interests" }),
+  ).toHaveAttribute("href", "#lords");
+  await expect(page).toHaveTitle("Lords registered interests · declair");
+  const transitions = [
+    {
+      path: "/members/2175?q=Example",
+      pattern: "**/api/members/2175?*",
+      body: {
+        ...memberDetails,
+        member: { ...memberDetails.member, id: "2175" },
+      },
+      name: memberDetails.member.name,
+      sourceLoading: "Loading registered interests",
+      target: "details",
+    },
+    {
+      path: `/funders/${funderId}?q=Example`,
+      pattern: `**/api/funders/${funderId}?*`,
+      body: funderDetails,
+      name: funderDetails.funder.name,
+      sourceLoading: "Loading details",
+      target: "details",
+    },
+    {
+      path: "/lords/2175/history?q=Example",
+      pattern: "**/api/lords/2175",
+      body: lordsFixture,
+      name: lordsFixture.member.name,
+      sourceLoading: "Loading details",
+      target: "lords",
+    },
+  ];
+  for (const transition of transitions) {
+    let release = () => {};
+    const pending = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    await backend.route(transition.pattern, async (route) => {
+      await pending;
+      await route.fulfill({ json: transition.body });
+    });
+    const called = backend.waitForRequest(
+      (request) =>
+        new URL(request.url()).pathname ===
+        `/api${transition.path.split("?")[0].replace("/history", "")}`,
+    );
+    await page.evaluate((path) => {
+      const link = document.createElement("a");
+      link.href = path;
+      document.querySelector("main")?.append(link);
+      link.click();
+    }, transition.path);
+    await called;
+    try {
+      await expect(page.getByRole("main")).toHaveAttribute("aria-busy", "true");
+      await expect(page.getByRole("status")).toContainText(
+        transition.sourceLoading,
+      );
+      await expect(page.locator("main .identity-name")).toHaveCount(0);
+      await expect(page.getByRole("main")).toHaveCount(1);
+    } finally {
+      release();
+    }
+    await expect(
+      page.getByRole("heading", { name: transition.name, exact: true }),
+    ).toBeVisible();
+    await expect(page.getByRole("main")).toHaveAttribute(
+      "id",
+      transition.target,
+    );
+    await expect(page.getByRole("main")).toHaveAttribute("aria-busy", "false");
+    await expect(page.locator(".skip-link")).toHaveAttribute(
+      "href",
+      `#${transition.target}`,
+    );
+    await expect(
+      page.getByRole("link", { name: "Back to search", exact: true }),
+    ).toHaveAttribute("href", "/search?q=Example");
+    await expect(page).toHaveTitle(
+      transition.target === "lords"
+        ? "Lords registered interests · declair"
+        : "Financial interests · declair",
+    );
+  }
+  await page.locator(".skip-link").focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/#lords$/u);
+  for (const path of ["/missing", "/members/0", "/lords/0"]) {
+    const response = await request.get(path);
+    expect(response.status()).toBe(200);
+    expect(await response.text()).toContain("Entity not found");
+    expect((await request.get(`${path}?period=invalid`)).status()).toBe(400);
+  }
+});
+
+test("Lords retry exposes loading status and leaving cancels its committed result", async ({
+  backend,
+  page,
+}) => {
+  await backend.route("**/api/lords/2175", (route) =>
+    route.fulfill({ status: 500 }),
+  );
+  await page.goto("/lords/2175?q=Example");
+  await expect(page.getByRole("alert")).toContainText(
+    "Registered interests couldn’t load",
+  );
+  let release = () => {};
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await backend.route("**/api/lords/2175", async (route) => {
+    await pending;
+    await route.fulfill({ json: lordsFixture }).catch(() => {});
+  });
+  await backend.route("**/api/search?*", (route) =>
+    route.fulfill({ json: { entities: [] } }),
+  );
+  const called = backend.waitForRequest((request) =>
+    request.url().endsWith("/api/lords/2175"),
+  );
+  await page.getByRole("button", { name: "Try again" }).click();
+  await called;
+  try {
+    await expect(page.getByRole("status")).toContainText(
+      "Loading registered interests",
+    );
+    await expect(page.locator("#lords")).toHaveAttribute("aria-busy", "true");
+    await page
+      .getByRole("link", { name: "Back to search", exact: true })
+      .click();
+    await expect(page.getByRole("searchbox")).toHaveValue("Example");
+  } finally {
+    release();
+  }
+  await expect(page.getByRole("main")).toHaveAttribute("id", "search");
+  await expect(
+    page.getByRole("heading", { name: "Lord Example", exact: true }),
+  ).toHaveCount(0);
+});

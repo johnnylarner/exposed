@@ -131,10 +131,14 @@ export interface FunderDetails {
   recipientLimit: number;
 }
 
-export type DetailState =
-  | { kind: "loading" }
-  | { kind: "member"; details: MemberDetails }
-  | { kind: "funder"; details: FunderDetails }
+export type DetailResult<
+  Kind extends "member" | "funder" = "member" | "funder",
+> =
+  | Extract<
+      | { kind: "member"; details: MemberDetails }
+      | { kind: "funder"; details: FunderDetails },
+      { kind: Kind }
+    >
   | { kind: "not-found" }
   | { kind: "error"; message: string };
 
