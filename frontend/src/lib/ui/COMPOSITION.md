@@ -111,6 +111,8 @@ Use ViewLinks with `wrap={true}` and ViewLink for URL-backed category navigation
 
 Features own source category grouping, column placement, summary derivation, lifecycle date formatting and recursive tree composition. `RegisteredInterestItem` renders an unboxed `li` inside a feature-owned unordered list. Pass plain company labels or complete source text as `text`. Keep company lists unmarked in the caller. Optional metadata stays visible. Pass each node’s own status. Children stay outside the parent deletion treatment.
 
+Use `variant="company"` for padded company rows with neutral decorative icons and bottom dividers. Set the caller-owned company list gap to zero and retain nested indentation. The default variant keeps plain source prose and history unchanged. Pair company rows with `<SectionHeading tone="accent" ... />` when a subtle accent heading surface is needed. The container supplies `--accent`; the heading owns its surface, inset padding and title color. Neither variant interprets source text or adds links.
+
 ```svelte
 <script lang="ts">
   import { RegisteredInterestItem } from "./lib/ui";
@@ -125,7 +127,9 @@ Features own source category grouping, column placement, summary derivation, lif
       datetime: "2026-11-12T10:00:00",
     }}
   >
-    {#snippet metadata()}Category 2: Shareholdings. Created <time datetime="2025-01-10T09:00:00">10 Jan 2025</time>{/snippet}
+    {#snippet metadata()}Category 2: Shareholdings. Created <time
+        datetime="2025-01-10T09:00:00">10 Jan 2025</time
+      >{/snippet}
     <ul>
       <RegisteredInterestItem
         text="Active child interest"

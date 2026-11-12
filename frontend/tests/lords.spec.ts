@@ -45,6 +45,31 @@ test("Lords summary SSR shows nine active occurrences in the established columns
   ]);
   await expect(page.locator(".registered-interest")).toHaveCount(9);
   await expect(
+    left.locator(".interest-content > .company-icon svg"),
+  ).toHaveCount(3);
+  await expect(right.locator(".company-icon")).toHaveCount(0);
+  await expect(left.locator(".interest-text").first()).toHaveCSS(
+    "font-size",
+    "17px",
+  );
+  await expect(left.locator(".interest-text").first()).toHaveCSS(
+    "font-weight",
+    "600",
+  );
+  await expect(left.locator("svg").first()).toHaveCSS(
+    "color",
+    "rgb(173, 166, 180)",
+  );
+  await expect(right.locator("h3").first()).toHaveCSS(
+    "color",
+    "rgb(229, 138, 123)",
+  );
+  await expect(right.locator(".interest-text").first()).toHaveCSS(
+    "font-size",
+    "16px",
+  );
+
+  await expect(
     page.locator(
       "#lords details, #lords summary, .interest-status, .interest-correction, .interest-metadata",
     ),
@@ -106,6 +131,16 @@ test("Lords history SSR retains all twelve occurrences, category ownership, full
   expect(html).toContain("&lt;img");
   await page.goto("/lords/2175/history?q=Example&period=invalid");
   await expect(page.locator(".registered-interest")).toHaveCount(12);
+  await expect(page.locator(".company-icon")).toHaveCount(0);
+  await expect(page.locator(".interest-content").first()).toHaveCSS(
+    "padding",
+    "0px",
+  );
+  await expect(page.locator(".interest-content").first()).toHaveCSS(
+    "border-bottom-width",
+    "0px",
+  );
+
   await expect(page.locator(".declaration")).toHaveCount(9);
   await expect(page.locator(".declaration h3")).toHaveText([
     "Category 888",

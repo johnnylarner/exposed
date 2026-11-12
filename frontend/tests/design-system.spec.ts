@@ -917,3 +917,84 @@ test("registered interest items show escaped text and metadata with independent 
   await action.focus();
   await expect(action).toHaveCSS("outline-color", "rgb(240, 240, 237)");
 });
+
+test("company interests have decorative neutral rows and independent nested lifecycle styling", async ({
+  page,
+}) => {
+  await page.goto("/design-system", { waitUntil: "networkidle" });
+  const example = page.getByRole("region", {
+    name: "Company interests",
+    exact: true,
+  });
+  const rows = example.locator(".interest-content");
+  await expect(rows).toHaveCount(2);
+  for (const row of await rows.all()) {
+    await expect(row).toHaveCSS("padding", "16px 12px");
+    await expect(row).toHaveCSS("border-bottom-width", "1px");
+    const icon = row.locator("svg");
+    await expect(icon).toHaveAttribute("aria-hidden", "true");
+    await expect(icon).toHaveCSS("color", "rgb(173, 166, 180)");
+    await expect(row.locator("a, button, [tabindex], [title]")).toHaveCount(0);
+    await expect(row.locator(".interest-text")).toHaveCSS("font-size", "17px");
+    await expect(row.locator(".interest-text")).toHaveCSS("font-weight", "600");
+  }
+  await expect(rows.first().locator(".interest-text")).toHaveCSS(
+    "color",
+    "rgb(173, 166, 180)",
+  );
+  await expect(rows.last().locator(".interest-text")).toHaveCSS(
+    "color",
+    "rgb(240, 237, 243)",
+  );
+  await expect(rows.first().locator(".registered-interest")).toHaveCount(0);
+  const heading = example.getByRole("heading", {
+    name: "Company interests",
+    exact: true,
+  });
+  await expect(heading).toHaveCSS("color", "rgb(229, 138, 123)");
+  const band = heading.locator("..");
+  await expect(band).toHaveCSS("padding", "8px 12px");
+  expect(
+    await band.evaluate((element) => getComputedStyle(element).backgroundColor),
+  ).toMatch(/0\.08/);
+  const defaults = page.getByRole("region", {
+    name: "Lords registered interests example",
+    exact: true,
+  });
+  await expect(defaults.locator(".interest-content").first()).toHaveCSS(
+    "padding",
+    "0px",
+  );
+  await expect(defaults.locator(".interest-content").first()).toHaveCSS(
+    "border-bottom-width",
+    "0px",
+  );
+  await expect(defaults.locator(".interest-text").first()).toHaveCSS(
+    "font-weight",
+    "400",
+  );
+  const neutralHeading = page
+    .getByRole("heading", { name: "Identity and data", exact: true })
+    .locator("..");
+  await expect(neutralHeading).toHaveCSS("padding", "0px");
+  await expect(neutralHeading).toHaveCSS(
+    "background-color",
+    "rgba(0, 0, 0, 0)",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  const text = rows.first().locator(".interest-text");
+  await expect(text).toHaveCSS("white-space", "pre-wrap");
+  expect(
+    await text.evaluate(
+      (element) => element.scrollWidth <= element.clientWidth,
+    ),
+  ).toBe(true);
+  const parentBounds = await rows.first().boundingBox();
+  const childBounds = await rows.last().boundingBox();
+  if (!parentBounds || !childBounds)
+    throw new Error("Company rows are missing");
+  expect(childBounds.x).toBeGreaterThan(parentBounds.x);
+  expect(childBounds.y).toBeGreaterThanOrEqual(
+    parentBounds.y + parentBounds.height,
+  );
+});

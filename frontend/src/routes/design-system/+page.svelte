@@ -622,6 +622,33 @@
           </RegisteredInterestItem>
         </ul>
       </section>
+      <section class="lord-example" aria-labelledby="company-interests-example">
+        <SectionHeading
+          id="company-interests-example"
+          title="Company interests"
+          level={3}
+          tone="accent"
+        />
+        <ul class="company-example-list">
+          <RegisteredInterestItem
+            variant="company"
+            text={"Example Company Ltd; Another Company & Partners\nA long recorded company name that wraps within its available column"}
+            status={{
+              kind: "deleted",
+              date: "12 Nov 2026",
+              datetime: "2026-11-12T10:00:00",
+            }}
+          >
+            <ul class="company-example-list nested-company-example">
+              <RegisteredInterestItem
+                variant="company"
+                text="Active child company"
+                status={{ kind: "active" }}
+              />
+            </ul>
+          </RegisteredInterestItem>
+        </ul>
+      </section>
       <Metric
         variant="expanded"
         align="end"
@@ -770,6 +797,15 @@
 >
 
 <style>
+  .company-example-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .nested-company-example {
+    padding-left: var(--space-4);
+  }
+
   .reference {
     width: min(100%, 1000px);
     margin-top: 56px;

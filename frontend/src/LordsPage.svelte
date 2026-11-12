@@ -75,6 +75,7 @@
         ? shareholdingSummary(interest.text).text
         : (interest.text ?? "Interest text unavailable")}
       status={{ kind: "active" }}
+      variant={companyLabels ? "company" : "default"}
     >
       {#if interest.children.length}
         <ul class={["interest-list", companyLabels && "compact-list"]}>
@@ -168,7 +169,11 @@
     {:else}
       <div class="interest-columns">
         <section aria-labelledby="shareholdings">
-          <SectionHeading id="shareholdings" title="Shareholdings" />
+          <SectionHeading
+            id="shareholdings"
+            title="Shareholdings"
+            tone="accent"
+          />
           {#if shareholdings.length === 0}<p class="empty-category">
               No interests supplied.
             </p>{:else}
@@ -220,9 +225,10 @@
     min-width: 0;
   }
   .interest-category {
-    margin-top: var(--space-6);
+    margin-top: var(--space-8);
   }
   h3 {
+    color: var(--accent);
     margin: 0 0 var(--space-3);
     font-size: var(--text-body);
     line-height: 1.6;
@@ -233,9 +239,10 @@
     margin: 0;
     padding-left: var(--space-6);
     display: grid;
-    gap: var(--space-3);
+    gap: var(--space-4);
   }
   .compact-list {
+    gap: 0;
     padding-left: 0;
     list-style: none;
   }
