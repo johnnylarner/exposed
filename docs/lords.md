@@ -74,6 +74,8 @@ Offset-free source times do not acquire an inferred timezone.
 `captured_at` is UTC capture provenance.
 
 There is no reporting-period filter or history endpoint for Lords.
+The page derives compact shareholding labels from supported source syntax and otherwise shows a short source preview.
+Each occurrence keeps its complete source and lifecycle details in a disclosure.
 Absent profiles return 404, malformed IDs return 422, and unexpected failures return a sanitized 500.
 Search returns `kind: "Lords"`, the string Parliament ID, `funder_kind: null`,
 and `match_source: {"kind":"name"}`. Lords primary name matches join the existing

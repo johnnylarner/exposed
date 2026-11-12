@@ -109,31 +109,38 @@ Use ViewLinks with `wrap={true}` and ViewLink for URL-backed category navigation
 
 ## Registered interests
 
-Features own source category grouping, column placement, lifecycle date formatting and recursive tree composition. `RegisteredInterestCard` renders `li` inside a feature-owned list. Pass each node’s own status; do not inherit deletion from ancestors. Place nested lists in `children`, outside the card’s deleted-content treatment.
+Features own source category grouping, column placement, summary derivation, lifecycle date formatting and recursive tree composition. `RegisteredInterestItem` renders an unboxed `li` inside a feature-owned unordered list. Use `{ kind: "compact", summary }` for a source disclosure or `{ kind: "full" }` for a plain source bullet with metadata in Details. Keep compact lists unmarked in the caller. Pass each node’s own status. Children stay outside the parent disclosure and deletion treatment.
 
 ```svelte
 <script lang="ts">
-  import { RegisteredInterestCard } from "./lib/ui";
+  import { RegisteredInterestItem } from "./lib/ui";
 </script>
 
-<ol>
-  <RegisteredInterestCard
-    text="Example shareholding"
+<ul class="compact-interests">
+  <RegisteredInterestItem
+    text="Example Company Ltd (consultancy)"
+    presentation={{ kind: "compact", summary: "Example Company Ltd" }}
     status={{
       kind: "deleted",
       date: "12 Nov 2026",
       datetime: "2026-11-12T10:00:00",
     }}
   >
-    {#snippet metadata()}Created <time datetime="2025-01-10T09:00:00"
-        >10 Jan 2025</time
-      >{/snippet}
-    <ol>
-      <RegisteredInterestCard
+    {#snippet metadata()}Category 2: Shareholdings. Created <time datetime="2025-01-10T09:00:00">10 Jan 2025</time>{/snippet}
+    <ul>
+      <RegisteredInterestItem
         text="Active child interest"
+        presentation={{ kind: "full" }}
         status={{ kind: "active" }}
       />
-    </ol>
-  </RegisteredInterestCard>
-</ol>
+    </ul>
+  </RegisteredInterestItem>
+</ul>
+
+<style>
+  .compact-interests {
+    padding: 0;
+    list-style: none;
+  }
+</style>
 ```

@@ -1,5 +1,5 @@
 import { expect, test } from "./backend";
-import { lordsFixture } from "./lords-fixtures";
+import { lordsFixture, sourceInterest } from "./lords-fixtures";
 
 const lordEntity = {
   id: "2175",
@@ -23,7 +23,7 @@ test("Lords SSR renders every occurrence in category columns with independent li
   expect(response.status()).toBe(200);
   const html = await response.text();
   expect(html).toContain("Lord Example");
-  expect(html).toContain("Deleted shareholding");
+  expect(html).toContain("ARTIS (Europe) Ltd");
   expect(html).toContain("&lt;img");
   await page.goto("/lords/2175?q=Example&period=invalid");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
@@ -34,20 +34,45 @@ test("Lords SSR renders every occurrence in category columns with independent li
     name: "Registered interests",
     exact: true,
   });
-  await expect(left.locator("h3")).toHaveText([
-    "Category 2: Shareholdings etc. (a)",
-  ]);
+  await expect(left.locator("h3")).toHaveCount(0);
   await expect(right.locator("h3")).toHaveText([
     "Category 888",
     "Category 5: Other interests",
     "Nil",
   ]);
-  await expect(left.locator(".interest-text")).toHaveText([
-    "Deleted shareholding",
+  await expect(left.locator("summary")).toHaveText([
+    "ARTIS (Europe) Ltd",
+    "Boot (Henry) plc",
     "Repeated holding",
     "Repeated holding",
   ]);
-  await expect(page.locator(".registered-interest")).toHaveCount(11);
+  await expect(page.locator(".registered-interest")).toHaveCount(12);
+  const compact = left.locator("details").first();
+  await expect(compact).not.toHaveAttribute("open");
+  await expect(compact.locator(".interest-text")).toBeHidden();
+  await expect(
+    left.getByText("Deleted 5 Apr 2025", { exact: true }),
+  ).toBeVisible();
+  await expect(left.getByText("Correction", { exact: true })).toBeVisible();
+  await expect(left.locator("summary").nth(1)).toBeVisible();
+  await compact.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(compact).toHaveAttribute("open", "");
+  await expect(compact.locator(".interest-text")).toHaveText(
+    "ARTIS (Europe) Ltd (research and risk modelling)",
+  );
+  await expect(
+    compact.getByText("Category 2: Shareholdings etc. (a)", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    compact.getByText("Created 14 Jun 2012", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    compact.getByText("Amended 1 Jan 2025", { exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(compact).not.toHaveAttribute("open");
+  await expect(left.locator("summary").nth(1)).toBeVisible();
   await expect(
     page.locator('.interest-content[data-deleted="true"]'),
   ).toHaveCount(3);
@@ -81,6 +106,13 @@ test("Lords SSR renders every occurrence in category columns with independent li
     "rgb(173, 166, 180)",
   );
   await expect(activeParent).toContainText("Correction");
+  const metadata = activeParent.locator("details");
+  await expect(metadata.locator("summary")).toHaveText("Details");
+  await expect(metadata.locator(".interest-metadata")).toBeHidden();
+  await metadata.locator("summary").click();
+  await expect(
+    metadata.getByText("Created 14 Jun 2012", { exact: true }),
+  ).toBeVisible();
   await expect(deletedChild).not.toContainText("Correction");
   await expect(
     page
@@ -95,6 +127,12 @@ test("Lords SSR renders every occurrence in category columns with independent li
     page.locator(".interest-text").filter({ hasText: "<img" }),
   ).toHaveCSS("white-space", "pre-wrap");
   await expect(page.locator("#lords img")).toHaveCount(0);
+  await expect(right.locator(".interest-list").first()).toHaveCSS(
+    "list-style-type",
+    "disc",
+  );
+  await expect(activeParent).toHaveCSS("border-top-width", "0px");
+  await expect(activeParent).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
   await expect(
     page.getByText("Interest text unavailable", { exact: true }),
   ).toBeVisible();
@@ -123,6 +161,7 @@ test("Lords SSR renders every occurrence in category columns with independent li
   if (leftBounds && rightBounds) {
     expect(leftBounds.x + leftBounds.width).toBeLessThan(rightBounds.x);
     expect(leftBounds.y).toBe(rightBounds.y);
+    expect(rightBounds.width / leftBounds.width).toBeCloseTo(2, 1);
   }
   expect(calls.every((url) => url.endsWith("/api/lords/2175"))).toBe(true);
 });
@@ -158,6 +197,70 @@ test("Lords search navigation uses warm red, its portcullis and the dedicated pa
   await expect(page.getByRole("searchbox")).toHaveValue("Example");
 });
 
+test("compact occurrences retain every company, bounded source previews and exact source details across categories", async ({
+  backend,
+  page,
+}) => {
+  const multiple =
+    "Project Alpha Topco Limited, Project Alpha Midco Limited and Project Alpha Bidco Limited (parent companies)";
+  const narrative =
+    "All shareholdings are managed by Rathbones and the member has no influence over any of the dealings although the following registrable shareholdings are held:";
+  const unsafe = ' <img src=x onerror="alert(1)"> & Partners\nSecond line ';
+  await backend.route("**/api/lords/2175", (route) =>
+    route.fulfill({
+      json: {
+        ...lordsFixture,
+        categories: [
+          {
+            ...lordsFixture.categories[1],
+            interests: [
+              { ...sourceInterest, text: multiple },
+              { ...sourceInterest, text: narrative },
+            ],
+          },
+          {
+            ...lordsFixture.categories[1],
+            source_id: 1003,
+            name: "Category 2: Shareholdings etc. (b)",
+            interests: [
+              { ...sourceInterest, text: " \n " },
+              { ...sourceInterest, text: unsafe },
+            ],
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/lords/2175");
+  const left = page.getByRole("region", { name: "Shareholdings", exact: true });
+  const summaries = left.locator("summary");
+  await expect(left.locator("h3")).toHaveCount(0);
+  await expect(left.locator(":scope > ul > .registered-interest")).toHaveCount(
+    4,
+  );
+  await expect(summaries).toHaveText([
+    "Project Alpha Topco Limited; Project Alpha Midco Limited; Project Alpha Bidco Limited",
+    "All shareholdings are managed by Rathbones and the member has no influence over any of the dealings although…",
+    "Interest text unavailable",
+    '<img src=x onerror="alert(1)"> & Partners Second line',
+  ]);
+  await summaries.first().click();
+  expect(await left.locator(".interest-text").first().textContent()).toBe(
+    multiple,
+  );
+  await summaries.last().click();
+  expect(await left.locator(".interest-text").last().textContent()).toBe(
+    unsafe,
+  );
+  await expect(
+    left
+      .locator("details")
+      .last()
+      .getByText("Category 2: Shareholdings etc. (b)", { exact: true }),
+  ).toBeVisible();
+  await expect(left.locator("img")).toHaveCount(0);
+});
+
 for (const width of [360, 320]) {
   test(`Lords columns stack shareholdings first at ${width}px`, async ({
     backend,
@@ -185,7 +288,7 @@ for (const width of [360, 320]) {
         () => document.documentElement.scrollWidth <= window.innerWidth,
       ),
     ).toBe(true);
-    await expect(page.locator(".registered-interest")).toHaveCount(11);
+    await expect(page.locator(".registered-interest")).toHaveCount(12);
   });
 }
 

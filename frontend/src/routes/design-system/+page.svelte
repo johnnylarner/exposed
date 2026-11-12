@@ -23,7 +23,7 @@
     HighlightedText,
     DeclarationList,
     DeclarationCard,
-    RegisteredInterestCard,
+    RegisteredInterestItem,
     ValueRow,
     IdentityHeader,
     Metric,
@@ -592,9 +592,10 @@
           {#snippet metadata()}Crossbench{/snippet}
         </IdentityHeader>
         <ButtonLink href="/search" variant="primary">Find a Lord</ButtonLink>
-        <ol class="interest-example-list">
-          <RegisteredInterestCard
+        <ul class="interest-example-list">
+          <RegisteredInterestItem
             text={"Example shareholding\n<Company & Partners>"}
+            presentation={{ kind: "compact", summary: "Example Company Ltd" }}
             status={{
               kind: "deleted",
               date: "12 Nov 2026",
@@ -605,18 +606,24 @@
             {#snippet metadata()}Created <time datetime="2025-01-10T09:00:00"
                 >10 Jan 2025</time
               >{/snippet}
-            <ol class="interest-example-list">
-              <RegisteredInterestCard
+            <ul class="interest-example-list">
+              <RegisteredInterestItem
                 text="Active child interest"
+                presentation={{ kind: "full" }}
                 status={{ kind: "active" }}
               />
-            </ol>
-          </RegisteredInterestCard>
-          <RegisteredInterestCard
+            </ul>
+          </RegisteredInterestItem>
+          <RegisteredInterestItem
             text="Active registered interest"
+            presentation={{ kind: "full" }}
             status={{ kind: "active" }}
-          />
-        </ol>
+          >
+            {#snippet metadata()}Amended <time datetime="2026-01-20T09:00:00"
+                >20 Jan 2026</time
+              >{/snippet}
+          </RegisteredInterestItem>
+        </ul>
       </section>
       <Metric
         variant="expanded"
@@ -872,8 +879,7 @@
     --accent: var(--accent-lord);
   }
   .interest-example-list {
-    list-style: none;
-    padding: 0;
+    padding-left: var(--space-4);
     display: grid;
     gap: var(--space-3);
     margin-top: var(--space-4);

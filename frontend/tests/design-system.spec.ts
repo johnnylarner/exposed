@@ -866,7 +866,7 @@ test("local category controls keep native semantics and shared state", async ({
   await expect(select).toHaveValue("members");
 });
 
-test("registered interest cards preserve escaped text and independent child status in Lords context", async ({
+test("registered interest items disclose escaped source with independent children and plain bullets", async ({
   page,
 }) => {
   await page.goto("/design-system", { waitUntil: "networkidle" });
@@ -881,6 +881,21 @@ test("registered interest cards preserve escaped text and independent child stat
   await expect(
     example.locator('.interest-content[data-deleted="true"]'),
   ).toHaveCount(1);
+  const compact = example.locator("details").first();
+  await expect(compact.locator("summary")).toHaveText("Example Company Ltd");
+  await expect(example.locator(".interest-text").first()).toBeHidden();
+  await expect(
+    example.getByText("Active child interest", { exact: true }),
+  ).toBeVisible();
+  await expect(example.locator(".interest-status")).toBeVisible();
+  await expect(example.locator(".interest-correction")).toBeVisible();
+  await compact.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await expect(compact).toHaveAttribute("open", "");
+  await expect(compact.locator("summary")).toHaveCSS(
+    "outline-color",
+    "rgb(240, 240, 237)",
+  );
   await expect(example.locator(".interest-text").first()).toHaveText(
     "Example shareholding\n<Company & Partners>",
   );
@@ -895,10 +910,25 @@ test("registered interest cards preserve escaped text and independent child stat
     "Correction",
   );
   await expect(
+    compact.getByText("Created 10 Jan 2025", { exact: true }),
+  ).toBeVisible();
+  await expect(example.locator(".interest-content").first()).toHaveCSS(
+    "border-top-width",
+    "0px",
+  );
+  const details = example.locator("details").last();
+  await expect(details.locator("summary")).toHaveText("Details");
+  await expect(details.locator(".interest-metadata")).toBeHidden();
+  await details.locator("summary").click();
+  await expect(
+    details.getByText("Amended 20 Jan 2026", { exact: true }),
+  ).toBeVisible();
+  await expect(
     example.getByText("Active child interest", { exact: true }),
   ).toHaveCSS("color", "rgb(240, 237, 243)");
   const action = example.getByRole("link", { name: "Find a Lord" });
   await expect(action).toHaveCSS("background-color", "rgb(240, 240, 237)");
+  await page.keyboard.press("Tab");
   await action.focus();
   await expect(action).toHaveCSS("outline-color", "rgb(240, 240, 237)");
 });

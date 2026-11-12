@@ -3,6 +3,7 @@ import { searchEntities } from "../src/lib/server/search";
 
 import { loadLords, parseLordsDetails } from "../src/lib/server/lords";
 import { groupLordsCategories, sourceCalendarDate } from "../src/lib/lords";
+import { shareholdingSummary } from "../src/lib/lords-shareholdings";
 import { readDetailRoute } from "../src/lib/entity-details";
 import { entityHref } from "../src/lib/search";
 import { lordsFixture, sourceInterest } from "./lords-fixtures";
@@ -11,6 +12,105 @@ function reply(body: unknown): typeof fetch {
   return async () => Response.json(body);
 }
 const signal = () => new AbortController().signal;
+
+for (const [source, labels] of [
+  ["Blend Media Limited (media)", ["Blend Media Limited"]],
+  [
+    "Visionable Limited (formerly IOCOM UK Ltd) (visual business platform)",
+    ["Visionable Limited"],
+  ],
+  [
+    "50 per cent holding in TomahawkPro Ltd (collaborative software & IT innovation) (interest ceased 31 December 2016)",
+    ["TomahawkPro Ltd"],
+  ],
+  [
+    "100 per cent ownership with partner of Leadership in Mind Ltd (coaching and consultancy)",
+    ["Leadership in Mind Ltd"],
+  ],
+  [
+    "Sole shareholder, Just Resolutions Limited (Member's private company, not trading at present)",
+    ["Just Resolutions Limited"],
+  ],
+  [
+    "Shareholding in Centre for Social Research Ltd (interest ceased 27 July 2016)",
+    ["Centre for Social Research Ltd"],
+  ],
+  [
+    "ARTIS (Europe) Ltd (research and risk modelling, including psychology of terrorism and political violence)",
+    ["ARTIS (Europe) Ltd"],
+  ],
+  ["eToro (UK) Limited (financial services)", ["eToro (UK) Limited"]],
+  [
+    "Boot (Henry) plc (construction and property development) (interest ceased 5 April 2023)",
+    ["Boot (Henry) plc"],
+  ],
+  [
+    "Automatic Data Processing, Inc. (human resources data management) (interest ceased 1 April 2026)",
+    ["Automatic Data Processing, Inc."],
+  ],
+  [
+    "Project Alpha Topco Limited, Project Alpha Midco Limited and Project Alpha Bidco Limited (parent companies of Access Education Group (formerly Access Creative College), the independent provider of specialist training, apprenticeships and further education)",
+    [
+      "Project Alpha Topco Limited",
+      "Project Alpha Midco Limited",
+      "Project Alpha Bidco Limited",
+    ],
+  ],
+  [
+    "Daily Mail and General Trust plc (media)\r\nInforma plc (media) (interest ceased 3 February 2019)",
+    ["Daily Mail and General Trust plc", "Informa plc"],
+  ],
+  ["Acme Ltd (first); Acme Ltd (second)", ["Acme Ltd", "Acme Ltd"]],
+] satisfies [string, string[]][]) {
+  test(`shareholding labels retain every supported name in ${source}`, () => {
+    expect(shareholdingSummary(source)).toEqual({
+      kind: "labels",
+      text: labels.join("; "),
+    });
+  });
+}
+
+for (const source of [
+  "Warburg Pincus No X (international private equity fund)",
+  "HSBC Vision 2020, 2021, 2022, 2023, 2024 (discretionary investment funds)",
+  "2% Canadian Government Bond Snr 01 Dec 14 (government bond)",
+  "Air Asia (Bahrain) (airline)",
+  "The Member and his wife are majority shareholders of Global HDE Ltd (consultants in Health, Design and Education - see category 1))",
+  "The member is a shareholder with a controlling interest in a property management company; full details are held by the Registrar of Lords’ Interests",
+  "All shareholdings are managed by Rathbones and the member has no influence over any of the dealings although the following registrable shareholdings are held:",
+  "My listed equity portfolio detailed below is held by Lombard Odier Darier Hentsch in Geneva, Switzerland. Abbott Laboratories Limited (pharmaceuticals); Allianz SE (financial services)",
+  "SSAP Pension Fund, holding shares in excess of £50,000 in:\nBP plc (global oil and gas company)\nBTG plc (pharmaceuticals)",
+  "Acme Ltd (services) and an unnamed company",
+  "Acme Ltd (services) but shares are held by a manager",
+  "Acme Ltd (unclosed description",
+  "Acme Ltd,",
+  "Unknown Company",
+  '<img src=x onerror="alert(1)"> & Partners\nSecond line',
+]) {
+  test(`shareholding preview retains unsupported source ${source}`, () => {
+    const summary = shareholdingSummary(source);
+    expect(summary.kind).toBe("source-preview");
+    expect(summary.text.length).toBeLessThanOrEqual(113);
+    expect(summary.text).toEqual(
+      source.length <= 112
+        ? source.replace(/\s+/gu, " ")
+        : expect.stringMatching(/…$/u),
+    );
+  });
+}
+
+test("shareholding summaries distinguish missing text and bound source previews", () => {
+  for (const source of [null, "", " \n\t "]) {
+    expect(shareholdingSummary(source)).toEqual({
+      kind: "missing",
+      text: "Interest text unavailable",
+    });
+  }
+  expect(shareholdingSummary("Acme Ltd ".repeat(2000)).kind).toBe(
+    "source-preview",
+  );
+  expect(shareholdingSummary("X".repeat(150)).text).toBe(`${"X".repeat(112)}…`);
+});
 
 test("Lords adapter retains every occurrence, nullable value and source lifecycle timestamp", async () => {
   const parsed = parseLordsDetails(lordsFixture);
@@ -28,7 +128,7 @@ test("Lords adapter retains every occurrence, nullable value and source lifecycl
     "Nil",
   ]);
   expect(grouped[1].interests.map((interest) => interest.text)).toEqual([
-    "Deleted shareholding",
+    "ARTIS (Europe) Ltd (research and risk modelling)",
     "Repeated holding",
     "Repeated holding",
   ]);

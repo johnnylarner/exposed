@@ -8,6 +8,7 @@
     type RegisteredInterest,
   } from "./lib/lords";
   import type { PageModel } from "./lib/page";
+  import { shareholdingSummary } from "./lib/lords-shareholdings";
   import {
     Badge,
     Button,
@@ -15,7 +16,8 @@
     Icon,
     IdentityHeader,
     MessageState,
-    RegisteredInterestCard,
+    RegisteredInterestItem,
+    type RegisteredInterestPresentation,
     SectionHeading,
     Spinner,
   } from "./lib/ui";
@@ -33,20 +35,12 @@
       ? groupLordsCategories(model.result.details.categories)
       : [],
   );
-  const columns = $derived([
-    {
-      id: "shareholdings",
-      title: "Shareholdings",
-      categories: groups.filter(
-        (category) => category.placement === "shareholdings",
-      ),
-    },
-    {
-      id: "registered-interests",
-      title: "Registered interests",
-      categories: groups.filter((category) => category.placement === "other"),
-    },
-  ]);
+  const shareholdings = $derived(
+    groups.filter((category) => category.placement === "shareholdings"),
+  );
+  const otherInterests = $derived(
+    groups.filter((category) => category.placement === "other"),
+  );
   async function retry() {
     retrying = true;
     try {
@@ -57,42 +51,58 @@
   }
 </script>
 
-{#snippet interestTree(interests: RegisteredInterest[])}
-  <ol class="interest-list">
-    {#each interests as interest}
-      {#snippet metadata()}
-        {#if interest.createdWhen !== null}<span
-            >Created <time datetime={interest.createdWhen}
-              >{sourceCalendarDate(interest.createdWhen)}</time
-            ></span
-          >{/if}
-        {#if interest.lastAmendedWhen !== null}<span
-            >Amended <time datetime={interest.lastAmendedWhen}
-              >{sourceCalendarDate(interest.lastAmendedWhen)}</time
-            ></span
-          >{/if}
-      {/snippet}
-      <RegisteredInterestCard
-        text={interest.text ?? "Interest text unavailable"}
-        status={interest.deletedWhen === null
-          ? { kind: "active" }
-          : {
-              kind: "deleted",
-              datetime: interest.deletedWhen,
-              date: sourceCalendarDate(interest.deletedWhen),
-            }}
-        correction={interest.isCorrection}
-        metadata={interest.createdWhen !== null ||
-        interest.lastAmendedWhen !== null
-          ? metadata
-          : undefined}
-      >
-        {#if interest.children.length}{@render interestTree(
-            interest.children,
-          )}{/if}
-      </RegisteredInterestCard>
-    {/each}
-  </ol>
+{#snippet interestItems(
+  interests: RegisteredInterest[],
+  presentation: RegisteredInterestPresentation["kind"],
+  category: string,
+)}
+  {#each interests as interest}
+    {#snippet metadata()}
+      {#if presentation === "compact"}<span class="source-detail"
+          >{category}</span
+        >{/if}
+      {#if interest.createdWhen !== null}<span class="source-detail"
+          >Created <time datetime={interest.createdWhen}
+            >{sourceCalendarDate(interest.createdWhen)}</time
+          ></span
+        >{/if}
+      {#if interest.lastAmendedWhen !== null}<span class="source-detail"
+          >Amended <time datetime={interest.lastAmendedWhen}
+            >{sourceCalendarDate(interest.lastAmendedWhen)}</time
+          ></span
+        >{/if}
+    {/snippet}
+    <RegisteredInterestItem
+      text={interest.text?.trim() ? interest.text : "Interest text unavailable"}
+      presentation={presentation === "compact"
+        ? { kind: "compact", summary: shareholdingSummary(interest.text).text }
+        : { kind: "full" }}
+      status={interest.deletedWhen === null
+        ? { kind: "active" }
+        : {
+            kind: "deleted",
+            datetime: interest.deletedWhen,
+            date: sourceCalendarDate(interest.deletedWhen),
+          }}
+      correction={interest.isCorrection}
+      metadata={presentation === "compact" ||
+      interest.createdWhen !== null ||
+      interest.lastAmendedWhen !== null
+        ? metadata
+        : undefined}
+    >
+      {#if interest.children.length}
+        <ul
+          class={[
+            "interest-list",
+            presentation === "compact" && "compact-list",
+          ]}
+        >
+          {@render interestItems(interest.children, presentation, category)}
+        </ul>
+      {/if}
+    </RegisteredInterestItem>
+  {/each}
 {/snippet}
 
 <main
@@ -152,29 +162,52 @@
       {/snippet}
     </IdentityHeader>
     <div class="interest-columns">
-      {#each columns as column}
-        <section aria-labelledby={column.id}>
-          <SectionHeading id={column.id} title={column.title} />
-          {#if column.categories.length === 0}<p class="empty-category">
-              No interests supplied.
-            </p>{/if}
-          {#each column.categories as category, index}
-            <section
-              class="interest-category"
-              aria-labelledby={`${column.id}-category-${index}`}
-            >
-              <h3 id={`${column.id}-category-${index}`}>
-                {category.name ?? `Category ${category.sourceId}`}
-              </h3>
-              {#if category.interests.length}{@render interestTree(
+      <section aria-labelledby="shareholdings">
+        <SectionHeading id="shareholdings" title="Shareholdings" />
+        {#if shareholdings.every((category) => category.interests.length === 0)}<p
+            class="empty-category"
+          >
+            No interests supplied.
+          </p>{:else}
+          <ul class="interest-list compact-list">
+            {#each shareholdings as category}
+              {@render interestItems(
+                category.interests,
+                "compact",
+                category.name ?? `Category ${category.sourceId}`,
+              )}
+            {/each}
+          </ul>
+        {/if}
+      </section>
+      <section aria-labelledby="registered-interests">
+        <SectionHeading
+          id="registered-interests"
+          title="Registered interests"
+        />
+        {#if otherInterests.length === 0}<p class="empty-category">
+            No interests supplied.
+          </p>{/if}
+        {#each otherInterests as category, index}
+          <section
+            class="interest-category"
+            aria-labelledby={`registered-interests-category-${index}`}
+          >
+            <h3 id={`registered-interests-category-${index}`}>
+              {category.name ?? `Category ${category.sourceId}`}
+            </h3>
+            {#if category.interests.length}
+              <ul class="interest-list">
+                {@render interestItems(
                   category.interests,
-                )}{:else}<p class="empty-category">
-                  No interests supplied.
-                </p>{/if}
-            </section>
-          {/each}
-        </section>
-      {/each}
+                  "full",
+                  category.name ?? `Category ${category.sourceId}`,
+                )}
+              </ul>
+            {:else}<p class="empty-category">No interests supplied.</p>{/if}
+          </section>
+        {/each}
+      </section>
     </div>
   {/if}
 </main>
@@ -185,7 +218,7 @@
   }
   .interest-columns {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
     gap: var(--space-8);
     margin-top: var(--space-8);
   }
@@ -204,16 +237,22 @@
   }
   .interest-list {
     margin: 0;
-    padding: 0;
-    list-style: none;
+    padding-left: var(--space-6);
     display: grid;
     gap: var(--space-3);
+  }
+  .compact-list {
+    padding-left: 0;
+    list-style: none;
+  }
+  section > .compact-list {
+    margin-top: var(--space-6);
   }
   .interest-list .interest-list {
     margin-top: var(--space-3);
     padding-left: var(--space-4);
   }
-  .interest-list span + span {
+  .source-detail + .source-detail {
     margin-left: var(--space-3);
   }
   .empty-category {

@@ -53,10 +53,13 @@ export const lordsFixture = {
       interests: [
         {
           ...sourceInterest,
-          text: "Deleted shareholding",
+          text: "ARTIS (Europe) Ltd (research and risk modelling)",
           deleted_when: "2025-04-05T00:00:00",
           last_amended_when: "2025-01-01T01:00:00+02:00",
           is_correction: true,
+          children: [
+            { ...sourceInterest, text: "Boot (Henry) plc (construction)" },
+          ],
         },
         sourceInterest,
       ],
