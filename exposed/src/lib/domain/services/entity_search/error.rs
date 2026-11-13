@@ -22,3 +22,9 @@ impl From<FunderRepoError> for EntitySearchError {
         }
     }
 }
+
+impl From<crate::domain::models::lords::LordsError> for EntitySearchError {
+    fn from(error: crate::domain::models::lords::LordsError) -> Self {
+        Self::UnexpectedError(error.to_string())
+    }
+}

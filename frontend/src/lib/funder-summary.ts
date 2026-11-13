@@ -88,7 +88,10 @@ export function partyChart(
       party,
       share,
       path,
-      color: partyColors.get(party.partyName) ?? colors[index % colors.length],
+      color:
+        (party.partyName === null
+          ? undefined
+          : partyColors.get(party.partyName)) ?? colors[index % colors.length],
     };
   });
 }

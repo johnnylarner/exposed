@@ -106,3 +106,43 @@ For other native-link filters, use `<ViewLinks variant="filter">` with native `V
 ## Category toolbar
 
 Use ViewLinks with `wrap={true}` and ViewLink for URL-backed category navigation, or ViewButtons and ViewButton for local category selection. Pair the category group with Select for a secondary choice. Features own a flex toolbar with categories first and the select at the opposite edge. Stack the select below the categories on narrow screens. Keep headings above and results below. Select options retain their feature-owned typed values; features own navigation and pending state.
+
+## Registered interests
+
+Features own source category grouping, column placement, summary derivation, lifecycle date formatting and recursive tree composition. `RegisteredInterestItem` renders an unboxed `li` inside a feature-owned unordered list. Pass plain company labels or complete source text as `text`. Keep company lists unmarked in the caller. Optional metadata stays visible. Pass each node’s own status. Children stay outside the parent deletion treatment.
+
+Use `variant="company"` for padded company rows with neutral decorative icons and bottom dividers. Set the caller-owned company list gap to zero and retain nested indentation. The default variant keeps plain source prose and history unchanged. Pair company rows with `<SectionHeading tone="accent" ... />` when a subtle accent heading surface is needed. The container supplies `--accent`; the heading owns its surface, inset padding and title color. Neither variant interprets source text or adds links.
+
+```svelte
+<script lang="ts">
+  import { RegisteredInterestItem } from "./lib/ui";
+</script>
+
+<ul class="compact-interests">
+  <RegisteredInterestItem
+    text="Example Company Ltd (consultancy)"
+    status={{
+      kind: "deleted",
+      date: "12 Nov 2026",
+      datetime: "2026-11-12T10:00:00",
+    }}
+  >
+    {#snippet metadata()}Category 2: Shareholdings. Created <time
+        datetime="2025-01-10T09:00:00">10 Jan 2025</time
+      >{/snippet}
+    <ul>
+      <RegisteredInterestItem
+        text="Active child interest"
+        status={{ kind: "active" }}
+      />
+    </ul>
+  </RegisteredInterestItem>
+</ul>
+
+<style>
+  .compact-interests {
+    padding: 0;
+    list-style: none;
+  }
+</style>
+```

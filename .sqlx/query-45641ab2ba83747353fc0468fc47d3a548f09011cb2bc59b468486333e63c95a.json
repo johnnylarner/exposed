@@ -1,0 +1,26 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE exposed.members SET name=$2, party_id=$3, party_name=$4, membership_kind=$5,\n             membership_from=$6, membership_start_date=$7, membership_end_date=$8,\n             membership_status=$9, membership_status_active=$10, membership_status_provenance=$11,\n             source_captured_at=$12, source_capture_key=$13\n         WHERE id=$1 AND (source_captured_at IS NULL OR (source_captured_at,source_capture_key) < ($12,$13))",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "45641ab2ba83747353fc0468fc47d3a548f09011cb2bc59b468486333e63c95a"
+}

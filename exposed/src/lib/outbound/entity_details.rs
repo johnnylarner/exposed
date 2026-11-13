@@ -7,6 +7,7 @@ use crate::{
                 MemberHistory, MemberProfile,
             },
             funder::{Funder, FunderId, FunderKind},
+            lords::LordRegister,
             parliament_member::MemberId,
         },
         repositories::entity_details::{EntityDetailsRepo, EntityDetailsRepoError},
@@ -18,14 +19,19 @@ use std::str::FromStr;
 use super::currency::CURRENCY_WHITESPACE;
 
 impl EntityDetailsRepo for ExposedDatabase {
+    async fn lord(&self, id: MemberId) -> Result<Option<LordRegister>, EntityDetailsRepoError> {
+        self.lord_register(id)
+            .await
+            .map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))
+    }
     async fn member(&self, id: MemberId) -> Result<Option<MemberHistory>, EntityDetailsRepoError> {
         let mut tx = self.pool().begin().await?;
         sqlx::query!("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY")
             .execute(&mut *tx)
             .await?;
         let row = sqlx::query!(
-            "SELECT parliament_member_id, name, party_id, party_name, latest_membership_from, is_current_commons
-             FROM exposed.members m WHERE parliament_member_id = $1", i32::try_from(id.value()).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?
+            "SELECT parliament_member_id, name, party_id AS \"party_id?\", party_name AS \"party_name?\", membership_from AS \"latest_membership_from?\", membership_kind, membership_status_provenance, membership_end_date
+             FROM exposed.members m  WHERE parliament_member_id = $1 AND m.commons_imported_at IS NOT NULL", i32::try_from(id.value()).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?
         ).fetch_optional(&mut *tx).await?;
         let Some(row) = row else {
             return Ok(None);
@@ -36,13 +42,18 @@ impl EntityDetailsRepo for ExposedDatabase {
             party_id: row.party_id,
             party_name: row.party_name,
             membership_from: row.latest_membership_from,
-            is_current_commons: row.is_current_commons,
+            is_current_commons: current_commons(
+                &row.membership_kind,
+                &row.membership_status_provenance,
+                row.membership_end_date.as_deref(),
+            )?,
         };
         let rows = sqlx::query!(
             "SELECT d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
                 e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $2), '') AS currency,
                 e.payment_type, f.id AS \"funder_id?\", f.funder_name AS \"funder_name?\"
              FROM exposed.declarations d JOIN exposed.members m ON m.id = d.member_id
+
              LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id
              LEFT JOIN exposed.funders f ON f.id = e.funder_id
              WHERE m.parliament_member_id = $1
@@ -216,13 +227,14 @@ async fn funder_declarations(
     funder: &Funder,
 ) -> Result<Vec<FunderDeclaration>, EntityDetailsRepoError> {
     let rows = sqlx::query!(
-        "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name,
-                m.latest_membership_from, m.is_current_commons,
+        "SELECT m.parliament_member_id, m.name, m.party_id AS \"party_id?\", m.party_name AS \"party_name?\",
+                m.membership_from AS \"latest_membership_from?\", m.membership_kind, membership_status_provenance, membership_end_date,
                 d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
                 e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type
              FROM exposed.funding_entries e
              JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id
              JOIN exposed.members m ON m.id = d.member_id
+
              WHERE e.funder_id = ANY($1)
              ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
         stored_member_ids,
@@ -249,7 +261,11 @@ async fn funder_declarations(
                     party_id: row.party_id,
                     party_name: row.party_name,
                     membership_from: row.latest_membership_from,
-                    is_current_commons: row.is_current_commons,
+                    is_current_commons: current_commons(
+                        &row.membership_kind,
+                        &row.membership_status_provenance,
+                        row.membership_end_date.as_deref(),
+                    )?,
                 },
                 declaration: MemberDeclaration {
                     source_id: row.source_declaration_id,
@@ -273,4 +289,22 @@ async fn funder_declarations(
         }
     }
     Ok(declarations)
+}
+
+fn current_commons(
+    kind: &str,
+    provenance: &str,
+    end: Option<&str>,
+) -> Result<Option<bool>, EntityDetailsRepoError> {
+    use crate::domain::models::membership::{
+        Membership, MembershipKind, MembershipStatusProvenance,
+    };
+    Ok(Membership::current_commons(
+        kind.parse::<MembershipKind>()
+            .map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?,
+        provenance
+            .parse::<MembershipStatusProvenance>()
+            .map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?,
+        end,
+    ))
 }

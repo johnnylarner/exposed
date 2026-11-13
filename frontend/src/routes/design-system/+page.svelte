@@ -23,6 +23,7 @@
     HighlightedText,
     DeclarationList,
     DeclarationCard,
+    RegisteredInterestItem,
     ValueRow,
     IdentityHeader,
     Metric,
@@ -124,6 +125,7 @@
     { name: "Focus", token: "--focus-color" },
     { name: "Members", token: "--accent-member" },
     { name: "Funders", token: "--accent-funder" },
+    { name: "Lords", token: "--accent-lord" },
   ];
   let colors = $state<Record<string, string>>({});
   onMount(() => {
@@ -187,8 +189,8 @@
       <h2 id="foundations-heading">Foundations</h2>
       <p>
         Black keeps the focus on declarations. The declair wordmark is white.
-        Purple identifies MPs; teal identifies funders and the landing page's
-        financial interests phrase.
+        Purple identifies MPs; warm red identifies Lords; teal identifies
+        funders and the landing page's financial interests phrase.
       </p>
       <div class="swatches">
         {#each swatches as swatch}<div class="swatch">
@@ -237,11 +239,11 @@
       <p>
         Buttons change the current view. Links take you to another page. Both
         retain their native keyboard behavior. Actions and focus stay neutral in
-        both member and funder contexts.
+        member, Lords and funder contexts.
       </p>
       <div class="action-examples" aria-label="Member actions">
         <ButtonLink href="/search" variant="primary"
-          >Search MPs and funders</ButtonLink
+          >Search MPs, Lords and funders</ButtonLink
         ><ButtonLink href="/methodology">Read methodology</ButtonLink><Button
           variant="quiet">Quiet action</Button
         ><Button variant="subtle">Subtle action</Button><Button disabled
@@ -263,7 +265,7 @@
       </div>
       <Disclosure summary="Using actions" variant="plain" class="code-example">
         <pre><code
-            >{'<Button onclick={clearDates} disabled={!from && !to}>Clear dates</Button>\n<ButtonLink href="/search" variant="primary">Search MPs and funders</ButtonLink>'}</code
+            >{'<Button onclick={clearDates} disabled={!from && !to}>Clear dates</Button>\n<ButtonLink href="/search" variant="primary">Search MPs, Lords and funders</ButtonLink>'}</code
           ></pre>
       </Disclosure>
     </section>
@@ -579,6 +581,74 @@
             available={false}
           />{/snippet}</IdentityHeader
       >
+      <section
+        class="lord-example"
+        aria-label="Lords registered interests example"
+      >
+        <IdentityHeader name="Example Lord" level={3}>
+          {#snippet kind()}<Badge variant="profile"
+              ><Icon name="portcullis" />Lords</Badge
+            >{/snippet}
+          {#snippet metadata()}Crossbench{/snippet}
+        </IdentityHeader>
+        <ButtonLink href="/search" variant="primary">Find a Lord</ButtonLink>
+        <ul class="interest-example-list">
+          <RegisteredInterestItem
+            text={"Example shareholding\n<Company & Partners>"}
+            status={{
+              kind: "deleted",
+              date: "12 Nov 2026",
+              datetime: "2026-11-12T10:00:00",
+            }}
+            correction={true}
+          >
+            {#snippet metadata()}Created <time datetime="2025-01-10T09:00:00"
+                >10 Jan 2025</time
+              >{/snippet}
+            <ul class="interest-example-list">
+              <RegisteredInterestItem
+                text="Active child interest"
+                status={{ kind: "active" }}
+              />
+            </ul>
+          </RegisteredInterestItem>
+          <RegisteredInterestItem
+            text="Active registered interest"
+            status={{ kind: "active" }}
+          >
+            {#snippet metadata()}Amended <time datetime="2026-01-20T09:00:00"
+                >20 Jan 2026</time
+              >{/snippet}
+          </RegisteredInterestItem>
+        </ul>
+      </section>
+      <section class="lord-example" aria-labelledby="company-interests-example">
+        <SectionHeading
+          id="company-interests-example"
+          title="Company interests"
+          level={3}
+          tone="accent"
+        />
+        <ul class="company-example-list">
+          <RegisteredInterestItem
+            variant="company"
+            text={"Example Company Ltd; Another Company & Partners\nA long recorded company name that wraps within its available column"}
+            status={{
+              kind: "deleted",
+              date: "12 Nov 2026",
+              datetime: "2026-11-12T10:00:00",
+            }}
+          >
+            <ul class="company-example-list nested-company-example">
+              <RegisteredInterestItem
+                variant="company"
+                text="Active child company"
+                status={{ kind: "active" }}
+              />
+            </ul>
+          </RegisteredInterestItem>
+        </ul>
+      </section>
       <Metric
         variant="expanded"
         align="end"
@@ -727,6 +797,15 @@
 >
 
 <style>
+  .company-example-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  .nested-company-example {
+    padding-left: var(--space-4);
+  }
+
   .reference {
     width: min(100%, 1000px);
     margin-top: 56px;
@@ -828,6 +907,18 @@
   }
   :global(.result-palette-example) {
     --accent: var(--accent-funder);
+  }
+  .lord-example {
+    --accent: var(--accent-lord);
+  }
+  .interest-example-list {
+    padding-left: var(--space-4);
+    display: grid;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+  }
+  .interest-example-list .interest-example-list {
+    padding-left: var(--space-4);
   }
   .funder-example {
     --accent: var(--accent-funder);

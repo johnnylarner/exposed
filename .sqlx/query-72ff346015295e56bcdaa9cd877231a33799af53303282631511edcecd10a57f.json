@@ -1,0 +1,31 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exposed.lords_imports (ingestion_key, capture_digest, captured_at, member_count)\n             VALUES ($1, $2, $3, $4) ON CONFLICT (ingestion_key) DO NOTHING RETURNING ingestion_key",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "ingestion_key",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "lords_imports",
+            "name": "ingestion_key"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "72ff346015295e56bcdaa9cd877231a33799af53303282631511edcecd10a57f"
+}

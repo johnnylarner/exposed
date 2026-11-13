@@ -9,6 +9,8 @@ import {
   funderDetails,
   member,
   memberDetails,
+  unknownMember,
+  unknownFunderDetails,
 } from "./details-fixtures";
 
 function reply(body: unknown): typeof fetch {
@@ -507,4 +509,138 @@ test("ranking destinations retain queries and remove legacy category", () => {
     "/ranking/companies?q=Example&q=Other&period=historical",
   );
   expect(params.get("category")).toBe("members");
+});
+
+test("details preserve unknown member metadata and the funding associated with it", async () => {
+  const result = await loadDetails(
+    { kind: "member", id: member.id, view: "summary" },
+    signal(),
+    reply({ ...memberDetails, member: unknownMember }),
+    "http://api",
+  );
+  expect(result.kind).toBe("member");
+  if (result.kind !== "member") throw new Error("expected member details");
+  expect(result.details.member).toEqual({
+    id: member.id,
+    name: member.name,
+    partyName: null,
+    membershipFrom: null,
+    isCurrentCommons: true,
+  });
+  expect(result.details.summary.declaredTotals.currentTerm.amount).toBe(
+    "24691.34",
+  );
+  const funder = await loadDetails(
+    funderRoute,
+    signal(),
+    reply(unknownFunderDetails),
+    "http://api",
+  );
+  expect(funder.kind).toBe("funder");
+  if (funder.kind !== "funder") throw new Error("expected funder details");
+  expect(funder.details.declaredTotals.currentTerm.amount).toBe("24686.34");
+  expect(funder.details.currencies[1].parties[0]).toEqual({
+    partyName: null,
+    amount: "24691.34",
+    entryCount: 3,
+    unknownAmountCount: 1,
+  });
+  expect(funder.details.declarations[0].member.partyName).toBeNull();
+  expect(
+    funder.details.currencies[1].topRecipients[0].member.membershipFrom,
+  ).toBeNull();
+});
+
+test("rankings keep unknown parties and members without identity context", () => {
+  const fixture = {
+    ...rankingFixture,
+    members: [{ ...rankingFixture.members[0], context: undefined }],
+    parties: [
+      {
+        ...rankingFixture.parties[0],
+        id: null,
+        name: null,
+        total: rankingFixture.members[0].total,
+      },
+    ],
+  };
+  const parsed = parseRankings(fixture);
+  expect(parsed.members[0].context).toBeNull();
+  expect(parsed.parties[0].id).toBeNull();
+  expect(parsed.parties[0].name).toBeNull();
+  expect(rankingRows(parsed, "parties")[0]).toMatchObject({
+    name: "Party unavailable",
+    amount: "£9,007,199,254,740,993.123456789",
+    context: "2 declarations",
+    href: undefined,
+  });
+  expect(() =>
+    parseRankings({
+      ...fixture,
+      parties: [...fixture.parties, ...fixture.parties],
+    }),
+  ).toThrow("unexpected response");
+  expect(() =>
+    parseRankings({
+      ...fixture,
+      members: [{ ...fixture.members[0], id: null }],
+    }),
+  ).toThrow("unexpected response");
+});
+
+test("details retain unknown Commons status without treating it as former membership", async () => {
+  const profile = { ...unknownMember, is_current_commons: null };
+  const result = await loadDetails(
+    { kind: "member", id: member.id, view: "summary" },
+    signal(),
+    reply({ ...memberDetails, member: profile }),
+    "http://api",
+  );
+  expect(result.kind).toBe("member");
+  if (result.kind !== "member") throw new Error("expected member details");
+  expect(result.details.member.isCurrentCommons).toBeNull();
+  expect(result.details.summary.declaredTotals.currentTerm.amount).toBe(
+    "24691.34",
+  );
+  const funder = await loadDetails(
+    funderRoute,
+    signal(),
+    reply({
+      ...unknownFunderDetails,
+      declarations: unknownFunderDetails.declarations.map((source) => ({
+        ...source,
+        member: profile,
+      })),
+      currencies: unknownFunderDetails.currencies.map((group) => ({
+        ...group,
+        top_recipients: group.top_recipients.map((recipient) => ({
+          ...recipient,
+          member: profile,
+        })),
+      })),
+    }),
+    "http://api",
+  );
+  expect(funder.kind).toBe("funder");
+  if (funder.kind !== "funder") throw new Error("expected funder details");
+  expect(funder.details.declarations[0].member.isCurrentCommons).toBeNull();
+  expect(
+    funder.details.currencies[1].topRecipients[0].member.isCurrentCommons,
+  ).toBeNull();
+  expect(funder.details.declaredTotals.currentTerm.amount).toBe("24686.34");
+  for (const status of [undefined, "false", 0]) {
+    expect(
+      (
+        await loadDetails(
+          { kind: "member", id: member.id, view: "summary" },
+          signal(),
+          reply({
+            ...memberDetails,
+            member: { ...profile, is_current_commons: status },
+          }),
+          "http://api",
+        )
+      ).kind,
+    ).toBe("error");
+  }
 });

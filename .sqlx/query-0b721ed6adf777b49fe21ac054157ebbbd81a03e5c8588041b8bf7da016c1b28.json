@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM exposed.simple_declarations WHERE member_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0b721ed6adf777b49fe21ac054157ebbbd81a03e5c8588041b8bf7da016c1b28"
+}

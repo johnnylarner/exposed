@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT parliament_member_id\n            FROM exposed.members\n            ORDER BY parliament_member_id\n            ",
+  "query": "\n            SELECT parliament_member_id\n            FROM exposed.members m\n            WHERE m.commons_imported_at IS NOT NULL\n            ORDER BY parliament_member_id\n            ",
   "describe": {
     "columns": [
       {
@@ -22,5 +22,5 @@
       false
     ]
   },
-  "hash": "9bb511ed49bbeb96bd1e1d17caea38773da2923553f4bec462fae1330179965c"
+  "hash": "627019f0f7498ece0595a6b6331cfa085d4abe9c9b36b19d0a5d72cc7cdbbddd"
 }

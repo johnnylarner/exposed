@@ -1,0 +1,172 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT category_position, category_source_id, category_name, category_sort_order, node_position, parent_position, sibling_position, source_id,\n                    declaration_text, created_when, last_amended_when, deleted_when, is_correction\n             FROM exposed.simple_declarations WHERE member_id = $1 ORDER BY category_position, node_position",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "category_position",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "category_position"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "category_source_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "category_source_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "category_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "category_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "category_sort_order",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "category_sort_order"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "node_position",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "node_position"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "parent_position",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "parent_position"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "sibling_position",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "sibling_position"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "source_id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "source_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "declaration_text",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "declaration_text"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "created_when",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "created_when"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "last_amended_when",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "last_amended_when"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "deleted_when",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "deleted_when"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "is_correction",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "is_correction"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "2c5dcec398d519eb99058559fcff590015b5853ef583543526625a26b3d92249"
+}

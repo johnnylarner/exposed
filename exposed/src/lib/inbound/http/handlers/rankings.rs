@@ -16,8 +16,8 @@ use axum::{
 use serde::Serialize;
 #[derive(Serialize)]
 pub struct RankingResponse {
-    id: String,
-    name: String,
+    id: Option<String>,
+    name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     context: Option<String>,
     total: DeclaredGbpPeriodResponse,
@@ -34,8 +34,8 @@ pub struct RankingsResponse {
 fn response<I>(row: Ranking<I>, identity: impl FnOnce(I) -> (String, String)) -> RankingResponse {
     let (id, name) = identity(row.identity);
     RankingResponse {
-        id,
-        name,
+        id: Some(id),
+        name: Some(name),
         context: None,
         total: row.total.into(),
     }
@@ -49,14 +49,18 @@ impl From<Rankings> for RankingsResponse {
                 .members
                 .into_iter()
                 .map(|row| {
-                    let context = format!(
-                        "{} · {}",
-                        row.identity.party_name, row.identity.membership_from
-                    );
+                    let context = [
+                        row.identity.party_name.as_deref(),
+                        row.identity.membership_from.as_deref(),
+                    ]
+                    .into_iter()
+                    .flatten()
+                    .collect::<Vec<_>>()
+                    .join(" · ");
                     let mut result = response(row, |identity| {
                         (identity.id.value().to_string(), identity.name)
                     });
-                    result.context = Some(context);
+                    result.context = (!context.is_empty()).then_some(context);
                     result
                 })
                 .collect(),
@@ -81,7 +85,12 @@ impl From<Rankings> for RankingsResponse {
             parties: rankings
                 .parties
                 .into_iter()
-                .map(|row| response(row, |identity| (identity.id.to_string(), identity.name)))
+                .map(|row| RankingResponse {
+                    id: row.identity.id.map(|id| id.to_string()),
+                    name: row.identity.name,
+                    context: None,
+                    total: row.total.into(),
+                })
                 .collect(),
         }
     }

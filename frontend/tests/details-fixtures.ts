@@ -262,3 +262,27 @@ export const funderDetails = {
     },
   ],
 };
+
+export const unknownMember = {
+  ...member,
+  party_id: null,
+  party_name: null,
+  membership_from: null,
+};
+
+export const unknownFunderDetails = {
+  ...funderDetails,
+  declarations: funderDetails.declarations.map((source) => ({
+    ...source,
+    member: unknownMember,
+  })),
+  currencies: funderDetails.currencies.map((group) => ({
+    ...group,
+    parties: group.parties.map((party, index) =>
+      index === 0 ? { ...party, party_id: null, party_name: null } : party,
+    ),
+    top_recipients: group.top_recipients.map((recipient, index) =>
+      index === 0 ? { ...recipient, member: unknownMember } : recipient,
+    ),
+  })),
+};

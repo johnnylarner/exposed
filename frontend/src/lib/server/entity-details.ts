@@ -5,7 +5,7 @@ import {
 } from "../entity-details";
 import type {
   DetailRoute,
-  DetailState,
+  DetailResult,
   MemberProfile,
   MemberDetails,
   FunderDetails,
@@ -57,12 +57,16 @@ function identity(value: unknown, kind: "MP" | "Funder"): string {
 }
 function memberProfile(value: unknown): MemberProfile {
   const row = record(value);
-  if (typeof row.is_current_commons !== "boolean") return malformed();
+  if (
+    row.is_current_commons !== null &&
+    typeof row.is_current_commons !== "boolean"
+  )
+    return malformed();
   return {
     id: identity(row.id, "MP"),
     name: text(row.name),
-    partyName: text(row.party_name),
-    membershipFrom: text(row.membership_from),
+    partyName: nullableText(row.party_name),
+    membershipFrom: nullableText(row.membership_from),
     isCurrentCommons: row.is_current_commons,
   };
 }
@@ -194,7 +198,7 @@ function readFunder(value: unknown): FunderDetails {
         amount: decimal(group.amount),
         parties: list(group.parties).map((value) => {
           const party = record(value);
-          return { ...total(party), partyName: text(party.party_name) };
+          return { ...total(party), partyName: nullableText(party.party_name) };
         }),
         topRecipients: list(group.top_recipients).map((value) => {
           const recipient = record(value);
@@ -208,13 +212,34 @@ function readFunder(value: unknown): FunderDetails {
   };
 }
 
+export function loadDetails(
+  route: Extract<DetailRoute, { kind: "member" }>,
+  signal: AbortSignal,
+  fetch: typeof globalThis.fetch,
+  origin: string,
+  period?: ReportingPeriod,
+): Promise<DetailResult<"member">>;
+export function loadDetails(
+  route: Extract<DetailRoute, { kind: "funder" }>,
+  signal: AbortSignal,
+  fetch: typeof globalThis.fetch,
+  origin: string,
+  period?: ReportingPeriod,
+): Promise<DetailResult<"funder">>;
+export function loadDetails(
+  route: Extract<DetailRoute, { kind: "member" | "funder" }>,
+  signal: AbortSignal,
+  fetch: typeof globalThis.fetch,
+  origin: string,
+  period?: ReportingPeriod,
+): Promise<DetailResult>;
 export async function loadDetails(
   route: Extract<DetailRoute, { kind: "member" | "funder" }>,
   signal: AbortSignal,
   fetch: typeof globalThis.fetch,
   origin: string,
   period: ReportingPeriod = "current-term",
-): Promise<Exclude<DetailState, { kind: "loading" }>> {
+): Promise<DetailResult> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   signal.addEventListener("abort", cancel, { once: true });
@@ -235,7 +260,7 @@ export async function loadDetails(
         "The details service is unavailable. Try again in a moment.",
       );
     const body: unknown = await response.json();
-    const state: DetailState =
+    const state: DetailResult =
       route.kind === "member"
         ? { kind: "member", details: readMember(body) }
         : { kind: "funder", details: readFunder(body) };

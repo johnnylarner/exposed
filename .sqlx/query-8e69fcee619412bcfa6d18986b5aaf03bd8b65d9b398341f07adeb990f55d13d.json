@@ -1,0 +1,157 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT  \n                m.name,\n                m.parliament_member_id,\n                m.party_name AS \"party_name?\",\n                m.party_id AS \"party_id?\",\n                m.membership_from AS \"constituency?\", m.membership_kind, m.membership_status_provenance, m.membership_start_date, m.membership_end_date, m.membership_status, m.membership_status_active,\n                 exposed.word_similarity($1, m.name) as similarity_score\n            FROM exposed.members m\n            WHERE m.commons_imported_at IS NOT NULL AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2\n            ORDER BY similarity_score DESC, m.id\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "parliament_member_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliament_member_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "party_name?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "party_id?",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "constituency?",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_from"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "membership_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "membership_status_provenance",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_status_provenance"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "membership_start_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_start_date"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "membership_end_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_end_date"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "membership_status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_status"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "membership_status_active",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_status_active"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "similarity_score",
+        "type_info": "Float4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      null
+    ]
+  },
+  "hash": "8e69fcee619412bcfa6d18986b5aaf03bd8b65d9b398341f07adeb990f55d13d"
+}

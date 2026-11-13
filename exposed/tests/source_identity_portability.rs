@@ -130,7 +130,9 @@ fn parquet_rows(path: &Path) -> anyhow::Result<Vec<Value>> {
 
 async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
     sqlx::query!(
-        "INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES ($1, 4483, 'Example member', 1, 'Party', 1, 'Constituency', true)",
+        "WITH input (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
+    VALUES ($1::uuid, 4483, 'Example member', 1, 'Party', 1, 'Constituency', true)
+) INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.id::uuid, input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input",
         id
     )
     .execute(pool)
@@ -140,7 +142,7 @@ async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
 
 async fn clear_import(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query!(
-        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.members"
+        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.simple_declarations, exposed.simple_declaration_registers, exposed.members"
     )
     .execute(pool)
     .await?;

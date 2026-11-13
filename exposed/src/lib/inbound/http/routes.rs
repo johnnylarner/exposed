@@ -21,6 +21,7 @@ pub fn routes<
         .route("/rankings", get(handlers::rankings))
         .route("/search", get(handlers::search_entities))
         .route("/members/{id}", get(handlers::member_details))
+        .route("/lords/{id}", get(handlers::lord_details))
         .route("/funders/{id}", get(handlers::funder_details));
     super::tracing::instrument(router)
 }

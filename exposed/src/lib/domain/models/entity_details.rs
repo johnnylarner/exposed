@@ -111,13 +111,13 @@ pub struct MemberProfile {
     /// Source name.
     pub name: String,
     /// Latest recorded party identity.
-    pub party_id: i32,
+    pub party_id: Option<i32>,
     /// Latest recorded party name.
-    pub party_name: String,
+    pub party_name: Option<String>,
     /// Latest membership description, including constituencies and Lords memberships.
-    pub membership_from: String,
-    /// Current Commons membership.
-    pub is_current_commons: bool,
+    pub membership_from: Option<String>,
+    /// Current Commons membership, unknown when the latest chamber is missing.
+    pub is_current_commons: Option<bool>,
 }
 
 /// A named funder on a declaration.
@@ -403,9 +403,9 @@ pub struct FunderFunding {
 #[derive(Clone, Debug)]
 pub struct PartyTotal {
     /// Latest stored party identity.
-    pub party_id: i32,
+    pub party_id: Option<i32>,
     /// Latest stored party name.
-    pub party_name: String,
+    pub party_name: Option<String>,
     /// Total of known amounts only.
     pub amount: Option<BigDecimal>,
     /// Funding occurrences.

@@ -35,12 +35,13 @@ impl RankingsRepo for ExposedDatabase {
         let start = window.start().map(timestamp).transpose()?;
         let end = window.end().map(timestamp).transpose()?;
         let rows = sqlx::query!(
-            "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.latest_membership_from,
+            "SELECT m.parliament_member_id, m.name, m.party_id AS \"party_id?\", m.party_name AS \"party_name?\", m.membership_from AS \"latest_membership_from?\",
                 d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
                 e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $3), '') AS currency,
                 f.id AS \"funder_id?\", COALESCE(n.preferred_name, f.funder_name) AS funder_name, f.funder_kind
              FROM exposed.declarations d
              JOIN exposed.members m ON m.id = d.member_id
+
              LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id
              LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = e.funder_id
              LEFT JOIN exposed.funders f ON f.id = COALESCE(g.group_id, e.funder_id)

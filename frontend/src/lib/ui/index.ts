@@ -43,3 +43,9 @@ export type { ViewLinksAlignment, ViewLinksVariant } from "./types";
 export { default as Select } from "./Select.svelte";
 export { default as ViewButtons } from "./ViewButtons.svelte";
 export { default as ViewButton } from "./ViewButton.svelte";
+
+export { default as RegisteredInterestItem } from "./RegisteredInterestItem.svelte";
+export type {
+  RegisteredInterestStatus,
+  RegisteredInterestVariant,
+} from "./registered-interest-types";

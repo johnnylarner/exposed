@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT parliament_member_id, name, party_id, party_name, latest_membership_from, is_current_commons\n             FROM exposed.members m WHERE parliament_member_id = $1",
+  "query": "SELECT parliament_member_id, name, party_id AS \"party_id?\", party_name AS \"party_name?\", membership_from AS \"latest_membership_from?\", membership_kind, membership_status_provenance, membership_end_date\n             FROM exposed.members m  WHERE parliament_member_id = $1 AND m.commons_imported_at IS NOT NULL",
   "describe": {
     "columns": [
       {
@@ -27,7 +27,7 @@
       },
       {
         "ordinal": 2,
-        "name": "party_id",
+        "name": "party_id?",
         "type_info": "Int4",
         "origin": {
           "Table": {
@@ -38,7 +38,7 @@
       },
       {
         "ordinal": 3,
-        "name": "party_name",
+        "name": "party_name?",
         "type_info": "Text",
         "origin": {
           "Table": {
@@ -49,23 +49,45 @@
       },
       {
         "ordinal": 4,
-        "name": "latest_membership_from",
+        "name": "latest_membership_from?",
         "type_info": "Text",
         "origin": {
           "Table": {
             "table": "members",
-            "name": "latest_membership_from"
+            "name": "membership_from"
           }
         }
       },
       {
         "ordinal": 5,
-        "name": "is_current_commons",
-        "type_info": "Bool",
+        "name": "membership_kind",
+        "type_info": "Text",
         "origin": {
           "Table": {
             "table": "members",
-            "name": "is_current_commons"
+            "name": "membership_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "membership_status_provenance",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_status_provenance"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "membership_end_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_end_date"
           }
         }
       }
@@ -78,11 +100,13 @@
     "nullable": [
       false,
       false,
+      true,
+      true,
+      true,
       false,
       false,
-      false,
-      false
+      true
     ]
   },
-  "hash": "7a5eb7e72250783be19e98c5157f6b673cbac0b16145c4f962c10da0f456897d"
+  "hash": "41fdf165ab96731340f491e4df110a9a3701a2cee57fa0e0a3119acdd722d50a"
 }

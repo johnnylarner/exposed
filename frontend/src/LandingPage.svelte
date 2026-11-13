@@ -6,13 +6,14 @@
 <main id="landing" class="landing-page" tabindex="-1">
   <div class="landing-content">
     <h1>
-      Explore <span class="member-text">MPs</span>' declared
+      Explore <span class="member-text">MPs</span>’ and
+      <span class="lord-text">Lords</span>’
       <span class="funder-text">financial interests</span> and the people and organisations
       behind them.
     </h1>
     <nav aria-label="Explore declair">
       <ButtonLink variant="primary" size="large" href="/search"
-        >Search MPs and funders</ButtonLink
+        >Search MPs, Lords and funders</ButtonLink
       >
       <ButtonLink size="large" href="/updates">Latest declarations</ButtonLink>
       <ButtonLink size="large" href={rankingHref("members")}
@@ -47,6 +48,9 @@
   .member-text {
     color: var(--accent-member);
   }
+  .lord-text {
+    color: var(--accent-lord);
+  }
   .funder-text {
     color: var(--accent-funder);
   }
@@ -77,7 +81,7 @@
     nav {
       margin-top: 20px;
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
       gap: 8px;
     }
     nav :global(a) {

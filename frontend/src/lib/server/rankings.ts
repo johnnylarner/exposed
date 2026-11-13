@@ -1,5 +1,5 @@
 import { memberIdPattern, funderIdPattern } from "../entity-details";
-import type { RankingEntry, Rankings } from "../rankings";
+import type { PartyRankingEntry, RankingEntry, Rankings } from "../rankings";
 import { isReportingPeriod, type ReportingPeriod } from "../reporting-period";
 function malformed(): never {
   throw new Error("Rankings returned an unexpected response. Try again.");
@@ -14,27 +14,30 @@ function record(value: unknown): Record<string, unknown> {
 function text(value: unknown): string {
   return typeof value === "string" ? value : malformed();
 }
+function board(value: unknown, kind: "member" | "funder"): RankingEntry[];
+function board(value: unknown, kind: "party"): PartyRankingEntry[];
 function board(
   value: unknown,
   kind: "member" | "funder" | "party",
-): RankingEntry[] {
+): (RankingEntry | PartyRankingEntry)[] {
   if (!Array.isArray(value)) return malformed();
-  const seen = new Set<string>();
+  const seen = new Set<string | null>();
   return value.map((value: unknown) => {
     const row = record(value);
-    const id = text(row.id);
+    const id = kind === "party" && row.id === null ? null : text(row.id);
     if (
-      kind === "member"
+      id !== null &&
+      (kind === "member"
         ? !memberIdPattern.test(id) || BigInt(id) > 2147483647n
         : kind === "funder"
           ? !funderIdPattern.test(id)
           : !/^-?\d+$/u.test(id) ||
             BigInt(id) < -2147483648n ||
-            BigInt(id) > 2147483647n
+            BigInt(id) > 2147483647n)
     )
       return malformed();
-    if (seen.has(id.toLowerCase())) return malformed();
-    seen.add(id.toLowerCase());
+    if (seen.has(id?.toLowerCase() ?? null)) return malformed();
+    seen.add(id?.toLowerCase() ?? null);
     const total = record(row.total);
     const amount = total.amount === null ? null : text(total.amount);
     if (amount !== null && !/^-?\d+(?:\.\d+)?$/u.test(amount))
@@ -48,8 +51,11 @@ function board(
       return malformed();
     return {
       id,
-      name: text(row.name),
-      context: kind === "member" ? text(row.context) : null,
+      name: kind === "party" && row.name === null ? null : text(row.name),
+      context:
+        kind === "member" && row.context !== undefined
+          ? text(row.context)
+          : null,
       total: {
         amount,
         declarationCount: total.declaration_count,

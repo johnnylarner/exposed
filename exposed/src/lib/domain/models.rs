@@ -27,3 +27,11 @@ pub(crate) mod declared_totals;
 pub mod updates;
 
 pub mod reporting_period;
+
+pub mod lords;
+
+/// Shared member profile and latest membership facts.
+pub mod membership;
+
+/// Validated source timestamps without timezone invention.
+pub mod source_timestamp;

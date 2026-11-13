@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exposed.members\n         (parliament_member_id, name, party_id, party_name, membership_kind, membership_from,\n          membership_start_date, membership_end_date, membership_status, membership_status_active,\n          membership_status_provenance, source_captured_at, source_capture_key, commons_imported_at)\n         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,CASE WHEN $14 THEN now() END)\n         ON CONFLICT (parliament_member_id) DO UPDATE SET\n             commons_imported_at = COALESCE(exposed.members.commons_imported_at, EXCLUDED.commons_imported_at)\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Text",
+        "Timestamptz",
+        "Uuid",
+        "Bool"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3dc10a75a143749d09828cdbe5b0629936c7715c10ffffd7297db1a6403911cf"
+}

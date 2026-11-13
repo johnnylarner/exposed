@@ -1,0 +1,193 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.member_id, m.parliament_member_id, m.name, m.party_name, m.party_id, m.membership_kind, m.membership_start_date, m.membership_status_active, m.membership_status_provenance, p.empty_categories,\n                    m.membership_from, m.membership_status, m.membership_end_date, p.captured_at AS \"captured_at!\",\n                    exposed.word_similarity($1, m.name) AS similarity\n             FROM exposed.simple_declaration_registers p JOIN exposed.members m ON m.id = p.member_id\n             WHERE m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2\n             ORDER BY similarity DESC, m.parliament_member_id LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "member_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "simple_declaration_registers",
+            "name": "member_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "parliament_member_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliament_member_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "party_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "party_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "membership_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_kind"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "membership_start_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_start_date"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "membership_status_active",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_status_active"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "membership_status_provenance",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_status_provenance"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "empty_categories",
+        "type_info": "Jsonb",
+        "origin": {
+          "Table": {
+            "table": "simple_declaration_registers",
+            "name": "empty_categories"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "membership_from",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_from"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "membership_status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_status"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "membership_end_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_end_date"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "captured_at!",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "simple_declaration_registers",
+            "name": "captured_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "similarity",
+        "type_info": "Float4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      false,
+      null
+    ]
+  },
+  "hash": "c98bbb59ecb42dc76ae2036522dcf73dddc61e1efedfa6b628d51b5c8db36a79"
+}

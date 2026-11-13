@@ -23,6 +23,14 @@
         attributes: { d: "m3 8 9-5 9 5H3ZM5 11v7m7-7v7m7-7v7M3 21h18" },
       },
     ],
+    portcullis: [
+      {
+        tag: "path",
+        attributes: {
+          d: "M5 7h14v12l-2 2-2-2-3 2-3-2-2 2-2-2V7ZM5 11h14M5 15h14M9 7v12m6-12v12M5 7 3 3l5 2 4-3 4 3 5-2-2 4",
+        },
+      },
+    ],
     coin: [
       { tag: "circle", attributes: { cx: "12", cy: "12", r: "9" } },
       {

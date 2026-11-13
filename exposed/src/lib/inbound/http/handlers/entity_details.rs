@@ -46,10 +46,10 @@ impl From<EntityDetailsError> for ApiError {
 pub struct MemberResponse {
     id: String,
     name: String,
-    party_id: i32,
-    party_name: String,
-    membership_from: String,
-    is_current_commons: bool,
+    party_id: Option<i32>,
+    party_name: Option<String>,
+    membership_from: Option<String>,
+    is_current_commons: Option<bool>,
 }
 impl From<MemberProfile> for MemberResponse {
     fn from(member: MemberProfile) -> Self {
@@ -312,8 +312,8 @@ impl From<FunderProfile> for FunderResponse {
 
 #[derive(Serialize)]
 pub struct PartyTotalResponse {
-    party_id: i32,
-    party_name: String,
+    party_id: Option<i32>,
+    party_name: Option<String>,
     amount: Option<String>,
     entry_count: i64,
     unknown_amount_count: i64,
