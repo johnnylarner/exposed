@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $2), '') AS currency,\n                e.payment_type, f.id AS \"funder_id?\", f.funder_name AS \"funder_name?\"\n             FROM exposed.declarations d JOIN exposed.members m ON m.id = d.member_id\n             JOIN exposed.member_profiles p ON p.member_id = m.id AND p.chamber = 'commons'\n             LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id\n             LEFT JOIN exposed.funders f ON f.id = e.funder_id\n             WHERE m.parliament_member_id = $1\n             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
+  "query": "SELECT d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $2), '') AS currency,\n                e.payment_type, f.id AS \"funder_id?\", f.funder_name AS \"funder_name?\"\n             FROM exposed.declarations d JOIN exposed.members m ON m.id = d.member_id\n\n             LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id\n             LEFT JOIN exposed.funders f ON f.id = e.funder_id\n             WHERE m.parliament_member_id = $1\n             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
   "describe": {
     "columns": [
       {
@@ -128,5 +128,5 @@
       false
     ]
   },
-  "hash": "ad9631bd8e9ac6ce7e5f5b058ea72a1f780281ca95fa3c6930fe6e81eb8e61a9"
+  "hash": "15faf3ef036d1166f587eab87796f64dbb50b4c04c7cca7d047ec10895f444d8"
 }

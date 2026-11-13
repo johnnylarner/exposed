@@ -536,3 +536,39 @@ for (const [entity, label, name] of [
     });
   }
 }
+
+test("rankings retain funding in the unknown party bucket without inventing member metadata", async ({
+  page,
+  backend,
+}) => {
+  await backend.route("**/api/rankings?*", (route) =>
+    route.fulfill({
+      json: {
+        ...rankingFixture,
+        members: [{ ...rankingFixture.members[0], context: undefined }],
+        parties: [
+          {
+            ...rankingFixture.parties[0],
+            id: null,
+            name: null,
+            total: rankingFixture.members[0].total,
+          },
+        ],
+      },
+    }),
+  );
+  await page.goto("/ranking/mps");
+  const members = page.getByRole("list", { name: "MPs rankings" });
+  await expect(members).toContainText("Member 1");
+  await expect(members).toContainText("2 declarations");
+  await expect(members).not.toContainText(
+    /Example Party|Example constituency|null|undefined/u,
+  );
+  await page.getByRole("link", { name: "Parties", exact: true }).click();
+  const parties = page.getByRole("list", { name: "Parties rankings" });
+  await expect(parties.getByRole("listitem")).toHaveCount(1);
+  await expect(parties).toContainText("Party unavailable");
+  await expect(parties).toContainText("£9,007,199,254,740,993.123456789");
+  await expect(parties).toContainText("Incomplete");
+  await expect(parties.getByRole("link")).toHaveCount(0);
+});

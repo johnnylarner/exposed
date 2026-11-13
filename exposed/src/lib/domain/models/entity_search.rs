@@ -72,7 +72,7 @@ pub enum Entity {
     Funder(FunderSearchMatch),
     /// Member entitiy
     ParliamentMember(ParliamentMember),
-    /// Lords-specific identity.
+    /// Canonical member identity with an imported Lords register.
     Lord(LordProfile),
 }
 

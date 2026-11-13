@@ -3,9 +3,12 @@ use serde::Deserialize;
 
 use super::{
     CapturedLord, LordProfile, LordRegister, LordsCategory, LordsCategoryId, LordsError,
-    RegisteredInterest, RegisteredInterestId, SourceTimestamp,
+    SimpleDeclaration, SimpleDeclarationId, SourceTimestamp,
 };
-use crate::domain::models::parliament_member::MemberId;
+use crate::domain::models::{
+    membership::{Chamber, SourceMembership},
+    parliament_member::MemberId,
+};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -39,22 +42,8 @@ struct Member {
 
 #[derive(Deserialize)]
 struct Party {
+    id: Option<u32>,
     name: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SourceMembership {
-    house: u32,
-    membership_from: Option<String>,
-    membership_status: Option<MembershipStatus>,
-    membership_end_date: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct MembershipStatus {
-    status_description: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -69,7 +58,7 @@ struct Category {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SourceInterest {
-    id: RegisteredInterestId,
+    id: SimpleDeclarationId,
     interest: Option<String>,
     created_when: Option<String>,
     last_amended_when: Option<String>,
@@ -115,32 +104,33 @@ pub(super) fn register(
     if source.member.name_display_as.trim().is_empty() {
         return Err(LordsError::Source("missing Lords display name".into()));
     }
-    let (membership_from, membership_status, membership_end_date) =
-        match source.member.latest_house_membership {
-            Some(membership) => {
-                if membership.house != 2 {
-                    return Err(LordsError::Source(
-                        "Lords source contains a non-Lords membership".into(),
-                    ));
-                }
-                (
-                    membership.membership_from,
-                    membership
-                        .membership_status
-                        .and_then(|status| status.status_description),
-                    timestamp(membership.membership_end_date)?,
-                )
-            }
-            None => (None, None, None),
-        };
+    let membership = source
+        .member
+        .latest_house_membership
+        .map(SourceMembership::into_membership)
+        .transpose()
+        .map_err(LordsError::Source)?
+        .unwrap_or_default();
+    if membership
+        .kind
+        .chamber()
+        .is_some_and(|chamber| chamber != Chamber::Lords)
+    {
+        return Err(LordsError::Source(
+            "Lords source contains a non-Lords membership".into(),
+        ));
+    }
     Ok(LordRegister {
         member: LordProfile {
             id: source.member.id,
             name: source.member.name_display_as,
+            party_id: source
+                .member
+                .latest_party
+                .as_ref()
+                .and_then(|party| party.id),
             party_name: source.member.latest_party.and_then(|party| party.name),
-            membership_from,
-            membership_status,
-            membership_end_date,
+            membership,
         },
         captured_at,
         categories: source
@@ -166,11 +156,14 @@ pub(super) fn register(
 }
 
 fn timestamp(value: Option<String>) -> Result<Option<SourceTimestamp>, LordsError> {
-    value.map(SourceTimestamp::try_from).transpose()
+    value
+        .map(SourceTimestamp::try_from)
+        .transpose()
+        .map_err(Into::into)
 }
 
-fn interest(source: SourceInterest) -> Result<RegisteredInterest, LordsError> {
-    Ok(RegisteredInterest {
+fn interest(source: SourceInterest) -> Result<SimpleDeclaration, LordsError> {
+    Ok(SimpleDeclaration {
         source_id: source.id,
         text: source.interest,
         created_when: timestamp(source.created_when)?,

@@ -94,9 +94,9 @@
                         "summary",
                         page.url.searchParams,
                       )}>{recipient.member.name}</a
-                    ><span class="entry-count"
-                      >{recipient.member.partyName || "Party unavailable"}</span
-                    ></th
+                    >{#if recipient.member.partyName}<span class="entry-count"
+                        >{recipient.member.partyName}</span
+                      >{/if}</th
                   ><td class="recipient-total"
                     ><span class="amount">{formatPounds(recipient.amount)}</span
                     >{#if recipient.unknownAmountCount > 0}<span

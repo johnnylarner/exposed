@@ -109,8 +109,11 @@ async fn complete_history_preserves_occurrences_and_empty_declarations(pool: PgP
         ))
         .await
         .unwrap();
-    assert_eq!(former_mp.member.membership_from, "Life peer");
-    assert!(!former_mp.member.is_current_commons);
+    assert_eq!(
+        former_mp.member.membership_from.as_deref(),
+        Some("Life peer")
+    );
+    assert_eq!(former_mp.member.is_current_commons, Some(false));
 }
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
@@ -856,4 +859,85 @@ fn assert_funder_declared_totals(details: &crate::domain::models::entity_details
         details.first_registered_at,
         Some("2026-01-21T00:00:00Z".parse().unwrap())
     );
+}
+
+#[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
+async fn missing_canonical_party_preserves_funder_and_member_totals(pool: PgPool) {
+    let db = ExposedDatabase::from(pool.clone());
+    let service = Service::new(db.clone());
+    let request = FunderDetailsRequest::new(FUNDER.parse().unwrap(), ReportingPeriod::Historical);
+    let before = service.funder(request).await.unwrap();
+    sqlx::query!("UPDATE exposed.members SET party_id=NULL, party_name=NULL, membership_from=NULL")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let after = service
+        .funder(FunderDetailsRequest::new(
+            FUNDER.parse().unwrap(),
+            ReportingPeriod::Historical,
+        ))
+        .await
+        .unwrap();
+    assert_eq!(after.entry_count, before.entry_count);
+    assert_eq!(after.declarations.len(), before.declarations.len());
+    for (left, right) in before.currencies.iter().zip(&after.currencies) {
+        assert_eq!(left.amount, right.amount);
+        assert_eq!(right.parties.len(), 1);
+        assert_eq!(right.parties[0].party_id, None);
+        assert_eq!(right.parties[0].party_name, None);
+        assert_eq!(right.parties[0].amount, right.amount);
+    }
+    let history = db.member("1".parse().unwrap()).await.unwrap().unwrap();
+    assert!(history.member.party_id.is_none());
+    assert!(history.member.party_name.is_none());
+    assert!(history.member.membership_from.is_none());
+    assert_eq!(history.declarations.len(), 23);
+}
+
+#[sqlx::test(migrations = "../db/migrations", fixtures("details"))]
+async fn http_membership_projection_distinguishes_unknown_from_inactive_open_commons(pool: PgPool) {
+    use crate::inbound::http::{routes::routes, state::AppState};
+    use tower::ServiceExt;
+    let db = ExposedDatabase::from(pool.clone());
+    let state = AppState {
+        updates_service: std::sync::Arc::new(crate::domain::services::updates::Service::new(
+            db.clone(),
+        )),
+        entity_search_service: std::sync::Arc::new(
+            crate::domain::services::entity_search::Service::new(db.clone(), db.clone()),
+        ),
+        entity_details_service: std::sync::Arc::new(Service::new(db.clone())),
+        rankings_service: std::sync::Arc::new(crate::domain::services::rankings::Service::new(db)),
+    };
+    let app = routes().with_state(state);
+    let mut summary = None;
+    for (kind, expected) in [
+        ("elected_mp", serde_json::json!(true)),
+        ("unknown", serde_json::Value::Null),
+    ] {
+        sqlx::query!("UPDATE exposed.members SET membership_kind=$1,membership_status_active=false,membership_status_provenance='source',membership_end_date=NULL WHERE parliament_member_id=1",kind).execute(&pool).await.unwrap();
+        let response = app
+            .clone()
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/members/1?period=historical")
+                    .body(axum::body::Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        let body: serde_json::Value = serde_json::from_slice(
+            &axum::body::to_bytes(response.into_body(), usize::MAX)
+                .await
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(body["member"].get("is_current_commons"), Some(&expected));
+        if let Some(previous) = &summary {
+            assert_eq!(&body["summary"], previous);
+        } else {
+            summary = Some(body["summary"].clone());
+        }
+    }
 }

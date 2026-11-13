@@ -183,7 +183,7 @@ fn nullable_source_collections_and_category_names_retain_their_meaning() {
     let parsed = LordRegister::from_source(&source, Utc::now()).unwrap();
     assert!(parsed.categories[0].name.is_none());
     assert!(parsed.member.party_name.is_none());
-    assert!(parsed.member.membership_status.is_none());
+    assert!(parsed.member.membership.membership_status.is_none());
     assert!(parsed.categories[0].interests[0].created_when.is_none());
     assert!(
         parsed.categories[0].interests[0]

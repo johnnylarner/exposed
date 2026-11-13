@@ -137,6 +137,22 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
 
     let (mp, _) = res.first().unwrap();
     assert_eq!(mp.name(), "John McDonnell".to_string());
+    let stored = sqlx::query!("SELECT membership_kind, membership_start_date, membership_status, source_captured_at, source_capture_key, commons_imported_at FROM exposed.members").fetch_all(&pool).await?;
+    assert!(!stored.is_empty());
+    assert!(
+        stored
+            .iter()
+            .all(|member| member.membership_kind == "elected_mp"
+                && member.source_captured_at.is_some()
+                && member.source_capture_key.is_some()
+                && member.commons_imported_at.is_some())
+    );
+    assert!(
+        stored
+            .iter()
+            .any(|member| member.membership_start_date.is_some()
+                && member.membership_status.is_some())
+    );
 
     Ok(())
 }
@@ -148,13 +164,7 @@ async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Res
         "WITH input (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
     VALUES (4613, 'Alex Burghart', 4, 'Conservative', 1, 'Brentwood and Ongar', true),
                 (5030, 'Dr Simon Opher', 15, 'Labour', 1, 'Stroud', true)
-), identities AS (
-    INSERT INTO exposed.members (parliament_member_id)
-    SELECT input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
-)
-INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
-SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
-FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id"
+) INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input"
     )
     .execute(&pool)
     .await?;

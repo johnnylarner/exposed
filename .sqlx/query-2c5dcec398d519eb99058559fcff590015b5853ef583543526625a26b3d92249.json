@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT category_position, node_position, parent_position, sibling_position, source_id,\n                    interest_text, created_when, last_amended_when, deleted_when, is_correction\n             FROM exposed.lords_interests WHERE member_id = $1 ORDER BY category_position, node_position",
+  "query": "SELECT category_position, category_source_id, category_name, category_sort_order, node_position, parent_position, sibling_position, source_id,\n                    declaration_text, created_when, last_amended_when, deleted_when, is_correction\n             FROM exposed.simple_declarations WHERE member_id = $1 ORDER BY category_position, node_position",
   "describe": {
     "columns": [
       {
@@ -9,106 +9,139 @@
         "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "lords_interests",
+            "table": "simple_declarations",
             "name": "category_position"
           }
         }
       },
       {
         "ordinal": 1,
-        "name": "node_position",
+        "name": "category_source_id",
         "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "lords_interests",
-            "name": "node_position"
+            "table": "simple_declarations",
+            "name": "category_source_id"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "parent_position",
-        "type_info": "Int8",
+        "name": "category_name",
+        "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "lords_interests",
-            "name": "parent_position"
+            "table": "simple_declarations",
+            "name": "category_name"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "sibling_position",
-        "type_info": "Int8",
+        "name": "category_sort_order",
+        "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "lords_interests",
-            "name": "sibling_position"
+            "table": "simple_declarations",
+            "name": "category_sort_order"
           }
         }
       },
       {
         "ordinal": 4,
-        "name": "source_id",
+        "name": "node_position",
         "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "lords_interests",
-            "name": "source_id"
+            "table": "simple_declarations",
+            "name": "node_position"
           }
         }
       },
       {
         "ordinal": 5,
-        "name": "interest_text",
-        "type_info": "Text",
+        "name": "parent_position",
+        "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "lords_interests",
-            "name": "interest_text"
+            "table": "simple_declarations",
+            "name": "parent_position"
           }
         }
       },
       {
         "ordinal": 6,
-        "name": "created_when",
-        "type_info": "Text",
+        "name": "sibling_position",
+        "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "lords_interests",
-            "name": "created_when"
+            "table": "simple_declarations",
+            "name": "sibling_position"
           }
         }
       },
       {
         "ordinal": 7,
-        "name": "last_amended_when",
-        "type_info": "Text",
+        "name": "source_id",
+        "type_info": "Int8",
         "origin": {
           "Table": {
-            "table": "lords_interests",
-            "name": "last_amended_when"
+            "table": "simple_declarations",
+            "name": "source_id"
           }
         }
       },
       {
         "ordinal": 8,
-        "name": "deleted_when",
+        "name": "declaration_text",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "lords_interests",
-            "name": "deleted_when"
+            "table": "simple_declarations",
+            "name": "declaration_text"
           }
         }
       },
       {
         "ordinal": 9,
+        "name": "created_when",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "created_when"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "last_amended_when",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "last_amended_when"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "deleted_when",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "simple_declarations",
+            "name": "deleted_when"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
         "name": "is_correction",
         "type_info": "Bool",
         "origin": {
           "Table": {
-            "table": "lords_interests",
+            "table": "simple_declarations",
             "name": "is_correction"
           }
         }
@@ -126,11 +159,14 @@
       false,
       false,
       true,
+      false,
+      false,
+      true,
       true,
       true,
       true,
       false
     ]
   },
-  "hash": "8554a597f2f1008d91de3a87f0c9d569626d54cd09ef463ea44deb101a244117"
+  "hash": "2c5dcec398d519eb99058559fcff590015b5853ef583543526625a26b3d92249"
 }

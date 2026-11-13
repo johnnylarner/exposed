@@ -3,22 +3,10 @@ WITH input (id, parliament_member_id, name, party_id, party_name, latest_house, 
        CASE i WHEN 1 THEN 'Ava Example' WHEN 2 THEN 'Bea Example' WHEN 3 THEN 'Empty Member' ELSE 'Recipient ' || i END,
        CASE WHEN i = 2 THEN 2 ELSE 1 END, CASE WHEN i = 2 THEN 'Party B' ELSE 'Party A' END,
        1, 'Example constituency', true FROM generate_series(1, 15) i
-), identities AS (
-    INSERT INTO exposed.members (id, parliament_member_id)
-    SELECT input.id::uuid, input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
-)
-INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
-SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
-FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id;
+) INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.id::uuid, input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input;
 WITH input (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
     VALUES (16, 'Former MP Example', 1, 'Party A', 2, 'Life peer', false)
-), identities AS (
-    INSERT INTO exposed.members (parliament_member_id)
-    SELECT input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
-)
-INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
-SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
-FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id;
+) INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input;
 INSERT INTO exposed.funders (id, funder_name, funder_kind, company_number) VALUES
 ('10000000-0000-0000-0000-000000000001', 'Exact Funder', 'Company', '00123456'),
 ('10000000-0000-0000-0000-000000000002', 'Empty Funder', NULL, NULL),

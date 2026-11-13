@@ -264,7 +264,7 @@ fn currency_breakdowns(
         .into_iter()
         .map(|(currency, mut allocations)| {
             let mut amount = None;
-            let mut parties: BTreeMap<(i32, String), PartyTotal> = BTreeMap::new();
+            let mut parties: BTreeMap<(Option<i32>, Option<String>), PartyTotal> = BTreeMap::new();
             for allocation in &allocations {
                 add_known(&mut amount, allocation.known_total.as_ref());
                 let party = parties
@@ -340,10 +340,10 @@ mod tests {
             member: MemberProfile {
                 id: "1".parse().unwrap(),
                 name: "Example".into(),
-                party_id: 1,
-                party_name: "Party".into(),
-                membership_from: "Example".into(),
-                is_current_commons: true,
+                party_id: Some(1),
+                party_name: Some("Party".into()),
+                membership_from: Some("Example".into()),
+                is_current_commons: Some(true),
             },
             declarations,
         }
@@ -678,8 +678,8 @@ mod tests {
         for id in 1..=12 {
             let mut member = history(Vec::new()).member;
             member.id = id.to_string().parse().unwrap();
-            member.party_id = id;
-            member.party_name = format!("Party {id}");
+            member.party_id = Some(id);
+            member.party_name = Some(format!("Party {id}"));
             source
                 .declarations
                 .push(crate::domain::models::entity_details::FunderDeclaration {
@@ -726,7 +726,7 @@ mod tests {
         assert_eq!(year.currencies[0].top_recipients[0].member.id.value(), 12);
         assert_eq!(year.currencies[0].amount, Some("-1000".parse().unwrap()));
         assert_eq!(year.currencies[0].parties.len(), 1);
-        assert_eq!(year.currencies[0].parties[0].party_id, 12);
+        assert_eq!(year.currencies[0].parties[0].party_id, Some(12));
         assert_periods_equal(&term.declared_totals, &year.declared_totals);
     }
 }

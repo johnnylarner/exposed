@@ -1,49 +1,53 @@
-DROP TABLE exposed.lords_interests;
-DROP TABLE exposed.lords_categories;
-ALTER TABLE exposed.declarations
-    DROP CONSTRAINT declarations_commons_profile_fkey,
-    DROP COLUMN profile_chamber;
-DELETE FROM exposed.member_profiles WHERE chamber = 'lords';
-DELETE FROM exposed.members m
-WHERE NOT EXISTS (SELECT 1 FROM exposed.member_profiles p WHERE p.member_id = m.id AND p.chamber = 'commons');
-ALTER TABLE exposed.members
-    ADD COLUMN name TEXT,
-    ADD COLUMN party_id INTEGER,
-    ADD COLUMN party_name TEXT,
-    ADD COLUMN latest_house SMALLINT,
-    ADD COLUMN latest_membership_from TEXT,
-    ADD COLUMN is_current_commons BOOLEAN,
-    ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now();
-UPDATE exposed.members m SET
-    name = p.name,
-    party_id = p.party_id,
-    party_name = p.party_name,
-    latest_house = p.latest_house,
-    latest_membership_from = p.latest_membership_from,
-    is_current_commons = p.is_current_commons,
-    created_at = p.created_at,
-    updated_at = p.updated_at
-FROM exposed.member_profiles p WHERE p.member_id = m.id AND p.chamber = 'commons';
-DROP TABLE exposed.member_profiles;
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM exposed.members m
+        JOIN exposed.membership_kinds k ON k.id = m.membership_kind
+        WHERE m.commons_imported_at IS NOT NULL
+          AND (k.chamber_id IS NULL OR m.party_id IS NULL OR m.party_name IS NULL OR m.membership_from IS NULL)
+    ) THEN
+        RAISE EXCEPTION 'Cannot revert member membership migration: retained Commons members contain unknown chamber, party or membership fields that the old schema cannot represent';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM exposed.members m
+        JOIN exposed.declarations d ON d.member_id = m.id
+        WHERE m.commons_imported_at IS NULL
+    ) THEN
+        RAISE EXCEPTION 'Cannot revert member membership migration: a member outside the imported Commons cohort owns financial declarations';
+    END IF;
+END
+$$;
+ALTER TABLE exposed.members DISABLE TRIGGER members_set_updated_at;
+DROP TABLE exposed.simple_declarations;
+DROP TABLE exposed.simple_declaration_registers;
 DROP TABLE exposed.lords_imports;
-DROP TYPE exposed.profile_chamber;
+DELETE FROM exposed.members WHERE commons_imported_at IS NULL;
 ALTER TABLE exposed.members
-    ALTER COLUMN name SET NOT NULL,
+    ADD COLUMN latest_house SMALLINT,
+    ADD COLUMN is_current_commons BOOLEAN;
+UPDATE exposed.members m SET
+    latest_house = k.chamber_id,
+    is_current_commons = k.chamber_id = 1 AND m.membership_end_date IS NULL AND m.membership_status_provenance <> 'legacy_former'
+FROM exposed.membership_kinds k WHERE k.id = m.membership_kind;
+ALTER TABLE exposed.members
+    DROP COLUMN membership_kind,
+    DROP COLUMN membership_start_date,
+    DROP COLUMN membership_end_date,
+    DROP COLUMN membership_status,
+    DROP COLUMN membership_status_provenance,
+    DROP COLUMN membership_status_active,
+    DROP COLUMN source_captured_at,
+    DROP COLUMN source_capture_key,
+    DROP COLUMN commons_imported_at,
+    ALTER COLUMN latest_house SET NOT NULL,
+    ALTER COLUMN is_current_commons SET NOT NULL,
     ALTER COLUMN party_id SET NOT NULL,
     ALTER COLUMN party_name SET NOT NULL,
-    ALTER COLUMN latest_house SET NOT NULL,
-    ALTER COLUMN latest_membership_from SET NOT NULL,
-    ALTER COLUMN is_current_commons SET NOT NULL,
-    ALTER COLUMN updated_at SET NOT NULL,
-    ADD CONSTRAINT members_name_check CHECK (length(trim(name)) > 0),
     ADD CONSTRAINT members_latest_house_check CHECK (latest_house IN (1, 2)),
     ADD CONSTRAINT members_check CHECK (NOT is_current_commons OR latest_house = 1);
-CREATE INDEX members_name_search_trigram_idx
-    ON exposed.members USING gist (name exposed.gist_trgm_ops);
-CREATE INDEX members_person_name_codes
-    ON exposed.members USING gin (exposed.person_name_codes(name));
+ALTER TABLE exposed.members RENAME COLUMN membership_from TO latest_membership_from;
+ALTER TABLE exposed.members ALTER COLUMN latest_membership_from SET NOT NULL;
+DROP TABLE exposed.membership_kinds;
+DROP TABLE exposed.chambers;
 
-CREATE TRIGGER members_set_updated_at
-    BEFORE UPDATE ON exposed.members
-    FOR EACH ROW WHEN (OLD.* IS DISTINCT FROM NEW.*)
-    EXECUTE FUNCTION exposed.set_updated_at();
+ALTER TABLE exposed.members ENABLE TRIGGER members_set_updated_at;

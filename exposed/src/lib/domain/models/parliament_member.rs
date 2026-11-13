@@ -1,19 +1,20 @@
 //! Representatives of the public in parliament.
+use super::membership::{MemberProfile, Membership, MembershipKind};
 
-/// Member of Parliament
+/// A captured member profile from the Commons import pipeline.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParliamentMember {
-    name: ParliamentMemberName,
-    member_id: MemberId,
-    party_name: PartyName,
-    party_id: PartyId,
-    constituency: Constituency,
+    /// Canonical profile shared with other member sources.
+    pub profile: MemberProfile,
+    /// Capture provenance, unknown for legacy artifacts.
+    pub captured_at: Option<chrono::DateTime<chrono::Utc>>,
+    /// Stable key retained through artifact replay.
+    pub capture_key: Option<uuid::Uuid>,
 }
-
 impl ParliamentMember {
+    /// Creates a legacy Commons record without asserting a source capture clock.
     #[must_use]
-    /// Creates a new Member of Parliament
-    pub const fn new(
+    pub fn new(
         name: String,
         member_id: MemberId,
         party_name: String,
@@ -21,93 +22,31 @@ impl ParliamentMember {
         constituency: String,
     ) -> Self {
         Self {
-            name: ParliamentMemberName::new(name),
-            member_id,
-            party_name: PartyName::new(party_name),
-            party_id: PartyId::new(party_id),
-            constituency: Constituency::new(constituency),
+            profile: MemberProfile {
+                id: member_id,
+                name,
+                party_id: Some(party_id),
+                party_name: Some(party_name),
+                membership: Membership {
+                    kind: MembershipKind::ElectedMp,
+                    membership_from: Some(constituency),
+                    membership_status_active: Some(true),
+                    ..Membership::default()
+                },
+            },
+            captured_at: None,
+            capture_key: None,
         }
     }
-
+    /// Member name.
     #[must_use]
-    /// Member's name
     pub fn name(&self) -> &str {
-        &self.name.0
+        &self.profile.name
     }
-
+    /// Parliament source identity.
     #[must_use]
-    /// Member ID
     pub const fn member_id(&self) -> MemberId {
-        self.member_id
-    }
-
-    #[must_use]
-    /// Party name
-    pub fn party_name(&self) -> &str {
-        &self.party_name.0
-    }
-
-    #[must_use]
-    /// Party ID
-    pub const fn party_id(&self) -> u32 {
-        self.party_id.0
-    }
-
-    #[must_use]
-    /// Constituency
-    pub fn constituency(&self) -> &str {
-        &self.constituency.0
-    }
-}
-
-/// Member name
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParliamentMemberName(String);
-
-impl ParliamentMemberName {
-    #[must_use]
-    /// Creates member name
-    pub const fn new(name: String) -> Self {
-        Self(name)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-/// Party name
-#[allow(dead_code)]
-pub struct PartyName(String);
-
-impl PartyName {
-    #[must_use]
-    /// Create party name
-    pub const fn new(name: String) -> Self {
-        Self(name)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-/// Member constituency
-#[allow(dead_code)]
-pub struct Constituency(String);
-
-impl Constituency {
-    #[must_use]
-    /// Creates member constituency
-    pub const fn new(name: String) -> Self {
-        Self(name)
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-/// Member party ID
-#[allow(dead_code)]
-pub struct PartyId(u32);
-
-impl PartyId {
-    #[must_use]
-    /// Creates party ID
-    pub const fn new(id: u32) -> Self {
-        Self(id)
+        self.profile.id
     }
 }
 

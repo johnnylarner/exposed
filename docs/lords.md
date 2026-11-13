@@ -40,32 +40,61 @@ Load verifies the manifest and every page before opening its database transactio
 
 `exposed.lords_imports` records each committed capture and its digest.
 An exact retry returns `already_loaded`. Reusing a key with different evidence fails.
-`exposed.members` owns the shared UUID and Parliament identity. Commons and Lords
-profiles are separate rows in `exposed.member_profiles`, keyed by `(member_id, chamber)`.
-The database chamber enum and source-shape check enforce each profile's required fields.
-Commons writes supply their creation and update clocks explicitly; Lords rows have
-only their source capture clock. The migration preserves existing Commons clocks.
-The Lords profile retains the full source `item.value` JSON document as evidence,
-alongside typed profile fields, capture time, and import key. Ordered categories and
-interest trees live in `lords_categories` and `lords_interests`. Positional composite
-keys preserve repeated source IDs, identical interests, and empty categories.
-One transaction writes the ledger, identities, profiles, and complete occurrence trees.
-The profile and its tree change only when the incoming `(captured_at, ingestion_key)` pair is greater.
-The UUID breaks ties between captures at the same database timestamp.
-Imports lock member rows in Parliament ID order.
-Members omitted from a later capture retain their latest stored document.
+`exposed.members` is the single canonical profile for each Parliament identity and UUID.
+Both sources update its name, nullable party ID/name, membership description, kind,
+source start/end timestamps, and status. Membership kinds reference the chambers lookup.
+The common Rust membership type interprets Lords subtype IDs within that chamber only;
+unknown subtypes retain their original description under `other_lords`.
 
-Both importers acquire the same identity in stable Parliament ID order. The Lords importer
-never changes Commons profile fields, declarations, funders, or funding entries.
-A Parliament ID can have both profiles. Commons cohorts require a Commons profile,
-including former MPs. Generated chamber columns and composite foreign keys attach
-declarations only to Commons profiles and categories only to Lords profiles.
-Lords interests do not enter financial totals or rankings.
+Source activity and membership end dates are independent. Leave of absence, suspension,
+and other inactive statuses do not establish that membership ended. The public Commons
+flag is derived from an open Commons membership, and is null when the latest chamber
+is unknown. Migrated Commons flags retain their
+known current/former classification through explicit legacy status provenance; unknown
+source dates and capture clocks remain null. Migration updates preserve original clocks.
+No end date or Parliament capture timestamp is manufactured by the backfill.
+
+Both importers lock members in Parliament ID order and use the same canonical freshness
+rule. A known source `(captured_at, capture_key)` supersedes an unknown clock; known
+clocks compare lexicographically, using the UUID to resolve equal timestamps. Legacy
+Commons artifacts can establish a profile when no source clock is known, but cannot
+replace a timestamped profile. Enriched Commons Parquet artifacts retain all shared
+membership fields and their capture clock/key. Replays retain their original ordering.
+
+`commons_imported_at` retains the imported MP cohort, including former MPs and members
+with no declarations. A later Lords membership changes the shared profile shown on both
+views. It never removes the member's Commons declarations, funding or search identity.
+Latest party grouping follows this shared profile, not party affiliation at registration.
+Missing party identity remains null; financial summaries retain an unknown-party bucket.
+Amounts, currencies, registration periods, occurrence counts and completeness rules are
+unchanged. Plain simple declarations never enter funding totals or rankings.
+
+`simple_declaration_registers` stores only the register capture clock/key, raw source
+`item.value`, and an outline of empty categories. It contains no copied profile fields.
+Its freshness is independent of the canonical member clock, so a newer profile refresh
+does not suppress a valid older register capture. `simple_declarations` stores each real
+source occurrence, including deleted entries and nested children. Category source ID,
+name, sort order and occurrence position are inline on each declaration. Positional keys
+preserve repeated IDs and identical text. Empty categories have no synthetic declaration.
+
+One transaction writes the ledger, member updates, register header and occurrence tree.
+An exact ledger retry returns `already_loaded`, while conflicting reuse of a capture key
+fails even after a newer capture has replaced its records. The ledger also records empty
+captures and captures that lose every freshness comparison. Members omitted from a later
+capture retain their latest stored register. A failure rolls back every part of the load.
+
+The down migration requires every retained Commons member to fit the old schema.
+It refuses unknown chamber, party ID/name or membership description, and refuses to
+remove a member outside the imported Commons cohort who owns financial declarations.
+The failure occurs before destructive statements in SQLx's migration transaction, leaving
+the schema, records and capture ledger intact. It never invents party zero, empty source
+labels or a Commons chamber to force a downgrade. A successful downgrade removes the
+Lords-only register data and members, while retaining representable imported MP records.
 
 ## HTTP and search
 
 Detail reads reconstruct the ordered tree from relational rows in one repeatable-read
-snapshot. Search reads the Lords profile. Neither public path parses the retained JSON.
+snapshot. Search reads the canonical member profile for imported Lords registers. Neither public path parses the retained JSON.
 Invalid stored positions or source values produce a database error rather than a partial tree.
 
 `GET /lords/{id}` returns `member`, `captured_at`, and `categories`, without a wrapper.

@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.parliament_member_id, p.name, p.party_id AS \"party_id!\", p.party_name AS \"party_name!\",\n                p.latest_membership_from AS \"latest_membership_from!\", p.is_current_commons AS \"is_current_commons!\",\n                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type\n             FROM exposed.funding_entries e\n             JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id\n             JOIN exposed.members m ON m.id = d.member_id\n             JOIN exposed.member_profiles p ON p.member_id = m.id AND p.chamber = 'commons'\n             WHERE e.funder_id = ANY($1)\n             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
+  "query": "SELECT m.parliament_member_id, m.name, m.party_id AS \"party_id?\", m.party_name AS \"party_name?\",\n                m.membership_from AS \"latest_membership_from?\", m.membership_kind, membership_status_provenance, membership_end_date,\n                d.source_declaration_id, d.category_id, d.category_name, d.registration_date,\n                e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type\n             FROM exposed.funding_entries e\n             JOIN exposed.declarations d ON d.source_declaration_id = e.source_declaration_id\n             JOIN exposed.members m ON m.id = d.member_id\n\n             WHERE e.funder_id = ANY($1)\n             ORDER BY d.registration_date DESC NULLS LAST, d.source_declaration_id DESC, e.id",
   "describe": {
     "columns": [
       {
@@ -20,57 +20,79 @@
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "member_profiles",
+            "table": "members",
             "name": "name"
           }
         }
       },
       {
         "ordinal": 2,
-        "name": "party_id!",
+        "name": "party_id?",
         "type_info": "Int4",
         "origin": {
           "Table": {
-            "table": "member_profiles",
+            "table": "members",
             "name": "party_id"
           }
         }
       },
       {
         "ordinal": 3,
-        "name": "party_name!",
+        "name": "party_name?",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "member_profiles",
+            "table": "members",
             "name": "party_name"
           }
         }
       },
       {
         "ordinal": 4,
-        "name": "latest_membership_from!",
+        "name": "latest_membership_from?",
         "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "member_profiles",
-            "name": "latest_membership_from"
+            "table": "members",
+            "name": "membership_from"
           }
         }
       },
       {
         "ordinal": 5,
-        "name": "is_current_commons!",
-        "type_info": "Bool",
+        "name": "membership_kind",
+        "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "member_profiles",
-            "name": "is_current_commons"
+            "table": "members",
+            "name": "membership_kind"
           }
         }
       },
       {
         "ordinal": 6,
+        "name": "membership_status_provenance",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_status_provenance"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "membership_end_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_end_date"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
         "name": "source_declaration_id",
         "type_info": "Int4",
         "origin": {
@@ -81,7 +103,7 @@
         }
       },
       {
-        "ordinal": 7,
+        "ordinal": 9,
         "name": "category_id",
         "type_info": "Int4",
         "origin": {
@@ -92,7 +114,7 @@
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 10,
         "name": "category_name",
         "type_info": "Text",
         "origin": {
@@ -103,7 +125,7 @@
         }
       },
       {
-        "ordinal": 9,
+        "ordinal": 11,
         "name": "registration_date",
         "type_info": "Timestamptz",
         "origin": {
@@ -114,7 +136,7 @@
         }
       },
       {
-        "ordinal": 10,
+        "ordinal": 12,
         "name": "amount",
         "type_info": "Numeric",
         "origin": {
@@ -125,13 +147,13 @@
         }
       },
       {
-        "ordinal": 11,
+        "ordinal": 13,
         "name": "currency",
         "type_info": "Text",
         "origin": "Expression"
       },
       {
-        "ordinal": 12,
+        "ordinal": 14,
         "name": "payment_type",
         "type_info": "Text",
         "origin": {
@@ -154,6 +176,8 @@
       true,
       true,
       true,
+      false,
+      false,
       true,
       false,
       false,
@@ -164,5 +188,5 @@
       true
     ]
   },
-  "hash": "1eadd11bd9ade5b4c29ee3725ea83974094d83166caeda3f18084bf35f085872"
+  "hash": "371e141abb56b61d239029077410483bed99368a162fa06257142c615f618f24"
 }

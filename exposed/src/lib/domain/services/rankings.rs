@@ -83,8 +83,10 @@ pub(crate) fn summarize(
         let party = parties
             .entry(source.party.id)
             .or_insert_with(|| (source.party.clone(), PeriodAggregate::default()));
-        if source.party.name < party.0.name {
-            party.0.name = source.party.name;
+        if let Some(name) = source.party.name
+            && party.0.name.as_ref().is_none_or(|current| &name < current)
+        {
+            party.0.name = Some(name);
         }
         party.1.observe(&declaration);
         let mut funders = BTreeMap::new();
@@ -160,12 +162,12 @@ mod tests {
                         member: RankedMember {
                             id: MemberId::new(1).unwrap(),
                             name: "Member".into(),
-                            party_name: "Party".into(),
-                            membership_from: "Constituency".into(),
+                            party_name: Some("Party".into()),
+                            membership_from: Some("Constituency".into()),
                         },
                         party: RankedParty {
-                            id: 1,
-                            name: "Party".into(),
+                            id: Some(1),
+                            name: Some("Party".into()),
                         },
                         declaration: MemberDeclaration {
                             source_id: 1,
@@ -264,5 +266,60 @@ mod tests {
             total.amount,
             Some("9007199254740993.123456790".parse().unwrap())
         );
+    }
+    #[test]
+    fn party_names_use_available_evidence_in_both_declaration_orders() {
+        use crate::domain::models::{
+            entity_details::{DeclaredFunding, MemberDeclaration},
+            parliament_member::MemberId,
+            rankings::{RankedMember, RankedParty},
+        };
+        for names in [
+            [Some("Available party"), None],
+            [None, Some("Available party")],
+        ] {
+            let context = ReportingContext::at(chrono::Utc::now());
+            let sources = names
+                .into_iter()
+                .enumerate()
+                .map(|(index, name)| RankingDeclaration {
+                    member: RankedMember {
+                        id: MemberId::new(u32::try_from(index + 1).unwrap()).unwrap(),
+                        name: format!("Member {index}"),
+                        party_name: name.map(str::to_string),
+                        membership_from: None,
+                    },
+                    party: RankedParty {
+                        id: Some(7),
+                        name: name.map(str::to_string),
+                    },
+                    declaration: MemberDeclaration {
+                        source_id: i32::try_from(index + 1).unwrap(),
+                        category: DeclarationCategory::from_source_id(1),
+                        category_name: "Employment".into(),
+                        registered_at: Some(context.current_term_start()),
+                        entries: vec![DeclaredFunding {
+                            funder: None,
+                            amount: Some("1.23456789".parse().unwrap()),
+                            currency: Some("GBP".into()),
+                            payment_type: None,
+                        }],
+                    },
+                    funders: BTreeMap::new(),
+                })
+                .collect();
+            let rankings = summarize(sources, ReportingPeriod::CurrentTerm, context);
+            assert_eq!(rankings.parties.len(), 1);
+            assert_eq!(
+                rankings.parties[0].identity.name.as_deref(),
+                Some("Available party")
+            );
+            assert_eq!(
+                rankings.parties[0].total.amount,
+                Some("2.46913578".parse().unwrap())
+            );
+            assert_eq!(rankings.parties[0].total.declaration_count, 2);
+            assert_eq!(rankings.members.len(), 2);
+        }
     }
 }

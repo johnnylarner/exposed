@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exposed.simple_declaration_registers\n                 (member_id, source_document, empty_categories, captured_at, ingestion_key)\n                 VALUES ($1, $2, $3, $4, $5)\n                 ON CONFLICT (member_id) DO UPDATE SET\n                     source_document = EXCLUDED.source_document, empty_categories = EXCLUDED.empty_categories,\n                     captured_at = EXCLUDED.captured_at, ingestion_key = EXCLUDED.ingestion_key\n                 WHERE (exposed.simple_declaration_registers.captured_at, exposed.simple_declaration_registers.ingestion_key)\n                     < (EXCLUDED.captured_at, EXCLUDED.ingestion_key)\n                 RETURNING member_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "member_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "simple_declaration_registers",
+            "name": "member_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Jsonb",
+        "Jsonb",
+        "Timestamptz",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d75dcb8450c489f3d186f5413539e86bbe6fa564841426d3f67570aab9e3ba92"
+}

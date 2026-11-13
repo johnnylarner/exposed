@@ -114,8 +114,11 @@ async fn rankings_preserve_summary_parity_canonical_identity_and_party_attributi
         Some("-2".parse().unwrap())
     );
     assert_eq!(rankings.parties.len(), 2);
-    assert_eq!(rankings.parties[1].identity.id, 2);
-    assert_eq!(rankings.parties[1].identity.name, "Latest Party");
+    assert_eq!(rankings.parties[1].identity.id, Some(2));
+    assert_eq!(
+        rankings.parties[1].identity.name.as_deref(),
+        Some("Latest Party")
+    );
     assert_eq!(
         rankings.parties[1].total.amount,
         Some("10".parse().unwrap())
@@ -248,13 +251,7 @@ async fn windows_filter_all_boards_and_unresolved_funders_stay_in_member_and_par
     }
     sqlx::query!("WITH input (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
     SELECT ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i, 'Scope ' || i, 1, 'Party A', 1, 'Place', true FROM generate_series(20, 32) i
-), identities AS (
-    INSERT INTO exposed.members (id, parliament_member_id)
-    SELECT input.id::uuid, input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
-)
-INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
-SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
-FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id").execute(&pool).await.unwrap();
+) INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.id::uuid, input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input").execute(&pool).await.unwrap();
     sqlx::query!("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date)
         SELECT i * 100, ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, 987, 'Other', now(), '2024-08-01'::timestamptz FROM generate_series(20, 30) i
         UNION ALL SELECT 3100, '00000000-0000-0000-0000-000000000031'::uuid, 987, 'Historical leader', now(), '2023-01-01'::timestamptz
@@ -398,7 +395,7 @@ async fn snapshot_retains_every_identity_in_all_four_ordered_boards(pool: PgPool
             .take(23)
             .map(|row| row.identity.id)
             .collect::<Vec<_>>(),
-        (100..=122).collect::<Vec<_>>()
+        (100..=122).map(Some).collect::<Vec<_>>()
     );
     for board in [&rankings.individuals, &rankings.companies] {
         assert_eq!(
@@ -421,4 +418,77 @@ async fn snapshot_retains_every_identity_in_all_four_ordered_boards(pool: PgPool
             23
         );
     }
+}
+
+#[sqlx::test(migrations = "../db/migrations", fixtures("rankings"))]
+async fn unknown_parties_preserve_every_amount_and_declaration_in_a_nullable_bucket(pool: PgPool) {
+    use crate::inbound::http::{routes::routes, state::AppState};
+    use tower::ServiceExt;
+
+    use crate::domain::models::reporting_period::ReportingPeriod;
+    let db = ExposedDatabase::from(pool.clone());
+    let before = Service::new(db.clone())
+        .rankings(ReportingPeriod::Historical)
+        .await
+        .unwrap();
+    let amount: bigdecimal::BigDecimal = before
+        .members
+        .iter()
+        .filter_map(|row| row.total.amount.clone())
+        .sum();
+    let count: usize = before
+        .members
+        .iter()
+        .map(|row| row.total.declaration_count)
+        .sum();
+    sqlx::query!("UPDATE exposed.members SET party_id=NULL, party_name=NULL, membership_from=NULL")
+        .execute(&pool)
+        .await
+        .unwrap();
+    let after = Service::new(db.clone())
+        .rankings(ReportingPeriod::Historical)
+        .await
+        .unwrap();
+    assert_eq!(after.members.len(), before.members.len());
+    assert_eq!(after.parties.len(), 1);
+    assert_eq!(after.parties[0].identity.id, None);
+    assert_eq!(after.parties[0].identity.name, None);
+    assert_eq!(after.parties[0].total.amount, Some(amount));
+    assert_eq!(after.parties[0].total.declaration_count, count);
+    let state = AppState {
+        updates_service: std::sync::Arc::new(crate::domain::services::updates::Service::new(
+            db.clone(),
+        )),
+        entity_search_service: std::sync::Arc::new(
+            crate::domain::services::entity_search::Service::new(db.clone(), db.clone()),
+        ),
+        entity_details_service: std::sync::Arc::new(DetailsService::new(db.clone())),
+        rankings_service: std::sync::Arc::new(Service::new(db)),
+    };
+    let response = routes()
+        .with_state(state)
+        .oneshot(
+            axum::http::Request::builder()
+                .uri("/rankings?period=historical")
+                .body(axum::body::Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), axum::http::StatusCode::OK);
+    let wire: serde_json::Value = serde_json::from_slice(
+        &axum::body::to_bytes(response.into_body(), usize::MAX)
+            .await
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(wire["parties"][0]["id"].is_null());
+    assert!(wire["parties"][0]["name"].is_null());
+    assert!(
+        wire["members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|member| member.get("context").is_none())
+    );
 }

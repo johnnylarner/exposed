@@ -57,12 +57,16 @@ function identity(value: unknown, kind: "MP" | "Funder"): string {
 }
 function memberProfile(value: unknown): MemberProfile {
   const row = record(value);
-  if (typeof row.is_current_commons !== "boolean") return malformed();
+  if (
+    row.is_current_commons !== null &&
+    typeof row.is_current_commons !== "boolean"
+  )
+    return malformed();
   return {
     id: identity(row.id, "MP"),
     name: text(row.name),
-    partyName: text(row.party_name),
-    membershipFrom: text(row.membership_from),
+    partyName: nullableText(row.party_name),
+    membershipFrom: nullableText(row.membership_from),
     isCurrentCommons: row.is_current_commons,
   };
 }
@@ -194,7 +198,7 @@ function readFunder(value: unknown): FunderDetails {
         amount: decimal(group.amount),
         parties: list(group.parties).map((value) => {
           const party = record(value);
-          return { ...total(party), partyName: text(party.party_name) };
+          return { ...total(party), partyName: nullableText(party.party_name) };
         }),
         topRecipients: list(group.top_recipients).map((value) => {
           const recipient = record(value);

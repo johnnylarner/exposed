@@ -8,6 +8,8 @@ import {
   memberHistoryFixture,
   memberDetails,
   funderDetails,
+  unknownMember,
+  unknownFunderDetails,
 } from "./details-fixtures";
 
 async function mockDetails(backend: Backend) {
@@ -1861,4 +1863,89 @@ test("member source table has an explicit empty state", async ({
       name: "Sources ranked by known declared GBP amounts",
     }),
   ).toHaveCount(0);
+});
+
+test("unknown member metadata stays absent while member and funder funding remains visible", async ({
+  backend,
+  page,
+}) => {
+  await backend.route("**/api/members/1?*", (route) =>
+    route.fulfill({ json: { ...memberDetails, member: unknownMember } }),
+  );
+  await backend.route("**/api/funders/*?*", (route) =>
+    route.fulfill({
+      json: {
+        ...unknownFunderDetails,
+        period: new URL(route.request().url()).searchParams.get("period"),
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(
+    page.getByRole("heading", { name: member.name, exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".member-identity")).toContainText("Current MP");
+  await expect(page.locator(".member-identity")).not.toContainText(
+    /Party unavailable|Membership unavailable|Party A|Example constituency/u,
+  );
+  await expect(
+    page.getByRole("region", { name: "Declared amounts in GBP" }),
+  ).toContainText("£24,691.34");
+  await page.goto(`/funders/${funderId}`);
+  await expect(
+    page.getByRole("heading", { name: "Exact Funder", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Declared amounts in GBP" }),
+  ).toContainText("£24,686.34");
+  await expect(
+    page.getByText("Party unavailable", { exact: true }),
+  ).toHaveCount(1);
+  const recipients = page.getByRole("table", {
+    name: "Top recipients of declared funding",
+  });
+  await expect(
+    recipients.getByRole("row").filter({ hasText: member.name }),
+  ).toContainText("£24,691.34");
+  await expect(recipients).not.toContainText("Party unavailable");
+  await page
+    .getByRole("link", { name: "Funding history", exact: true })
+    .click();
+  await expect(
+    page.getByRole("link", { name: member.name, exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".declarations-list")).not.toContainText("null");
+  await expect(page.locator(".declarations-list")).toContainText("£12,345.67");
+});
+
+test("unknown Commons status omits current and former labels while funding and history remain available", async ({
+  backend,
+  page,
+}) => {
+  await backend.route("**/api/members/1?*", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        member: { ...unknownMember, is_current_commons: null },
+        period: new URL(route.request().url()).searchParams.get("period"),
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(
+    page.getByRole("heading", { name: member.name, exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".member-identity")).not.toContainText(
+    /Current MP|Former MP|null|undefined/u,
+  );
+  await expect(
+    page.getByRole("region", { name: "Declared amounts in GBP" }),
+  ).toContainText("£24,691.34");
+  await page
+    .getByRole("link", { name: "Declaration history", exact: true })
+    .click();
+  await expect(page.locator(".declarations-list")).toContainText("£12,345.67");
+  await expect(page.locator(".member-identity")).not.toContainText(
+    /Current MP|Former MP|null|undefined/u,
+  );
 });

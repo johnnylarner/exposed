@@ -11,31 +11,12 @@ use strum::EnumIter;
 
 use super::{entity_ingestion::IngestionKey, parliament_member::MemberId};
 
-/// Original source timestamp, validated without assigning a timezone.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-#[serde(transparent)]
-pub struct SourceTimestamp(String);
+/// Shared source timestamp used by the register wire contract.
+pub use super::source_timestamp::SourceTimestamp;
 
-impl SourceTimestamp {
-    /// Original spelling retained from the source.
-    #[must_use]
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-}
-
-impl TryFrom<String> for SourceTimestamp {
-    type Error = LordsError;
-
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        if chrono::DateTime::parse_from_rfc3339(&value).is_err()
-            && chrono::NaiveDateTime::parse_from_str(&value, "%Y-%m-%dT%H:%M:%S%.f").is_err()
-        {
-            return Err(LordsError::Source(format!(
-                "invalid source timestamp {value:?}"
-            )));
-        }
-        Ok(Self(value))
+impl From<super::source_timestamp::SourceTimestampError> for LordsError {
+    fn from(error: super::source_timestamp::SourceTimestampError) -> Self {
+        Self::Source(error.to_string())
     }
 }
 
@@ -65,9 +46,9 @@ impl TryFrom<u32> for LordsCategoryId {
 /// Source interest identity. Repeated occurrences remain separate tree nodes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(transparent)]
-pub struct RegisteredInterestId(std::num::NonZeroU32);
+pub struct SimpleDeclarationId(std::num::NonZeroU32);
 
-impl RegisteredInterestId {
+impl SimpleDeclarationId {
     /// Nonzero source identity, distinct from a stored occurrence position.
     #[must_use]
     pub const fn value(self) -> u32 {
@@ -75,7 +56,7 @@ impl RegisteredInterestId {
     }
 }
 
-impl TryFrom<u32> for RegisteredInterestId {
+impl TryFrom<u32> for SimpleDeclarationId {
     type Error = LordsError;
 
     fn try_from(value: u32) -> Result<Self, Self::Error> {
@@ -106,40 +87,14 @@ impl LordsCategoryId {
     }
 }
 
-/// Identity from the Lords source, independent of the Commons profile.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct LordProfile {
-    /// Parliament identity, serialized as a string at the public boundary.
-    #[serde(serialize_with = "serialize_member_id")]
-    pub id: MemberId,
-    /// Source display name.
-    pub name: String,
-    /// Latest source party, without historical attribution.
-    pub party_name: Option<String>,
-    /// Source membership description.
-    pub membership_from: Option<String>,
-    /// Source membership status description.
-    pub membership_status: Option<String>,
-    /// Original source membership end timestamp.
-    pub membership_end_date: Option<SourceTimestamp>,
-}
-
-#[expect(
-    clippy::trivially_copy_pass_by_ref,
-    reason = "Serde field serializers receive references"
-)]
-fn serialize_member_id<S: serde::Serializer>(
-    id: &MemberId,
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    serializer.serialize_str(&id.to_string())
-}
+/// Canonical latest member profile used by the Lords transport.
+pub use super::membership::MemberProfile as LordProfile;
 
 /// One registered-interest occurrence with its complete child tree.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct RegisteredInterest {
+pub struct SimpleDeclaration {
     /// Original source identity, not an occurrence key.
-    pub source_id: RegisteredInterestId,
+    pub source_id: SimpleDeclarationId,
     /// Original text, including null and whitespace.
     pub text: Option<String>,
     /// Original source creation timestamp.
@@ -166,13 +121,13 @@ pub struct LordsCategory {
     /// Canonical layout classification.
     pub placement: LordsPlacement,
     /// Ordered root occurrences, including deleted interests.
-    pub interests: Vec<RegisteredInterest>,
+    pub interests: Vec<SimpleDeclaration>,
 }
 
-/// A member's complete register from one capture.
+/// A canonical member profile and complete register from one capture.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct LordRegister {
-    /// Lords-specific member identity.
+    /// Shared canonical member profile.
     pub member: LordProfile,
     /// UTC capture provenance, distinct from source lifecycle dates.
     pub captured_at: DateTime<Utc>,

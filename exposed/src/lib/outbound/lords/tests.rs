@@ -100,7 +100,7 @@ async fn complete_artifact_replays_exact_bytes_and_rejects_tampering_or_republic
     migrations = "../db/migrations",
     fixtures("../../../../../db/fixtures/add_members.sql")
 )]
-async fn load_is_idempotent_monotonic_and_isolated_from_commons(pool: PgPool) {
+async fn load_is_idempotent_monotonic_and_shares_canonical_profile(pool: PgPool) {
     let db = ExposedDatabase::from(pool.clone());
     let key = IngestionKey::default();
     let first = capture(
@@ -158,10 +158,10 @@ async fn load_is_idempotent_monotonic_and_isolated_from_commons(pool: PgPool) {
             .unwrap()
             .member
             .name,
-        "John McDonnell"
+        "Lord Newer"
     );
     let row = sqlx::query!(
-        "SELECT source_document AS \"source_document!\" FROM exposed.member_profiles p JOIN exposed.members m ON m.id = p.member_id AND p.chamber = 'lords' WHERE parliament_member_id = 1"
+        "SELECT source_document AS \"source_document!\" FROM exposed.simple_declaration_registers p JOIN exposed.members m ON m.id = p.member_id WHERE parliament_member_id = 1"
     )
     .fetch_one(&pool)
     .await
@@ -207,7 +207,7 @@ async fn failed_member_write_rolls_back_every_document_and_the_ledger(pool: PgPo
     );
     db.load_lords(&initial).await.unwrap();
     sqlx::query!(
-        "ALTER TABLE exposed.member_profiles ADD CONSTRAINT reject_test_name CHECK (name <> 'Reject')"
+        "ALTER TABLE exposed.members ADD CONSTRAINT reject_test_name CHECK (name <> 'Reject')"
     )
     .execute(&pool)
     .await
@@ -295,7 +295,7 @@ async fn concurrent_imports_resolve_against_the_locked_row_and_break_timestamp_t
             expected
         );
         let stored = sqlx::query!(
-            "SELECT source_document AS \"source_document!\", ingestion_key AS \"ingestion_key!\" FROM exposed.member_profiles WHERE chamber = 'lords'"
+            "SELECT source_document AS \"source_document!\", ingestion_key AS \"ingestion_key!\" FROM exposed.simple_declaration_registers"
         )
         .fetch_one(&pool)
         .await
@@ -323,7 +323,7 @@ async fn lords_primary_search_preserves_commons_phonetic_fallback(pool: PgPool) 
     db.load_lords(&capture(
         IngestionKey::default(),
         "2026-01-01T00:00:00Z",
-        &[(1, "Lord Jahn")],
+        &[(3, "Lord Jahn")],
     ))
     .await
     .unwrap();
@@ -435,12 +435,10 @@ async fn relational_occurrences_preserve_source_values_without_json_reads(pool: 
         &db.lord_register(expected.member.id).await.unwrap().unwrap(),
         expected
     );
-    sqlx::query!(
-        "UPDATE exposed.member_profiles SET source_document = '{}'::jsonb WHERE chamber = 'lords'"
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
+    sqlx::query!("UPDATE exposed.simple_declaration_registers SET source_document = '{}'::jsonb")
+        .execute(&pool)
+        .await
+        .unwrap();
     assert_eq!(
         &db.lord_register(expected.member.id).await.unwrap().unwrap(),
         expected

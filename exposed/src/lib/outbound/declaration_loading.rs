@@ -812,7 +812,7 @@ async fn replace_declarations(
 ) -> Result<(), EntityIngestionError> {
     for declaration in declarations {
         let stored_member_id = sqlx::query!(
-            "SELECT m.id FROM exposed.members m JOIN exposed.member_profiles p ON p.member_id = m.id AND p.chamber = 'commons' WHERE m.parliament_member_id = $1",
+            "SELECT m.id FROM exposed.members m  WHERE m.parliament_member_id = $1 AND m.commons_imported_at IS NOT NULL",
             i32::try_from(declaration.member_id.value()).map_err(db_error)?
         )
         .fetch_optional(&mut **tx)

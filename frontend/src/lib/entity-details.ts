@@ -45,9 +45,9 @@ export function readDetailRoute(path: string): DetailRoute {
 export interface MemberProfile {
   id: string;
   name: string;
-  partyName: string;
-  membershipFrom: string;
-  isCurrentCommons: boolean;
+  partyName: string | null;
+  membershipFrom: string | null;
+  isCurrentCommons: boolean | null;
 }
 
 export interface FundingEntry {
@@ -123,7 +123,7 @@ export interface FunderDetails {
   currencies: {
     currency: string;
     amount: string | null;
-    parties: (Total & { partyName: string })[];
+    parties: (Total & { partyName: string | null })[];
     topRecipients: (Total & { member: MemberProfile })[];
   }[];
   entryCount: number;

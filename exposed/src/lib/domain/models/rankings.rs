@@ -13,9 +13,9 @@ pub struct RankedMember {
     /// Latest stored name.
     pub name: String,
     /// Latest party label.
-    pub party_name: String,
+    pub party_name: Option<String>,
     /// Latest constituency or membership description.
-    pub membership_from: String,
+    pub membership_from: Option<String>,
 }
 /// Canonical funder identity and classification.
 #[derive(Clone, Debug)]
@@ -30,10 +30,10 @@ pub struct RankedFunder {
 /// Recipient's latest party identity.
 #[derive(Clone, Debug)]
 pub struct RankedParty {
-    /// Stored party identity.
-    pub id: i32,
+    /// Stored party identity, including an unknown-party bucket.
+    pub id: Option<i32>,
     /// Deterministic label across recipients.
-    pub name: String,
+    pub name: Option<String>,
 }
 /// A ranked identity and its backend-owned financial total.
 #[derive(Debug)]

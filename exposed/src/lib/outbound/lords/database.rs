@@ -60,26 +60,42 @@ impl LordsRepository for ExposedDatabase {
         members.sort_by_key(|member| member.register().member.id);
         for member in members {
             let profile = &member.register().member;
-            let member_id = crate::outbound::member_identity::acquire(&mut tx, profile.id).await?;
+            let member_id = crate::outbound::member_identity::upsert(
+                &mut tx,
+                profile,
+                Some(capture.captured_at()),
+                Some(capture.key().uuid()),
+                false,
+            )
+            .await?;
+            let empty_categories = member
+                .register()
+                .categories
+                .iter()
+                .enumerate()
+                .filter(|(_, category)| category.interests.is_empty())
+                .map(|(index, category)| {
+                    Ok(CategoryRow {
+                        category_position: position(index)?,
+                        source_id: i64::from(category.source_id.value()),
+                        name: category.name.clone(),
+                        sort_order: category.sort_order,
+                    })
+                })
+                .collect::<Result<Vec<_>, LordsError>>()?;
+            let empty_categories = serde_json::to_value(empty_categories)
+                .map_err(|error| LordsError::Database(error.to_string()))?;
             let won = sqlx::query!(
-                "INSERT INTO exposed.member_profiles
-                 (member_id, chamber, name, party_name, membership_from, membership_status, membership_end_date,
-                  source_document, captured_at, ingestion_key)
-                 VALUES ($1, 'lords', $2, $3, $4, $5, $6, $7, $8, $9)
-                 ON CONFLICT (member_id, chamber) DO UPDATE SET
-                     name = EXCLUDED.name, party_name = EXCLUDED.party_name,
-                     membership_from = EXCLUDED.membership_from,
-                     membership_status = EXCLUDED.membership_status,
-                     membership_end_date = EXCLUDED.membership_end_date,
-                     source_document = EXCLUDED.source_document,
+                "INSERT INTO exposed.simple_declaration_registers
+                 (member_id, source_document, empty_categories, captured_at, ingestion_key)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (member_id) DO UPDATE SET
+                     source_document = EXCLUDED.source_document, empty_categories = EXCLUDED.empty_categories,
                      captured_at = EXCLUDED.captured_at, ingestion_key = EXCLUDED.ingestion_key
-                 WHERE (exposed.member_profiles.captured_at, exposed.member_profiles.ingestion_key)
+                 WHERE (exposed.simple_declaration_registers.captured_at, exposed.simple_declaration_registers.ingestion_key)
                      < (EXCLUDED.captured_at, EXCLUDED.ingestion_key)
                  RETURNING member_id",
-                member_id, profile.name, profile.party_name, profile.membership_from,
-                profile.membership_status,
-                profile.membership_end_date.as_ref().map(SourceTimestamp::as_str),
-                member.raw(), captured_at, capture.key().uuid()
+                member_id, member.raw(), empty_categories, captured_at, capture.key().uuid()
             ).fetch_optional(&mut *tx).await?;
             if won.is_none() {
                 continue;
@@ -103,11 +119,11 @@ impl LordsRepository for ExposedDatabase {
         .await?;
         let rows = sqlx::query_as!(
             ProfileRow,
-            "SELECT p.member_id, m.parliament_member_id, p.name, p.party_name,
-                    p.membership_from, p.membership_status, p.membership_end_date, p.captured_at AS \"captured_at!\",
-                    exposed.word_similarity($1, p.name) AS similarity
-             FROM exposed.member_profiles p JOIN exposed.members m ON m.id = p.member_id AND p.chamber = 'lords'
-             WHERE p.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, p.name) >= $2
+            "SELECT p.member_id, m.parliament_member_id, m.name, m.party_name, m.party_id, m.membership_kind, m.membership_start_date, m.membership_status_active, m.membership_status_provenance, p.empty_categories,
+                    m.membership_from, m.membership_status, m.membership_end_date, p.captured_at AS \"captured_at!\",
+                    exposed.word_similarity($1, m.name) AS similarity
+             FROM exposed.simple_declaration_registers p JOIN exposed.members m ON m.id = p.member_id
+             WHERE m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
              ORDER BY similarity DESC, m.parliament_member_id LIMIT $3",
             request.term(),
             request.strictness(),
@@ -138,10 +154,10 @@ impl ExposedDatabase {
             .await?;
         let row = sqlx::query_as!(
             ProfileRow,
-            "SELECT p.member_id, m.parliament_member_id, p.name, p.party_name,
-                    p.membership_from, p.membership_status, p.membership_end_date, p.captured_at AS \"captured_at!\",
+            "SELECT p.member_id, m.parliament_member_id, m.name, m.party_name, m.party_id, m.membership_kind, m.membership_start_date, m.membership_status_active, m.membership_status_provenance, p.empty_categories,
+                    m.membership_from, m.membership_status, m.membership_end_date, p.captured_at AS \"captured_at!\",
                     NULL::real AS similarity
-             FROM exposed.member_profiles p JOIN exposed.members m ON m.id = p.member_id AND p.chamber = 'lords'
+             FROM exposed.simple_declaration_registers p JOIN exposed.members m ON m.id = p.member_id
              WHERE m.parliament_member_id = $1",
             id
         )
@@ -150,17 +166,12 @@ impl ExposedDatabase {
         let Some(row) = row else {
             return Ok(None);
         };
-        let categories =
-            sqlx::query_as!(CategoryRow,
-            "SELECT category_position, source_id, name, sort_order FROM exposed.lords_categories
-             WHERE member_id = $1 ORDER BY category_position", row.member_id
-        )
-            .fetch_all(&mut *tx)
-            .await?;
+        let categories: Vec<CategoryRow> = serde_json::from_value(row.empty_categories.clone())
+            .map_err(|error| LordsError::Database(error.to_string()))?;
         let interests = sqlx::query_as!(InterestRow,
-            "SELECT category_position, node_position, parent_position, sibling_position, source_id,
-                    interest_text, created_when, last_amended_when, deleted_when, is_correction
-             FROM exposed.lords_interests WHERE member_id = $1 ORDER BY category_position, node_position",
+            "SELECT category_position, category_source_id, category_name, category_sort_order, node_position, parent_position, sibling_position, source_id,
+                    declaration_text, created_when, last_amended_when, deleted_when, is_correction
+             FROM exposed.simple_declarations WHERE member_id = $1 ORDER BY category_position, node_position",
              row.member_id
         ).fetch_all(&mut *tx).await?;
         tx.commit().await?;
@@ -183,18 +194,13 @@ async fn replace_tree(
     register: &LordRegister,
 ) -> Result<(), LordsError> {
     sqlx::query!(
-        "DELETE FROM exposed.lords_categories WHERE member_id = $1",
+        "DELETE FROM exposed.simple_declarations WHERE member_id = $1",
         member_id
     )
     .execute(&mut **tx)
     .await?;
     for (category_position, category) in register.categories.iter().enumerate() {
         let category_position = position(category_position)?;
-        sqlx::query!(
-            "INSERT INTO exposed.lords_categories (member_id, category_position, source_id, name, sort_order)
-             VALUES ($1, $2, $3, $4, $5)",
-            member_id, category_position, i64::from(category.source_id.value()), category.name, category.sort_order
-        ).execute(&mut **tx).await?;
         let mut pending: Vec<_> = category
             .interests
             .iter()
@@ -205,15 +211,15 @@ async fn replace_tree(
         let mut node_position = 0_i64;
         while let Some((parent_position, sibling, interest)) = pending.pop() {
             sqlx::query!(
-                "INSERT INTO exposed.lords_interests
+                "INSERT INTO exposed.simple_declarations
                  (member_id, category_position, node_position, parent_position, sibling_position,
-                  source_id, interest_text, created_when, last_amended_when, deleted_when, is_correction)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+                  source_id, declaration_text, created_when, last_amended_when, deleted_when, is_correction, category_source_id, category_name, category_sort_order)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)",
                 member_id, category_position, node_position, parent_position, position(sibling)?,
                 i64::from(interest.source_id.value()), interest.text,
                 interest.created_when.as_ref().map(SourceTimestamp::as_str),
                 interest.last_amended_when.as_ref().map(SourceTimestamp::as_str),
-                interest.deleted_when.as_ref().map(SourceTimestamp::as_str), interest.is_correction
+                interest.deleted_when.as_ref().map(SourceTimestamp::as_str), interest.is_correction, i64::from(category.source_id.value()), category.name, category.sort_order
             ).execute(&mut **tx).await?;
             pending.extend(
                 interest

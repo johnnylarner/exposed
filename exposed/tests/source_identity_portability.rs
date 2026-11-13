@@ -132,13 +132,7 @@ async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
     sqlx::query!(
         "WITH input (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
     VALUES ($1::uuid, 4483, 'Example member', 1, 'Party', 1, 'Constituency', true)
-), identities AS (
-    INSERT INTO exposed.members (id, parliament_member_id)
-    SELECT input.id::uuid, input.parliament_member_id::integer FROM input RETURNING id, parliament_member_id
-)
-INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
-SELECT identities.id, 'commons', input.name, input.party_id, input.party_name, input.latest_house::smallint, input.latest_membership_from, input.is_current_commons, now(), now()
-FROM input JOIN identities ON identities.parliament_member_id = input.parliament_member_id",
+) INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.id::uuid, input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input",
         id
     )
     .execute(pool)
@@ -148,7 +142,7 @@ FROM input JOIN identities ON identities.parliament_member_id = input.parliament
 
 async fn clear_import(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query!(
-        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.lords_interests, exposed.lords_categories, exposed.member_profiles, exposed.members"
+        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.simple_declarations, exposed.simple_declaration_registers, exposed.members"
     )
     .execute(pool)
     .await?;

@@ -1,4 +1,64 @@
-CREATE TYPE exposed.profile_chamber AS ENUM ('commons', 'lords');
+ALTER TABLE exposed.members DISABLE TRIGGER members_set_updated_at;
+CREATE TABLE exposed.chambers (
+    id SMALLINT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE
+);
+INSERT INTO exposed.chambers VALUES (1, 'Commons'), (2, 'Lords');
+CREATE TABLE exposed.membership_kinds (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL UNIQUE,
+    chamber_id SMALLINT REFERENCES exposed.chambers (id)
+);
+INSERT INTO exposed.membership_kinds VALUES
+    ('elected_mp', 'Elected MP', 1),
+    ('life_peer', 'Life peer', 2),
+    ('hereditary_peer', 'Hereditary peer', 2),
+    ('excepted_hereditary_peer', 'Excepted hereditary peer', 2),
+    ('hereditary_life_peer', 'Hereditary peer given life peerage', 2),
+    ('bishop', 'Bishop', 2),
+    ('judicial_peer', 'Judicial peer', 2),
+    ('other_lords', 'Other Lords membership', 2),
+    ('unknown', 'Unknown membership', NULL);
+ALTER TABLE exposed.members
+    RENAME COLUMN latest_membership_from TO membership_from;
+ALTER TABLE exposed.members
+    ADD COLUMN membership_kind TEXT REFERENCES exposed.membership_kinds (id),
+    ADD COLUMN membership_start_date TEXT,
+    ADD COLUMN membership_end_date TEXT,
+    ADD COLUMN membership_status TEXT,
+    ADD COLUMN membership_status_provenance TEXT NOT NULL DEFAULT 'source',
+    ADD COLUMN membership_status_active BOOLEAN,
+    ADD COLUMN source_captured_at TIMESTAMPTZ,
+    ADD COLUMN source_capture_key UUID,
+    ADD COLUMN commons_imported_at TIMESTAMPTZ,
+    ALTER COLUMN party_id DROP NOT NULL,
+    ALTER COLUMN party_name DROP NOT NULL,
+    ALTER COLUMN membership_from DROP NOT NULL;
+UPDATE exposed.members SET
+    membership_kind = CASE latest_house WHEN 1 THEN 'elected_mp' ELSE
+        CASE lower(trim(membership_from))
+            WHEN 'life peer' THEN 'life_peer'
+            WHEN 'hereditary' THEN 'hereditary_peer'
+            WHEN 'hereditary peer' THEN 'hereditary_peer'
+            WHEN 'bishops' THEN 'bishop'
+            WHEN 'bishop' THEN 'bishop'
+            WHEN 'life peer (judicial)' THEN 'judicial_peer'
+            WHEN 'judicial peer' THEN 'judicial_peer'
+            WHEN 'hereds given lps' THEN 'hereditary_life_peer'
+            WHEN 'hereditary peer given life peerage' THEN 'hereditary_life_peer'
+            WHEN 'excepted hereditary' THEN 'excepted_hereditary_peer'
+            WHEN 'excepted hereditary peer' THEN 'excepted_hereditary_peer'
+            ELSE 'other_lords'
+        END END,
+    membership_status_provenance = CASE WHEN latest_house = 1 THEN CASE WHEN is_current_commons THEN 'legacy_current' ELSE 'legacy_former' END ELSE 'source' END,
+    membership_status = CASE WHEN latest_house = 1 THEN
+        CASE WHEN is_current_commons THEN 'Legacy Commons current classification' ELSE 'Legacy Commons former classification' END END,
+    commons_imported_at = created_at;
+ALTER TABLE exposed.members
+    ALTER COLUMN membership_kind SET NOT NULL,
+    DROP COLUMN latest_house,
+    DROP COLUMN is_current_commons,
+    ADD CONSTRAINT members_source_clock CHECK ((source_captured_at IS NULL) = (source_capture_key IS NULL));
 CREATE TABLE exposed.lords_imports (
     ingestion_key UUID PRIMARY KEY,
     capture_digest TEXT NOT NULL,
@@ -6,97 +66,32 @@ CREATE TABLE exposed.lords_imports (
     member_count BIGINT NOT NULL CHECK (member_count >= 0),
     loaded_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE TABLE exposed.member_profiles (
-    member_id UUID NOT NULL REFERENCES exposed.members (id) ON DELETE CASCADE,
-    chamber exposed.profile_chamber NOT NULL,
-    name TEXT NOT NULL CHECK (length(trim(name)) > 0),
-    party_id INTEGER,
-    party_name TEXT,
-    latest_house SMALLINT CHECK (latest_house IN (1, 2)),
-    latest_membership_from TEXT,
-    is_current_commons BOOLEAN,
-    created_at TIMESTAMPTZ,
-    updated_at TIMESTAMPTZ,
-    membership_from TEXT,
-    membership_status TEXT,
-    membership_end_date TEXT,
-    source_document JSONB,
-    captured_at TIMESTAMPTZ,
-    ingestion_key UUID REFERENCES exposed.lords_imports (ingestion_key),
-    PRIMARY KEY (member_id, chamber),
-    CONSTRAINT member_profiles_source_shape CHECK (
-        (chamber = 'commons'
-            AND party_id IS NOT NULL AND party_name IS NOT NULL
-            AND latest_house IS NOT NULL AND latest_membership_from IS NOT NULL
-            AND is_current_commons IS NOT NULL
-            AND created_at IS NOT NULL AND updated_at IS NOT NULL
-            AND (NOT is_current_commons OR latest_house = 1)
-            AND membership_from IS NULL AND membership_status IS NULL
-            AND membership_end_date IS NULL AND source_document IS NULL
-            AND captured_at IS NULL AND ingestion_key IS NULL)
-        OR
-        (chamber = 'lords'
-            AND party_id IS NULL AND latest_house IS NULL
-            AND latest_membership_from IS NULL AND is_current_commons IS NULL
-            AND created_at IS NULL AND updated_at IS NULL
-            AND source_document IS NOT NULL AND captured_at IS NOT NULL
-            AND ingestion_key IS NOT NULL)
-    )
+CREATE TABLE exposed.simple_declaration_registers (
+    member_id UUID PRIMARY KEY REFERENCES exposed.members (id) ON DELETE CASCADE,
+    source_document JSONB NOT NULL,
+    empty_categories JSONB NOT NULL,
+    captured_at TIMESTAMPTZ NOT NULL,
+    ingestion_key UUID NOT NULL REFERENCES exposed.lords_imports (ingestion_key)
 );
-INSERT INTO exposed.member_profiles (member_id, chamber, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at)
-SELECT id, 'commons', name, party_id, party_name, latest_house, latest_membership_from, is_current_commons, created_at, updated_at FROM exposed.members;
-ALTER TABLE exposed.declarations
-    ADD COLUMN profile_chamber exposed.profile_chamber
-        GENERATED ALWAYS AS ('commons'::exposed.profile_chamber) STORED NOT NULL,
-    ADD CONSTRAINT declarations_commons_profile_fkey
-        FOREIGN KEY (member_id, profile_chamber) REFERENCES exposed.member_profiles (member_id, chamber);
-DROP TRIGGER members_set_updated_at ON exposed.members;
-DROP INDEX exposed.members_name_search_trigram_idx;
-DROP INDEX exposed.members_person_name_codes;
-ALTER TABLE exposed.members
-    DROP COLUMN name, DROP COLUMN party_id, DROP COLUMN party_name,
-    DROP COLUMN latest_house, DROP COLUMN latest_membership_from,
-    DROP COLUMN is_current_commons, DROP COLUMN updated_at;
-CREATE INDEX members_name_search_trigram_idx
-    ON exposed.member_profiles USING gist (name exposed.gist_trgm_ops) WHERE chamber = 'commons';
-CREATE INDEX members_person_name_codes
-    ON exposed.member_profiles USING gin (exposed.person_name_codes(name)) WHERE chamber = 'commons';
-CREATE INDEX lords_members_name_trgm_idx
-    ON exposed.member_profiles USING gin (name exposed.gin_trgm_ops) WHERE chamber = 'lords';
-
-CREATE TRIGGER member_profiles_set_updated_at
-    BEFORE UPDATE ON exposed.member_profiles
-    FOR EACH ROW WHEN (NEW.chamber = 'commons' AND OLD.* IS DISTINCT FROM NEW.*)
-    EXECUTE FUNCTION exposed.set_updated_at();
-
-CREATE TABLE exposed.lords_categories (
-    member_id UUID NOT NULL,
-    profile_chamber exposed.profile_chamber
-        GENERATED ALWAYS AS ('lords'::exposed.profile_chamber) STORED NOT NULL,
+CREATE TABLE exposed.simple_declarations (
+    member_id UUID NOT NULL REFERENCES exposed.simple_declaration_registers (member_id) ON DELETE CASCADE,
     category_position BIGINT NOT NULL CHECK (category_position >= 0),
-    source_id BIGINT NOT NULL CHECK (source_id BETWEEN 1 AND 4294967295),
-    name TEXT,
-    sort_order INTEGER NOT NULL,
-    PRIMARY KEY (member_id, category_position),
-    FOREIGN KEY (member_id, profile_chamber)
-        REFERENCES exposed.member_profiles (member_id, chamber) ON DELETE CASCADE
-);
-CREATE TABLE exposed.lords_interests (
-    member_id UUID NOT NULL,
-    category_position BIGINT NOT NULL CHECK (category_position >= 0),
+    category_source_id BIGINT NOT NULL CHECK (category_source_id BETWEEN 1 AND 4294967295),
+    category_name TEXT,
+    category_sort_order INTEGER NOT NULL,
     node_position BIGINT NOT NULL CHECK (node_position >= 0),
     parent_position BIGINT CHECK (parent_position >= 0 AND parent_position < node_position),
     sibling_position BIGINT NOT NULL CHECK (sibling_position >= 0),
     source_id BIGINT NOT NULL CHECK (source_id BETWEEN 1 AND 4294967295),
-    interest_text TEXT,
+    declaration_text TEXT,
     created_when TEXT,
     last_amended_when TEXT,
     deleted_when TEXT,
     is_correction BOOLEAN NOT NULL,
     PRIMARY KEY (member_id, category_position, node_position),
-    FOREIGN KEY (member_id, category_position)
-        REFERENCES exposed.lords_categories (member_id, category_position) ON DELETE CASCADE,
     FOREIGN KEY (member_id, category_position, parent_position)
-        REFERENCES exposed.lords_interests (member_id, category_position, node_position),
+        REFERENCES exposed.simple_declarations (member_id, category_position, node_position),
     UNIQUE NULLS NOT DISTINCT (member_id, category_position, parent_position, sibling_position)
 );
+
+ALTER TABLE exposed.members ENABLE TRIGGER members_set_updated_at;

@@ -4,8 +4,10 @@ use crate::{
     domain::{
         models::{
             entity_search::{EntitySearchRequest, PhoneticRank},
+            membership::{MemberProfile, Membership, MembershipKind, MembershipStatusProvenance},
             parliament_member::{MemberId, ParliamentMember},
             search_similarity::SearchSimilarity,
+            source_timestamp::SourceTimestamp,
         },
         repositories::parliament_member_repository::{
             ParliamentMemberRepo, ParliamentMemberRepoError,
@@ -19,7 +21,8 @@ impl ParliamentMemberRepo for ExposedDatabase {
         sqlx::query!(
             "
             SELECT parliament_member_id
-            FROM exposed.members m JOIN exposed.member_profiles p ON p.member_id = m.id AND p.chamber = 'commons'
+            FROM exposed.members m
+            WHERE m.commons_imported_at IS NOT NULL
             ORDER BY parliament_member_id
             "
         )
@@ -55,14 +58,14 @@ impl ParliamentMemberRepo for ExposedDatabase {
         let rows = sqlx::query!(
             "
             SELECT  
-                p.name,
+                m.name,
                 m.parliament_member_id,
-                p.party_name AS \"party_name!\",
-                p.party_id AS \"party_id!\",
-                p.latest_membership_from AS \"constituency!\",
-                 exposed.word_similarity($1, p.name) as similarity_score
-            FROM exposed.members m JOIN exposed.member_profiles p ON p.member_id = m.id AND p.chamber = 'commons'
-            WHERE p.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, p.name) >= $2
+                m.party_name AS \"party_name?\",
+                m.party_id AS \"party_id?\",
+                m.membership_from AS \"constituency?\", m.membership_kind, m.membership_status_provenance, m.membership_start_date, m.membership_end_date, m.membership_status, m.membership_status_active,
+                 exposed.word_similarity($1, m.name) as similarity_score
+            FROM exposed.members m
+            WHERE m.commons_imported_at IS NOT NULL AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
             ORDER BY similarity_score DESC, m.id
             LIMIT $3
             ",
@@ -78,18 +81,46 @@ impl ParliamentMemberRepo for ExposedDatabase {
             .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
         rows.into_iter()
             .map(|r| {
-                let member = ParliamentMember::new(
-                    r.name,
-                    MemberId::new(
-                        u32::try_from(r.parliament_member_id)
-                            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
-                    )
-                    .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
-                    r.party_name,
-                    u32::try_from(r.party_id)
-                        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
-                    r.constituency,
-                );
+                let member = ParliamentMember {
+                    profile: MemberProfile {
+                        id: MemberId::new(
+                            u32::try_from(r.parliament_member_id).map_err(database_error)?,
+                        )
+                        .map_err(database_error)?,
+                        name: r.name,
+                        party_name: r.party_name,
+                        party_id: r
+                            .party_id
+                            .map(u32::try_from)
+                            .transpose()
+                            .map_err(database_error)?,
+                        membership: Membership {
+                            kind: r
+                                .membership_kind
+                                .parse::<MembershipKind>()
+                                .map_err(database_error)?,
+                            status_provenance: r
+                                .membership_status_provenance
+                                .parse::<MembershipStatusProvenance>()
+                                .map_err(database_error)?,
+                            membership_from: r.constituency,
+                            membership_start_date: r
+                                .membership_start_date
+                                .map(SourceTimestamp::try_from)
+                                .transpose()
+                                .map_err(database_error)?,
+                            membership_end_date: r
+                                .membership_end_date
+                                .map(SourceTimestamp::try_from)
+                                .transpose()
+                                .map_err(database_error)?,
+                            membership_status: r.membership_status,
+                            membership_status_active: r.membership_status_active,
+                        },
+                    },
+                    captured_at: None,
+                    capture_key: None,
+                };
                 let score = SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32));
                 Ok((member, score))
             })
@@ -102,11 +133,11 @@ impl ParliamentMemberRepo for ExposedDatabase {
     ) -> Result<Vec<(ParliamentMember, PhoneticRank)>, ParliamentMemberRepoError> {
         let rows = sqlx::query!(
             r#"
-            SELECT p.name, m.parliament_member_id, p.party_name AS "party_name!", p.party_id AS "party_id!",
-                   p.latest_membership_from AS "constituency!",
+            SELECT m.name, m.parliament_member_id, m.party_name AS "party_name?", m.party_id AS "party_id?",
+                   m.membership_from AS "constituency?", m.membership_kind, m.membership_status_provenance, m.membership_start_date, m.membership_end_date, m.membership_status, m.membership_status_active,
                    correction.distance AS "distance!",
-                   exposed.word_similarity(correction.corrected_query, p.name) AS similarity_score
-            FROM exposed.members m JOIN exposed.member_profiles p ON p.member_id = m.id AND p.chamber = 'commons'
+                   exposed.word_similarity(correction.corrected_query, m.name) AS similarity_score
+            FROM exposed.members m
             CROSS JOIN LATERAL (
                 SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,
                        sum(best.distance)::integer AS distance
@@ -117,15 +148,15 @@ impl ParliamentMemberRepo for ExposedDatabase {
                         THEN exposed.levenshtein_less_equal(q.word, cw.word, 1)
                         ELSE 2
                     END AS distance
-                    FROM unnest(exposed.person_name_words(p.name)) AS cw(word)
+                    FROM unnest(exposed.person_name_words(m.name)) AS cw(word)
                     WHERE exposed.soundex(cw.word) = exposed.soundex(q.word)
                     ORDER BY distance, cw.word COLLATE "C"
                     LIMIT 1
                 ) best ON best.distance <= 1
                 HAVING count(best.word) = count(*) AND count(*) > 0
             ) correction
-            WHERE exposed.person_name_codes(p.name) @> exposed.person_name_codes($1)
-              AND exposed.word_similarity(correction.corrected_query, p.name) >= $2
+            WHERE m.commons_imported_at IS NOT NULL AND exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
+              AND exposed.word_similarity(correction.corrected_query, m.name) >= $2
             ORDER BY correction.distance, similarity_score DESC, m.parliament_member_id
             LIMIT $3
             "#,
@@ -138,18 +169,46 @@ impl ParliamentMemberRepo for ExposedDatabase {
         .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
         rows.into_iter()
             .map(|r| {
-                let member = ParliamentMember::new(
-                    r.name,
-                    MemberId::new(
-                        u32::try_from(r.parliament_member_id)
-                            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
-                    )
-                    .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
-                    r.party_name,
-                    u32::try_from(r.party_id)
-                        .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
-                    r.constituency,
-                );
+                let member = ParliamentMember {
+                    profile: MemberProfile {
+                        id: MemberId::new(
+                            u32::try_from(r.parliament_member_id).map_err(database_error)?,
+                        )
+                        .map_err(database_error)?,
+                        name: r.name,
+                        party_name: r.party_name,
+                        party_id: r
+                            .party_id
+                            .map(u32::try_from)
+                            .transpose()
+                            .map_err(database_error)?,
+                        membership: Membership {
+                            kind: r
+                                .membership_kind
+                                .parse::<MembershipKind>()
+                                .map_err(database_error)?,
+                            status_provenance: r
+                                .membership_status_provenance
+                                .parse::<MembershipStatusProvenance>()
+                                .map_err(database_error)?,
+                            membership_from: r.constituency,
+                            membership_start_date: r
+                                .membership_start_date
+                                .map(SourceTimestamp::try_from)
+                                .transpose()
+                                .map_err(database_error)?,
+                            membership_end_date: r
+                                .membership_end_date
+                                .map(SourceTimestamp::try_from)
+                                .transpose()
+                                .map_err(database_error)?,
+                            membership_status: r.membership_status,
+                            membership_status_active: r.membership_status_active,
+                        },
+                    },
+                    captured_at: None,
+                    capture_key: None,
+                };
                 let score = PhoneticRank::new(
                     u32::try_from(r.distance)
                         .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?,
@@ -173,41 +232,9 @@ impl ParliamentMemberRepo for ExposedDatabase {
         let mut members: Vec<_> = members.iter().collect();
         members.sort_by_key(|member| member.member_id());
         for m in members {
-            let member_id = super::member_identity::acquire(&mut tx, m.member_id())
+            super::member_identity::upsert(&mut tx, &m.profile, m.captured_at, m.capture_key, true)
                 .await
                 .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
-            sqlx::query!(
-                "
-            INSERT INTO 
-                exposed.member_profiles (
-                    member_id,
-                    chamber,
-                    name, 
-                    party_id,
-                    party_name,
-                    latest_house,
-                    latest_membership_from,
-                    is_current_commons,
-                    created_at,
-                    updated_at
-           ) 
-            VALUES ($1,'commons',$2,$3,$4,1,$5,true,now(),now())
-           ON CONFLICT (member_id, chamber) DO UPDATE SET
-               name = EXCLUDED.name, party_id = EXCLUDED.party_id,
-               party_name = EXCLUDED.party_name, latest_house = EXCLUDED.latest_house,
-               latest_membership_from = EXCLUDED.latest_membership_from,
-               is_current_commons = EXCLUDED.is_current_commons
-           RETURNING member_id
-            ",
-                member_id,
-                m.name(),
-                m.party_id().cast_signed(),
-                m.party_name(),
-                m.constituency()
-            )
-            .fetch_one(&mut *tx)
-            .await
-            .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
         }
         tx.commit()
             .await
@@ -346,4 +373,8 @@ mod threshold_scoring {
         }
         Ok(())
     }
+}
+
+fn database_error(error: impl std::fmt::Display) -> ParliamentMemberRepoError {
+    ParliamentMemberRepoError::DatabaseError(error.to_string())
 }
