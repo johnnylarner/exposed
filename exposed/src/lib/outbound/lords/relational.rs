@@ -3,7 +3,7 @@ use crate::domain::models::{
         LordProfile, LordsCategory, LordsCategoryId, LordsError, SimpleDeclaration,
         SimpleDeclarationId, SourceTimestamp,
     },
-    membership::{Membership, MembershipKind, MembershipStatusProvenance},
+    membership::{Membership, MembershipKind},
     parliament_member::MemberId,
 };
 
@@ -11,17 +11,13 @@ pub(super) struct ProfileRow {
     pub member_id: uuid::Uuid,
     pub parliament_member_id: i32,
     pub name: String,
-    pub party_name: Option<String>,
-    pub party_id: Option<i32>,
-    pub membership_kind: String,
+    pub party_name: String,
+    pub party_id: i32,
+    pub membership_kind: i16,
     pub membership_start_date: Option<String>,
-    pub membership_status_active: Option<bool>,
-    pub membership_status_provenance: String,
-    pub membership_from: Option<String>,
+    pub membership_from: String,
     pub membership_status: Option<String>,
     pub membership_end_date: Option<String>,
-    pub captured_at: time::OffsetDateTime,
-    pub empty_categories: serde_json::Value,
     pub similarity: Option<f32>,
 }
 
@@ -32,23 +28,11 @@ impl ProfileRow {
                 .map_err(stored)?,
             name: self.name,
             party_name: self.party_name,
-            party_id: self
-                .party_id
-                .map(u32::try_from)
-                .transpose()
-                .map_err(stored)?,
+            party_id: u32::try_from(self.party_id).map_err(stored)?,
             membership: Membership {
-                kind: self
-                    .membership_kind
-                    .parse::<MembershipKind>()
-                    .map_err(stored)?,
-                status_provenance: self
-                    .membership_status_provenance
-                    .parse::<MembershipStatusProvenance>()
-                    .map_err(stored)?,
+                kind: MembershipKind::try_from(self.membership_kind).map_err(stored)?,
                 membership_from: self.membership_from,
                 membership_status: self.membership_status,
-                membership_status_active: self.membership_status_active,
                 membership_start_date: timestamp(self.membership_start_date)?,
                 membership_end_date: timestamp(self.membership_end_date)?,
             },
@@ -56,7 +40,7 @@ impl ProfileRow {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct CategoryRow {
     pub category_position: i64,
     pub source_id: i64,
@@ -95,24 +79,9 @@ pub(super) fn position(value: usize) -> Result<i64, LordsError> {
     i64::try_from(value).map_err(stored)
 }
 
-pub(super) fn reconstruct(
-    empty_categories: Vec<CategoryRow>,
-    interests: Vec<InterestRow>,
-) -> Result<Vec<LordsCategory>, LordsError> {
+pub(super) fn reconstruct(interests: Vec<InterestRow>) -> Result<Vec<LordsCategory>, LordsError> {
     let mut categories = std::collections::BTreeMap::new();
-    for category in empty_categories {
-        if categories
-            .insert(category.category_position, category)
-            .is_some()
-        {
-            return Err(stored("duplicate empty category position"));
-        }
-    }
-    let empty_positions: std::collections::BTreeSet<_> = categories.keys().copied().collect();
     for row in &interests {
-        if empty_positions.contains(&row.category_position) {
-            return Err(stored("declaration assigned to an empty category"));
-        }
         let category = CategoryRow {
             category_position: row.category_position,
             source_id: row.category_source_id,
@@ -129,11 +98,8 @@ pub(super) fn reconstruct(
     let categories: Vec<_> = categories.into_values().collect();
     let mut nodes = interests.into_iter().peekable();
     let mut result = Vec::with_capacity(categories.len());
-    for (index, category) in categories.into_iter().enumerate() {
-        let category_position = position(index)?;
-        if category.category_position != category_position {
-            return Err(stored("non-contiguous Lords category positions"));
-        }
+    for category in categories {
+        let category_position = category.category_position;
         let source_id =
             LordsCategoryId::try_from(u32::try_from(category.source_id).map_err(stored)?)
                 .map_err(stored)?;

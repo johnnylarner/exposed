@@ -381,9 +381,9 @@ pub(super) fn publish_directory(_staging: &Path, _destination: &Path) -> std::io
 pub(super) fn members_schema() -> Schema {
     let pmi = Field::new("parliament_member_id", DataType::UInt32, false);
     let n = Field::new("name", DataType::Utf8, false);
-    let pi = Field::new("party_id", DataType::UInt32, true);
-    let pn = Field::new("party_name", DataType::Utf8, true);
-    let c = Field::new("constituency", DataType::Utf8, true);
+    let pi = Field::new("party_id", DataType::UInt32, false);
+    let pn = Field::new("party_name", DataType::Utf8, false);
+    let c = Field::new("constituency", DataType::Utf8, false);
     let mut fields = vec![pmi, n, pi, pn, c];
     fields.extend(
         [
@@ -391,16 +391,8 @@ pub(super) fn members_schema() -> Schema {
             "membership_start_date",
             "membership_end_date",
             "membership_status",
-            "membership_status_provenance",
-            "captured_at",
-            "capture_key",
         ]
         .map(|name| Field::new(name, DataType::Utf8, true)),
     );
-    fields.push(Field::new(
-        "membership_status_active",
-        DataType::Boolean,
-        true,
-    ));
     Schema::new(fields)
 }

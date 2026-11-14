@@ -9,7 +9,7 @@ use crate::{
         models::{
             declaration_ingestion::CapturedDeclaration,
             entity_ingestion::IngestionKey,
-            membership::{MemberProfile, Membership, MembershipKind, MembershipStatusProvenance},
+            membership::{MemberProfile, Membership, MembershipKind},
             parliament_member::{MemberId, ParliamentMember},
             source_timestamp::SourceTimestamp,
         },
@@ -95,9 +95,9 @@ impl EntityIngestionStorage for ExposedDataPipeline {
 struct MemberRecord {
     parliament_member_id: MemberId,
     name: String,
-    party_id: Option<u32>,
-    party_name: Option<String>,
-    constituency: Option<String>,
+    party_id: u32,
+    party_name: String,
+    constituency: String,
     #[serde(default)]
     membership_kind: Option<MembershipKind>,
     #[serde(default)]
@@ -106,14 +106,6 @@ struct MemberRecord {
     membership_end_date: Option<SourceTimestamp>,
     #[serde(default)]
     membership_status: Option<String>,
-    #[serde(default)]
-    membership_status_active: Option<bool>,
-    #[serde(default)]
-    membership_status_provenance: Option<MembershipStatusProvenance>,
-    #[serde(default)]
-    captured_at: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(default)]
-    capture_key: Option<uuid::Uuid>,
 }
 
 impl From<&ParliamentMember> for MemberRecord {
@@ -128,10 +120,6 @@ impl From<&ParliamentMember> for MemberRecord {
             membership_start_date: member.profile.membership.membership_start_date.clone(),
             membership_end_date: member.profile.membership.membership_end_date.clone(),
             membership_status: member.profile.membership.membership_status.clone(),
-            membership_status_active: member.profile.membership.membership_status_active,
-            membership_status_provenance: Some(member.profile.membership.status_provenance),
-            captured_at: member.captured_at,
-            capture_key: member.capture_key,
         }
     }
 }
@@ -146,18 +134,12 @@ impl From<MemberRecord> for ParliamentMember {
                 party_name: record.party_name,
                 membership: Membership {
                     kind: record.membership_kind.unwrap_or(MembershipKind::ElectedMp),
-                    status_provenance: record
-                        .membership_status_provenance
-                        .unwrap_or(MembershipStatusProvenance::LegacyCurrent),
                     membership_from: record.constituency,
                     membership_start_date: record.membership_start_date,
                     membership_end_date: record.membership_end_date,
                     membership_status: record.membership_status,
-                    membership_status_active: record.membership_status_active,
                 },
             },
-            captured_at: record.captured_at,
-            capture_key: record.capture_key,
         }
     }
 }

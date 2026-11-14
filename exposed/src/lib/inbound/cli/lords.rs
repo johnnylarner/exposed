@@ -11,10 +11,7 @@ use super::{
 };
 use crate::{
     domain::{
-        models::{
-            entity_ingestion::IngestionKey,
-            lords::{LordsIngestionStage, LordsLoadOutcome},
-        },
+        models::{entity_ingestion::IngestionKey, lords::LordsIngestionStage},
         services::lords::{LordsFetcher, LordsLoader},
     },
     outbound::{ExposedDatabase, LordsApiClient, LordsCaptureFiles},
@@ -60,7 +57,6 @@ struct FetchResponse {
 #[derive(Serialize, JsonSchema)]
 struct LoadResponse {
     ingestion_key: IngestionKey,
-    outcome: LordsLoadOutcome,
     members: usize,
 }
 
@@ -84,10 +80,9 @@ async fn load(config: PathBuf, key: IngestionKey) -> anyhow::Result<CliSuccess<L
     let data = DataConfig::from_env()?;
     let storage = LordsCaptureFiles::new(&config.data_dir, key.clone())?;
     let database = ExposedDatabase::new(&data.connection_string).await?;
-    let (outcome, members) = LordsLoader::new(storage, database).load().await?;
+    let members = LordsLoader::new(storage, database).load().await?;
     Ok(CliSuccess::new(LoadResponse {
         ingestion_key: key,
-        outcome,
         members,
     }))
 }

@@ -6,7 +6,8 @@
           "id": 2175,
           "nameDisplayAs": "Lord Example",
           "latestParty": {
-            "name": "Crossbench"
+            "name": "Crossbench",
+            "id": 6
           },
           "latestHouseMembership": {
             "house": 2,
@@ -14,7 +15,8 @@
             "membershipStatus": {
               "statusDescription": "Current Member"
             },
-            "membershipEndDate": null
+            "membershipEndDate": null,
+            "membershipFromId": 4
           },
           "unmappedSourceField": "retained"
         },

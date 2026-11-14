@@ -1,12 +1,10 @@
-WITH input (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
+INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
     SELECT ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i,
        CASE i WHEN 1 THEN 'Ava Example' WHEN 2 THEN 'Bea Example' WHEN 3 THEN 'Empty Member' ELSE 'Recipient ' || i END,
        CASE WHEN i = 2 THEN 2 ELSE 1 END, CASE WHEN i = 2 THEN 'Party B' ELSE 'Party A' END,
-       1, 'Example constituency', true FROM generate_series(1, 15) i
-) INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.id::uuid, input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input;
-WITH input (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
-    VALUES (16, 'Former MP Example', 1, 'Party A', 2, 'Life peer', false)
-) INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input;
+       1, 'Example constituency', NULL FROM generate_series(1, 15) i;
+INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
+    VALUES (16, 'Former MP Example', 1, 'Party A', 2, 'Life peer', NULL);
 INSERT INTO exposed.funders (id, funder_name, funder_kind, company_number) VALUES
 ('10000000-0000-0000-0000-000000000001', 'Exact Funder', 'Company', '00123456'),
 ('10000000-0000-0000-0000-000000000002', 'Empty Funder', NULL, NULL),

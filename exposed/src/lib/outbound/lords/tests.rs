@@ -17,15 +17,9 @@ use crate::{
         models::{
             entity_ingestion::IngestionKey,
             entity_search::{Entity, EntitySearchRequest},
-            lords::{
-                LordsLoadOutcome,
-                tests::{capture, fixture},
-            },
+            lords::tests::{capture, fixture},
         },
-        repositories::{
-            entity_details::EntityDetailsRepo,
-            lords::{LordsCaptureStorage, LordsRepository},
-        },
+        repositories::lords::{LordsCaptureStorage, LordsRepository},
         services::{
             entity_search::{EntitySearchService, Service as SearchService},
             lords::LordsFetcher,
@@ -79,7 +73,6 @@ async fn complete_artifact_replays_exact_bytes_and_rejects_tampering_or_republic
     storage.publish(&capture).await.unwrap();
     let replay = storage.read().await.unwrap();
     assert_eq!(replay.pages(), capture.pages());
-    assert_eq!(replay.members()[0].raw(), capture.members()[0].raw());
     assert!(storage.publish(&capture).await.is_err());
     let page = storage.path().join("page-1.json");
     let mut tampered = capture.pages()[0].clone();
@@ -94,224 +87,6 @@ async fn complete_artifact_replays_exact_bytes_and_rejects_tampering_or_republic
             .to_string()
             .contains("digest")
     );
-}
-
-#[sqlx::test(
-    migrations = "../db/migrations",
-    fixtures("../../../../../db/fixtures/add_members.sql")
-)]
-async fn load_is_idempotent_monotonic_and_shares_canonical_profile(pool: PgPool) {
-    let db = ExposedDatabase::from(pool.clone());
-    let key = IngestionKey::default();
-    let first = capture(
-        key.clone(),
-        "2026-11-10T00:00:00Z",
-        &[(1, "Lord First"), (2, "Lord Omitted")],
-    );
-    assert_eq!(
-        db.load_lords(&first).await.unwrap(),
-        LordsLoadOutcome::Loaded
-    );
-    assert_eq!(
-        db.load_lords(&first).await.unwrap(),
-        LordsLoadOutcome::AlreadyLoaded
-    );
-    let conflict = capture(key, "2026-11-10T00:00:00Z", &[(1, "Lord Changed")]);
-    assert!(matches!(
-        db.load_lords(&conflict).await,
-        Err(LordsError::Conflict)
-    ));
-    let newer = capture(
-        IngestionKey::default(),
-        "2026-11-12T00:00:00Z",
-        &[(1, "Lord Newer")],
-    );
-    db.load_lords(&newer).await.unwrap();
-    let older = capture(
-        IngestionKey::default(),
-        "2026-11-11T00:00:00Z",
-        &[(1, "Lord Older")],
-    );
-    db.load_lords(&older).await.unwrap();
-    assert_eq!(
-        db.lord_register("1".parse().unwrap())
-            .await
-            .unwrap()
-            .unwrap()
-            .member
-            .name,
-        "Lord Newer"
-    );
-    assert_eq!(
-        db.lord_register("2".parse().unwrap())
-            .await
-            .unwrap()
-            .unwrap()
-            .member
-            .name,
-        "Lord Omitted"
-    );
-    assert_eq!(
-        db.member("1".parse().unwrap())
-            .await
-            .unwrap()
-            .unwrap()
-            .member
-            .name,
-        "Lord Newer"
-    );
-    let row = sqlx::query!(
-        "SELECT source_document AS \"source_document!\" FROM exposed.simple_declaration_registers p JOIN exposed.members m ON m.id = p.member_id WHERE parliament_member_id = 1"
-    )
-    .fetch_one(&pool)
-    .await
-    .unwrap();
-    assert_eq!(row.source_document, *newer.members()[0].raw());
-    assert_eq!(
-        sqlx::query_scalar!("SELECT count(*) FROM exposed.lords_imports")
-            .fetch_one(&pool)
-            .await
-            .unwrap(),
-        Some(3)
-    );
-    assert_eq!(
-        sqlx::query_scalar!("SELECT count(*) FROM exposed.declarations")
-            .fetch_one(&pool)
-            .await
-            .unwrap(),
-        Some(0)
-    );
-    assert_eq!(
-        sqlx::query_scalar!("SELECT count(*) FROM exposed.funding_entries")
-            .fetch_one(&pool)
-            .await
-            .unwrap(),
-        Some(0)
-    );
-    assert_eq!(
-        sqlx::query_scalar!("SELECT count(*) FROM exposed.funders")
-            .fetch_one(&pool)
-            .await
-            .unwrap(),
-        Some(0)
-    );
-}
-
-#[sqlx::test(migrations = "../db/migrations")]
-async fn failed_member_write_rolls_back_every_document_and_the_ledger(pool: PgPool) {
-    let db = ExposedDatabase::from(pool.clone());
-    let initial = capture(
-        IngestionKey::default(),
-        "2026-11-10T00:00:00Z",
-        &[(1, "Lord Initial")],
-    );
-    db.load_lords(&initial).await.unwrap();
-    sqlx::query!(
-        "ALTER TABLE exposed.members ADD CONSTRAINT reject_test_name CHECK (name <> 'Reject')"
-    )
-    .execute(&pool)
-    .await
-    .unwrap();
-    let bad = capture(
-        IngestionKey::default(),
-        "2026-11-12T00:00:00Z",
-        &[(1, "Lord Changed"), (2, "Reject")],
-    );
-    assert!(db.load_lords(&bad).await.is_err());
-    assert_eq!(
-        db.lord_register("1".parse().unwrap())
-            .await
-            .unwrap()
-            .unwrap()
-            .member
-            .name,
-        "Lord Initial"
-    );
-    assert!(
-        db.lord_register("2".parse().unwrap())
-            .await
-            .unwrap()
-            .is_none()
-    );
-    assert_eq!(
-        sqlx::query_scalar!("SELECT count(*) FROM exposed.lords_imports")
-            .fetch_one(&pool)
-            .await
-            .unwrap(),
-        Some(1)
-    );
-}
-
-#[sqlx::test(migrations = "../db/migrations")]
-async fn concurrent_imports_resolve_against_the_locked_row_and_break_timestamp_ties(pool: PgPool) {
-    let db = ExposedDatabase::from(pool.clone());
-    db.load_lords(&capture(
-        IngestionKey::default(),
-        "2025-01-01T00:00:00Z",
-        &[(1, "Lord Initial")],
-    ))
-    .await
-    .unwrap();
-    for (round, older_date, newer_date, newest_first) in [
-        (0, "2026-01-01T00:00:00Z", "2026-02-01T00:00:00Z", false),
-        (1, "2027-01-01T00:00:00Z", "2027-02-01T00:00:00Z", true),
-        (2, "2028-01-01T00:00:00Z", "2028-01-01T00:00:00Z", false),
-        (3, "2029-01-01T00:00:00Z", "2029-01-01T00:00:00Z", true),
-    ] {
-        let mut lock = pool.begin().await.unwrap();
-        sqlx::query!("SELECT parliament_member_id FROM exposed.members WHERE parliament_member_id = 1 FOR UPDATE").fetch_one(&mut *lock).await.unwrap();
-        let older = capture(
-            IngestionKey::new(uuid::Uuid::from_u128(10 + round * 2)),
-            older_date,
-            &[(1, "Lord Older")],
-        );
-        let newer = capture(
-            IngestionKey::new(uuid::Uuid::from_u128(11 + round * 2)),
-            newer_date,
-            &[(1, "Lord Newer")],
-        );
-        let expected = newer.members()[0].register().clone();
-        let expected_evidence = newer.members()[0].raw().clone();
-        let expected_key = newer.key().uuid();
-        let (first, second) = if newest_first {
-            (newer, older)
-        } else {
-            (older, newer)
-        };
-        let left = db.clone();
-        let right = db.clone();
-        let first = tokio::spawn(async move { left.load_lords(&first).await });
-        wait_for_identity_locks(&pool, 1).await;
-        let second = tokio::spawn(async move { right.load_lords(&second).await });
-        wait_for_identity_locks(&pool, 2).await;
-        lock.commit().await.unwrap();
-        assert_eq!(first.await.unwrap().unwrap(), LordsLoadOutcome::Loaded);
-        assert_eq!(second.await.unwrap().unwrap(), LordsLoadOutcome::Loaded);
-        assert_eq!(
-            db.lord_register("1".parse().unwrap())
-                .await
-                .unwrap()
-                .unwrap(),
-            expected
-        );
-        let stored = sqlx::query!(
-            "SELECT source_document AS \"source_document!\", ingestion_key AS \"ingestion_key!\" FROM exposed.simple_declaration_registers"
-        )
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-        assert_eq!(stored.source_document, expected_evidence);
-        assert_eq!(stored.ingestion_key, expected_key);
-    }
-    let capture = capture(
-        IngestionKey::default(),
-        "2030-01-01T00:00:00Z",
-        &[(1, "Lord Retry")],
-    );
-    let (left, right) = tokio::join!(db.load_lords(&capture), db.load_lords(&capture));
-    let outcomes = [left.unwrap(), right.unwrap()];
-    assert!(outcomes.contains(&LordsLoadOutcome::Loaded));
-    assert!(outcomes.contains(&LordsLoadOutcome::AlreadyLoaded));
 }
 
 #[sqlx::test(
@@ -382,7 +157,7 @@ async fn public_lords_response_and_search_keep_the_frozen_contract(pool: PgPool)
         serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(
         public,
-        serde_json::to_value(capture.members()[0].register()).unwrap()
+        serde_json::to_value(stored_register(&capture, 0)).unwrap()
     );
     let response = app
         .oneshot(
@@ -401,64 +176,217 @@ async fn public_lords_response_and_search_keep_the_frozen_contract(pool: PgPool)
     );
 }
 
+fn stored_register(
+    capture: &crate::domain::models::lords::CompleteLordsCapture,
+    index: usize,
+) -> crate::domain::models::lords::LordRegister {
+    let mut register = capture.members()[index].clone();
+    register
+        .categories
+        .retain(|category| !category.interests.is_empty());
+    register
+}
+
 #[sqlx::test(migrations = "../db/migrations")]
-async fn relational_occurrences_preserve_source_values_without_json_reads(pool: PgPool) {
-    use crate::domain::models::lords::LordsCaptureBuilder;
-    let mut source = fixture();
-    let value = &mut source["items"][0]["value"];
-    value["member"]["latestHouseMembership"]["membershipEndDate"] =
-        json!("2024-03-02T01:02:03.123400+03:30");
-    let node = json!({
-        "id": u32::MAX, "interest": "  ", "isCorrection": true,
-        "createdWhen": "2020-01-01T00:00:00",
-        "lastAmendedWhen": "2020-01-02T00:00:00.1200Z",
-        "deletedWhen": "2020-01-03T00:00:00-04:00",
-        "childInterests": [{"id": u32::MAX, "interest": null,
-            "isCorrection": false, "deletedWhen": "2020-01-01T00:00:00Z"}]
-    });
-    value["interestCategories"] = json!([
-        {"id":u32::MAX,"name":null,"sortOrder":-10,"interests":[node.clone(),node]},
-        {"id":u32::MAX,"name":"","sortOrder":-10,"interests":[]}
-    ]);
-    let mut builder = LordsCaptureBuilder::new(
-        IngestionKey::default(),
-        "2026-11-12T00:00:00Z".parse().unwrap(),
-    );
-    builder
-        .push_page(serde_json::to_vec(&source).unwrap())
-        .unwrap();
-    let capture = builder.finish().unwrap();
-    let expected = capture.members()[0].register();
+async fn full_load_replaces_every_occurrence_and_preserves_omitted_members(pool: PgPool) {
     let db = ExposedDatabase::from(pool.clone());
-    db.load_lords(&capture).await.unwrap();
-    assert_eq!(
-        &db.lord_register(expected.member.id).await.unwrap().unwrap(),
-        expected
+    let first = capture(
+        IngestionKey::default(),
+        "2026-02-01T00:00:00Z",
+        &[(2175, "Initial"), (2176, "Omitted")],
     );
-    sqlx::query!("UPDATE exposed.simple_declaration_registers SET source_document = '{}'::jsonb")
-        .execute(&pool)
+    db.load_lords(&first).await.unwrap();
+    let id = sqlx::query_scalar!("SELECT id FROM exposed.members WHERE parliament_member_id=2175")
+        .fetch_one(&pool)
         .await
         .unwrap();
-    assert_eq!(
-        &db.lord_register(expected.member.id).await.unwrap().unwrap(),
-        expected
+    let replacement = capture(
+        IngestionKey::default(),
+        "2026-01-01T00:00:00Z",
+        &[(2175, "Replaced")],
     );
-    let search =
-        EntitySearchRequest::new_with_strictness(expected.member.name.clone(), 10, 1.0).unwrap();
+    for _ in 0..2 {
+        db.load_lords(&replacement).await.unwrap();
+        assert_eq!(
+            db.lord_register("2175".parse().unwrap())
+                .await
+                .unwrap()
+                .unwrap(),
+            stored_register(&replacement, 0)
+        );
+        assert_eq!(
+            db.lord_register("2176".parse().unwrap())
+                .await
+                .unwrap()
+                .unwrap(),
+            stored_register(&first, 1)
+        );
+    }
     assert_eq!(
-        db.search_lords(&search).await.unwrap()[0].0,
-        expected.member
+        sqlx::query_scalar!("SELECT id FROM exposed.members WHERE parliament_member_id=2175")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        id
+    );
+    assert_eq!(
+        sqlx::query_scalar!("SELECT count(*) FROM exposed.declarations")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        Some(0)
+    );
+    assert_eq!(
+        sqlx::query_scalar!("SELECT count(*) FROM exposed.funding_entries")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        Some(0)
+    );
+    assert_eq!(
+        sqlx::query_scalar!(
+            "SELECT count(*) FROM exposed.simple_declarations WHERE member_id=$1",
+            id
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap(),
+        Some(9)
     );
 }
 
-mod relational;
+#[sqlx::test(migrations = "../db/migrations")]
+async fn failure_rolls_back_all_member_changes_and_declaration_replacements(pool: PgPool) {
+    let db = ExposedDatabase::from(pool.clone());
+    let first = capture(
+        IngestionKey::default(),
+        "2026-01-01T00:00:00Z",
+        &[(2, "Initial")],
+    );
+    db.load_lords(&first).await.unwrap();
+    let before =
+        sqlx::query_scalar!("SELECT jsonb_agg(to_jsonb(m) ORDER BY id) FROM exposed.members m")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
+    let declarations = sqlx::query_scalar!("SELECT jsonb_agg(to_jsonb(d) ORDER BY member_id,category_position,node_position) FROM exposed.simple_declarations d").fetch_one(&pool).await.unwrap();
+    sqlx::query!("ALTER TABLE exposed.simple_declarations ADD CONSTRAINT reject_replacement CHECK (declaration_text IS DISTINCT FROM 'Reject replacement') NOT VALID").execute(&pool).await.unwrap();
+    let mut page = fixture();
+    let mut new = page["items"][0].clone();
+    new["value"]["member"]["id"] = json!(1);
+    let mut changed = new.clone();
+    changed["value"]["member"]["id"] = json!(2);
+    changed["value"]["member"]["nameDisplayAs"] = json!("Changed");
+    changed["value"]["interestCategories"][0]["interests"][0]["interest"] =
+        json!("Reject replacement");
+    page["items"] = json!([new, changed]);
+    page["totalResults"] = json!(2);
+    page["take"] = json!(2);
+    let mut builder = crate::domain::models::lords::LordsCaptureBuilder::new(
+        IngestionKey::default(),
+        chrono::Utc::now(),
+    );
+    builder
+        .push_page(serde_json::to_vec(&page).unwrap())
+        .unwrap();
+    assert!(db.load_lords(&builder.finish().unwrap()).await.is_err());
+    assert_eq!(
+        sqlx::query_scalar!("SELECT jsonb_agg(to_jsonb(m) ORDER BY id) FROM exposed.members m")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        before
+    );
+    assert_eq!(sqlx::query_scalar!("SELECT jsonb_agg(to_jsonb(d) ORDER BY member_id,category_position,node_position) FROM exposed.simple_declarations d").fetch_one(&pool).await.unwrap(),declarations);
+}
 
-async fn wait_for_identity_locks(pool: &PgPool, count: i64) {
-    tokio::time::timeout(std::time::Duration::from_secs(10), async {
-        loop {
-            let waiting = sqlx::query_scalar!("SELECT count(*) FROM pg_stat_activity WHERE datname = current_database() AND wait_event_type = 'Lock' AND query LIKE 'INSERT INTO exposed.members%'").fetch_one(pool).await.unwrap().unwrap();
-            if waiting == count { break; }
-            tokio::task::yield_now().await;
-        }
-    }).await.expect("imports reached the identity lock barrier");
+#[sqlx::test(migrations = "../db/migrations")]
+async fn empty_register_replaces_all_previous_occurrences(pool: PgPool) {
+    let db = ExposedDatabase::from(pool.clone());
+    db.load_lords(&capture(
+        IngestionKey::default(),
+        "2026-01-01T00:00:00Z",
+        &[(2175, "Initial")],
+    ))
+    .await
+    .unwrap();
+    let mut page = fixture();
+    page["items"][0]["value"]["interestCategories"] = json!([]);
+    let mut builder = crate::domain::models::lords::LordsCaptureBuilder::new(
+        IngestionKey::default(),
+        chrono::Utc::now(),
+    );
+    builder
+        .push_page(serde_json::to_vec(&page).unwrap())
+        .unwrap();
+    db.load_lords(&builder.finish().unwrap()).await.unwrap();
+    assert!(
+        db.lord_register("2175".parse().unwrap())
+            .await
+            .unwrap()
+            .unwrap()
+            .categories
+            .is_empty()
+    );
+    assert_eq!(
+        sqlx::query_scalar!("SELECT count(*) FROM exposed.simple_declarations")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        Some(0)
+    );
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn seeded_membership_kinds_match_every_domain_variant_and_chamber(pool: PgPool) {
+    use crate::domain::models::membership::MembershipKind;
+    use strum::IntoEnumIterator;
+    let expected = MembershipKind::iter()
+        .map(|kind| (kind as i16, kind.chamber() as i16))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    let stored = sqlx::query!("SELECT id,chamber_id FROM exposed.membership_kinds")
+        .fetch_all(&pool)
+        .await
+        .unwrap()
+        .into_iter()
+        .map(|row| (row.id, row.chamber_id))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    assert_eq!(stored, expected);
+}
+
+#[sqlx::test(
+    migrations = "../db/migrations",
+    fixtures(
+        "../../../../../db/fixtures/add_members.sql",
+        "../../../../../db/fixtures/add_declarations_and_funding_entries.sql"
+    )
+)]
+async fn lords_profile_update_preserves_member_identity_and_financial_history(pool: PgPool) {
+    use crate::domain::repositories::entity_details::EntityDetailsRepo;
+    let db = ExposedDatabase::from(pool.clone());
+    let id = sqlx::query_scalar!("SELECT id FROM exposed.members WHERE parliament_member_id=1")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    let before = db.member("1".parse().unwrap()).await.unwrap().unwrap();
+    let financial = sqlx::query_scalar!("SELECT jsonb_build_object('declarations',(SELECT jsonb_agg(to_jsonb(d) ORDER BY id) FROM exposed.declarations d),'funding',(SELECT jsonb_agg(to_jsonb(e) ORDER BY id) FROM exposed.funding_entries e))").fetch_one(&pool).await.unwrap();
+    db.load_lords(&capture(
+        IngestionKey::default(),
+        "2026-01-01T00:00:00Z",
+        &[(1, "Lord Shared")],
+    ))
+    .await
+    .unwrap();
+    assert_eq!(
+        sqlx::query_scalar!("SELECT id FROM exposed.members WHERE parliament_member_id=1")
+            .fetch_one(&pool)
+            .await
+            .unwrap(),
+        id
+    );
+    let after = db.member("1".parse().unwrap()).await.unwrap().unwrap();
+    assert_eq!(after.member.name, "Lord Shared");
+    assert!(!after.member.is_current_commons);
+    assert_eq!(after.declarations.len(), before.declarations.len());
+    assert_eq!(sqlx::query_scalar!("SELECT jsonb_build_object('declarations',(SELECT jsonb_agg(to_jsonb(d) ORDER BY id) FROM exposed.declarations d),'funding',(SELECT jsonb_agg(to_jsonb(e) ORDER BY id) FROM exposed.funding_entries e))").fetch_one(&pool).await.unwrap(),financial);
 }

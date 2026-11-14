@@ -51,7 +51,7 @@ async fn reads_an_empty_members_file() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
-async fn parquet_retains_shared_source_membership_and_capture_provenance() -> anyhow::Result<()> {
+async fn parquet_retains_shared_source_membership() -> anyhow::Result<()> {
     use crate::domain::models::membership::SourceMembership;
     let tmp = TempDir::new()?;
     let storage = ExposedDataPipeline::new_with_ingestion_key(
@@ -66,19 +66,14 @@ async fn parquet_retains_shared_source_membership_and_capture_provenance() -> an
         "Former constituency".into(),
     );
     member.profile.membership=serde_json::from_value::<SourceMembership>(serde_json::json!({"house":2,"membershipFromId":4,"membershipFrom":"Life peer","membershipStartDate":"2020-01-02T00:00:00","membershipEndDate":null,"membershipStatus":{"statusDescription":"Leave of Absence","statusIsActive":false}}))?.into_membership().map_err(anyhow::Error::msg)?;
-    member.profile.party_id = None;
-    member.profile.party_name = None;
-    member.captured_at = Some("2026-03-01T12:34:56.123456Z".parse()?);
-    member.capture_key = Some(uuid::Uuid::now_v7());
     storage.write_raw_members(&[member.clone()]).await?;
     assert_eq!(storage.read_raw_members().await?, [member]);
     Ok(())
 }
 
 #[tokio::test]
-async fn old_member_artifacts_keep_unknown_clocks_and_explicit_legacy_classification()
--> anyhow::Result<()> {
-    use crate::domain::models::membership::{MembershipKind, MembershipStatusProvenance};
+async fn reads_existing_five_column_member_artifacts() -> anyhow::Result<()> {
+    use crate::domain::models::membership::MembershipKind;
     use arrow::{
         datatypes::{DataType, Field, Schema},
         json::ReaderBuilder,
@@ -119,15 +114,8 @@ async fn old_member_artifacts_keep_unknown_clocks_and_explicit_legacy_classifica
     let restored = storage.read_raw_members().await?;
     let member = &restored[0];
     assert_eq!(member.profile.membership.kind, MembershipKind::ElectedMp);
-    assert_eq!(
-        member.profile.membership.status_provenance,
-        MembershipStatusProvenance::LegacyCurrent
-    );
-    assert_eq!(member.profile.membership.is_current_commons(), Some(true));
-    assert!(member.profile.membership.membership_status_active.is_none());
+    assert!(member.profile.membership.is_current_commons());
     assert!(member.profile.membership.membership_start_date.is_none());
     assert!(member.profile.membership.membership_end_date.is_none());
-    assert!(member.captured_at.is_none());
-    assert!(member.capture_key.is_none());
     Ok(())
 }

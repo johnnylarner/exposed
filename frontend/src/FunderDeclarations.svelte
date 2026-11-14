@@ -25,9 +25,7 @@
             )}>{source.member.name}</a
           >
         </h3>
-        {#if source.member.partyName}<span class="entry-count"
-            >{source.member.partyName}</span
-          >{/if}
+        <span class="entry-count">{source.member.partyName}</span>
         <p>{declaration.categoryName}</p>
         <a
           class="declaration-reference"

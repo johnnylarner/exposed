@@ -69,7 +69,7 @@ async fn real_cli_lords_load_replays_a_complete_capture_and_reports_structured_f
     let schema: Value = serde_json::from_slice(&schema_output.stdout).unwrap();
     let success = jsonschema::validator_for(&schema["success"]).unwrap();
     let failure = jsonschema::validator_for(&schema["failure"]).unwrap();
-    for outcome in ["loaded", "already_loaded"] {
+    for _ in 0..2 {
         let output = binary()
             .args(["lords", "load", "--config"])
             .arg(&config)
@@ -90,7 +90,7 @@ async fn real_cli_lords_load_replays_a_complete_capture_and_reports_structured_f
         assert!(success.is_valid(&response));
         assert_eq!(
             response,
-            json!({"ingestion_key":key.to_string(), "outcome":outcome, "members":1})
+            json!({"ingestion_key":key.to_string(), "members":1})
         );
     }
     std::fs::remove_file(storage.path().join("manifest.json")).unwrap();
@@ -108,7 +108,7 @@ async fn real_cli_lords_load_replays_a_complete_capture_and_reports_structured_f
     assert!(output.stdout.is_empty());
     assert!(failure.is_valid(&serde_json::from_slice(&output.stderr).unwrap()));
     assert_eq!(
-        sqlx::query_scalar!("SELECT count(*) FROM exposed.lords_imports")
+        sqlx::query_scalar!("SELECT count(*) FROM exposed.members")
             .fetch_one(&pool)
             .await
             .unwrap(),

@@ -3,7 +3,7 @@
 use crate::domain::{
     models::{
         entity_ingestion::IngestionKey,
-        lords::{CompleteLordsCapture, LordsCaptureBuilder, LordsError, LordsLoadOutcome},
+        lords::{CompleteLordsCapture, LordsCaptureBuilder, LordsError},
     },
     repositories::lords::{LordsCaptureStorage, LordsRepository, LordsSource},
 };
@@ -51,13 +51,13 @@ impl<F: LordsCaptureStorage, R: LordsRepository> LordsLoader<F, R> {
         Self { storage, repo }
     }
 
-    /// Loads a whole capture or confirms an exact retry.
+    /// Loads a whole capture.
     ///
     /// # Errors
-    /// Rejects incomplete evidence, reused identities, and database failures.
-    pub async fn load(&self) -> Result<(LordsLoadOutcome, usize), LordsError> {
+    /// Rejects incomplete evidence and database failures.
+    pub async fn load(&self) -> Result<usize, LordsError> {
         let capture = self.storage.read().await?;
-        let outcome = self.repo.load_lords(&capture).await?;
-        Ok((outcome, capture.members().len()))
+        self.repo.load_lords(&capture).await?;
+        Ok(capture.members().len())
     }
 }

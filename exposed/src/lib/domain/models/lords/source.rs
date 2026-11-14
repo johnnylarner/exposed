@@ -1,9 +1,8 @@
-use chrono::{DateTime, Utc};
 use serde::Deserialize;
 
 use super::{
-    CapturedLord, LordProfile, LordRegister, LordsCategory, LordsCategoryId, LordsError,
-    SimpleDeclaration, SimpleDeclarationId, SourceTimestamp,
+    LordProfile, LordRegister, LordsCategory, LordsCategoryId, LordsError, SimpleDeclaration,
+    SimpleDeclarationId, SourceTimestamp,
 };
 use crate::domain::models::{
     membership::{Chamber, SourceMembership},
@@ -36,14 +35,14 @@ struct Register {
 struct Member {
     id: MemberId,
     name_display_as: String,
-    latest_party: Option<Party>,
-    latest_house_membership: Option<SourceMembership>,
+    latest_party: Party,
+    latest_house_membership: SourceMembership,
 }
 
 #[derive(Deserialize)]
 struct Party {
-    id: Option<u32>,
-    name: Option<String>,
+    id: u32,
+    name: String,
 }
 
 #[derive(Deserialize)]
@@ -71,21 +70,16 @@ pub(super) struct ParsedPage {
     pub total: usize,
     pub skip: usize,
     pub take: usize,
-    pub members: Vec<CapturedLord>,
+    pub members: Vec<LordRegister>,
 }
 
-pub(super) fn page(bytes: &[u8], captured_at: DateTime<Utc>) -> Result<ParsedPage, LordsError> {
+pub(super) fn page(bytes: &[u8]) -> Result<ParsedPage, LordsError> {
     let page: Page =
         serde_json::from_slice(bytes).map_err(|error| LordsError::Source(error.to_string()))?;
     let members = page
         .items
         .into_iter()
-        .map(|item| {
-            Ok(CapturedLord {
-                register: register(&item.value, captured_at)?,
-                raw: item.value,
-            })
-        })
+        .map(|item| register(&item.value))
         .collect::<Result<_, LordsError>>()?;
     Ok(ParsedPage {
         total: page.total_results,
@@ -95,10 +89,7 @@ pub(super) fn page(bytes: &[u8], captured_at: DateTime<Utc>) -> Result<ParsedPag
     })
 }
 
-pub(super) fn register(
-    raw: &serde_json::Value,
-    captured_at: DateTime<Utc>,
-) -> Result<LordRegister, LordsError> {
+pub(super) fn register(raw: &serde_json::Value) -> Result<LordRegister, LordsError> {
     let source: Register = serde_json::from_value(raw.clone())
         .map_err(|error| LordsError::Source(error.to_string()))?;
     if source.member.name_display_as.trim().is_empty() {
@@ -107,15 +98,9 @@ pub(super) fn register(
     let membership = source
         .member
         .latest_house_membership
-        .map(SourceMembership::into_membership)
-        .transpose()
-        .map_err(LordsError::Source)?
-        .unwrap_or_default();
-    if membership
-        .kind
-        .chamber()
-        .is_some_and(|chamber| chamber != Chamber::Lords)
-    {
+        .into_membership()
+        .map_err(LordsError::Source)?;
+    if membership.kind.chamber() != Chamber::Lords {
         return Err(LordsError::Source(
             "Lords source contains a non-Lords membership".into(),
         ));
@@ -124,15 +109,10 @@ pub(super) fn register(
         member: LordProfile {
             id: source.member.id,
             name: source.member.name_display_as,
-            party_id: source
-                .member
-                .latest_party
-                .as_ref()
-                .and_then(|party| party.id),
-            party_name: source.member.latest_party.and_then(|party| party.name),
+            party_id: source.member.latest_party.id,
+            party_name: source.member.latest_party.name,
             membership,
         },
-        captured_at,
         categories: source
             .interest_categories
             .unwrap_or_default()

@@ -88,9 +88,6 @@ export function parseLordsDetails(value: unknown): LordsDetails {
   const member = record(row.member);
   const id = text(member.id);
   if (!memberIdPattern.test(id) || Number(id) > 2147483647) return malformed();
-  const capturedAt = timestamp(row.captured_at);
-  if (capturedAt === null || !/(?:Z|\+00:00)$/u.test(capturedAt))
-    return malformed();
   const endDate = timestamp(member.membership_end_date);
   const categories = list(row.categories).map(category);
   const placements = new Map<number, LordsCategory["placement"]>();
@@ -104,12 +101,11 @@ export function parseLordsDetails(value: unknown): LordsDetails {
     member: {
       id,
       name: text(member.name),
-      partyName: nullableText(member.party_name),
-      membershipFrom: nullableText(member.membership_from),
+      partyName: text(member.party_name),
+      membershipFrom: text(member.membership_from),
       membershipStatus: nullableText(member.membership_status),
       membershipEndDate: endDate,
     },
-    capturedAt,
     categories,
   };
 }

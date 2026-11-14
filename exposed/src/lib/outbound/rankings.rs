@@ -35,7 +35,7 @@ impl RankingsRepo for ExposedDatabase {
         let start = window.start().map(timestamp).transpose()?;
         let end = window.end().map(timestamp).transpose()?;
         let rows = sqlx::query!(
-            "SELECT m.parliament_member_id, m.name, m.party_id AS \"party_id?\", m.party_name AS \"party_name?\", m.membership_from AS \"latest_membership_from?\",
+            "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.membership_from AS latest_membership_from,
                 d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
                 e.id AS \"entry_id?\", e.amount, NULLIF(btrim(e.currency, $3), '') AS currency,
                 f.id AS \"funder_id?\", COALESCE(n.preferred_name, f.funder_name) AS funder_name, f.funder_kind

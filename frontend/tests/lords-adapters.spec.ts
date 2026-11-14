@@ -159,12 +159,14 @@ for (const [name, patch] of [
   ["numeric member ID", { member: { ...lordsFixture.member, id: 2175 } }],
   ["invalid member ID", { member: { ...lordsFixture.member, id: "0" } }],
   [
-    "missing nullable metadata",
+    "missing required party",
     { member: { ...lordsFixture.member, party_name: undefined } },
   ],
-  ["missing capture date", { captured_at: undefined }],
-  ["offset-free capture date", { captured_at: "2026-11-12T12:00:00" }],
-  ["invalid capture calendar", { captured_at: "2026-02-30T12:00:00Z" }],
+  ["null party", { member: { ...lordsFixture.member, party_name: null } }],
+  [
+    "null membership description",
+    { member: { ...lordsFixture.member, membership_from: null } },
+  ],
   ...[
     { placement: "unknown" },
     { source_id: 0 },
@@ -214,18 +216,16 @@ test("Lords loader validates identity and handles missing or unavailable members
       )
     ).kind,
   ).toBe("error");
-  const nullable = parseLordsDetails({
+  const empty = parseLordsDetails({
     ...lordsFixture,
     member: {
       ...lordsFixture.member,
-      party_name: null,
-      membership_from: null,
       membership_status: null,
     },
     categories: [],
   });
-  expect(nullable.categories).toEqual([]);
-  expect(nullable.member.partyName).toBeNull();
+  expect(empty.categories).toEqual([]);
+  expect(empty.member.membershipStatus).toBeNull();
 });
 
 test("Lords search uses its own route and accepts only name provenance", async () => {

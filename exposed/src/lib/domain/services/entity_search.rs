@@ -629,9 +629,8 @@ mod fallback_contract {
             sqlx::query!("DELETE FROM exposed.members")
                 .execute(&pool)
                 .await?;
-            sqlx::query!("WITH input (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
-    VALUES (1, $1, 1, 'Party', 1, 'Constituency', true)
-) INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input", candidate).execute(&pool).await?;
+            sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
+    VALUES (1, $1, 1, 'Party', 1, 'Constituency', NULL)", candidate).execute(&pool).await?;
             let req =
                 EntitySearchRequest::new_with_strictness(query.into(), 10, threshold).unwrap();
             let members = db.get_members_by_phonetic_search(&req).await.unwrap();
@@ -661,9 +660,8 @@ mod fallback_contract {
             sqlx::query!("DELETE FROM exposed.members")
                 .execute(&pool)
                 .await?;
-            sqlx::query!("WITH input (parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) AS (
-    VALUES (1, $1, 1, 'Party', 1, 'Constituency', true)
-) INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_status_active, membership_status_provenance, commons_imported_at) SELECT input.parliament_member_id::integer, input.name, input.party_id, input.party_name, CASE input.latest_house WHEN 1 THEN 'elected_mp' ELSE 'other_lords' END, input.latest_membership_from, CASE WHEN input.latest_house = 1 THEN input.is_current_commons END, CASE WHEN input.latest_house = 1 AND NOT input.is_current_commons THEN 'legacy_former' ELSE 'source' END, now() FROM input", candidate).execute(&pool).await?;
+            sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
+    VALUES (1, $1, 1, 'Party', 1, 'Constituency', NULL)", candidate).execute(&pool).await?;
             let req = EntitySearchRequest::new_with_strictness(query, 10, 0.0).unwrap();
             assert!(
                 db.get_members_by_phonetic_search(&req)

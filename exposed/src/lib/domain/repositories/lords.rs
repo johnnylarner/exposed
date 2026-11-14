@@ -2,7 +2,7 @@
 
 use crate::domain::models::{
     entity_search::EntitySearchRequest,
-    lords::{CompleteLordsCapture, LordProfile, LordsError, LordsLoadOutcome},
+    lords::{CompleteLordsCapture, LordProfile, LordsError},
     search_similarity::SearchSimilarity,
 };
 
@@ -23,13 +23,13 @@ pub trait LordsCaptureStorage: Send + Sync {
     fn read(&self) -> impl Future<Output = Result<CompleteLordsCapture, LordsError>> + Send;
 }
 
-/// The database projection is separate from Commons members and declarations.
+/// Lords declarations share member identities with Commons declarations.
 pub trait LordsRepository: Clone + Send + Sync + 'static {
-    /// Commits the ledger and monotonic member documents in one transaction.
+    /// Upserts members and replaces all their declarations in one transaction.
     fn load_lords(
         &self,
         capture: &CompleteLordsCapture,
-    ) -> impl Future<Output = Result<LordsLoadOutcome, LordsError>> + Send;
+    ) -> impl Future<Output = Result<(), LordsError>> + Send;
     /// Primary name matches only, with no effect on Commons phonetic fallback.
     fn search_lords(
         &self,

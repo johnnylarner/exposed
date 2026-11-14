@@ -83,12 +83,6 @@ pub(super) fn manifest(capture: &CompleteLordsCapture) -> Manifest {
     }
 }
 
-pub(super) fn capture_digest(capture: &CompleteLordsCapture) -> Result<String, LordsError> {
-    serde_json::to_vec(&manifest(capture))
-        .map(|bytes| digest(&bytes))
-        .map_err(|error| LordsError::Capture(error.to_string()))
-}
-
 impl LordsCaptureStorage for LordsCaptureFiles {
     async fn publish(&self, capture: &CompleteLordsCapture) -> Result<(), LordsError> {
         if capture.key() != &self.key {

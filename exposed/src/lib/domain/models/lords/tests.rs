@@ -40,8 +40,7 @@ fn retains_every_occurrence_and_original_source_value() {
     builder.push_page(bytes.clone()).unwrap();
     let capture = builder.finish().unwrap();
     assert_eq!(capture.pages(), &[bytes]);
-    assert_eq!(capture.members()[0].raw(), &page["items"][0]["value"]);
-    let public = serde_json::to_value(capture.members()[0].register()).unwrap();
+    let public = serde_json::to_value(&capture.members()[0]).unwrap();
     assert_eq!(public["member"]["id"], "2175");
     assert_eq!(public["member"]["membership_end_date"], Value::Null);
     assert_eq!(public["categories"].as_array().unwrap().len(), 4);
@@ -104,7 +103,7 @@ fn source_boundary_rejects_malformed_ids_dates_and_membership() {
         let mut source = fixture()["items"][0]["value"].clone();
         *source.pointer_mut(pointer).unwrap() = value;
         assert!(
-            LordRegister::from_source(&source, Utc::now()).is_err(),
+            LordRegister::from_source(&source).is_err(),
             "accepted {pointer}"
         );
     }
@@ -174,16 +173,12 @@ fn complete_capture_requires_contiguous_stable_nonduplicated_pages() {
 fn nullable_source_collections_and_category_names_retain_their_meaning() {
     let mut source = fixture()["items"][0]["value"].clone();
     source["interestCategories"][0]["name"] = Value::Null;
-    source["member"]["latestParty"] = Value::Null;
-    source["member"]["latestHouseMembership"] = Value::Null;
     source["interestCategories"][0]["interests"][0]["createdWhen"] = Value::Null;
     source["interestCategories"][0]["interests"][0]["lastAmendedWhen"] = Value::Null;
     source["interestCategories"][0]["interests"][0]["childInterests"] = Value::Null;
     source["interestCategories"][1]["interests"] = Value::Null;
-    let parsed = LordRegister::from_source(&source, Utc::now()).unwrap();
+    let parsed = LordRegister::from_source(&source).unwrap();
     assert!(parsed.categories[0].name.is_none());
-    assert!(parsed.member.party_name.is_none());
-    assert!(parsed.member.membership.membership_status.is_none());
     assert!(parsed.categories[0].interests[0].created_when.is_none());
     assert!(
         parsed.categories[0].interests[0]
@@ -194,9 +189,33 @@ fn nullable_source_collections_and_category_names_retain_their_meaning() {
     assert!(parsed.categories[1].interests.is_empty());
     source["interestCategories"] = Value::Null;
     assert!(
-        LordRegister::from_source(&source, Utc::now())
+        LordRegister::from_source(&source)
             .unwrap()
             .categories
             .is_empty()
     );
+}
+
+#[test]
+fn missing_required_member_data_rejects_the_entire_page() {
+    for pointer in [
+        "/member/latestParty",
+        "/member/latestParty/id",
+        "/member/latestParty/name",
+        "/member/latestHouseMembership",
+        "/member/latestHouseMembership/house",
+        "/member/latestHouseMembership/membershipFrom",
+        "/member/latestHouseMembership/membershipFromId",
+    ] {
+        let mut page = fixture();
+        *page["items"][0]["value"].pointer_mut(pointer).unwrap() = Value::Null;
+        let mut builder = LordsCaptureBuilder::new(IngestionKey::default(), Utc::now());
+        assert!(
+            builder
+                .push_page(serde_json::to_vec(&page).unwrap())
+                .is_err(),
+            "accepted {pointer}"
+        );
+        assert!(builder.finish().is_err());
+    }
 }

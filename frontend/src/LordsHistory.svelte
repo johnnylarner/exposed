@@ -9,23 +9,16 @@
   import {
     sourceCalendarDate,
     type LordsDetails,
-    type LordsCategory,
     type RegisteredInterest,
   } from "./lib/lords";
   let { details }: { details: LordsDetails } = $props();
   let requestedPage = $state(1);
   const pageSize = 10;
-  type InterestCard = {
-    category: LordsCategory;
-    interest: RegisteredInterest | null;
-  };
   const cards = $derived(
     [...details.categories]
       .sort((left, right) => left.sortOrder - right.sortOrder)
-      .flatMap<InterestCard>((category) =>
-        category.interests.length
-          ? category.interests.map((interest) => ({ category, interest }))
-          : [{ category, interest: null }],
+      .flatMap((category) =>
+        category.interests.map((interest) => ({ category, interest })),
       ),
   );
   const pageCount = $derived(Math.max(1, Math.ceil(cards.length / pageSize)));
@@ -77,9 +70,6 @@
 
 <section aria-labelledby="interest-history">
   <SectionHeading id="interest-history" title="Interest history" />
-  <p class="capture">
-    Captured <time datetime={details.capturedAt}>{details.capturedAt}</time>
-  </p>
   {#if cards.length === 0}<p class="empty-category">
       No interests supplied.
     </p>{:else}
@@ -90,11 +80,9 @@
               {card.category.name ?? `Category ${card.category.sourceId}`}
             </h3>{/snippet}
           {#snippet registered()}Category {card.category.sourceId}{/snippet}
-          {#if card.interest}<ul class="interest-list">
-              {@render interestItems([card.interest])}
-            </ul>{:else}<p class="empty-category">
-              No interests supplied.
-            </p>{/if}
+          <ul class="interest-list">
+            {@render interestItems([card.interest])}
+          </ul>
         </DeclarationCard>
       {/each}
     </DeclarationList>
@@ -131,13 +119,9 @@
   .source-detail {
     display: block;
   }
-  .capture,
   .empty-category {
     color: var(--muted);
     font-size: var(--text-small);
     overflow-wrap: anywhere;
-  }
-  .capture {
-    margin: var(--space-3) 0 var(--space-6);
   }
 </style>

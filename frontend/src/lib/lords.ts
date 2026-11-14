@@ -20,12 +20,11 @@ export interface LordsDetails {
   member: {
     id: string;
     name: string;
-    partyName: string | null;
-    membershipFrom: string | null;
+    partyName: string;
+    membershipFrom: string;
     membershipStatus: string | null;
     membershipEndDate: string | null;
   };
-  capturedAt: string;
   categories: LordsCategory[];
 }
 

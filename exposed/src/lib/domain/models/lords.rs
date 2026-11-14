@@ -129,8 +129,6 @@ pub struct LordsCategory {
 pub struct LordRegister {
     /// Shared canonical member profile.
     pub member: LordProfile,
-    /// UTC capture provenance, distinct from source lifecycle dates.
-    pub captured_at: DateTime<Utc>,
     /// Every category occurrence in source order.
     pub categories: Vec<LordsCategory>,
 }
@@ -140,31 +138,8 @@ impl LordRegister {
     ///
     /// # Errors
     /// Rejects malformed identities, timestamps, or source structure.
-    pub fn from_source(
-        raw: &serde_json::Value,
-        captured_at: DateTime<Utc>,
-    ) -> Result<Self, LordsError> {
-        source::register(raw, captured_at)
-    }
-}
-
-/// A parsed source document alongside its unmodified item.value object.
-pub struct CapturedLord {
-    register: LordRegister,
-    raw: serde_json::Value,
-}
-
-impl CapturedLord {
-    /// Validated register.
-    #[must_use]
-    pub const fn register(&self) -> &LordRegister {
-        &self.register
-    }
-
-    /// Full source record, including fields outside the public view.
-    #[must_use]
-    pub const fn raw(&self) -> &serde_json::Value {
-        &self.raw
+    pub fn from_source(raw: &serde_json::Value) -> Result<Self, LordsError> {
+        source::register(raw)
     }
 }
 
@@ -173,7 +148,7 @@ pub struct LordsCaptureBuilder {
     key: IngestionKey,
     captured_at: DateTime<Utc>,
     total: Option<usize>,
-    members: Vec<CapturedLord>,
+    members: Vec<LordRegister>,
     ids: BTreeSet<MemberId>,
     pages: Vec<Vec<u8>>,
 }
@@ -197,7 +172,7 @@ impl LordsCaptureBuilder {
     /// # Errors
     /// Rejects inconsistent totals, gaps, duplicate members, stalled or excess pages.
     pub fn push_page(&mut self, bytes: Vec<u8>) -> Result<(), LordsError> {
-        let page = source::page(&bytes, self.captured_at)?;
+        let page = source::page(&bytes)?;
         if self.is_complete()
             || page.skip != self.members.len()
             || page.take == 0
@@ -216,7 +191,7 @@ impl LordsCaptureBuilder {
         }
         let mut page_ids = BTreeSet::new();
         for member in &page.members {
-            let id = member.register.member.id;
+            let id = member.member.id;
             if self.ids.contains(&id) || !page_ids.insert(id) {
                 return Err(LordsError::Capture(format!(
                     "duplicate member {id} in Lords capture"
@@ -257,7 +232,7 @@ impl LordsCaptureBuilder {
 pub struct CompleteLordsCapture {
     key: IngestionKey,
     captured_at: DateTime<Utc>,
-    members: Vec<CapturedLord>,
+    members: Vec<LordRegister>,
     pages: Vec<Vec<u8>>,
 }
 
@@ -274,7 +249,7 @@ impl CompleteLordsCapture {
     }
     /// Every captured member document.
     #[must_use]
-    pub fn members(&self) -> &[CapturedLord] {
+    pub fn members(&self) -> &[LordRegister] {
         &self.members
     }
     /// Exact raw page response bytes.
@@ -294,16 +269,6 @@ pub enum LordsIngestionStage {
     Load,
 }
 
-/// Result of an immutable capture load.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum LordsLoadOutcome {
-    /// This capture was committed.
-    Loaded,
-    /// The same identity and artifact digest were previously committed.
-    AlreadyLoaded,
-}
-
 /// Import failures retain diagnostics for CLI output and private server logs.
 #[derive(Debug, thiserror::Error)]
 pub enum LordsError {
@@ -319,9 +284,6 @@ pub enum LordsError {
     /// Database operation failure.
     #[error("Lords database failed: {0}")]
     Database(String),
-    /// An ingestion identity has already been used for different evidence.
-    #[error("Lords ingestion key already loaded with a different digest")]
-    Conflict,
 }
 
 #[cfg(test)]

@@ -4,7 +4,7 @@ use crate::{
     domain::{
         models::{
             entity_search::{EntitySearchRequest, PhoneticRank},
-            membership::{MemberProfile, Membership, MembershipKind, MembershipStatusProvenance},
+            membership::{MemberProfile, Membership, MembershipKind},
             parliament_member::{MemberId, ParliamentMember},
             search_similarity::SearchSimilarity,
             source_timestamp::SourceTimestamp,
@@ -22,7 +22,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
             "
             SELECT parliament_member_id
             FROM exposed.members m
-            WHERE m.commons_imported_at IS NOT NULL
+            WHERE (m.membership_kind = 1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))
             ORDER BY parliament_member_id
             "
         )
@@ -60,12 +60,12 @@ impl ParliamentMemberRepo for ExposedDatabase {
             SELECT  
                 m.name,
                 m.parliament_member_id,
-                m.party_name AS \"party_name?\",
-                m.party_id AS \"party_id?\",
-                m.membership_from AS \"constituency?\", m.membership_kind, m.membership_status_provenance, m.membership_start_date, m.membership_end_date, m.membership_status, m.membership_status_active,
+                m.party_name,
+                m.party_id,
+                m.membership_from AS constituency, m.membership_kind, m.membership_start_date, m.membership_end_date, m.membership_status,
                  exposed.word_similarity($1, m.name) as similarity_score
             FROM exposed.members m
-            WHERE m.commons_imported_at IS NOT NULL AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
+            WHERE (m.membership_kind = 1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
             ORDER BY similarity_score DESC, m.id
             LIMIT $3
             ",
@@ -89,19 +89,9 @@ impl ParliamentMemberRepo for ExposedDatabase {
                         .map_err(database_error)?,
                         name: r.name,
                         party_name: r.party_name,
-                        party_id: r
-                            .party_id
-                            .map(u32::try_from)
-                            .transpose()
-                            .map_err(database_error)?,
+                        party_id: u32::try_from(r.party_id).map_err(database_error)?,
                         membership: Membership {
-                            kind: r
-                                .membership_kind
-                                .parse::<MembershipKind>()
-                                .map_err(database_error)?,
-                            status_provenance: r
-                                .membership_status_provenance
-                                .parse::<MembershipStatusProvenance>()
+                            kind: MembershipKind::try_from(r.membership_kind)
                                 .map_err(database_error)?,
                             membership_from: r.constituency,
                             membership_start_date: r
@@ -115,11 +105,8 @@ impl ParliamentMemberRepo for ExposedDatabase {
                                 .transpose()
                                 .map_err(database_error)?,
                             membership_status: r.membership_status,
-                            membership_status_active: r.membership_status_active,
                         },
                     },
-                    captured_at: None,
-                    capture_key: None,
                 };
                 let score = SearchSimilarity::from(r.similarity_score.unwrap_or(0_f32));
                 Ok((member, score))
@@ -133,8 +120,8 @@ impl ParliamentMemberRepo for ExposedDatabase {
     ) -> Result<Vec<(ParliamentMember, PhoneticRank)>, ParliamentMemberRepoError> {
         let rows = sqlx::query!(
             r#"
-            SELECT m.name, m.parliament_member_id, m.party_name AS "party_name?", m.party_id AS "party_id?",
-                   m.membership_from AS "constituency?", m.membership_kind, m.membership_status_provenance, m.membership_start_date, m.membership_end_date, m.membership_status, m.membership_status_active,
+            SELECT m.name, m.parliament_member_id, m.party_name, m.party_id,
+                   m.membership_from AS constituency, m.membership_kind, m.membership_start_date, m.membership_end_date, m.membership_status,
                    correction.distance AS "distance!",
                    exposed.word_similarity(correction.corrected_query, m.name) AS similarity_score
             FROM exposed.members m
@@ -155,7 +142,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 ) best ON best.distance <= 1
                 HAVING count(best.word) = count(*) AND count(*) > 0
             ) correction
-            WHERE m.commons_imported_at IS NOT NULL AND exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
+            WHERE (m.membership_kind = 1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
               AND exposed.word_similarity(correction.corrected_query, m.name) >= $2
             ORDER BY correction.distance, similarity_score DESC, m.parliament_member_id
             LIMIT $3
@@ -177,19 +164,9 @@ impl ParliamentMemberRepo for ExposedDatabase {
                         .map_err(database_error)?,
                         name: r.name,
                         party_name: r.party_name,
-                        party_id: r
-                            .party_id
-                            .map(u32::try_from)
-                            .transpose()
-                            .map_err(database_error)?,
+                        party_id: u32::try_from(r.party_id).map_err(database_error)?,
                         membership: Membership {
-                            kind: r
-                                .membership_kind
-                                .parse::<MembershipKind>()
-                                .map_err(database_error)?,
-                            status_provenance: r
-                                .membership_status_provenance
-                                .parse::<MembershipStatusProvenance>()
+                            kind: MembershipKind::try_from(r.membership_kind)
                                 .map_err(database_error)?,
                             membership_from: r.constituency,
                             membership_start_date: r
@@ -203,11 +180,8 @@ impl ParliamentMemberRepo for ExposedDatabase {
                                 .transpose()
                                 .map_err(database_error)?,
                             membership_status: r.membership_status,
-                            membership_status_active: r.membership_status_active,
                         },
                     },
-                    captured_at: None,
-                    capture_key: None,
                 };
                 let score = PhoneticRank::new(
                     u32::try_from(r.distance)
@@ -229,10 +203,8 @@ impl ParliamentMemberRepo for ExposedDatabase {
             .await
             .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
 
-        let mut members: Vec<_> = members.iter().collect();
-        members.sort_by_key(|member| member.member_id());
         for m in members {
-            super::member_identity::upsert(&mut tx, &m.profile, m.captured_at, m.capture_key, true)
+            super::member_identity::upsert(&mut tx, &m.profile)
                 .await
                 .map_err(|e| ParliamentMemberRepoError::DatabaseError(e.to_string()))?;
         }

@@ -6,15 +6,11 @@ use super::membership::{MemberProfile, Membership, MembershipKind};
 pub struct ParliamentMember {
     /// Canonical profile shared with other member sources.
     pub profile: MemberProfile,
-    /// Capture provenance, unknown for legacy artifacts.
-    pub captured_at: Option<chrono::DateTime<chrono::Utc>>,
-    /// Stable key retained through artifact replay.
-    pub capture_key: Option<uuid::Uuid>,
 }
 impl ParliamentMember {
-    /// Creates a legacy Commons record without asserting a source capture clock.
+    /// Creates a Commons member from the original member fields.
     #[must_use]
-    pub fn new(
+    pub const fn new(
         name: String,
         member_id: MemberId,
         party_name: String,
@@ -25,17 +21,16 @@ impl ParliamentMember {
             profile: MemberProfile {
                 id: member_id,
                 name,
-                party_id: Some(party_id),
-                party_name: Some(party_name),
+                party_id,
+                party_name,
                 membership: Membership {
                     kind: MembershipKind::ElectedMp,
-                    membership_from: Some(constituency),
-                    membership_status_active: Some(true),
-                    ..Membership::default()
+                    membership_from: constituency,
+                    membership_start_date: None,
+                    membership_end_date: None,
+                    membership_status: None,
                 },
             },
-            captured_at: None,
-            capture_key: None,
         }
     }
     /// Member name.

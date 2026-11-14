@@ -10,10 +10,6 @@ export interface RankingEntry {
   context: string | null;
   total: DeclaredGbpPeriodTotal;
 }
-export type PartyRankingEntry = Omit<RankingEntry, "id" | "name"> & {
-  id: string | null;
-  name: string | null;
-};
 /** Complete ordered boards from one reporting-period snapshot. */
 export interface Rankings {
   period: ReportingPeriod;
@@ -21,7 +17,7 @@ export interface Rankings {
   members: RankingEntry[];
   individuals: RankingEntry[];
   companies: RankingEntry[];
-  parties: PartyRankingEntry[];
+  parties: RankingEntry[];
 }
 export const rankingCategories = [
   {
@@ -102,8 +98,8 @@ export function rankingRows(
     "maximum",
   );
   return entries.map((entry, index) => ({
-    key: `${category}:${entry.id ?? "unknown"}`,
-    name: entry.name ?? "Party unavailable",
+    key: `${category}:${entry.id}`,
+    name: entry.name,
     context:
       entry.context ??
       `${entry.total.declarationCount} declaration${entry.total.declarationCount === 1 ? "" : "s"}`,

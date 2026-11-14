@@ -192,9 +192,6 @@ test("Lords history SSR retains all twelve occurrences, category ownership, full
     await expect(timestamp).toBeVisible();
     await expect(timestamp).toHaveAttribute("datetime", date);
   }
-  await expect(page.locator(".capture")).toHaveText(
-    "Captured 2026-11-12T12:00:00Z",
-  );
   await expect(page.locator("#lords details, #lords summary")).toHaveCount(0);
   await expect(
     page.getByRole("navigation", { name: "Interest history pages" }),
@@ -545,7 +542,7 @@ for (const view of ["summary", "history"]) {
     await page.reload();
     await expect(
       page.getByText("No interests supplied.", { exact: true }),
-    ).toHaveCount(view === "history" ? 1 : 2);
+    ).toHaveCount(view === "history" ? 0 : 2);
     await expect(page.locator(".registered-interest")).toHaveCount(
       view === "history" ? 1 : 0,
     );

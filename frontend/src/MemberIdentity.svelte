@@ -5,26 +5,15 @@
   import posthog from "posthog-js";
   let { member, view }: { member: MemberProfile; view: "summary" | "history" } =
     $props();
-  const memberMetadata = $derived(
-    [
-      member.partyName,
-      member.membershipFrom,
-      member.isCurrentCommons === null
-        ? null
-        : member.isCurrentCommons
-          ? "Current MP"
-          : "Former MP",
-    ].filter((value) => value !== null && value !== ""),
-  );
 </script>
 
 <IdentityHeader name={member.name}
   >{#snippet kind()}<Badge variant="profile"
       ><Icon name="parliament" size={20} />MP</Badge
     >{/snippet}{#snippet metadata()}
-    {#each memberMetadata as value, index}
-      {#if index === 0}{value}{:else}<span>{value}</span>{/if}
-    {/each}
+    {member.partyName || "Party unavailable"}<span
+      >{member.membershipFrom || "Membership unavailable"}</span
+    ><span>{member.isCurrentCommons ? "Current MP" : "Former MP"}</span>
   {/snippet}{#snippet navigation()}<ViewLinks label="Member views">
       <ViewLink
         href={memberHref(member.id, "summary", page.url.searchParams)}

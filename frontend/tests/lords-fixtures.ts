@@ -16,7 +16,6 @@ export const lordsFixture = {
     membership_status: "Current Member",
     membership_end_date: null,
   },
-  captured_at: "2026-11-12T12:00:00Z",
   categories: [
     {
       source_id: 55,

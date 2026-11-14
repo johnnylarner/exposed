@@ -46,8 +46,6 @@ impl ParliamentApiClient {
 
 impl Interface for ParliamentApiClient {
     async fn get_sitting_members(&self) -> Result<Vec<ParliamentMember>, ParliamentApiError> {
-        let captured_at = chrono::Utc::now();
-        let capture_key = uuid::Uuid::now_v7();
         let batch = self.batch_size;
         let mut offset = 0;
         let mut members = Vec::new();
@@ -86,16 +84,14 @@ impl Interface for ParliamentApiClient {
                         id: MemberId::new(m.value.id)
                             .map_err(|e| ApiError::ResponseError(e.to_string()))?,
                         name: m.value.name,
-                        party_name: m.value.party.as_ref().and_then(|party| party.name.clone()),
-                        party_id: m.value.party.and_then(|party| party.id),
+                        party_name: m.value.party.name,
+                        party_id: m.value.party.id,
                         membership: m
                             .value
                             .membership
                             .into_membership()
                             .map_err(ApiError::ResponseError)?,
                     },
-                    captured_at: Some(captured_at),
-                    capture_key: Some(capture_key),
                 })
             })
             .collect()
@@ -127,15 +123,15 @@ struct ParliamentMemberItem {
     #[serde(rename(deserialize = "nameDisplayAs"))]
     name: String,
     #[serde(rename(deserialize = "latestParty"))]
-    party: Option<PartyDetails>,
+    party: PartyDetails,
     #[serde(rename(deserialize = "latestHouseMembership"))]
     membership: SourceMembership,
 }
 
 #[derive(Clone, Deserialize)]
 struct PartyDetails {
-    id: Option<u32>,
-    name: Option<String>,
+    id: u32,
+    name: String,
 }
 
 /// Possible parliament api errors
