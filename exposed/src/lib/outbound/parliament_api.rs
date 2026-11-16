@@ -84,6 +84,7 @@ impl Interface for ParliamentApiClient {
                         id: MemberId::new(m.value.id)
                             .map_err(|e| ApiError::ResponseError(e.to_string()))?,
                         name: m.value.name,
+                        parliamentary_name: None,
                         party_name: m.value.party.name,
                         party_id: m.value.party.id,
                         membership: m

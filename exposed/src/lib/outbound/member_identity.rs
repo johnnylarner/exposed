@@ -19,11 +19,12 @@ pub(super) async fn upsert(
         i32::try_from(profile.party_id).map_err(|error| sqlx::Error::Decode(Box::new(error)))?;
     sqlx::query_scalar!(
         "INSERT INTO exposed.members
-         (parliament_member_id, name, party_id, party_name, membership_kind, membership_from,
+         (parliament_member_id, name, parliamentary_name, party_id, party_name, membership_kind, membership_from,
           membership_start_date, membership_end_date, membership_status)
-         VALUES ($1,$2,$3,$4,(SELECT id FROM exposed.membership_kinds WHERE name = $5),$6,$7,$8,$9)
+         VALUES ($1,$2,$2,$3,$4,(SELECT id FROM exposed.membership_kinds WHERE name = $5),$6,$7,$8,$9)
          ON CONFLICT (parliament_member_id) DO UPDATE SET
-             name=EXCLUDED.name, party_id=EXCLUDED.party_id, party_name=EXCLUDED.party_name,
+             name=CASE WHEN members.personal_first_name IS NULL THEN EXCLUDED.name ELSE members.name END,
+             parliamentary_name=EXCLUDED.parliamentary_name, party_id=EXCLUDED.party_id, party_name=EXCLUDED.party_name,
              membership_kind=EXCLUDED.membership_kind, membership_from=EXCLUDED.membership_from,
              membership_start_date=EXCLUDED.membership_start_date,
              membership_end_date=EXCLUDED.membership_end_date, membership_status=EXCLUDED.membership_status

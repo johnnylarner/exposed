@@ -67,6 +67,24 @@ impl Stage for crate::domain::models::lords::LordsIngestionStage {
     }
 }
 
+impl Stage for crate::domain::models::member_names::MemberNamesStage {
+    const FAMILY: &'static str = "member-names";
+    fn about(&self) -> &'static str {
+        match self {
+            Self::Fetch => {
+                "Capture official personal and parliamentary names for stored MPs and Lords"
+            }
+            Self::Load => "Refresh stored member names from a complete capture, offline",
+        }
+    }
+    fn config_help(&self) -> String {
+        config_help::store()
+    }
+    fn requires_key(&self) -> bool {
+        matches!(self, Self::Load)
+    }
+}
+
 impl Stage for DeclarationIngestionStage {
     const FAMILY: &'static str = "declarations";
 

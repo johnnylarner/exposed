@@ -20,6 +20,7 @@ export interface LordsDetails {
   member: {
     id: string;
     name: string;
+    parliamentaryName: string | null;
     partyName: string;
     membershipFrom: string;
     membershipStatus: string | null;

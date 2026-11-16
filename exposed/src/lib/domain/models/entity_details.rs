@@ -110,6 +110,8 @@ pub struct MemberProfile {
     pub id: MemberId,
     /// Source name.
     pub name: String,
+    /// Parliamentary display name retained separately from the primary personal name.
+    pub parliamentary_name: Option<String>,
     /// Latest recorded party identity.
     pub party_id: i32,
     /// Latest recorded party name.

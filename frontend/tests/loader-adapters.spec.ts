@@ -57,6 +57,7 @@ test("search rejects alias provenance for an MP", async () => {
     id: "1",
     name: "West",
     kind: "MP",
+    parliamentary_name: null,
     funder_kind: null,
     match_source: { kind: "name" },
   };

@@ -101,6 +101,7 @@ export function parseLordsDetails(value: unknown): LordsDetails {
     member: {
       id,
       name: text(member.name),
+      parliamentaryName: nullableText(member.parliamentary_name),
       partyName: text(member.party_name),
       membershipFrom: text(member.membership_from),
       membershipStatus: nullableText(member.membership_status),

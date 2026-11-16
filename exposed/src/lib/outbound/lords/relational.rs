@@ -11,6 +11,7 @@ pub(super) struct ProfileRow {
     pub member_id: uuid::Uuid,
     pub parliament_member_id: i32,
     pub name: String,
+    pub parliamentary_name: Option<String>,
     pub party_name: String,
     pub party_id: i32,
     pub membership_kind: String,
@@ -27,6 +28,7 @@ impl ProfileRow {
             id: MemberId::new(u32::try_from(self.parliament_member_id).map_err(stored)?)
                 .map_err(stored)?,
             name: self.name,
+            parliamentary_name: self.parliamentary_name,
             party_name: self.party_name,
             party_id: u32::try_from(self.party_id).map_err(stored)?,
             membership: Membership {

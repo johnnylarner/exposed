@@ -1,0 +1,153 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT m.name, m.parliamentary_name, m.parliament_member_id, m.party_name, m.party_id,\n                   m.membership_from AS constituency, k.name AS membership_kind, m.membership_start_date, m.membership_end_date, m.membership_status,\n                   correction.distance AS \"distance!\",\n                   correction.similarity_score AS similarity_score\n            FROM exposed.members m\n            JOIN exposed.membership_kinds k ON k.id = m.membership_kind\n            CROSS JOIN LATERAL (\n                SELECT corrected.distance, exposed.word_similarity(corrected.corrected_query, variant.name) AS similarity_score\n                FROM unnest(ARRAY[m.name, m.parliamentary_name, m.formal_name]) WITH ORDINALITY AS variant(name, priority)\n                CROSS JOIN LATERAL (\n                    SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,\n                           sum(best.distance)::integer AS distance\n                    FROM unnest(exposed.person_name_words($1)) WITH ORDINALITY AS q(word, position)\n                    LEFT JOIN LATERAL (\n                        SELECT cw.word, CASE\n                            WHEN char_length(q.word) <= 255 AND char_length(cw.word) <= 255\n                            THEN exposed.levenshtein_less_equal(q.word, cw.word, 1)\n                            ELSE 2\n                        END AS distance\n                        FROM unnest(exposed.person_name_words(variant.name)) AS cw(word)\n                        WHERE exposed.soundex(cw.word) = exposed.soundex(q.word)\n                        ORDER BY distance, cw.word COLLATE \"C\"\n                        LIMIT 1\n                    ) best ON best.distance <= 1\n                    HAVING count(best.word) = count(*) AND count(*) > 0\n                ) corrected\n                WHERE exposed.person_name_codes(variant.name) @> exposed.person_name_codes($1)\n                  AND exposed.word_similarity(corrected.corrected_query, variant.name) >= $2\n                ORDER BY corrected.distance, similarity_score DESC, variant.priority\n                LIMIT 1\n            ) correction\n            WHERE (k.name = $4 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))\n              AND (exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)\n                   OR exposed.person_name_codes(m.parliamentary_name) @> exposed.person_name_codes($1)\n                   OR exposed.person_name_codes(m.formal_name) @> exposed.person_name_codes($1))\n            ORDER BY correction.distance, similarity_score DESC, m.parliament_member_id\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "parliamentary_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliamentary_name"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "parliament_member_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliament_member_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "party_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "party_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "party_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "constituency",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_from"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "membership_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "membership_kinds",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "membership_start_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_start_date"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "membership_end_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_end_date"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "membership_status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_status"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "distance!",
+        "type_info": "Int4",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 11,
+        "name": "similarity_score",
+        "type_info": "Float4",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Float4",
+        "Int8",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      null,
+      null
+    ]
+  },
+  "hash": "27b4b9d92d5828d55952875682b1d554c7636b41efbd52f5a8f3e70297bf7db6"
+}

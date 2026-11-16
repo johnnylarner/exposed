@@ -314,6 +314,16 @@
                   parts={highlightName(entity.name, searchState.term)}
                 /></a
               >
+              {#if entity.kind !== "Funder" && entity.parliamentaryName && entity.parliamentaryName !== entity.name}
+                <span class="entity-alias"
+                  ><HighlightedText
+                    parts={highlightName(
+                      entity.parliamentaryName,
+                      searchState.term,
+                    )}
+                  /></span
+                >
+              {/if}
               {#if entity.matchSource.kind === "alias"}
                 <span class="entity-alias" id={`matched-alias-${entity.id}`}
                   >Matched alias: <HighlightedText

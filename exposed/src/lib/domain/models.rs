@@ -35,3 +35,5 @@ pub mod membership;
 
 /// Validated source timestamps without timezone invention.
 pub mod source_timestamp;
+
+pub mod member_names;

@@ -245,6 +245,7 @@ test("Lords search uses its own route and accepts only name provenance", async (
     id: "2175",
     name: "Lord Example",
     kind: "Lords",
+    parliamentary_name: null,
     funder_kind: null,
     match_source: { kind: "name" },
   };

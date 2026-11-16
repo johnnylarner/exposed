@@ -25,3 +25,5 @@ pub mod rankings;
 pub mod updates;
 
 pub mod lords;
+
+pub mod member_names;

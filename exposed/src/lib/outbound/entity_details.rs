@@ -30,7 +30,7 @@ impl EntityDetailsRepo for ExposedDatabase {
             .execute(&mut *tx)
             .await?;
         let row = sqlx::query!(
-            "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.membership_from AS latest_membership_from, k.name AS membership_kind, m.membership_end_date
+            "SELECT m.parliament_member_id, m.name, m.parliamentary_name, m.party_id, m.party_name, m.membership_from AS latest_membership_from, k.name AS membership_kind, m.membership_end_date
              FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind WHERE parliament_member_id = $1 AND (k.name = $2 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))", i32::try_from(id.value()).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?,
             crate::domain::models::membership::MembershipKind::ElectedMp.name()
         ).fetch_optional(&mut *tx).await?;
@@ -40,6 +40,7 @@ impl EntityDetailsRepo for ExposedDatabase {
         let member = MemberProfile {
             id,
             name: row.name,
+            parliamentary_name: row.parliamentary_name,
             party_id: row.party_id,
             party_name: row.party_name,
             membership_from: row.latest_membership_from,
@@ -226,7 +227,7 @@ async fn funder_declarations(
     funder: &Funder,
 ) -> Result<Vec<FunderDeclaration>, EntityDetailsRepoError> {
     let rows = sqlx::query!(
-        "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name,
+        "SELECT m.parliament_member_id, m.name, m.parliamentary_name, m.party_id, m.party_name,
                 m.membership_from AS latest_membership_from, k.name AS membership_kind, m.membership_end_date,
                 d.source_declaration_id, d.category_id, d.category_name, d.registration_date,
                 e.amount, NULLIF(btrim(e.currency, $2), '') AS currency, e.payment_type
@@ -257,6 +258,7 @@ async fn funder_declarations(
                             EntityDetailsRepoError::DatabaseError(error.to_string())
                         })?,
                     name: row.name,
+                    parliamentary_name: row.parliamentary_name,
                     party_id: row.party_id,
                     party_name: row.party_name,
                     membership_from: row.latest_membership_from,

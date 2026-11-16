@@ -10,6 +10,7 @@ export const sourceInterest = {
 export const lordsFixture = {
   member: {
     id: "2175",
+    parliamentary_name: null,
     name: "Lord Example",
     party_name: "Crossbench",
     membership_from: "Life peer",

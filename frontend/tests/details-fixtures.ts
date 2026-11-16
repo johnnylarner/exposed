@@ -1,6 +1,7 @@
 export const funderId = "10000000-0000-0000-0000-000000000001";
 export const member = {
   id: "1",
+  parliamentary_name: null,
   name: "Ava Example",
   party_id: 1,
   party_name: "Party A",

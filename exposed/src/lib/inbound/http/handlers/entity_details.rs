@@ -46,6 +46,7 @@ impl From<EntityDetailsError> for ApiError {
 pub struct MemberResponse {
     id: String,
     name: String,
+    parliamentary_name: Option<String>,
     party_id: i32,
     party_name: String,
     membership_from: String,
@@ -56,6 +57,7 @@ impl From<MemberProfile> for MemberResponse {
         Self {
             id: member.id.value().to_string(),
             name: member.name,
+            parliamentary_name: member.parliamentary_name,
             party_id: member.party_id,
             party_name: member.party_name,
             membership_from: member.membership_from,

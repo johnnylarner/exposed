@@ -6,6 +6,7 @@ const lordEntity = {
   id: "2175",
   name: "Lord Example",
   kind: "Lords",
+  parliamentary_name: null,
   funder_kind: null,
   match_source: { kind: "name" },
 };
@@ -724,4 +725,47 @@ test("Lords retry exposes loading status and leaving cancels its committed resul
   await expect(
     page.getByRole("heading", { name: "Lord Example", exact: true }),
   ).toHaveCount(0);
+});
+
+test("personal names lead Lords search and profile headings with the parliamentary title secondary", async ({
+  backend,
+  page,
+}) => {
+  const names = {
+    name: "Dominic Hubbard",
+    parliamentary_name: "Lord Addington",
+  };
+  await backend.route("**/api/search?*", (route) =>
+    route.fulfill({ json: { entities: [{ ...lordEntity, ...names }] } }),
+  );
+  await backend.route("**/api/lords/2175", (route) =>
+    route.fulfill({
+      json: { ...lordsFixture, member: { ...lordsFixture.member, ...names } },
+    }),
+  );
+  await page.goto("/search?q=Lord%20Addington");
+  const link = page.getByRole("link", { name: "Dominic Hubbard", exact: true });
+  await expect(link).toBeVisible();
+  await expect(page.locator(".entity-alias")).toHaveText("Lord Addington");
+  await link.click();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Dominic Hubbard",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator(".member-identity")).toContainText(
+    "Lord Addington",
+  );
+  await page
+    .getByRole("link", { name: "Interest history", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Dominic Hubbard",
+      exact: true,
+    }),
+  ).toBeVisible();
 });

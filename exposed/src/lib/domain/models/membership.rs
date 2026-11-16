@@ -3,7 +3,7 @@ use super::{parliament_member::MemberId, source_timestamp::SourceTimestamp};
 use serde::{Deserialize, Serialize};
 
 /// Chamber derived from the membership kind.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize)]
 pub enum Chamber {
     /// House of Commons.
     Commons,
@@ -122,6 +122,8 @@ pub struct MemberProfile {
     pub id: MemberId,
     /// Source display name.
     pub name: String,
+    /// Parliamentary display name retained separately from the primary personal name.
+    pub parliamentary_name: Option<String>,
     /// Latest source party identity.
     #[serde(skip)]
     pub party_id: u32,

@@ -12,9 +12,14 @@
     view: Extract<DetailRoute, { kind: "lord" }>["view"];
   } = $props();
   const memberMetadata = $derived(
-    [member.partyName, member.membershipFrom, member.membershipStatus].filter(
-      (value) => value !== null && value !== "",
-    ),
+    [
+      member.parliamentaryName !== member.name
+        ? member.parliamentaryName
+        : null,
+      member.partyName,
+      member.membershipFrom,
+      member.membershipStatus,
+    ].filter((value) => value !== null && value !== ""),
   );
 </script>
 

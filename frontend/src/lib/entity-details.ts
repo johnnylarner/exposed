@@ -45,6 +45,7 @@ export function readDetailRoute(path: string): DetailRoute {
 export interface MemberProfile {
   id: string;
   name: string;
+  parliamentaryName: string | null;
   partyName: string;
   membershipFrom: string;
   isCurrentCommons: boolean;

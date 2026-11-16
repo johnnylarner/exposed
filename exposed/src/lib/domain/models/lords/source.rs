@@ -109,6 +109,7 @@ pub(super) fn register(raw: &serde_json::Value) -> Result<LordRegister, LordsErr
         member: LordProfile {
             id: source.member.id,
             name: source.member.name_display_as,
+            parliamentary_name: None,
             party_id: source.member.latest_party.id,
             party_name: source.member.latest_party.name,
             membership,

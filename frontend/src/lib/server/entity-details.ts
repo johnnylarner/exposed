@@ -61,6 +61,7 @@ function memberProfile(value: unknown): MemberProfile {
   return {
     id: identity(row.id, "MP"),
     name: text(row.name),
+    parliamentaryName: nullableText(row.parliamentary_name),
     partyName: text(row.party_name),
     membershipFrom: text(row.membership_from),
     isCurrentCommons: row.is_current_commons,

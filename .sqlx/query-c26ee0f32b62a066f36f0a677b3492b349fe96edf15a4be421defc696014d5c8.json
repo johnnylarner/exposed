@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT m.parliament_member_id, k.name AS kind FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind ORDER BY m.parliament_member_id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "parliament_member_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliament_member_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "membership_kinds",
+            "name": "name"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "c26ee0f32b62a066f36f0a677b3492b349fe96edf15a4be421defc696014d5c8"
+}
