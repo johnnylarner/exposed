@@ -1,6 +1,6 @@
-INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT ('70000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i,
-       'Contract Member ' || i, 1, 'Contract Party', 1, 'Contract constituency', true
+INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
+    SELECT ('70000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i,
+       'Contract Member ' || i, 1, 'Contract Party', (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'), 'Contract constituency', NULL
 FROM generate_series(7001, 7007) i;
 INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date) VALUES
 (7101, '70000000-0000-0000-0000-000000007001', 1, 'Employment', '2026-01-01Z', '2024-07-08T23:59:59.999999Z'),

@@ -1,7 +1,7 @@
-INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons)
-SELECT ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i, 'Member ' || i,
+INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
+    SELECT ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i, 'Member ' || i,
        CASE WHEN i = 2 THEN 2 ELSE 1 END, CASE WHEN i = 2 THEN 'Latest Party' ELSE 'Party A' END,
-       1, 'Constituency ' || i, i <> 6 FROM generate_series(1, 6) i;
+       (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'), 'Constituency ' || i, CASE i WHEN 6 THEN '2024-01-01T00:00:00' END FROM generate_series(1, 6) i;
 INSERT INTO exposed.funders (id, funder_name, funder_kind) VALUES
 ('10000000-0000-0000-0000-000000000001', 'Company root', 'Company'),
 ('10000000-0000-0000-0000-000000000002', 'Company alias with individual kind', 'Individual'),

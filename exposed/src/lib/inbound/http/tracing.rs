@@ -149,6 +149,20 @@ mod tests {
     #[derive(Clone)]
     struct Details;
     impl EntityDetailsService for Details {
+        async fn lord(
+            &self,
+            id: crate::domain::models::parliament_member::MemberId,
+        ) -> Result<crate::domain::models::lords::LordRegister, EntityDetailsError> {
+            tokio::task::yield_now().await;
+            if id.value() == 2 {
+                return Err(EntityDetailsRepoError::DatabaseError(
+                    "private Lords SQL failure".into(),
+                )
+                .into());
+            }
+            Err(EntityDetailsError::NotFound)
+        }
+
         async fn member(
             &self,
             request: MemberDetailsRequest,
@@ -378,6 +392,16 @@ mod tests {
             assert_eq!(fields.get("http.route").and_then(Value::as_str), route);
             assert_eq!(fields.get("error.type").and_then(Value::as_str), category);
         }
+    }
+
+    #[tokio::test]
+    async fn lords_repository_failures_keep_sql_diagnostics_out_of_the_response() {
+        let (response, _) = request(app(), Method::GET, "/lords/2", "exposed=debug").await;
+        assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
+        assert_eq!(
+            to_bytes(response.into_body(), 1024).await.unwrap(),
+            "internal server error"
+        );
     }
 
     #[tokio::test]

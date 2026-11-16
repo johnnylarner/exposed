@@ -5,7 +5,7 @@ import {
 } from "../entity-details";
 import type {
   DetailRoute,
-  DetailState,
+  DetailResult,
   MemberProfile,
   MemberDetails,
   FunderDetails,
@@ -208,13 +208,34 @@ function readFunder(value: unknown): FunderDetails {
   };
 }
 
+export function loadDetails(
+  route: Extract<DetailRoute, { kind: "member" }>,
+  signal: AbortSignal,
+  fetch: typeof globalThis.fetch,
+  origin: string,
+  period?: ReportingPeriod,
+): Promise<DetailResult<"member">>;
+export function loadDetails(
+  route: Extract<DetailRoute, { kind: "funder" }>,
+  signal: AbortSignal,
+  fetch: typeof globalThis.fetch,
+  origin: string,
+  period?: ReportingPeriod,
+): Promise<DetailResult<"funder">>;
+export function loadDetails(
+  route: Extract<DetailRoute, { kind: "member" | "funder" }>,
+  signal: AbortSignal,
+  fetch: typeof globalThis.fetch,
+  origin: string,
+  period?: ReportingPeriod,
+): Promise<DetailResult>;
 export async function loadDetails(
   route: Extract<DetailRoute, { kind: "member" | "funder" }>,
   signal: AbortSignal,
   fetch: typeof globalThis.fetch,
   origin: string,
   period: ReportingPeriod = "current-term",
-): Promise<Exclude<DetailState, { kind: "loading" }>> {
+): Promise<DetailResult> {
   const controller = new AbortController();
   const cancel = () => controller.abort();
   signal.addEventListener("abort", cancel, { once: true });
@@ -235,7 +256,7 @@ export async function loadDetails(
         "The details service is unavailable. Try again in a moment.",
       );
     const body: unknown = await response.json();
-    const state: DetailState =
+    const state: DetailResult =
       route.kind === "member"
         ? { kind: "member", details: readMember(body) }
         : { kind: "funder", details: readFunder(body) };

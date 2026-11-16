@@ -7,11 +7,10 @@
   import FunderIdentity from "./FunderIdentity.svelte";
   import FunderSummary from "./FunderSummary.svelte";
   import FunderHistory from "./FunderHistory.svelte";
-  import {
-    backToSearch,
-    readDetailRoute,
-    type DetailState,
-  } from "./lib/entity-details";
+  import LordsIdentity from "./LordsIdentity.svelte";
+  import LordsSummary from "./LordsSummary.svelte";
+  import LordsHistory from "./LordsHistory.svelte";
+  import { backToSearch, readDetailRoute } from "./lib/entity-details";
   import { page, navigating } from "$app/state";
   import { invalidate } from "$app/navigation";
   import type { PageModel } from "./lib/page";
@@ -33,74 +32,93 @@
     if (!destination) return true;
     if (
       (destination.kind === "member" && route.kind === "member") ||
-      (destination.kind === "funder" && route.kind === "funder")
+      (destination.kind === "funder" && route.kind === "funder") ||
+      (destination.kind === "lord" && route.kind === "lord")
     )
       return destination.id.toLowerCase() === route.id.toLowerCase();
     return false;
   });
-  const detailState = $derived<DetailState>(
-    !sameEntity || retrying ? { kind: "loading" } : model.result,
-  );
+  const loading = $derived(!sameEntity || retrying);
+  const isLord = $derived(model.entity === "lord");
   const backHref = $derived(backToSearch(page.url.searchParams));
 </script>
 
 <main
-  id="details"
+  id={isLord ? "lords" : "details"}
   class="detail-page"
   class:member-page={route.kind === "member"}
   class:funder-page={route.kind === "funder"}
+  class:lord-page={isLord}
   aria-busy={Boolean(navigating.to) || retrying}
 >
   <ButtonLink variant="quiet" size="inline" class="back-link" href={backHref}
     >Back to search</ButtonLink
   >
-  {#if detailState.kind === "loading"}
+  {#if loading}
     <MessageState
-      title="Loading details"
+      title={isLord ? "Loading registered interests" : "Loading details"}
       level={1}
       variant="detail"
       role="status"><Spinner /></MessageState
     >
-  {:else if detailState.kind === "not-found"}
-    <MessageState title="Entity not found" level={1} variant="detail">
-      <p>
-        This MP or funder is not in the stored register. Search for another
-        name.
-      </p>
+  {:else if model.result.kind === "not-found"}
+    <MessageState
+      title={isLord ? "Member not found" : "Entity not found"}
+      level={1}
+      variant="detail"
+    >
+      {#if !isLord}<p>
+          This MP, Lord or funder is not in the stored register. Search for
+          another name.
+        </p>{/if}
       <ButtonLink variant="quiet" href={backHref}
-        >Search MPs and funders</ButtonLink
+        >Search MPs, Lords and funders</ButtonLink
       >
     </MessageState>
-  {:else if detailState.kind === "error"}
+  {:else if model.result.kind === "error"}
     <MessageState
-      title="Details couldn’t load"
+      title={isLord
+        ? "Registered interests couldn’t load"
+        : "Details couldn’t load"}
       level={1}
       variant="detail"
       role="alert"
     >
-      <p>{detailState.message}</p>
+      <p>{model.result.message}</p>
       <Button onclick={retry}><Icon name="retry" size={16} />Try again</Button>
     </MessageState>
-  {:else if detailState.kind === "member"}
-    {@const details = detailState.details}
+  {:else if model.entity === "member" && model.result.kind === "member"}
+    {@const details = model.result.details}
     {@const summary = summarizeMember(details)}
-    <MemberIdentity
-      member={details.member}
-      view={route.kind === "member" ? route.view : "summary"}
-    />
-    {#if route.kind === "member" && route.view === "history"}<MemberHistory
-        {details}
-      />{:else}<MemberSummary {summary} period={details.period} />{/if}
-  {:else}
-    {@const details = detailState.details}
-    <FunderIdentity
-      funder={details.funder}
-      view={route.kind === "funder" ? route.view : "summary"}
-    />
-    {#if route.kind === "funder" && route.view === "history"}
+    <MemberIdentity member={details.member} view={model.route.view} />
+    {#if model.route.view === "history"}
+      <MemberHistory {details} />
+    {:else}
+      <MemberSummary {summary} period={details.period} />
+    {/if}
+  {:else if model.entity === "funder" && model.result.kind === "funder"}
+    {@const details = model.result.details}
+    <FunderIdentity funder={details.funder} view={model.route.view} />
+    {#if model.route.view === "history"}
       <FunderHistory {details} />
     {:else}
       <FunderSummary {details} />
     {/if}
+  {:else if model.entity === "lord" && model.result.kind === "lord"}
+    <LordsIdentity
+      member={model.result.details.member}
+      view={model.route.view}
+    />
+    {#if model.route.view === "history"}
+      <LordsHistory details={model.result.details} />
+    {:else}
+      <LordsSummary details={model.result.details} />
+    {/if}
   {/if}
 </main>
+
+<style>
+  .lord-page {
+    --accent: var(--accent-lord);
+  }
+</style>

@@ -7,7 +7,11 @@
   import EntityDetails from "./EntityDetails.svelte";
   import type { PageModel } from "./lib/page";
   let { model }: { model: PageModel } = $props();
-  const presentation = $derived(pagePresentation[model.kind]);
+  const presentation = $derived(
+    pagePresentation[
+      model.kind === "detail" && model.entity === "lord" ? "lord" : model.kind
+    ],
+  );
 </script>
 
 <svelte:head>

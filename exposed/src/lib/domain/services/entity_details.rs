@@ -4,7 +4,11 @@ mod interface;
 pub use interface::EntityDetailsService;
 
 pub use crate::domain::models::entity_details::EntityDetailsError;
-use crate::domain::models::reporting_period::{ReportingContext, ReportingPeriod};
+use crate::domain::models::{
+    lords::LordRegister,
+    parliament_member::MemberId,
+    reporting_period::{ReportingContext, ReportingPeriod},
+};
 use crate::domain::{
     models::{
         declared_totals::{PeriodAggregate, add_known},
@@ -35,6 +39,12 @@ impl<R> Service<R> {
 }
 
 impl<R: EntityDetailsRepo> EntityDetailsService for Service<R> {
+    async fn lord(&self, id: MemberId) -> Result<LordRegister, EntityDetailsError> {
+        self.repo
+            .lord(id)
+            .await?
+            .ok_or(EntityDetailsError::NotFound)
+    }
     async fn member(
         &self,
         request: MemberDetailsRequest,

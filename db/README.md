@@ -138,7 +138,7 @@ date-only values to midnight UTC at the persistence boundary, keeping calendar
 dates in the domain model. It supplies timezone-aware parameters and reads stored
 date values in UTC, independent of the database session's timezone. PostgreSQL
 stores instants; their displayed offset depends on the session timezone.
-`members.latest_membership_from` remains text: it is a constituency or membership
+`members.membership_from` remains text: it is a constituency or membership
 description, not a date.
 
 New declaration ingestions populate registration dates when supplied by Parliament.

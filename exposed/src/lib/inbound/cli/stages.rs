@@ -37,9 +37,34 @@ pub struct StageArgs<S> {
 
 pub trait Stage: IntoEnumIterator + Serialize + Clone {
     const FAMILY: &'static str;
+    fn command_path() -> String {
+        format!("data {}", Self::FAMILY)
+    }
     fn about(&self) -> &'static str;
     fn config_help(&self) -> String;
     fn requires_key(&self) -> bool;
+}
+
+impl Stage for crate::domain::models::lords::LordsIngestionStage {
+    const FAMILY: &'static str = "lords";
+    fn command_path() -> String {
+        Self::FAMILY.into()
+    }
+    fn about(&self) -> &'static str {
+        match self {
+            Self::Fetch => "Capture every Lords register page, including deleted interests",
+            Self::Load => "Load a complete Lords capture into its separate database projection",
+        }
+    }
+    fn config_help(&self) -> String {
+        config_help::lords(self)
+    }
+    fn requires_key(&self) -> bool {
+        match self {
+            Self::Fetch => false,
+            Self::Load => true,
+        }
+    }
 }
 
 impl Stage for DeclarationIngestionStage {
@@ -101,8 +126,8 @@ impl<S: Stage> Args for StageArgs<S> {
         S::iter().fold(command.subcommand_required(true), |command, stage| {
             let stage_name = name(&stage);
             let example = format!(
-                "Example:\n  exposed data {} {stage_name} --config config.yaml{}\n\nUse --schema to inspect success and failure JSON schemas without running the stage.",
-                S::FAMILY,
+                "Example:\n  exposed {} {stage_name} --config config.yaml{}\n\nUse --schema to inspect success and failure JSON schemas without running the stage.",
+                S::command_path(),
                 if stage.requires_key() { " --ingestion-key 019b733c-2360-7000-8000-000000000001" } else { "" }
             );
             command.subcommand(

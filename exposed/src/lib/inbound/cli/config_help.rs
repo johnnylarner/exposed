@@ -11,6 +11,16 @@ fn introduction() -> String {
     "Path to a YAML configuration file.\nRequired to run the command; omitted with --schema.\nRelative data_dir paths resolve against the current working directory.\n".to_owned()
 }
 
+pub(super) fn lords(stage: &crate::domain::models::lords::LordsIngestionStage) -> String {
+    let mut help = introduction();
+    let database = match stage {
+        crate::domain::models::lords::LordsIngestionStage::Fetch => false,
+        crate::domain::models::lords::LordsIngestionStage::Load => true,
+    };
+    fields::<LoaderConfig>(&mut help, "Fields", database);
+    help
+}
+
 fn fields<T: JsonSchema>(help: &mut String, label: &str, database: bool) {
     let schema = SchemaSettings::draft2020_12()
         .for_deserialize()

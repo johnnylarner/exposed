@@ -30,10 +30,12 @@ use crate::{
 pub mod config;
 mod config_help;
 mod healthcheck;
+mod lords;
 mod migrate;
 pub mod response;
 mod response_help;
 mod stages;
+pub use lords::{LordsArgs, run_lords};
 
 pub use healthcheck::run_healthcheck;
 pub use migrate::{MigrateArgs, run_migrate};
@@ -57,6 +59,8 @@ pub enum Commands {
     Healthcheck,
     /// Options to run the `exposed` data pipeline
     Data(DataArgs),
+    /// Capture and load the complete Lords register, including deleted interests.
+    Lords(LordsArgs),
     /// Apply database migrations explicitly.
     Migrate(MigrateArgs),
 }

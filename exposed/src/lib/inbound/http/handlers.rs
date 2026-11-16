@@ -1,7 +1,9 @@
 mod entity_details;
+mod lords;
 mod rankings;
 mod updates;
 pub use entity_details::{funder_details, member_details};
+pub use lords::lord_details;
 pub use rankings::rankings;
 pub use updates::updates;
 
@@ -14,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     domain::{
         models::entity_search::{
-            Entity, EntitySearchError, EntitySearchRequest, SearchMatchSource,
+            Entity, EntityKind, EntitySearchError, EntitySearchRequest, SearchMatchSource,
         },
         services::{
             entity_details::EntityDetailsService, entity_search::EntitySearchService,
@@ -61,7 +63,7 @@ impl From<&[Entity]> for SearchEntityResponseData {
 pub struct SearchEntity {
     id: String,
     name: String,
-    kind: String,
+    kind: EntityKind,
     funder_kind: Option<String>,
     match_source: SearchMatchSource,
 }
@@ -72,13 +74,14 @@ impl From<&Entity> for SearchEntity {
             id: match value {
                 Entity::Funder(funder) => funder.funder().id().value().to_string(),
                 Entity::ParliamentMember(member) => member.member_id().to_string(),
+                Entity::Lord(lord) => lord.id.to_string(),
             },
             match_source: match value {
                 Entity::Funder(funder) => funder.source().clone(),
-                Entity::ParliamentMember(_) => SearchMatchSource::Name,
+                Entity::ParliamentMember(_) | Entity::Lord(_) => SearchMatchSource::Name,
             },
             name: value.name().to_string(),
-            kind: value.kind().to_string(),
+            kind: value.kind(),
             funder_kind: value.funder_kind().map(String::from),
         }
     }

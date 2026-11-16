@@ -2,6 +2,7 @@ import { error, redirect } from "@sveltejs/kit";
 import { readPeriod } from "../../lib/reporting-period";
 import { readDetailRoute } from "../../lib/entity-details";
 import { searchConfiguration } from "../../lib/search";
+import { loadLords } from "../../lib/server/lords";
 import { loadDetails } from "../../lib/server/entity-details";
 import { searchEntities } from "../../lib/server/search";
 import type { PageModel } from "../../lib/page";
@@ -25,28 +26,60 @@ export const load = (async ({ url, fetch, request, depends }) => {
     process.env.EXPOSED_API_ORIGIN || "http://127.0.0.1:6999"
   ).replace(/\/$/, "");
   let model: PageModel;
-  if (route.kind !== "search") {
+  if (route.kind === "lord") {
+    model = {
+      kind: "detail",
+      entity: "lord",
+      route,
+      result: await loadLords(route.id, request.signal, fetch, origin),
+    };
+  } else if (route.kind !== "search") {
     let period;
     try {
       period = readPeriod(url.searchParams);
     } catch {
       error(400, "Invalid reporting period");
     }
-    model = {
-      kind: "detail",
-      period,
-      route,
-      result:
-        route.kind === "invalid"
-          ? { kind: "not-found" }
-          : await loadDetails(
-              route,
-              request.signal,
-              fetch,
-              origin,
-              route.view === "history" ? "historical" : period,
-            ),
-    };
+    switch (route.kind) {
+      case "invalid":
+        model = {
+          kind: "detail",
+          entity: "invalid",
+          route,
+          result: { kind: "not-found" },
+        };
+        break;
+      case "member":
+        model = {
+          kind: "detail",
+          entity: "member",
+          period,
+          route,
+          result: await loadDetails(
+            route,
+            request.signal,
+            fetch,
+            origin,
+            route.view === "history" ? "historical" : period,
+          ),
+        };
+        break;
+      case "funder":
+        model = {
+          kind: "detail",
+          entity: "funder",
+          period,
+          route,
+          result: await loadDetails(
+            route,
+            request.signal,
+            fetch,
+            origin,
+            route.view === "history" ? "historical" : period,
+          ),
+        };
+        break;
+    }
   } else {
     const query = url.searchParams.get("q") ?? "";
     const term = query.trim();

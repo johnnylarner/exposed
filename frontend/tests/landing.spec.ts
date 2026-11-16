@@ -24,7 +24,7 @@ test("landing and methodology navigate without backend requests", async ({
   await page.goto("/");
   await expect(page).toHaveTitle("declair");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "Explore MPs' declared financial interests and the people and organisations behind them.",
+    "Explore MPs’ and Lords’ financial interests and the people and organisations behind them.",
   );
   await expect(page.getByRole("link", { name: "declair home" })).toHaveCSS(
     "color",
@@ -60,7 +60,9 @@ test("landing and methodology navigate without backend requests", async ({
   await page.keyboard.press("Enter");
   await expect(page.locator("#methodology")).toBeFocused();
   await page.getByRole("link", { name: "declair home" }).click();
-  await page.getByRole("link", { name: "Search MPs and funders" }).click();
+  await page
+    .getByRole("link", { name: "Search MPs, Lords and funders" })
+    .click();
   await expect(page).toHaveURL(/\/search$/u);
   await expect(page.getByRole("searchbox")).toHaveValue("");
   expect(requests).toEqual([]);

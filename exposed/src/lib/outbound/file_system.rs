@@ -384,5 +384,15 @@ pub(super) fn members_schema() -> Schema {
     let pi = Field::new("party_id", DataType::UInt32, false);
     let pn = Field::new("party_name", DataType::Utf8, false);
     let c = Field::new("constituency", DataType::Utf8, false);
-    Schema::new(vec![pmi, n, pi, pn, c])
+    let mut fields = vec![pmi, n, pi, pn, c];
+    fields.extend(
+        [
+            "membership_kind",
+            "membership_start_date",
+            "membership_end_date",
+            "membership_status",
+        ]
+        .map(|name| Field::new(name, DataType::Utf8, true)),
+    );
+    Schema::new(fields)
 }

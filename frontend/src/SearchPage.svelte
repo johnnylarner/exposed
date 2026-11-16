@@ -161,9 +161,9 @@
   }
 
   function atLimit(entities: Entity[]) {
-    return ["MP", "Funder"].some(
-      (kind) =>
-        entities.filter((entity) => entity.kind === kind).length >=
+    return entities.some(
+      (result) =>
+        entities.filter((entity) => entity.kind === result.kind).length >=
         searchConfiguration.maxEntriesPerType,
     );
   }
@@ -173,8 +173,8 @@
 
 <main id="search">
   <div class="search-intro">
-    <h1>Search MPs and funders</h1>
-    <p>Find a name in the Register of Members’ Financial Interests.</p>
+    <h1>Search MPs, Lords and funders</h1>
+    <p>Find a name in Parliament’s registers of interests.</p>
   </div>
 
   <form
@@ -188,7 +188,7 @@
   >
     <SearchField
       id="entity-search"
-      label="Search MPs and funders"
+      label="Search MPs, Lords and funders"
       bind:input
       value={query}
       shortcut={searchFocusShortcut.hint}
@@ -196,7 +196,7 @@
       oninput={(event) => updateQuery(event.currentTarget.value)}
       oncompositionstart={() => (composing = true)}
       oncompositionend={() => (composing = false)}
-      placeholder="Enter an MP or funder’s name"
+      placeholder="Enter an MP, Lord or funder’s name"
       autocomplete="off"
       spellcheck="false"
       >{#snippet help()}
@@ -207,7 +207,7 @@
         {:else if !term}
           Search by name. Results appear as you type.
         {:else}
-          MPs and funders, ordered by the closest name match.
+          MPs, Lords and funders, ordered by the closest name match.
         {/if}
       {/snippet}</SearchField
     >
@@ -228,7 +228,7 @@
   >
     {#if searchState.status === "idle"}
       <MessageState title="Start with a name" icon="search">
-        <p>Look up an MP, a company, or an individual funder.</p>
+        <p>Look up an MP, Lord, company, or individual funder.</p>
         <div class="examples">
           <span>Try searching</span>{#each ["John", "HSBC"] as example}<Button
               variant="subtle"
@@ -277,13 +277,22 @@
       </div>
       <div class="entity-legend" aria-label="Entity icon key">
         <Badge variant="legend"><Icon name="parliament" size={16} />MP</Badge>
+        <Badge variant="legend" class="lord-accent"
+          ><Icon name="portcullis" size={16} />Lords</Badge
+        >
         <Badge variant="legend" class="funder-accent"
           ><Icon name="coin" size={16} />Funder</Badge
         >
       </div>
       <ul class="results-list">
         {#each searchState.entities as entity, index}
-          <ResultRow class={entity.kind === "Funder" ? "funder-accent" : ""}>
+          <ResultRow
+            class={entity.kind === "Funder"
+              ? "funder-accent"
+              : entity.kind === "Lords"
+                ? "lord-accent"
+                : ""}
+          >
             <EntityIndicator {entity} />
             <div class="entity-text">
               <a
@@ -331,6 +340,9 @@
 </main>
 
 <style>
+  :global(.lord-accent) {
+    --accent: var(--accent-lord);
+  }
   :global(.funder-accent) {
     --accent: var(--accent-funder);
   }

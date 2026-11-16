@@ -9,7 +9,9 @@ use crate::{
         models::{
             declaration_ingestion::CapturedDeclaration,
             entity_ingestion::IngestionKey,
+            membership::{MemberProfile, Membership, MembershipKind},
             parliament_member::{MemberId, ParliamentMember},
+            source_timestamp::SourceTimestamp,
         },
         repositories::entity_ingestion::{EntityIngestionStorage, EntitySearchPipelineError},
     },
@@ -96,6 +98,14 @@ struct MemberRecord {
     party_id: u32,
     party_name: String,
     constituency: String,
+    #[serde(default)]
+    membership_kind: Option<MembershipKind>,
+    #[serde(default)]
+    membership_start_date: Option<SourceTimestamp>,
+    #[serde(default)]
+    membership_end_date: Option<SourceTimestamp>,
+    #[serde(default)]
+    membership_status: Option<String>,
 }
 
 impl From<&ParliamentMember> for MemberRecord {
@@ -103,22 +113,34 @@ impl From<&ParliamentMember> for MemberRecord {
         Self {
             parliament_member_id: member.member_id(),
             name: member.name().to_string(),
-            party_id: member.party_id(),
-            party_name: member.party_name().to_string(),
-            constituency: member.constituency().to_string(),
+            party_id: member.profile.party_id,
+            party_name: member.profile.party_name.clone(),
+            constituency: member.profile.membership.membership_from.clone(),
+            membership_kind: Some(member.profile.membership.kind),
+            membership_start_date: member.profile.membership.membership_start_date.clone(),
+            membership_end_date: member.profile.membership.membership_end_date.clone(),
+            membership_status: member.profile.membership.membership_status.clone(),
         }
     }
 }
 
 impl From<MemberRecord> for ParliamentMember {
     fn from(record: MemberRecord) -> Self {
-        Self::new(
-            record.name,
-            record.parliament_member_id,
-            record.party_name,
-            record.party_id,
-            record.constituency,
-        )
+        Self {
+            profile: MemberProfile {
+                id: record.parliament_member_id,
+                name: record.name,
+                party_id: record.party_id,
+                party_name: record.party_name,
+                membership: Membership {
+                    kind: record.membership_kind.unwrap_or(MembershipKind::ElectedMp),
+                    membership_from: record.constituency,
+                    membership_start_date: record.membership_start_date,
+                    membership_end_date: record.membership_end_date,
+                    membership_status: record.membership_status,
+                },
+            },
+        }
     }
 }
 

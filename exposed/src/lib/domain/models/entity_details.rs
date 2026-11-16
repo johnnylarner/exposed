@@ -116,7 +116,7 @@ pub struct MemberProfile {
     pub party_name: String,
     /// Latest membership description, including constituencies and Lords memberships.
     pub membership_from: String,
-    /// Current Commons membership.
+    /// Whether the latest membership is an unended Commons membership.
     pub is_current_commons: bool,
 }
 

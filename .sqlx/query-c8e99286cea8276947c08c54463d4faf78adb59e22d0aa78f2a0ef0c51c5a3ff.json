@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT parliament_member_id, name, party_id, party_name, latest_membership_from, is_current_commons\n             FROM exposed.members m WHERE parliament_member_id = $1",
+  "query": "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.membership_from AS latest_membership_from, k.name AS membership_kind, m.membership_end_date\n             FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind WHERE parliament_member_id = $1 AND (k.name = $2 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))",
   "describe": {
     "columns": [
       {
@@ -54,25 +54,37 @@
         "origin": {
           "Table": {
             "table": "members",
-            "name": "latest_membership_from"
+            "name": "membership_from"
           }
         }
       },
       {
         "ordinal": 5,
-        "name": "is_current_commons",
-        "type_info": "Bool",
+        "name": "membership_kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "membership_kinds",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "membership_end_date",
+        "type_info": "Text",
         "origin": {
           "Table": {
             "table": "members",
-            "name": "is_current_commons"
+            "name": "membership_end_date"
           }
         }
       }
     ],
     "parameters": {
       "Left": [
-        "Int4"
+        "Int4",
+        "Text"
       ]
     },
     "nullable": [
@@ -81,8 +93,9 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "7a5eb7e72250783be19e98c5157f6b673cbac0b16145c4f962c10da0f456897d"
+  "hash": "c8e99286cea8276947c08c54463d4faf78adb59e22d0aa78f2a0ef0c51c5a3ff"
 }

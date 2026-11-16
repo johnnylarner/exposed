@@ -15,3 +15,5 @@ pub mod entity_details;
 pub mod rankings;
 
 pub mod updates;
+
+pub mod lords;

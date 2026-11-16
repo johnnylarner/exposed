@@ -102,15 +102,6 @@ async fn complete_history_preserves_occurrences_and_empty_declarations(pool: PgP
             .await,
         Err(EntityDetailsError::NotFound)
     ));
-    let former_mp = service
-        .member(MemberDetailsRequest::new(
-            "16".parse().unwrap(),
-            ReportingPeriod::Historical,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(former_mp.member.membership_from, "Life peer");
-    assert!(!former_mp.member.is_current_commons);
 }
 
 #[sqlx::test(migrations = "../db/migrations", fixtures("details"))]

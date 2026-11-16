@@ -4,6 +4,11 @@ Search entities carry stable string IDs. `MP` IDs are positive Parliament member
 numbers. `Funder` IDs are database UUIDs for canonical funder identities. The HTTP
 adapter parses these IDs before calling the detail service.
 
+`Lords` search results also use string Parliament IDs. `GET /lords/{id}` returns
+the complete captured registered interests through the same detail service.
+The [Lords register contract](lords.md) describes its separate profile, recursive
+interests, source dates, and import rules.
+
 `GET /members/{id}` returns `member`, `declarations`, and `summary`
 from one read-only repeatable-read transaction. `declarations`
 contains every stored declaration. Registration date sorts descending, with

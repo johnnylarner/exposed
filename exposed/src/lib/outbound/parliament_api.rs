@@ -11,6 +11,7 @@ use crate::domain::{
     models::{
         declaration_ingestion::CapturedDeclaration,
         entity_ingestion::EntityIngestionError,
+        membership::{MemberProfile, SourceMembership},
         parliament_member::{MemberId, ParliamentMember},
     },
     repositories::parliament_api::{ParliamentApi as Interface, ParliamentApiError},
@@ -78,14 +79,20 @@ impl Interface for ParliamentApiClient {
         members
             .into_iter()
             .map(|m| {
-                Ok(ParliamentMember::new(
-                    m.value.name,
-                    MemberId::new(m.value.id)
-                        .map_err(|e| ApiError::ResponseError(e.to_string()))?,
-                    m.value.party.name,
-                    m.value.party.id,
-                    m.value.membership.membership_from,
-                ))
+                Ok(ParliamentMember {
+                    profile: MemberProfile {
+                        id: MemberId::new(m.value.id)
+                            .map_err(|e| ApiError::ResponseError(e.to_string()))?,
+                        name: m.value.name,
+                        party_name: m.value.party.name,
+                        party_id: m.value.party.id,
+                        membership: m
+                            .value
+                            .membership
+                            .into_membership()
+                            .map_err(ApiError::ResponseError)?,
+                    },
+                })
             })
             .collect()
     }
@@ -118,19 +125,13 @@ struct ParliamentMemberItem {
     #[serde(rename(deserialize = "latestParty"))]
     party: PartyDetails,
     #[serde(rename(deserialize = "latestHouseMembership"))]
-    membership: MembershipDetails,
+    membership: SourceMembership,
 }
 
 #[derive(Clone, Deserialize)]
 struct PartyDetails {
     id: u32,
     name: String,
-}
-
-#[derive(Clone, Deserialize)]
-struct MembershipDetails {
-    #[serde(rename(deserialize = "membershipFrom"))]
-    membership_from: String,
 }
 
 /// Possible parliament api errors

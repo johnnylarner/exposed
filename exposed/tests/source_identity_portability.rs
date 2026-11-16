@@ -130,7 +130,8 @@ fn parquet_rows(path: &Path) -> anyhow::Result<Vec<Value>> {
 
 async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
     sqlx::query!(
-        "INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, latest_house, latest_membership_from, is_current_commons) VALUES ($1, 4483, 'Example member', 1, 'Party', 1, 'Constituency', true)",
+        "INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
+    VALUES ($1::uuid, 4483, 'Example member', 1, 'Party', (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'), 'Constituency', NULL)",
         id
     )
     .execute(pool)
@@ -140,7 +141,7 @@ async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
 
 async fn clear_import(pool: &PgPool) -> anyhow::Result<()> {
     sqlx::query!(
-        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.members"
+        "TRUNCATE exposed.funder_group_names, exposed.funder_alias_groups, exposed.funder_alias_links, exposed.funder_family_links, exposed.declaration_load_runs, exposed.funding_entries, exposed.funder_aliases, exposed.funders, exposed.declarations, exposed.simple_declarations, exposed.members"
     )
     .execute(pool)
     .await?;

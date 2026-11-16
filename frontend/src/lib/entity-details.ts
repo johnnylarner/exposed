@@ -7,6 +7,7 @@ import { searchQueryString } from "./search-query";
 
 export type DetailRoute =
   | { kind: "search" }
+  | { kind: "lord"; id: string; view: "summary" | "history" }
   | { kind: "member"; id: string; view: "summary" | "history" }
   | { kind: "funder"; id: string; view: "summary" | "history" }
   | { kind: "invalid" };
@@ -17,6 +18,9 @@ export const memberIdPattern = /^[1-9]\d*$/u;
 
 export function readDetailRoute(path: string): DetailRoute {
   if (path === "/search") return { kind: "search" };
+  const lord = /^\/lords\/([^/]+)(?:\/(history))?\/?$/u.exec(path);
+  if (lord && memberIdPattern.test(lord[1]) && Number(lord[1]) <= 2147483647)
+    return { kind: "lord", id: lord[1], view: lord[2] ? "history" : "summary" };
   const member = /^\/members\/([^/]+)(?:\/(history))?\/?$/u.exec(path);
   if (
     member &&
@@ -127,10 +131,14 @@ export interface FunderDetails {
   recipientLimit: number;
 }
 
-export type DetailState =
-  | { kind: "loading" }
-  | { kind: "member"; details: MemberDetails }
-  | { kind: "funder"; details: FunderDetails }
+export type DetailResult<
+  Kind extends "member" | "funder" = "member" | "funder",
+> =
+  | Extract<
+      | { kind: "member"; details: MemberDetails }
+      | { kind: "funder"; details: FunderDetails },
+      { kind: Kind }
+    >
   | { kind: "not-found" }
   | { kind: "error"; message: string };
 
@@ -153,6 +161,14 @@ export function registrationDate(value: string): string {
     year: "numeric",
     timeZone: "UTC",
   }).format(new Date(value));
+}
+
+export function lordHref(
+  id: string,
+  view: Extract<DetailRoute, { kind: "lord" }>["view"],
+  params: Pick<URLSearchParams, "get">,
+): string {
+  return `/lords/${id}${view === "history" ? "/history" : ""}${searchQueryString(params)}`;
 }
 
 export function memberHref(

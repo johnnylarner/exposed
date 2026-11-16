@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.parliament_member_id, m.name, d.source_declaration_id,\n                d.registration_date AS \"registration_date!\",\n                f.id AS \"funder_id?\", COALESCE(n.preferred_name, f.funder_name) AS funder_name, f.funder_kind\n             FROM exposed.declarations d\n             JOIN exposed.members m ON m.id = d.member_id\n             LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id\n             LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = e.funder_id\n             LEFT JOIN exposed.funders f ON f.id = COALESCE(g.group_id, e.funder_id)\n             LEFT JOIN exposed.funder_group_names n ON n.group_id = f.id\n             WHERE d.registration_date >= $1 AND d.registration_date < $2\n             ORDER BY d.source_declaration_id, e.id",
+  "query": "SELECT m.parliament_member_id, m.name, d.source_declaration_id,\n                d.registration_date AS \"registration_date!\",\n                f.id AS \"funder_id?\", COALESCE(n.preferred_name, f.funder_name) AS funder_name, f.funder_kind\n             FROM exposed.declarations d\n             JOIN exposed.members m ON m.id = d.member_id\n\n             LEFT JOIN exposed.funding_entries e ON e.source_declaration_id = d.source_declaration_id\n             LEFT JOIN exposed.funder_alias_groups g ON g.funder_id = e.funder_id\n             LEFT JOIN exposed.funders f ON f.id = COALESCE(g.group_id, e.funder_id)\n             LEFT JOIN exposed.funder_group_names n ON n.group_id = f.id\n             WHERE d.registration_date >= $1 AND d.registration_date < $2\n             ORDER BY d.source_declaration_id, e.id",
   "describe": {
     "columns": [
       {
@@ -92,5 +92,5 @@
       true
     ]
   },
-  "hash": "7f0ad22ac57efa79c78b9f6ccd669072c76a4e23ba21accd41e52ab58edf0619"
+  "hash": "b04433e361852e48e0638d1f6377ad03190e82951a89e6885a422fb30cb8e370"
 }

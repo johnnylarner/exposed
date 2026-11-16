@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Icon, Badge, IconIndicator } from "./ui";
+  import { Icon, Badge, IconIndicator, type IconName } from "./ui";
   import {
     entityType,
     funderKindLabel,
@@ -14,12 +14,15 @@
   const label = $derived(
     detail === "kind" ? funderKindLabel(entity.funderKind) : entityType(entity),
   );
+  const roleIcons = {
+    MP: "parliament",
+    Lords: "portcullis",
+    Funder: "coin",
+  } satisfies Record<Entity["kind"], IconName>;
   const icon = $derived(
     detail === "kind"
       ? funderKindIcon(entity.funderKind)
-      : entity.kind === "MP"
-        ? "parliament"
-        : "coin",
+      : roleIcons[entity.kind],
   );
 </script>
 
