@@ -13,7 +13,7 @@ pub(super) struct ProfileRow {
     pub name: String,
     pub party_name: String,
     pub party_id: i32,
-    pub membership_kind: uuid::Uuid,
+    pub membership_kind: String,
     pub membership_start_date: Option<String>,
     pub membership_from: String,
     pub membership_status: Option<String>,
@@ -30,7 +30,7 @@ impl ProfileRow {
             party_name: self.party_name,
             party_id: u32::try_from(self.party_id).map_err(stored)?,
             membership: Membership {
-                kind: MembershipKind::try_from(self.membership_kind).map_err(stored)?,
+                kind: MembershipKind::try_from(self.membership_kind.as_str()).map_err(stored)?,
                 membership_from: self.membership_from,
                 membership_status: self.membership_status,
                 membership_start_date: timestamp(self.membership_start_date)?,

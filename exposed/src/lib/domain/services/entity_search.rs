@@ -630,7 +630,7 @@ mod fallback_contract {
                 .execute(&pool)
                 .await?;
             sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
-    VALUES (1, $1, 1, 'Party', '019a7a90-0000-7000-8000-000000000101', 'Constituency', NULL)", candidate).execute(&pool).await?;
+    VALUES (1, $1, 1, 'Party', (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'), 'Constituency', NULL)", candidate).execute(&pool).await?;
             let req =
                 EntitySearchRequest::new_with_strictness(query.into(), 10, threshold).unwrap();
             let members = db.get_members_by_phonetic_search(&req).await.unwrap();
@@ -661,7 +661,7 @@ mod fallback_contract {
                 .execute(&pool)
                 .await?;
             sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
-    VALUES (1, $1, 1, 'Party', '019a7a90-0000-7000-8000-000000000101', 'Constituency', NULL)", candidate).execute(&pool).await?;
+    VALUES (1, $1, 1, 'Party', (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'), 'Constituency', NULL)", candidate).execute(&pool).await?;
             let req = EntitySearchRequest::new_with_strictness(query, 10, 0.0).unwrap();
             assert!(
                 db.get_members_by_phonetic_search(&req)

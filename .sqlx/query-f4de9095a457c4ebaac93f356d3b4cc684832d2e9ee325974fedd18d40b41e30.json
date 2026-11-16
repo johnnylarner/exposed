@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.id AS member_id, m.parliament_member_id, m.name, m.party_name, m.party_id, m.membership_kind, m.membership_start_date,\n                    m.membership_from, m.membership_status, m.membership_end_date,\n                    NULL::real AS similarity\n             FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind\n             WHERE k.chamber_id = $2 AND m.parliament_member_id = $1",
+  "query": "SELECT m.id AS member_id, m.parliament_member_id, m.name, m.party_name, m.party_id, k.name AS membership_kind, m.membership_start_date,\n                    m.membership_from, m.membership_status, m.membership_end_date,\n                    exposed.word_similarity($1, m.name) AS similarity\n             FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind\n             JOIN exposed.chambers c ON c.id = k.chamber_id\n             WHERE c.name = $4 AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2\n             ORDER BY similarity DESC, m.parliament_member_id LIMIT $3",
   "describe": {
     "columns": [
       {
@@ -61,11 +61,11 @@
       {
         "ordinal": 5,
         "name": "membership_kind",
-        "type_info": "Uuid",
+        "type_info": "Text",
         "origin": {
           "Table": {
-            "table": "members",
-            "name": "membership_kind"
+            "table": "membership_kinds",
+            "name": "name"
           }
         }
       },
@@ -122,8 +122,10 @@
     ],
     "parameters": {
       "Left": [
-        "Int4",
-        "Uuid"
+        "Text",
+        "Float4",
+        "Int8",
+        "Text"
       ]
     },
     "nullable": [
@@ -140,5 +142,5 @@
       null
     ]
   },
-  "hash": "e5aadd740befa3d335bde8dfa57b4ba5f24bde7dce692df9d5ab86aadf5c4280"
+  "hash": "f4de9095a457c4ebaac93f356d3b4cc684832d2e9ee325974fedd18d40b41e30"
 }

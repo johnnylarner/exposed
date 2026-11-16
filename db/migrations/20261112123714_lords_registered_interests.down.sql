@@ -4,12 +4,12 @@ ALTER TABLE exposed.members
     ADD COLUMN is_current_commons BOOLEAN;
 ALTER TABLE exposed.members DISABLE TRIGGER members_set_updated_at;
 UPDATE exposed.members m SET
-    latest_house = CASE k.chamber_id
-        WHEN '019a7a90-0000-7000-8000-000000000001'::uuid THEN 1
-        WHEN '019a7a90-0000-7000-8000-000000000002'::uuid THEN 2
+    latest_house = CASE c.name
+        WHEN 'Commons' THEN 1
+        WHEN 'Lords' THEN 2
     END,
-    is_current_commons = k.chamber_id = '019a7a90-0000-7000-8000-000000000001' AND m.membership_end_date IS NULL
-FROM exposed.membership_kinds k WHERE k.id = m.membership_kind;
+    is_current_commons = c.name = 'Commons' AND m.membership_end_date IS NULL
+FROM exposed.membership_kinds k JOIN exposed.chambers c ON c.id = k.chamber_id WHERE k.id = m.membership_kind;
 ALTER TABLE exposed.members ENABLE TRIGGER members_set_updated_at;
 ALTER TABLE exposed.members
     DROP COLUMN membership_kind,

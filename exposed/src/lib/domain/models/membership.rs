@@ -1,7 +1,6 @@
 //! Shared latest membership facts from Parliament.
 use super::{parliament_member::MemberId, source_timestamp::SourceTimestamp};
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 /// Chamber derived from the membership kind.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -13,12 +12,12 @@ pub enum Chamber {
 }
 
 impl Chamber {
-    /// Stable database identity.
+    /// Canonical database name.
     #[must_use]
-    pub const fn id(self) -> Uuid {
+    pub const fn name(self) -> &'static str {
         match self {
-            Self::Commons => Uuid::from_u128(0x019a7a90_0000_7000_8000_000000000001),
-            Self::Lords => Uuid::from_u128(0x019a7a90_0000_7000_8000_000000000002),
+            Self::Commons => "Commons",
+            Self::Lords => "Lords",
         }
     }
 }
@@ -43,17 +42,17 @@ pub enum MembershipKind {
     JudicialPeer,
 }
 impl MembershipKind {
-    /// Stable database identity.
+    /// Canonical database name.
     #[must_use]
-    pub const fn id(self) -> Uuid {
+    pub const fn name(self) -> &'static str {
         match self {
-            Self::ElectedMp => Uuid::from_u128(0x019a7a90_0000_7000_8000_000000000101),
-            Self::LifePeer => Uuid::from_u128(0x019a7a90_0000_7000_8000_000000000102),
-            Self::HereditaryPeer => Uuid::from_u128(0x019a7a90_0000_7000_8000_000000000103),
-            Self::ExceptedHereditaryPeer => Uuid::from_u128(0x019a7a90_0000_7000_8000_000000000104),
-            Self::HereditaryLifePeer => Uuid::from_u128(0x019a7a90_0000_7000_8000_000000000105),
-            Self::Bishop => Uuid::from_u128(0x019a7a90_0000_7000_8000_000000000106),
-            Self::JudicialPeer => Uuid::from_u128(0x019a7a90_0000_7000_8000_000000000107),
+            Self::ElectedMp => "Elected MP",
+            Self::LifePeer => "Life peer",
+            Self::HereditaryPeer => "Hereditary peer",
+            Self::ExceptedHereditaryPeer => "Excepted hereditary peer",
+            Self::HereditaryLifePeer => "Hereditary peer given life peerage",
+            Self::Bishop => "Bishop",
+            Self::JudicialPeer => "Judicial peer",
         }
     }
 
@@ -71,12 +70,12 @@ impl MembershipKind {
         }
     }
 }
-impl TryFrom<Uuid> for MembershipKind {
+impl TryFrom<&str> for MembershipKind {
     type Error = String;
-    fn try_from(value: Uuid) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         use strum::IntoEnumIterator;
         Self::iter()
-            .find(|kind| kind.id() == value)
+            .find(|kind| kind.name() == value)
             .ok_or_else(|| format!("unknown membership kind {value}"))
     }
 }
@@ -195,15 +194,13 @@ mod tests {
     use super::*;
     use serde_json::json;
     #[test]
-    fn stored_kind_ids_round_trip_and_reject_unknown_ids() {
+    fn stored_kind_names_round_trip_and_reject_unknown_names() {
         use strum::IntoEnumIterator;
         for kind in MembershipKind::iter() {
-            assert_eq!(MembershipKind::try_from(kind.id()), Ok(kind));
-            assert_eq!(kind.id().get_version_num(), 7);
-            assert_eq!(kind.chamber().id().get_version_num(), 7);
+            assert_eq!(MembershipKind::try_from(kind.name()), Ok(kind));
         }
-        assert!(MembershipKind::try_from(Uuid::nil()).is_err());
-        assert!(MembershipKind::try_from(Chamber::Commons.id()).is_err());
+        assert!(MembershipKind::try_from("Unknown kind").is_err());
+        assert!(MembershipKind::try_from(Chamber::Commons.name()).is_err());
     }
     #[test]
     fn source_kind_ids_are_scoped_to_the_chamber() {

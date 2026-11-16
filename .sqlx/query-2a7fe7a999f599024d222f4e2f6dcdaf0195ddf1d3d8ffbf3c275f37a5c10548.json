@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO exposed.members\n         (parliament_member_id, name, party_id, party_name, membership_kind, membership_from,\n          membership_start_date, membership_end_date, membership_status)\n         VALUES ($1,$2,$3,$4,(SELECT id FROM exposed.membership_kinds WHERE name = $5),$6,$7,$8,$9)\n         ON CONFLICT (parliament_member_id) DO UPDATE SET\n             name=EXCLUDED.name, party_id=EXCLUDED.party_id, party_name=EXCLUDED.party_name,\n             membership_kind=EXCLUDED.membership_kind, membership_from=EXCLUDED.membership_from,\n             membership_start_date=EXCLUDED.membership_start_date,\n             membership_end_date=EXCLUDED.membership_end_date, membership_status=EXCLUDED.membership_status\n         RETURNING id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2a7fe7a999f599024d222f4e2f6dcdaf0195ddf1d3d8ffbf3c275f37a5c10548"
+}

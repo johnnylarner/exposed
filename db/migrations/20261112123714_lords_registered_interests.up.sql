@@ -2,20 +2,24 @@ CREATE TABLE exposed.chambers (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     name TEXT NOT NULL UNIQUE
 );
-INSERT INTO exposed.chambers VALUES ('019a7a90-0000-7000-8000-000000000001', 'Commons'), ('019a7a90-0000-7000-8000-000000000002', 'Lords');
+INSERT INTO exposed.chambers (name) VALUES ('Commons'), ('Lords');
 CREATE TABLE exposed.membership_kinds (
     id UUID PRIMARY KEY DEFAULT uuidv7(),
     name TEXT NOT NULL UNIQUE,
     chamber_id UUID NOT NULL REFERENCES exposed.chambers (id)
 );
-INSERT INTO exposed.membership_kinds VALUES
-    ('019a7a90-0000-7000-8000-000000000101', 'Elected MP', '019a7a90-0000-7000-8000-000000000001'),
-    ('019a7a90-0000-7000-8000-000000000102', 'Life peer', '019a7a90-0000-7000-8000-000000000002'),
-    ('019a7a90-0000-7000-8000-000000000103', 'Hereditary peer', '019a7a90-0000-7000-8000-000000000002'),
-    ('019a7a90-0000-7000-8000-000000000104', 'Excepted hereditary peer', '019a7a90-0000-7000-8000-000000000002'),
-    ('019a7a90-0000-7000-8000-000000000105', 'Hereditary peer given life peerage', '019a7a90-0000-7000-8000-000000000002'),
-    ('019a7a90-0000-7000-8000-000000000106', 'Bishop', '019a7a90-0000-7000-8000-000000000002'),
-    ('019a7a90-0000-7000-8000-000000000107', 'Judicial peer', '019a7a90-0000-7000-8000-000000000002');
+INSERT INTO exposed.membership_kinds (name, chamber_id)
+SELECT kind.name, chamber.id
+FROM (VALUES
+    ('Elected MP', 'Commons'),
+    ('Life peer', 'Lords'),
+    ('Hereditary peer', 'Lords'),
+    ('Excepted hereditary peer', 'Lords'),
+    ('Hereditary peer given life peerage', 'Lords'),
+    ('Bishop', 'Lords'),
+    ('Judicial peer', 'Lords')
+) AS kind(name, chamber_name)
+JOIN exposed.chambers chamber ON chamber.name = kind.chamber_name;
 ALTER TABLE exposed.members RENAME COLUMN latest_membership_from TO membership_from;
 ALTER TABLE exposed.members
     ADD COLUMN membership_kind UUID REFERENCES exposed.membership_kinds (id),
@@ -25,7 +29,7 @@ ALTER TABLE exposed.members
 -- The existing import contains only MPs, so every existing row is an elected MP.
 -- Preserve the member modification times while assigning the new classification.
 ALTER TABLE exposed.members DISABLE TRIGGER members_set_updated_at;
-UPDATE exposed.members SET membership_kind = '019a7a90-0000-7000-8000-000000000101';
+UPDATE exposed.members SET membership_kind = (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP');
 ALTER TABLE exposed.members ENABLE TRIGGER members_set_updated_at;
 ALTER TABLE exposed.members
     ALTER COLUMN membership_kind SET NOT NULL,

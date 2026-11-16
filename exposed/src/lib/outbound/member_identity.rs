@@ -4,7 +4,7 @@ pub(super) async fn upsert(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     profile: &MemberProfile,
 ) -> Result<uuid::Uuid, sqlx::Error> {
-    let kind = profile.membership.kind.id();
+    let kind = profile.membership.kind.name();
     let start = profile
         .membership
         .membership_start_date
@@ -21,7 +21,7 @@ pub(super) async fn upsert(
         "INSERT INTO exposed.members
          (parliament_member_id, name, party_id, party_name, membership_kind, membership_from,
           membership_start_date, membership_end_date, membership_status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         VALUES ($1,$2,$3,$4,(SELECT id FROM exposed.membership_kinds WHERE name = $5),$6,$7,$8,$9)
          ON CONFLICT (parliament_member_id) DO UPDATE SET
              name=EXCLUDED.name, party_id=EXCLUDED.party_id, party_name=EXCLUDED.party_name,
              membership_kind=EXCLUDED.membership_kind, membership_from=EXCLUDED.membership_from,

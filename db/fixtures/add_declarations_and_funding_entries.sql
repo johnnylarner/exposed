@@ -8,7 +8,7 @@ INSERT INTO exposed.declarations (
 ) VALUES 
 	(
 	    1,
-	    (SELECT id FROM exposed.members WHERE membership_kind = '019a7a90-0000-7000-8000-000000000101' AND name='John McDonnell'),
+	    (SELECT id FROM exposed.members WHERE membership_kind = (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP') AND name='John McDonnell'),
 	    12,
 	    'Employment and earnings',
 	    now(),
@@ -16,7 +16,7 @@ INSERT INTO exposed.declarations (
 	),
 	(
 	    2,
-	    (SELECT id FROM exposed.members WHERE membership_kind = '019a7a90-0000-7000-8000-000000000101' AND name='John Humphries'),
+	    (SELECT id FROM exposed.members WHERE membership_kind = (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP') AND name='John Humphries'),
 	    10,
 	    'Family members employed',
 	    now(),

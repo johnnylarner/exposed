@@ -131,7 +131,7 @@ fn parquet_rows(path: &Path) -> anyhow::Result<Vec<Value>> {
 async fn insert_member(pool: &PgPool, id: Uuid) -> anyhow::Result<()> {
     sqlx::query!(
         "INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
-    VALUES ($1::uuid, 4483, 'Example member', 1, 'Party', '019a7a90-0000-7000-8000-000000000101', 'Constituency', NULL)",
+    VALUES ($1::uuid, 4483, 'Example member', 1, 'Party', (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'), 'Constituency', NULL)",
         id
     )
     .execute(pool)

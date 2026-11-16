@@ -342,32 +342,83 @@ async fn seeded_membership_kinds_match_every_domain_variant_and_chamber(pool: Pg
     use crate::domain::models::membership::{Chamber, MembershipKind};
     use strum::IntoEnumIterator;
     let expected = MembershipKind::iter()
-        .map(|kind| (kind.id(), kind.chamber().id()))
+        .map(|kind| (kind.name().to_owned(), kind.chamber().name().to_owned()))
         .collect::<std::collections::BTreeMap<_, _>>();
-    let stored = sqlx::query!("SELECT id,chamber_id FROM exposed.membership_kinds")
-        .fetch_all(&pool)
-        .await
-        .unwrap()
+    let rows = sqlx::query!(
+        "SELECT k.id, k.name, c.id AS chamber_id, c.name AS chamber_name
+         FROM exposed.membership_kinds k JOIN exposed.chambers c ON c.id = k.chamber_id"
+    )
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert!(
+        rows.iter()
+            .all(|row| row.id.get_version_num() == 7 && row.chamber_id.get_version_num() == 7)
+    );
+    let stored = rows
         .into_iter()
-        .map(|row| (row.id, row.chamber_id))
+        .map(|row| (row.name, row.chamber_name))
         .collect::<std::collections::BTreeMap<_, _>>();
     assert_eq!(stored, expected);
-    assert!(
-        stored
-            .iter()
-            .all(|(id, chamber)| id.get_version_num() == 7 && chamber.get_version_num() == 7)
-    );
-    let chambers = sqlx::query_scalar!("SELECT id FROM exposed.chambers")
+    let chambers = sqlx::query!("SELECT id, name FROM exposed.chambers")
         .fetch_all(&pool)
         .await
-        .unwrap()
-        .into_iter()
-        .collect::<std::collections::BTreeSet<_>>();
+        .unwrap();
+    assert!(chambers.iter().all(|row| row.id.get_version_num() == 7));
     assert_eq!(
-        chambers,
-        [Chamber::Commons.id(), Chamber::Lords.id()]
+        chambers
             .into_iter()
-            .collect()
+            .map(|row| row.name)
+            .collect::<std::collections::BTreeSet<_>>(),
+        [
+            Chamber::Commons.name().to_owned(),
+            Chamber::Lords.name().to_owned()
+        ]
+        .into_iter()
+        .collect()
+    );
+}
+
+#[sqlx::test(migrations = "../db/migrations")]
+async fn loading_resolves_regenerated_lookup_ids(pool: PgPool) {
+    let kinds = sqlx::query!("DELETE FROM exposed.membership_kinds RETURNING id, name, chamber_id")
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    let chambers = sqlx::query!("DELETE FROM exposed.chambers RETURNING id, name")
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    for chamber in chambers {
+        let id = sqlx::query_scalar!(
+            "INSERT INTO exposed.chambers (name) VALUES ($1) RETURNING id",
+            chamber.name
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_ne!(id, chamber.id);
+        assert_eq!(id.get_version_num(), 7);
+        for kind in kinds.iter().filter(|kind| kind.chamber_id == chamber.id) {
+            let kind_id = sqlx::query_scalar!("INSERT INTO exposed.membership_kinds (name, chamber_id) VALUES ($1, $2) RETURNING id", kind.name, id)
+                .fetch_one(&pool).await.unwrap();
+            assert_ne!(kind_id, kind.id);
+            assert_eq!(kind_id.get_version_num(), 7);
+        }
+    }
+    let db = ExposedDatabase::from(pool);
+    let capture = capture(
+        IngestionKey::default(),
+        "2026-02-01T00:00:00Z",
+        &[(2175, "Regenerated")],
+    );
+    db.load_lords(&capture).await.unwrap();
+    assert_eq!(
+        db.lord_register("2175".parse().unwrap())
+            .await
+            .unwrap()
+            .unwrap(),
+        stored_register(&capture, 0)
     );
 }
 

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT parliament_member_id\n            FROM exposed.members m\n            JOIN exposed.membership_kinds k ON k.id = m.membership_kind\n            WHERE (k.name = $1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))\n            ORDER BY parliament_member_id\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "parliament_member_id",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliament_member_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d69088223cad0262d191441505e868bbf27b1ee27cbd94251a5cb225634fdde4"
+}

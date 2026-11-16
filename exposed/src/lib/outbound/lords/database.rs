@@ -51,16 +51,17 @@ impl LordsRepository for ExposedDatabase {
         .await?;
         let rows = sqlx::query_as!(
             ProfileRow,
-            "SELECT m.id AS member_id, m.parliament_member_id, m.name, m.party_name, m.party_id, m.membership_kind, m.membership_start_date,
+            "SELECT m.id AS member_id, m.parliament_member_id, m.name, m.party_name, m.party_id, k.name AS membership_kind, m.membership_start_date,
                     m.membership_from, m.membership_status, m.membership_end_date,
                     exposed.word_similarity($1, m.name) AS similarity
              FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind
-             WHERE k.chamber_id = $4 AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
+             JOIN exposed.chambers c ON c.id = k.chamber_id
+             WHERE c.name = $4 AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
              ORDER BY similarity DESC, m.parliament_member_id LIMIT $3",
             request.term(),
             request.strictness(),
             i64::from(request.max_entries()),
-            Chamber::Lords.id()
+            Chamber::Lords.name()
         )
         .fetch_all(&mut *tx)
         .await?;
@@ -87,13 +88,14 @@ impl ExposedDatabase {
             .await?;
         let row = sqlx::query_as!(
             ProfileRow,
-            "SELECT m.id AS member_id, m.parliament_member_id, m.name, m.party_name, m.party_id, m.membership_kind, m.membership_start_date,
+            "SELECT m.id AS member_id, m.parliament_member_id, m.name, m.party_name, m.party_id, k.name AS membership_kind, m.membership_start_date,
                     m.membership_from, m.membership_status, m.membership_end_date,
                     NULL::real AS similarity
              FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind
-             WHERE k.chamber_id = $2 AND m.parliament_member_id = $1",
+             JOIN exposed.chambers c ON c.id = k.chamber_id
+             WHERE c.name = $2 AND m.parliament_member_id = $1",
             id,
-            Chamber::Lords.id()
+            Chamber::Lords.name()
         )
         .fetch_optional(&mut *tx)
         .await?;

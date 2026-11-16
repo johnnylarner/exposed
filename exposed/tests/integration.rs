@@ -138,13 +138,13 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
     let (mp, _) = res.first().unwrap();
     assert_eq!(mp.name(), "John McDonnell".to_string());
     let stored = sqlx::query!(
-        "SELECT membership_kind, membership_start_date, membership_status FROM exposed.members"
+        "SELECT k.name AS membership_kind, m.membership_start_date, m.membership_status FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind"
     )
     .fetch_all(&pool)
     .await?;
     assert!(!stored.is_empty());
     assert!(stored.iter().all(|member| member.membership_kind
-        == exposed::domain::models::membership::MembershipKind::ElectedMp.id()));
+        == exposed::domain::models::membership::MembershipKind::ElectedMp.name()));
     assert!(
         stored
             .iter()
@@ -160,8 +160,8 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
 async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Result<()> {
     sqlx::query!(
         "INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
-    VALUES (4613, 'Alex Burghart', 4, 'Conservative', '019a7a90-0000-7000-8000-000000000101', 'Brentwood and Ongar', NULL),
-                (5030, 'Dr Simon Opher', 15, 'Labour', '019a7a90-0000-7000-8000-000000000101', 'Stroud', NULL)"
+    VALUES (4613, 'Alex Burghart', 4, 'Conservative', (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'), 'Brentwood and Ongar', NULL),
+                (5030, 'Dr Simon Opher', 15, 'Labour', (SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'), 'Stroud', NULL)"
     )
     .execute(&pool)
     .await?;

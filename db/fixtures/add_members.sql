@@ -5,7 +5,7 @@ INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, m
 		'John McDonnell',
 		15,
 		'Labour',
-		'019a7a90-0000-7000-8000-000000000101',
+		(SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'),
 		'Poole',
 		NULL
 	),
@@ -14,7 +14,7 @@ INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, m
 		'John Humphries',
 		4,
 		'Conservative',
-		'019a7a90-0000-7000-8000-000000000101',
+		(SELECT id FROM exposed.membership_kinds WHERE name = 'Elected MP'),
 		'Dumfries and Galloway',
 		NULL
 	);
