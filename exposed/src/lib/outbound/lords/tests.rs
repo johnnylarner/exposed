@@ -339,10 +339,10 @@ async fn empty_register_replaces_all_previous_occurrences(pool: PgPool) {
 
 #[sqlx::test(migrations = "../db/migrations")]
 async fn seeded_membership_kinds_match_every_domain_variant_and_chamber(pool: PgPool) {
-    use crate::domain::models::membership::MembershipKind;
+    use crate::domain::models::membership::{Chamber, MembershipKind};
     use strum::IntoEnumIterator;
     let expected = MembershipKind::iter()
-        .map(|kind| (kind as i16, kind.chamber() as i16))
+        .map(|kind| (kind.id(), kind.chamber().id()))
         .collect::<std::collections::BTreeMap<_, _>>();
     let stored = sqlx::query!("SELECT id,chamber_id FROM exposed.membership_kinds")
         .fetch_all(&pool)
@@ -352,6 +352,23 @@ async fn seeded_membership_kinds_match_every_domain_variant_and_chamber(pool: Pg
         .map(|row| (row.id, row.chamber_id))
         .collect::<std::collections::BTreeMap<_, _>>();
     assert_eq!(stored, expected);
+    assert!(
+        stored
+            .iter()
+            .all(|(id, chamber)| id.get_version_num() == 7 && chamber.get_version_num() == 7)
+    );
+    let chambers = sqlx::query_scalar!("SELECT id FROM exposed.chambers")
+        .fetch_all(&pool)
+        .await
+        .unwrap()
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>();
+    assert_eq!(
+        chambers,
+        [Chamber::Commons.id(), Chamber::Lords.id()]
+            .into_iter()
+            .collect()
+    );
 }
 
 #[sqlx::test(

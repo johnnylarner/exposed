@@ -31,7 +31,8 @@ impl EntityDetailsRepo for ExposedDatabase {
             .await?;
         let row = sqlx::query!(
             "SELECT parliament_member_id, name, party_id, party_name, membership_from AS latest_membership_from, membership_kind, membership_end_date
-             FROM exposed.members m  WHERE parliament_member_id = $1 AND (m.membership_kind = 1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))", i32::try_from(id.value()).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?
+             FROM exposed.members m  WHERE parliament_member_id = $1 AND (m.membership_kind = $2 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))", i32::try_from(id.value()).map_err(|error| EntityDetailsRepoError::DatabaseError(error.to_string()))?,
+            crate::domain::models::membership::MembershipKind::ElectedMp.id()
         ).fetch_optional(&mut *tx).await?;
         let Some(row) = row else {
             return Ok(None);
@@ -289,7 +290,7 @@ async fn funder_declarations(
     Ok(declarations)
 }
 
-fn current_commons(kind: i16, end: Option<&str>) -> Result<bool, EntityDetailsRepoError> {
+fn current_commons(kind: uuid::Uuid, end: Option<&str>) -> Result<bool, EntityDetailsRepoError> {
     use crate::domain::models::membership::{Membership, MembershipKind};
     Ok(Membership::current_commons(
         MembershipKind::try_from(kind).map_err(EntityDetailsRepoError::DatabaseError)?,

@@ -6,6 +6,7 @@ use crate::{
         models::{
             entity_search::EntitySearchRequest,
             lords::{CompleteLordsCapture, LordProfile, LordRegister, LordsError},
+            membership::Chamber,
             parliament_member::MemberId,
             search_similarity::SearchSimilarity,
         },
@@ -54,11 +55,12 @@ impl LordsRepository for ExposedDatabase {
                     m.membership_from, m.membership_status, m.membership_end_date,
                     exposed.word_similarity($1, m.name) AS similarity
              FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind
-             WHERE k.chamber_id = 2 AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
+             WHERE k.chamber_id = $4 AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
              ORDER BY similarity DESC, m.parliament_member_id LIMIT $3",
             request.term(),
             request.strictness(),
-            i64::from(request.max_entries())
+            i64::from(request.max_entries()),
+            Chamber::Lords.id()
         )
         .fetch_all(&mut *tx)
         .await?;
@@ -89,8 +91,9 @@ impl ExposedDatabase {
                     m.membership_from, m.membership_status, m.membership_end_date,
                     NULL::real AS similarity
              FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind
-             WHERE k.chamber_id = 2 AND m.parliament_member_id = $1",
-            id
+             WHERE k.chamber_id = $2 AND m.parliament_member_id = $1",
+            id,
+            Chamber::Lords.id()
         )
         .fetch_optional(&mut *tx)
         .await?;

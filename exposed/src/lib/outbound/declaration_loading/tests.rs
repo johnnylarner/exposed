@@ -299,7 +299,7 @@ async fn supporting_name_resolution_loads_and_rejects_unknown_labels() -> anyhow
 async fn database_snapshot(pool: &sqlx::PgPool) -> sqlx::Result<serde_json::Value> {
     sqlx::query_scalar!(
         r#"SELECT jsonb_build_object(
-            'commons_members', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.members AS row WHERE membership_kind = 1),
+            'commons_members', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.members AS row WHERE membership_kind = '019a7a90-0000-7000-8000-000000000101'),
             'members', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.members AS row),
             'declarations', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.declarations AS row),
             'funders', (SELECT jsonb_agg(to_jsonb(row) ORDER BY id) FROM exposed.funders AS row),
@@ -319,7 +319,7 @@ async fn refresh_replaces_funders_and_preserves_untouched_declarations(
     let (_temporary, mut load) = resolved_test_run().await?;
     sqlx::query!(
         "INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
-    VALUES ($1::uuid, 4613, 'Test member', 1, 'Test party', 1, 'Test constituency', NULL)",
+    VALUES ($1::uuid, 4613, 'Test member', 1, 'Test party', '019a7a90-0000-7000-8000-000000000101', 'Test constituency', NULL)",
         Uuid::from_u128(1)
     )
     .execute(&pool)
@@ -539,7 +539,7 @@ async fn loader_groups_retained_identities_and_exact_retry_refreshes_without_rep
 ) -> anyhow::Result<()> {
     let (_temporary, load) = resolved_test_run().await?;
     sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
-    VALUES (4613, 'Test member', 1, 'Test party', 1, 'Test constituency', NULL)").execute(&pool).await?;
+    VALUES (4613, 'Test member', 1, 'Test party', '019a7a90-0000-7000-8000-000000000101', 'Test constituency', NULL)").execute(&pool).await?;
     let old_id = Uuid::from_u128(1);
     sqlx::query!(
         "INSERT INTO exposed.funders (id, funder_name) VALUES ($1, 'Retained old source')",
@@ -554,7 +554,7 @@ async fn loader_groups_retained_identities_and_exact_retry_refreshes_without_rep
     )
     .execute(&pool)
     .await?;
-    sqlx::query!("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at) SELECT 9000, id, 1, 'Retained', now() FROM exposed.members WHERE membership_kind = 1 LIMIT 1").execute(&pool).await?;
+    sqlx::query!("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at) SELECT 9000, id, 1, 'Retained', now() FROM exposed.members WHERE membership_kind = '019a7a90-0000-7000-8000-000000000101' LIMIT 1").execute(&pool).await?;
     sqlx::query!("INSERT INTO exposed.funding_entries (source_declaration_id, funder_id, amount, currency) VALUES (9000, $1, 7, 'GBP')", old_id).execute(&pool).await?;
     let repository = ExposedDatabase::from(pool.clone());
     repository.load_declarations(&load).await?;
@@ -614,7 +614,7 @@ async fn loader_groups_retained_identities_and_exact_retry_refreshes_without_rep
 
 async fn seed_load_member(pool: &sqlx::PgPool) -> sqlx::Result<()> {
     sqlx::query!("INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
-    VALUES (4613, 'Test member', 1, 'Test party', 1, 'Test constituency', NULL)").execute(pool).await?;
+    VALUES (4613, 'Test member', 1, 'Test party', '019a7a90-0000-7000-8000-000000000101', 'Test constituency', NULL)").execute(pool).await?;
     Ok(())
 }
 

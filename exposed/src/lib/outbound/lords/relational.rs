@@ -13,7 +13,7 @@ pub(super) struct ProfileRow {
     pub name: String,
     pub party_name: String,
     pub party_id: i32,
-    pub membership_kind: i16,
+    pub membership_kind: uuid::Uuid,
     pub membership_start_date: Option<String>,
     pub membership_from: String,
     pub membership_status: Option<String>,

@@ -143,7 +143,8 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
     .fetch_all(&pool)
     .await?;
     assert!(!stored.is_empty());
-    assert!(stored.iter().all(|member| member.membership_kind == 1));
+    assert!(stored.iter().all(|member| member.membership_kind
+        == exposed::domain::models::membership::MembershipKind::ElectedMp.id()));
     assert!(
         stored
             .iter()
@@ -159,8 +160,8 @@ async fn parliament_api_parses_all_sitting_members(pool: PgPool) -> sqlx::Result
 async fn declaration_fetch_preserves_member_funding(pool: PgPool) -> anyhow::Result<()> {
     sqlx::query!(
         "INSERT INTO exposed.members (parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
-    VALUES (4613, 'Alex Burghart', 4, 'Conservative', 1, 'Brentwood and Ongar', NULL),
-                (5030, 'Dr Simon Opher', 15, 'Labour', 1, 'Stroud', NULL)"
+    VALUES (4613, 'Alex Burghart', 4, 'Conservative', '019a7a90-0000-7000-8000-000000000101', 'Brentwood and Ongar', NULL),
+                (5030, 'Dr Simon Opher', 15, 'Labour', '019a7a90-0000-7000-8000-000000000101', 'Stroud', NULL)"
     )
     .execute(&pool)
     .await?;

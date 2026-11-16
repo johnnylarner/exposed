@@ -247,7 +247,7 @@ async fn windows_filter_all_boards_and_unresolved_funders_stay_in_member_and_par
         baseline.push((period, companies));
     }
     sqlx::query!("INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
-    SELECT ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i, 'Scope ' || i, 1, 'Party A', 1, 'Place', NULL FROM generate_series(20, 32) i").execute(&pool).await.unwrap();
+    SELECT ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i, 'Scope ' || i, 1, 'Party A', '019a7a90-0000-7000-8000-000000000101', 'Place', NULL FROM generate_series(20, 32) i").execute(&pool).await.unwrap();
     sqlx::query!("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at, registration_date)
         SELECT i * 100, ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, 987, 'Other', now(), '2024-08-01'::timestamptz FROM generate_series(20, 30) i
         UNION ALL SELECT 3100, '00000000-0000-0000-0000-000000000031'::uuid, 987, 'Historical leader', now(), '2023-01-01'::timestamptz

@@ -1,6 +1,6 @@
 INSERT INTO exposed.members (id, parliament_member_id, name, party_id, party_name, membership_kind, membership_from, membership_end_date)
     SELECT ('00000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, i, 'Member ' || i,
-       i, 'Party ' || i, 1, 'Place ' || i, NULL FROM generate_series(100, 122) i;
+       i, 'Party ' || i, '019a7a90-0000-7000-8000-000000000101', 'Place ' || i, NULL FROM generate_series(100, 122) i;
 INSERT INTO exposed.funders (id, funder_name, funder_kind)
 SELECT ('20000000-0000-0000-0000-' || lpad(i::text, 12, '0'))::uuid, 'Individual ' || i, 'Individual' FROM generate_series(100, 122) i
 UNION ALL

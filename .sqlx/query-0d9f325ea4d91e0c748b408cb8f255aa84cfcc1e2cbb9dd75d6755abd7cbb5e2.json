@@ -61,7 +61,7 @@
       {
         "ordinal": 5,
         "name": "membership_kind",
-        "type_info": "Int2",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
             "table": "members",

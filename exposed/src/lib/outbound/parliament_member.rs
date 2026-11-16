@@ -22,9 +22,10 @@ impl ParliamentMemberRepo for ExposedDatabase {
             "
             SELECT parliament_member_id
             FROM exposed.members m
-            WHERE (m.membership_kind = 1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))
+            WHERE (m.membership_kind = $1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))
             ORDER BY parliament_member_id
-            "
+            ",
+            MembershipKind::ElectedMp.id()
         )
         .fetch_all(self.pool())
         .await
@@ -65,13 +66,14 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 m.membership_from AS constituency, m.membership_kind, m.membership_start_date, m.membership_end_date, m.membership_status,
                  exposed.word_similarity($1, m.name) as similarity_score
             FROM exposed.members m
-            WHERE (m.membership_kind = 1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
+            WHERE (m.membership_kind = $4 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
             ORDER BY similarity_score DESC, m.id
             LIMIT $3
             ",
             req.term(),
             req.strictness(),
-            i64::from(req.max_entries())
+            i64::from(req.max_entries()),
+            MembershipKind::ElectedMp.id()
         )
         .fetch_all(&mut *tx)
         .await
@@ -142,14 +144,15 @@ impl ParliamentMemberRepo for ExposedDatabase {
                 ) best ON best.distance <= 1
                 HAVING count(best.word) = count(*) AND count(*) > 0
             ) correction
-            WHERE (m.membership_kind = 1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
+            WHERE (m.membership_kind = $4 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
               AND exposed.word_similarity(correction.corrected_query, m.name) >= $2
             ORDER BY correction.distance, similarity_score DESC, m.parliament_member_id
             LIMIT $3
             "#,
             req.term(),
             req.strictness(),
-            i64::from(req.max_entries())
+            i64::from(req.max_entries()),
+            MembershipKind::ElectedMp.id()
         )
         .fetch_all(self.pool())
         .await

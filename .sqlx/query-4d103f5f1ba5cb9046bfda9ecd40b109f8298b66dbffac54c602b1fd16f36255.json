@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT parliament_member_id, name, party_id, party_name, membership_from AS latest_membership_from, membership_kind, membership_end_date\n             FROM exposed.members m  WHERE parliament_member_id = $1 AND (m.membership_kind = 1 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))",
+  "query": "SELECT parliament_member_id, name, party_id, party_name, membership_from AS latest_membership_from, membership_kind, membership_end_date\n             FROM exposed.members m  WHERE parliament_member_id = $1 AND (m.membership_kind = $2 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))",
   "describe": {
     "columns": [
       {
@@ -61,7 +61,7 @@
       {
         "ordinal": 5,
         "name": "membership_kind",
-        "type_info": "Int2",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
             "table": "members",
@@ -83,7 +83,8 @@
     ],
     "parameters": {
       "Left": [
-        "Int4"
+        "Int4",
+        "Uuid"
       ]
     },
     "nullable": [
@@ -96,5 +97,5 @@
       true
     ]
   },
-  "hash": "ce3b1b7e78c8899ee1b3dc0ccfec22c05b359d4ebf167448f6e3052d506d1bef"
+  "hash": "4d103f5f1ba5cb9046bfda9ecd40b109f8298b66dbffac54c602b1fd16f36255"
 }

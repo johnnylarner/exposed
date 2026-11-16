@@ -679,7 +679,7 @@ mod reviewed_families {
     async fn reviewed_families_combine_all_names_and_preserve_distinct_evidence(
         pool: PgPool,
     ) -> sqlx::Result<()> {
-        sqlx::query!("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at) SELECT 9999, id, 1, 'Employment and earnings', now() FROM exposed.members WHERE membership_kind = 1 ORDER BY id LIMIT 1").execute(&pool).await?;
+        sqlx::query!("INSERT INTO exposed.declarations (source_declaration_id, member_id, category_id, category_name, fetched_at) SELECT 9999, id, 1, 'Employment and earnings', now() FROM exposed.members WHERE membership_kind = '019a7a90-0000-7000-8000-000000000101' ORDER BY id LIMIT 1").execute(&pool).await?;
         let db = ExposedDatabase::from(pool.clone());
         let families = [
             (

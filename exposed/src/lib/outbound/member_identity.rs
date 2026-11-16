@@ -4,7 +4,7 @@ pub(super) async fn upsert(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
     profile: &MemberProfile,
 ) -> Result<uuid::Uuid, sqlx::Error> {
-    let kind = profile.membership.kind as i16;
+    let kind = profile.membership.kind.id();
     let start = profile
         .membership
         .membership_start_date
