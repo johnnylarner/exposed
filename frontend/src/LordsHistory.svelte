@@ -7,7 +7,7 @@
     Pagination,
   } from "./lib/ui";
   import {
-    sourceCalendarDate,
+    sourceTimestampLabel,
     type LordsDetails,
     type RegisteredInterest,
   } from "./lib/lords";
@@ -30,7 +30,7 @@
   });
 </script>
 
-{#snippet interestItems(interests: RegisteredInterest[])}
+{#snippet interestItems(interests: RegisteredInterest[], showCreated = true)}
   {#each interests as interest}
     <RegisteredInterestItem
       text={interest.text ?? "Interest text unavailable"}
@@ -39,25 +39,21 @@
         : {
             kind: "deleted",
             datetime: interest.deletedWhen,
-            date: sourceCalendarDate(interest.deletedWhen),
+            date: sourceTimestampLabel(interest.deletedWhen),
           }}
       correction={interest.isCorrection}
     >
       {#snippet metadata()}
         <span class="source-detail">Interest {interest.sourceId}</span>
-        {#if interest.createdWhen !== null}<span class="source-detail"
+        {#if showCreated && interest.createdWhen !== null}<span
+            class="source-detail"
             >Created <time datetime={interest.createdWhen}
-              >{interest.createdWhen}</time
+              >{sourceTimestampLabel(interest.createdWhen)}</time
             ></span
           >{/if}
         {#if interest.lastAmendedWhen !== null}<span class="source-detail"
             >Amended <time datetime={interest.lastAmendedWhen}
-              >{interest.lastAmendedWhen}</time
-            ></span
-          >{/if}
-        {#if interest.deletedWhen !== null}<span class="source-detail"
-            >Deleted <time datetime={interest.deletedWhen}
-              >{interest.deletedWhen}</time
+              >{sourceTimestampLabel(interest.lastAmendedWhen)}</time
             ></span
           >{/if}
       {/snippet}
@@ -79,9 +75,17 @@
           {#snippet heading()}<h3>
               {card.category.name ?? `Category ${card.category.sourceId}`}
             </h3>{/snippet}
-          {#snippet registered()}Category {card.category.sourceId}{/snippet}
+          {#snippet registered()}
+            {#if card.interest.createdWhen !== null}
+              Created <time datetime={card.interest.createdWhen}
+                >{sourceTimestampLabel(card.interest.createdWhen)}</time
+              >
+            {:else}
+              Creation date unavailable
+            {/if}
+          {/snippet}
           <ul class="interest-list">
-            {@render interestItems([card.interest])}
+            {@render interestItems([card.interest], false)}
           </ul>
         </DeclarationCard>
       {/each}

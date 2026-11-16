@@ -6,6 +6,7 @@ import {
   currentLordsCategories,
   groupLordsCategories,
   sourceCalendarDate,
+  sourceTimestampLabel,
   type RegisteredInterest,
 } from "../src/lib/lords";
 import { shareholdingSummary } from "../src/lib/lords-shareholdings";
@@ -116,6 +117,17 @@ test("shareholding summaries distinguish missing text and bound source previews"
   );
   expect(shareholdingSummary("X".repeat(150)).text).toBe(`${"X".repeat(112)}…`);
 });
+
+for (const [value, label] of [
+  ["2026-11-12T23:45:00-09:00", "12 Nov 2026, 23:45:00-09:00"],
+  ["2025-01-01T01:00:00+02:00", "1 Jan 2025, 01:00:00+02:00"],
+  ["2026-02-03T04:05:06.123456789Z", "3 Feb 2026, 04:05:06.123456789Z"],
+  ["2012-06-14T12:49:14", "14 Jun 2012, 12:49:14"],
+] satisfies [string, string][]) {
+  test(`source timestamp label retains source precision and offset for ${value}`, () => {
+    expect(sourceTimestampLabel(value)).toBe(label);
+  });
+}
 
 test("Lords adapter retains every occurrence, nullable value and source lifecycle timestamp", async () => {
   const parsed = parseLordsDetails(lordsFixture);

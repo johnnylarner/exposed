@@ -104,6 +104,19 @@ test("Lords summary SSR shows nine active occurrences in the established columns
   await expect(back).toHaveAttribute("href", "/search?q=Example");
   await back.focus();
   await expect(back).toHaveCSS("outline-color", "rgb(240, 240, 237)");
+  const leftHeading = await left
+    .getByRole("heading", { name: "Shareholdings", exact: true })
+    .boundingBox();
+  const rightHeading = await right
+    .getByRole("heading", { name: "Registered interests", exact: true })
+    .boundingBox();
+  expect(leftHeading).not.toBeNull();
+  expect(rightHeading).not.toBeNull();
+  if (leftHeading && rightHeading) {
+    expect(leftHeading.y + leftHeading.height).toBe(
+      rightHeading.y + rightHeading.height,
+    );
+  }
   const leftBounds = await left.boundingBox();
   const rightBounds = await right.boundingBox();
   expect(leftBounds).not.toBeNull();
@@ -155,16 +168,20 @@ test("Lords history SSR retains all twelve occurrences, category ownership, full
     "Nil",
   ]);
   await expect(page.locator(".declaration-heading > p")).toHaveText([
-    "Category 888",
-    "Category 888",
-    "Category 1002",
-    "Category 1002",
-    "Category 1002",
-    "Category 55",
-    "Category 55",
-    "Category 55",
-    "Category 66",
+    "Created 14 Jun 2012, 12:49:14",
+    "Creation date unavailable",
+    "Created 14 Jun 2012, 12:49:14",
+    "Created 14 Jun 2012, 12:49:14",
+    "Created 14 Jun 2012, 12:49:14",
+    "Created 14 Jun 2012, 12:49:14",
+    "Created 14 Jun 2012, 12:49:14",
+    "Created 14 Jun 2012, 12:49:14",
+    "Created 14 Jun 2012, 12:49:14",
   ]);
+  await expect(page.locator(".declaration-heading > p time")).toHaveCount(8);
+  await expect(
+    page.locator(".interest-metadata").getByText(/^Created /u),
+  ).toHaveCount(3);
   await expect(
     page
       .locator(".interest-metadata")
@@ -174,23 +191,26 @@ test("Lords history SSR retains all twelve occurrences, category ownership, full
     page.locator(".interest-text").filter({ hasText: /^Repeated holding$/u }),
   ).toHaveCount(2);
   await expect(page.locator(".interest-status")).toHaveText([
-    "Deleted 5 Apr 2025",
-    "Deleted 12 Nov 2026",
-    "Deleted 2 Oct 2026",
+    "Deleted 5 Apr 2025, 00:00:00",
+    "Deleted 12 Nov 2026, 23:45:00-09:00",
+    "Deleted 2 Oct 2026, 00:00:00",
   ]);
   await expect(page.locator(".interest-correction")).toHaveCount(2);
-  for (const date of [
-    "2012-06-14T12:49:14",
-    "2025-01-01T01:00:00+02:00",
-    "2026-11-12T23:45:00-09:00",
-    "2026-10-02T00:00:00",
-  ]) {
-    const timestamp = page
-      .locator(".interest-metadata time")
-      .filter({ hasText: date })
-      .first();
-    await expect(timestamp).toBeVisible();
-    await expect(timestamp).toHaveAttribute("datetime", date);
+  await expect(
+    page.locator(".interest-metadata").getByText(/^Deleted /u),
+  ).toHaveCount(0);
+  for (const [date, label, count] of [
+    ["2012-06-14T12:49:14", "14 Jun 2012, 12:49:14", 11],
+    ["2025-01-01T01:00:00+02:00", "1 Jan 2025, 01:00:00+02:00", 1],
+    ["2025-04-05T00:00:00", "5 Apr 2025, 00:00:00", 1],
+    ["2026-11-12T23:45:00-09:00", "12 Nov 2026, 23:45:00-09:00", 1],
+    ["2026-10-02T00:00:00", "2 Oct 2026, 00:00:00", 1],
+  ] satisfies [string, string, number][]) {
+    const timestamps = page.locator(`#lords time[datetime="${date}"]`);
+    await expect(timestamps).toHaveCount(count);
+    await expect(timestamps).toHaveText(
+      Array.from({ length: count }, () => label),
+    );
   }
   await expect(page.locator("#lords details, #lords summary")).toHaveCount(0);
   await expect(

@@ -54,7 +54,11 @@
     {/if}
   </section>
   <section aria-labelledby="registered-interests">
-    <SectionHeading id="registered-interests" title="Registered interests" />
+    <SectionHeading
+      id="registered-interests"
+      title="Registered interests"
+      tone="accent"
+    />
     {#if otherInterests.length === 0}<p class="empty-category">
         No interests supplied.
       </p>{/if}

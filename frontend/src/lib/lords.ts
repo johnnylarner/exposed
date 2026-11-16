@@ -85,3 +85,7 @@ export function sourceCalendarDate(value: string): string {
     timeZone: "UTC",
   }).format(date);
 }
+
+export function sourceTimestampLabel(value: string): string {
+  return `${sourceCalendarDate(value)}, ${value.slice(11)}`;
+}
