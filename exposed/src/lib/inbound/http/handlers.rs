@@ -66,6 +66,7 @@ pub struct SearchEntity {
     kind: EntityKind,
     funder_kind: Option<String>,
     match_source: SearchMatchSource,
+    parliamentary_name: Option<String>,
 }
 
 impl From<&Entity> for SearchEntity {
@@ -79,6 +80,11 @@ impl From<&Entity> for SearchEntity {
             match_source: match value {
                 Entity::Funder(funder) => funder.source().clone(),
                 Entity::ParliamentMember(_) | Entity::Lord(_) => SearchMatchSource::Name,
+            },
+            parliamentary_name: match value {
+                Entity::Funder(_) => None,
+                Entity::ParliamentMember(member) => member.profile.parliamentary_name.clone(),
+                Entity::Lord(member) => member.parliamentary_name.clone(),
             },
             name: value.name().to_string(),
             kind: value.kind(),

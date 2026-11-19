@@ -11,7 +11,11 @@
   >{#snippet kind()}<Badge variant="profile"
       ><Icon name="parliament" size={20} />MP</Badge
     >{/snippet}{#snippet metadata()}
-    {member.partyName || "Party unavailable"}<span
+    {#if member.parliamentaryName && member.parliamentaryName !== member.name}
+      {member.parliamentaryName}<span
+        >{member.partyName || "Party unavailable"}</span
+      >
+    {:else}{member.partyName || "Party unavailable"}{/if}<span
       >{member.membershipFrom || "Membership unavailable"}</span
     ><span>{member.isCurrentCommons ? "Current MP" : "Former MP"}</span>
   {/snippet}{#snippet navigation()}<ViewLinks label="Member views">

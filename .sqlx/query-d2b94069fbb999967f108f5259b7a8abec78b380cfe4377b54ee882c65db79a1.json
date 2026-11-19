@@ -1,16 +1,16 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            SELECT  \n                m.name,\n                m.parliament_member_id,\n                m.party_name,\n                m.party_id,\n                m.membership_from AS constituency, k.name AS membership_kind, m.membership_start_date, m.membership_end_date, m.membership_status,\n                 exposed.word_similarity($1, m.name) as similarity_score\n            FROM exposed.members m\n            JOIN exposed.membership_kinds k ON k.id = m.membership_kind\n            WHERE (k.name = $4 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2\n            ORDER BY similarity_score DESC, m.id\n            LIMIT $3\n            ",
+  "query": "SELECT m.id AS member_id, m.parliament_member_id, m.name, m.parliamentary_name, m.party_name, m.party_id, k.name AS membership_kind, m.membership_start_date,\n                    m.membership_from, m.membership_status, m.membership_end_date,\n                    GREATEST(exposed.word_similarity($1, m.name), exposed.word_similarity($1, m.parliamentary_name), exposed.word_similarity($1, m.formal_name)) AS similarity\n             FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind\n             JOIN exposed.chambers c ON c.id = k.chamber_id\n             WHERE c.name = $4 AND (m.name OPERATOR(exposed.%>) $1 OR m.parliamentary_name OPERATOR(exposed.%>) $1 OR m.formal_name OPERATOR(exposed.%>) $1) AND GREATEST(exposed.word_similarity($1, m.name), exposed.word_similarity($1, m.parliamentary_name), exposed.word_similarity($1, m.formal_name)) >= $2\n             ORDER BY similarity DESC, m.parliament_member_id LIMIT $3",
   "describe": {
     "columns": [
       {
         "ordinal": 0,
-        "name": "name",
-        "type_info": "Text",
+        "name": "member_id",
+        "type_info": "Uuid",
         "origin": {
           "Table": {
             "table": "members",
-            "name": "name"
+            "name": "id"
           }
         }
       },
@@ -27,6 +27,28 @@
       },
       {
         "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "parliamentary_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliamentary_name"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
         "name": "party_name",
         "type_info": "Text",
         "origin": {
@@ -37,7 +59,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 5,
         "name": "party_id",
         "type_info": "Int4",
         "origin": {
@@ -48,18 +70,7 @@
         }
       },
       {
-        "ordinal": 4,
-        "name": "constituency",
-        "type_info": "Text",
-        "origin": {
-          "Table": {
-            "table": "members",
-            "name": "membership_from"
-          }
-        }
-      },
-      {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "membership_kind",
         "type_info": "Text",
         "origin": {
@@ -70,7 +81,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "membership_start_date",
         "type_info": "Text",
         "origin": {
@@ -81,18 +92,18 @@
         }
       },
       {
-        "ordinal": 7,
-        "name": "membership_end_date",
+        "ordinal": 8,
+        "name": "membership_from",
         "type_info": "Text",
         "origin": {
           "Table": {
             "table": "members",
-            "name": "membership_end_date"
+            "name": "membership_from"
           }
         }
       },
       {
-        "ordinal": 8,
+        "ordinal": 9,
         "name": "membership_status",
         "type_info": "Text",
         "origin": {
@@ -103,8 +114,19 @@
         }
       },
       {
-        "ordinal": 9,
-        "name": "similarity_score",
+        "ordinal": 10,
+        "name": "membership_end_date",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "membership_end_date"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "similarity",
         "type_info": "Float4",
         "origin": "Expression"
       }
@@ -121,14 +143,16 @@
       false,
       false,
       false,
+      true,
       false,
       false,
       false,
       true,
+      false,
       true,
       true,
       null
     ]
   },
-  "hash": "653b656d04e66f5861ee3189cb668f4464f9860e61785371fb9ebeadca4a593b"
+  "hash": "d2b94069fbb999967f108f5259b7a8abec78b380cfe4377b54ee882c65db79a1"
 }

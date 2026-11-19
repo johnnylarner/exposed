@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE exposed.members SET name=$2, personal_first_name=$3, personal_last_name=$4, parliamentary_name=$5, formal_name=$6 WHERE parliament_member_id=$1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int4",
+        "Text",
+        "Text",
+        "Text",
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "08208f904a9e3ae4b22aa20ef185bf8f0e088291a8cc5f954b8d7eb8a251dace"
+}

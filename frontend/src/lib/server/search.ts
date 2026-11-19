@@ -49,6 +49,8 @@ function readEntities(body: unknown): Entity[] {
         !/^[1-9]\d*$/u.test(value.id) ||
         Number(value.id) > 2147483647 ||
         value.funder_kind !== null ||
+        (value.parliamentary_name !== null &&
+          typeof value.parliamentary_name !== "string") ||
         matchSource.kind !== "name"
       )
         throw new Error(
@@ -59,6 +61,7 @@ function readEntities(body: unknown): Entity[] {
         name: value.name,
         kind: value.kind,
         funderKind: null,
+        parliamentaryName: value.parliamentary_name,
         matchSource,
       };
     }

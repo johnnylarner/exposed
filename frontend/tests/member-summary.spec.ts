@@ -28,6 +28,7 @@ function details(declarations: MemberDeclaration[]): MemberDetails {
     member: {
       id: "1",
       name: "Example",
+      parliamentaryName: null,
       partyName: "",
       membershipFrom: "",
       isCurrentCommons: true,

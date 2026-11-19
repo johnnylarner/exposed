@@ -130,6 +130,7 @@ impl From<MemberRecord> for ParliamentMember {
             profile: MemberProfile {
                 id: record.parliament_member_id,
                 name: record.name,
+                parliamentary_name: None,
                 party_id: record.party_id,
                 party_name: record.party_name,
                 membership: Membership {

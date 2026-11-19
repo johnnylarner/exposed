@@ -172,7 +172,7 @@ async fn public_lords_response_and_search_keep_the_frozen_contract(pool: PgPool)
         serde_json::from_slice(&to_bytes(response.into_body(), usize::MAX).await.unwrap()).unwrap();
     assert_eq!(
         public["entities"][0],
-        json!({"id":"2175", "name":"Lord Example", "kind":"Lords", "funder_kind":null, "match_source":{"kind":"name"}})
+        json!({"id":"2175", "name":"Lord Example", "parliamentary_name":"Lord Example", "kind":"Lords", "funder_kind":null, "match_source":{"kind":"name"}})
     );
 }
 
@@ -181,6 +181,7 @@ fn stored_register(
     index: usize,
 ) -> crate::domain::models::lords::LordRegister {
     let mut register = capture.members()[index].clone();
+    register.member.parliamentary_name = Some(register.member.name.clone());
     register
         .categories
         .retain(|category| !category.interests.is_empty());

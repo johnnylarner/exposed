@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT m.parliament_member_id, m.name, m.party_id, m.party_name, m.membership_from AS latest_membership_from, k.name AS membership_kind, m.membership_end_date\n             FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind WHERE parliament_member_id = $1 AND (k.name = $2 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))",
+  "query": "SELECT m.parliament_member_id, m.name, m.parliamentary_name, m.party_id, m.party_name, m.membership_from AS latest_membership_from, k.name AS membership_kind, m.membership_end_date\n             FROM exposed.members m JOIN exposed.membership_kinds k ON k.id = m.membership_kind WHERE parliament_member_id = $1 AND (k.name = $2 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))",
   "describe": {
     "columns": [
       {
@@ -27,6 +27,17 @@
       },
       {
         "ordinal": 2,
+        "name": "parliamentary_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "members",
+            "name": "parliamentary_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
         "name": "party_id",
         "type_info": "Int4",
         "origin": {
@@ -37,7 +48,7 @@
         }
       },
       {
-        "ordinal": 3,
+        "ordinal": 4,
         "name": "party_name",
         "type_info": "Text",
         "origin": {
@@ -48,7 +59,7 @@
         }
       },
       {
-        "ordinal": 4,
+        "ordinal": 5,
         "name": "latest_membership_from",
         "type_info": "Text",
         "origin": {
@@ -59,7 +70,7 @@
         }
       },
       {
-        "ordinal": 5,
+        "ordinal": 6,
         "name": "membership_kind",
         "type_info": "Text",
         "origin": {
@@ -70,7 +81,7 @@
         }
       },
       {
-        "ordinal": 6,
+        "ordinal": 7,
         "name": "membership_end_date",
         "type_info": "Text",
         "origin": {
@@ -90,6 +101,7 @@
     "nullable": [
       false,
       false,
+      true,
       false,
       false,
       false,
@@ -97,5 +109,5 @@
       true
     ]
   },
-  "hash": "c8e99286cea8276947c08c54463d4faf78adb59e22d0aa78f2a0ef0c51c5a3ff"
+  "hash": "c09a09ecaeda7515c1e4e7e55271bead5ee0e4739528d9a528cabcf4f1918b13"
 }

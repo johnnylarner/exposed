@@ -31,6 +31,7 @@ pub mod config;
 mod config_help;
 mod healthcheck;
 mod lords;
+mod member_names;
 mod migrate;
 pub mod response;
 mod response_help;
@@ -135,6 +136,8 @@ pub enum DataCommands {
     Declarations(stages::StageArgs<DeclarationIngestionStage>),
     /// Capture and load members, in that order.
     Members(stages::StageArgs<MemberIngestionStage>),
+    /// Capture and refresh personal names for stored MPs and Lords.
+    MemberNames(member_names::MemberNamesArgs),
 }
 
 impl DataArgs {
@@ -143,6 +146,7 @@ impl DataArgs {
     pub fn schema_response(&self) -> Option<Response> {
         match &self.command {
             DataCommands::Util(args) => args.schema_response(),
+            DataCommands::MemberNames(args) => args.schema_response(),
             DataCommands::Declarations(args) => matches!(args.input, stages::StageInput::Schema)
                 .then(|| Response::schema(&response_help::declaration(&args.stage))),
             DataCommands::Members(args) => matches!(args.input, stages::StageInput::Schema)
@@ -184,6 +188,7 @@ pub async fn run_cli(args: DataArgs) -> Response {
     }
     match args.command {
         DataCommands::Util(args) => run_util(args).await,
+        DataCommands::MemberNames(args) => member_names::execute(args).await,
         DataCommands::Declarations(args) => {
             let (config, ingestion_key) = args.input.into_execution();
             match args.stage {

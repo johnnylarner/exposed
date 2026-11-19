@@ -108,3 +108,39 @@ Absent profiles return 404, malformed IDs return 422, and unexpected failures re
 Search returns `kind: "Lords"`, the string Parliament ID, `funder_kind: null`,
 and `match_source: {"kind":"name"}`. Lords primary name matches join the existing
 score ordering. They do not change MP or funder phonetic fallback eligibility.
+
+## Refresh personal names for MPs and Lords
+
+After importing member profiles, refresh personal names from Parliament MNIS preferred names.
+Both chambers use the same commands and the same `data_dir` configuration.
+Both stages require `DATABASE_URL` because fetch checks coverage of every stored member.
+
+```sh
+exposed data member-names fetch --config lords.yaml
+exposed data member-names load --config lords.yaml --ingestion-key <capture-uuid>
+```
+
+Fetch captures `House=Commons/PreferredNames/` and `House=Lords/PreferredNames/`
+from the official MNIS service. It fetches stored historical members individually when
+absent from those responses. Each member must have exactly one explicitly open preferred
+name with a nonempty `Forename` and `Surname`. Personal names retain compound parts.
+Names are never inferred from titles or extracted from declaration text.
+
+The immutable artifact `<data_dir>/<ingestion-key>/raw/member-names.json` contains a
+versioned envelope with the original UTF-8 source documents, including their BOM.
+A failed source request or incomplete response leaves no published artifact.
+Fetch accepts an optional ingestion key. Load requires the captured key and replays offline.
+Both commands return `ingestion_key`, `path`, and the number of stored `members` covered.
+Both accept `--schema` without configuration or side effects.
+
+Load parses the entire capture and checks every stored member's identity and chamber
+before updating names in one transaction. It updates existing members only. The primary
+`name` becomes the preferred first name and surname. `parliamentary_name` retains the
+source `DisplayAs`, and `formal_name` retains `FullTitle`. Both remain searchable. Search
+results and profile headings show the personal name with a distinct parliamentary name
+secondarily. Other lists use the personal name. Replaying older Commons or Lords imports
+preserves personal names and refreshes their source parliamentary spelling.
+
+The migration preserves existing display names until the first refresh. Reverting it
+restores parliamentary display names. Neither refresh nor migration changes membership,
+declarations, funding, currencies, or financial totals.

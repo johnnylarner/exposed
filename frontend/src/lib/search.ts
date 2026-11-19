@@ -16,6 +16,7 @@ export type Entity =
       id: string;
       name: string;
       kind: "MP" | "Lords";
+      parliamentaryName: string | null;
       funderKind: null;
       matchSource: { kind: "name" };
     }

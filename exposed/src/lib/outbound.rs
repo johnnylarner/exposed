@@ -32,3 +32,6 @@ mod updates;
 
 mod lords;
 pub use lords::{LordsApiClient, LordsCaptureFiles};
+
+mod member_names;
+pub use member_names::{MemberNamesApi, MemberNamesFiles};

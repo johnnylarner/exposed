@@ -21,6 +21,7 @@ impl ParliamentMember {
             profile: MemberProfile {
                 id: member_id,
                 name,
+                parliamentary_name: None,
                 party_id,
                 party_name,
                 membership: Membership {

@@ -19,6 +19,7 @@ async function mockDetails(backend: Backend) {
             id: "1",
             name: member.name,
             kind: "MP",
+            parliamentary_name: null,
             funder_kind: null,
             match_source: { kind: "name" },
           },
@@ -1861,4 +1862,29 @@ test("member source table has an explicit empty state", async ({
       name: "Sources ranked by known declared GBP amounts",
     }),
   ).toHaveCount(0);
+});
+
+test("MPs show a personal heading and retain a distinct parliamentary name", async ({
+  backend,
+  page,
+}) => {
+  await backend.route("**/api/members/1?*", (route) =>
+    route.fulfill({
+      json: {
+        ...memberDetails,
+        member: {
+          ...memberDetails.member,
+          name: "Ava Example",
+          parliamentary_name: "Dame Ava Example",
+        },
+      },
+    }),
+  );
+  await page.goto("/members/1");
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Ava Example", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator(".member-identity")).toContainText(
+    "Dame Ava Example",
+  );
 });

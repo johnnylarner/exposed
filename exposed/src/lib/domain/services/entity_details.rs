@@ -340,6 +340,7 @@ mod tests {
             member: MemberProfile {
                 id: "1".parse().unwrap(),
                 name: "Example".into(),
+                parliamentary_name: None,
                 party_id: 1,
                 party_name: "Party".into(),
                 membership_from: "Example".into(),

@@ -60,15 +60,15 @@ impl ParliamentMemberRepo for ExposedDatabase {
         let rows = sqlx::query!(
             "
             SELECT  
-                m.name,
+                m.name, m.parliamentary_name,
                 m.parliament_member_id,
                 m.party_name,
                 m.party_id,
                 m.membership_from AS constituency, k.name AS membership_kind, m.membership_start_date, m.membership_end_date, m.membership_status,
-                 exposed.word_similarity($1, m.name) as similarity_score
+                 GREATEST(exposed.word_similarity($1, m.name), exposed.word_similarity($1, m.parliamentary_name), exposed.word_similarity($1, m.formal_name)) as similarity_score
             FROM exposed.members m
             JOIN exposed.membership_kinds k ON k.id = m.membership_kind
-            WHERE (k.name = $4 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND m.name OPERATOR(exposed.%>) $1 AND exposed.word_similarity($1, m.name) >= $2
+            WHERE (k.name = $4 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND (m.name OPERATOR(exposed.%>) $1 OR m.parliamentary_name OPERATOR(exposed.%>) $1 OR m.formal_name OPERATOR(exposed.%>) $1) AND GREATEST(exposed.word_similarity($1, m.name), exposed.word_similarity($1, m.parliamentary_name), exposed.word_similarity($1, m.formal_name)) >= $2
             ORDER BY similarity_score DESC, m.id
             LIMIT $3
             ",
@@ -92,6 +92,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
                         )
                         .map_err(database_error)?,
                         name: r.name,
+                        parliamentary_name: r.parliamentary_name,
                         party_name: r.party_name,
                         party_id: u32::try_from(r.party_id).map_err(database_error)?,
                         membership: Membership {
@@ -124,31 +125,41 @@ impl ParliamentMemberRepo for ExposedDatabase {
     ) -> Result<Vec<(ParliamentMember, PhoneticRank)>, ParliamentMemberRepoError> {
         let rows = sqlx::query!(
             r#"
-            SELECT m.name, m.parliament_member_id, m.party_name, m.party_id,
+            SELECT m.name, m.parliamentary_name, m.parliament_member_id, m.party_name, m.party_id,
                    m.membership_from AS constituency, k.name AS membership_kind, m.membership_start_date, m.membership_end_date, m.membership_status,
                    correction.distance AS "distance!",
-                   exposed.word_similarity(correction.corrected_query, m.name) AS similarity_score
+                   correction.similarity_score AS similarity_score
             FROM exposed.members m
             JOIN exposed.membership_kinds k ON k.id = m.membership_kind
             CROSS JOIN LATERAL (
-                SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,
-                       sum(best.distance)::integer AS distance
-                FROM unnest(exposed.person_name_words($1)) WITH ORDINALITY AS q(word, position)
-                LEFT JOIN LATERAL (
-                    SELECT cw.word, CASE
-                        WHEN char_length(q.word) <= 255 AND char_length(cw.word) <= 255
-                        THEN exposed.levenshtein_less_equal(q.word, cw.word, 1)
-                        ELSE 2
-                    END AS distance
-                    FROM unnest(exposed.person_name_words(m.name)) AS cw(word)
-                    WHERE exposed.soundex(cw.word) = exposed.soundex(q.word)
-                    ORDER BY distance, cw.word COLLATE "C"
-                    LIMIT 1
-                ) best ON best.distance <= 1
-                HAVING count(best.word) = count(*) AND count(*) > 0
+                SELECT corrected.distance, exposed.word_similarity(corrected.corrected_query, variant.name) AS similarity_score
+                FROM unnest(ARRAY[m.name, m.parliamentary_name, m.formal_name]) WITH ORDINALITY AS variant(name, priority)
+                CROSS JOIN LATERAL (
+                    SELECT string_agg(best.word, ' ' ORDER BY q.position) AS corrected_query,
+                           sum(best.distance)::integer AS distance
+                    FROM unnest(exposed.person_name_words($1)) WITH ORDINALITY AS q(word, position)
+                    LEFT JOIN LATERAL (
+                        SELECT cw.word, CASE
+                            WHEN char_length(q.word) <= 255 AND char_length(cw.word) <= 255
+                            THEN exposed.levenshtein_less_equal(q.word, cw.word, 1)
+                            ELSE 2
+                        END AS distance
+                        FROM unnest(exposed.person_name_words(variant.name)) AS cw(word)
+                        WHERE exposed.soundex(cw.word) = exposed.soundex(q.word)
+                        ORDER BY distance, cw.word COLLATE "C"
+                        LIMIT 1
+                    ) best ON best.distance <= 1
+                    HAVING count(best.word) = count(*) AND count(*) > 0
+                ) corrected
+                WHERE exposed.person_name_codes(variant.name) @> exposed.person_name_codes($1)
+                  AND exposed.word_similarity(corrected.corrected_query, variant.name) >= $2
+                ORDER BY corrected.distance, similarity_score DESC, variant.priority
+                LIMIT 1
             ) correction
-            WHERE (k.name = $4 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id)) AND exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
-              AND exposed.word_similarity(correction.corrected_query, m.name) >= $2
+            WHERE (k.name = $4 AND m.membership_end_date IS NULL OR EXISTS (SELECT 1 FROM exposed.declarations d WHERE d.member_id = m.id))
+              AND (exposed.person_name_codes(m.name) @> exposed.person_name_codes($1)
+                   OR exposed.person_name_codes(m.parliamentary_name) @> exposed.person_name_codes($1)
+                   OR exposed.person_name_codes(m.formal_name) @> exposed.person_name_codes($1))
             ORDER BY correction.distance, similarity_score DESC, m.parliament_member_id
             LIMIT $3
             "#,
@@ -169,6 +180,7 @@ impl ParliamentMemberRepo for ExposedDatabase {
                         )
                         .map_err(database_error)?,
                         name: r.name,
+                        parliamentary_name: r.parliamentary_name,
                         party_name: r.party_name,
                         party_id: u32::try_from(r.party_id).map_err(database_error)?,
                         membership: Membership {
