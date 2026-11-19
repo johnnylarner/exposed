@@ -178,3 +178,42 @@ test("production hides the design system route and footer link", async ({
   expect(response?.status()).toBe(404);
   await expect(page.locator("#design-system")).toHaveCount(0);
 });
+
+test("homepage canonical is present in SSR HTML and omits tracking parameters", async ({
+  request,
+}) => {
+  for (const path of ["/", "/?utm_source=test&extra=value"]) {
+    const response = await request.get(path);
+    expect(response.status()).toBe(200);
+    const html = await response.text();
+    const head = html.split("</head>")[0];
+    expect(head.match(/<link\b[^>]*rel="canonical"[^>]*>/gu)).toEqual([
+      '<link rel="canonical" href="https://declair.work/"/>',
+    ]);
+  }
+  for (const path of ["/search", "/methodology", "/missing"]) {
+    const response = await request.get(path);
+    expect(await response.text()).not.toMatch(
+      /<link\b[^>]*rel="canonical"[^>]*href="https:\/\/declair\.work\/"/u,
+    );
+  }
+});
+
+test("homepage canonical follows client navigation", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://declair.work/",
+  );
+  await page
+    .getByRole("link", { name: "Search MPs, Lords and funders" })
+    .click();
+  await expect(
+    page.locator('link[rel="canonical"][href="https://declair.work/"]'),
+  ).toHaveCount(0);
+  await page.getByRole("link", { name: "declair home" }).click();
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    "https://declair.work/",
+  );
+});

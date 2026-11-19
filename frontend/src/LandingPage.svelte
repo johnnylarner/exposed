@@ -1,7 +1,12 @@
 <script lang="ts">
+  import { canonicalOrigin } from "./lib/site";
   import { rankingHref } from "./lib/rankings";
   import { ButtonLink } from "./lib/ui";
 </script>
+
+<svelte:head>
+  <link rel="canonical" href={`${canonicalOrigin}/`} />
+</svelte:head>
 
 <main id="landing" class="landing-page" tabindex="-1">
   <div class="landing-content">
