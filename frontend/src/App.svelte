@@ -3,6 +3,7 @@
   import LandingPage from "./LandingPage.svelte";
   import MethodologyPage from "./MethodologyPage.svelte";
   import { pagePresentation } from "./lib/page";
+  import { declaredTotal, reportingPeriods } from "./lib/reporting-period";
   import SearchPage from "./SearchPage.svelte";
   import EntityDetails from "./EntityDetails.svelte";
   import type { PageModel } from "./lib/page";
@@ -12,11 +13,35 @@
       model.kind === "detail" && model.entity === "lord" ? "lord" : model.kind
     ],
   );
+  const metadata = $derived.by(() => {
+    if (
+      model.kind !== "detail" ||
+      model.entity !== "member" ||
+      model.result.kind !== "member"
+    )
+      return presentation;
+
+    const { member, summary } = model.result.details;
+    const history = model.route.view === "history";
+    const subject = history
+      ? "declaration history"
+      : "registered financial interests";
+    const period = reportingPeriods[model.period];
+    const count = declaredTotal(
+      summary.declaredTotals,
+      model.period,
+    ).declarationCount;
+    const records = count === 1 ? "declaration" : "declarations";
+    return {
+      title: `${member.name} · ${subject} · ${period} · declair`,
+      description: `${member.name} · ${period}. ${count} ${records} in the Register of Members’ Financial Interests. ${history ? "Explore individual records." : "View declared amounts and funding sources."}`,
+    };
+  });
 </script>
 
 <svelte:head>
-  <title>{presentation.title}</title>
-  <meta name="description" content={presentation.description} />
+  <title>{metadata.title}</title>
+  <meta name="description" content={metadata.description} />
 </svelte:head>
 <AppShell
   target={presentation.target}

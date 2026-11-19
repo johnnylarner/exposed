@@ -169,7 +169,14 @@ test("member declaration history remains accessible from the summary tab navigat
       },
     }),
   );
-  await page.goto("/members/1?q=Example");
+  const response = await page.goto("/members/1?q=Example");
+  const html = await response!.text();
+  expect(html).toContain(
+    "<title>Ava Example · registered financial interests · This parliamentary term · declair</title>",
+  );
+  expect(html).toContain(
+    'name="description" content="Ava Example · This parliamentary term. 1 declaration in the Register',
+  );
   await expect(page.locator(".declaration-reference")).toHaveCount(0);
   const history = page.getByRole("link", {
     name: "Declaration history",
@@ -180,6 +187,9 @@ test("member declaration history remains accessible from the summary tab navigat
     "/members/1/history?period=current-term&q=Example",
   );
   await history.click();
+  await expect(page).toHaveTitle(
+    "Ava Example · declaration history · This parliamentary term · declair",
+  );
   await expect(page).toHaveURL(
     /members\/1\/history\?period=current-term&q=Example$/u,
   );
