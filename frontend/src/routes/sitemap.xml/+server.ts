@@ -1,6 +1,6 @@
 import type { RequestHandler } from "./$types";
 import { rankingCategories, rankingHref } from "../../lib/rankings";
-import { canonicalOrigin } from "../../lib/server/site";
+import { canonicalOrigin } from "../../lib/site";
 
 export const prerender = true;
 
